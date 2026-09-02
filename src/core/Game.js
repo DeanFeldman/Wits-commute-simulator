@@ -34,6 +34,8 @@ export class Game {
 
     this.currentLevel = null;
     this.currentLevelNumber = 1;
+    this.isPaused = false;
+    this.animationFrameId = null;
 
     this.hudElement = document.querySelector("#hud");
     this.messageElement = document.querySelector("#message");
@@ -47,7 +49,35 @@ export class Game {
 
   start() {
     this.loadLevel(1);
-    requestAnimationFrame(this.animate);
+    this.animationFrameId = requestAnimationFrame(this.animate);
+  }
+
+  pause() {
+    if (this.isPaused) {
+      return;
+    }
+
+    this.isPaused = true;
+    this.setMessage("Paused — press P to resume.");
+  }
+
+  resume() {
+    if (!this.isPaused) {
+      return;
+    }
+
+    this.isPaused = false;
+    this.clock.getDelta();
+    this.setMessage("");
+  }
+
+  togglePause() {
+    if (this.isPaused) {
+      this.resume();
+      return;
+    }
+
+    this.pause();
   }
 
   setCamera(camera) {
@@ -102,6 +132,15 @@ export class Game {
   }
 
   updateGlobalControls() {
+    if (this.input.wasPressed("KeyP")) {
+      this.togglePause();
+      return;
+    }
+
+    if (this.isPaused) {
+      return;
+    }
+
     if (this.input.wasPressed("Digit1")) {
       this.loadLevel(1);
     }
@@ -120,19 +159,25 @@ export class Game {
   }
 
   animate() {
-    requestAnimationFrame(this.animate);
+    this.animationFrameId = requestAnimationFrame(this.animate);
 
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
+    this.update(dt);
+    this.render();
+    this.input.endFrame();
+  }
+
+  update(dt) {
     this.updateGlobalControls();
 
-    if (this.currentLevel) {
+    if (!this.isPaused && this.currentLevel) {
       this.currentLevel.update(dt);
     }
+  }
 
+  render() {
     this.renderer.render(this.scene, this.camera);
-
-    this.input.endFrame();
   }
 
   onResize() {
