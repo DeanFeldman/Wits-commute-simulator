@@ -7,6 +7,15 @@ The goal of the workflow is to allow people to work in parallel without breaking
 ---
 
 ## Branch Strategy
+All development must happen on a branch matching one of these categories:
+
+```text
+level-1/*
+level-2/*
+level-3/*
+engine/*
+gfx/*
+``` 
 
 `main` should always:
 
