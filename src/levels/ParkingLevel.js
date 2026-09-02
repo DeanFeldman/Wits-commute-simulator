@@ -10,6 +10,7 @@ export class ParkingLevel {
     this.root = new THREE.Group();
 
     this.car = null;
+    this.controls = null;
 
     this.speed = 0;
     this.heading = 0;
@@ -48,7 +49,7 @@ export class ParkingLevel {
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(42, 42),
       new THREE.MeshStandardMaterial({
-        color: 0x3d4146,
+        color: 0x507048,
         roughness: 0.95
       })
     );
@@ -57,6 +58,7 @@ export class ParkingLevel {
     ground.receiveShadow = true;
     this.root.add(ground);
 
+    this.createRoadCorridor();
     this.createRoadMarkings();
     this.createParkedCars();
     this.createPotholes();
@@ -67,11 +69,48 @@ export class ParkingLevel {
     camera.position.set(0, 6, 9);
     this.game.setCamera(camera);
 
+    this.controls = this.game.input.registerBindings({
+      accelerate: ["KeyW", "ArrowUp"],
+      brake: ["KeyS", "ArrowDown"],
+      steerLeft: ["KeyA", "ArrowLeft"],
+      steerRight: ["KeyD", "ArrowRight"]
+    });
     this.game.setMessage(
       "Drive to the cyan bay. W/S = throttle, A/D = steer, R = restart."
     );
   }
 
+  createRoadCorridor() {
+    const road = new THREE.Mesh(
+      new THREE.PlaneGeometry(22, 42),
+      new THREE.MeshStandardMaterial({
+        color: 0x3d4146,
+        roughness: 0.95
+      })
+    );
+
+    road.rotation.x = -Math.PI / 2;
+    road.position.y = 0.01;
+    road.receiveShadow = true;
+    this.root.add(road);
+
+    const kerbMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb8b8af,
+      roughness: 0.8
+    });
+
+    for (const x of [-11.25, 11.25]) {
+      const kerb = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.25, 42),
+        kerbMaterial
+      );
+
+      kerb.position.set(x, 0.125, 0);
+      kerb.castShadow = true;
+      kerb.receiveShadow = true;
+      this.root.add(kerb);
+    }
+  }
   createRoadMarkings() {
     const material = new THREE.MeshBasicMaterial({ color: 0xc8b35b });
 
@@ -205,15 +244,15 @@ export class ParkingLevel {
       return;
     }
 
-    const input = this.game.input;
+    const controls = this.controls;
 
     const throttle =
-      (input.isDown("KeyW") || input.isDown("ArrowUp") ? 1 : 0) -
-      (input.isDown("KeyS") || input.isDown("ArrowDown") ? 1 : 0);
+      (controls.isDown("accelerate") ? 1 : 0) -
+      (controls.isDown("brake") ? 1 : 0);
 
     const steer =
-      (input.isDown("KeyA") || input.isDown("ArrowLeft") ? 1 : 0) -
-      (input.isDown("KeyD") || input.isDown("ArrowRight") ? 1 : 0);
+      (controls.isDown("steerLeft") ? 1 : 0) -
+      (controls.isDown("steerRight") ? 1 : 0);
 
     const targetSpeed = throttle * 8;
     this.speed = moveTowards(this.speed, targetSpeed, 10 * dt);
@@ -238,7 +277,7 @@ export class ParkingLevel {
 
     this.car.position.addScaledVector(forward, -this.speed * dt);
 
-    this.car.position.x = clamp(this.car.position.x, -16, 16);
+    this.car.position.x = clamp(this.car.position.x, -10.6, 10.6);
     this.car.position.z = clamp(this.car.position.z, -16, 16);
 
     this.potholeCooldown = Math.max(0, this.potholeCooldown - dt);
@@ -254,12 +293,8 @@ export class ParkingLevel {
     `);
 
     if (this.condition <= 0) {
-      this.game.setMessage("Car condition reached 0%. Restarting…");
       this.completed = true;
-
-      window.setTimeout(() => {
-        this.game.restartLevel();
-      }, 900);
+      this.game.failLevel("Car condition reached 0%.");
     }
   }
 
@@ -300,7 +335,7 @@ export class ParkingLevel {
 
     if (inside && aligned && stopped) {
       this.completed = true;
-      this.game.setMessage("Parked! Press 2 for Level 2.");
+      this.game.completeLevel("Parked! Heading to Level 2.");
     }
   }
 
@@ -323,6 +358,7 @@ export class ParkingLevel {
   }
 
   dispose() {
+    this.controls?.dispose();
     disposeObject3D(this.root);
   }
 }

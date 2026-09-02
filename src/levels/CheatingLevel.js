@@ -10,6 +10,7 @@ export class CheatingLevel {
     this.root = new THREE.Group();
 
     this.camera = null;
+    this.controls = null;
 
     this.playerPosition = new THREE.Vector3(0, 1.6, 4);
 
@@ -49,6 +50,9 @@ export class CheatingLevel {
 
     this.game.setCamera(this.camera);
 
+    this.controls = this.game.input.registerBindings({
+      copy: "Space"
+    });
     this.game.setMessage(
       "Click the game for mouse-look. Hold SPACE to copy. Release when the tutor watches you."
     );
@@ -144,21 +148,17 @@ export class CheatingLevel {
       <strong>Don't Get Caught</strong><br>
       Answers copied: ${Math.round(this.answerProgress)}%<br>
       Suspicion: ${Math.round(this.suspicion)}%<br>
-      ${this.game.input.isDown("Space") ? "COPYING…" : "Facing forward"}
+      ${this.controls.isDown("copy") ? "COPYING…" : "Facing forward"}
     `);
 
     if (this.answerProgress >= 100) {
       this.completed = true;
-      this.game.setMessage("Test completed. Prototype journey finished!");
+      this.game.completeLevel("Test completed. Calculating results…");
     }
 
     if (this.suspicion >= 100) {
       this.completed = true;
-      this.game.setMessage("Caught! Restarting…");
-
-      window.setTimeout(() => {
-        this.game.restartLevel();
-      }, 900);
+      this.game.failLevel("Caught! Restarting from the checkpoint.");
     }
   }
 
@@ -196,7 +196,7 @@ export class CheatingLevel {
   }
 
   updateCheating(dt) {
-    const copying = this.game.input.isDown("Space");
+    const copying = this.controls.isDown("copy");
 
     const toPlayer = this.playerPosition
       .clone()
@@ -233,6 +233,8 @@ export class CheatingLevel {
   }
 
   dispose() {
+    this.controls?.dispose();
+
     if (document.pointerLockElement === this.game.renderer.domElement) {
       document.exitPointerLock?.();
     }

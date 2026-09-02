@@ -10,6 +10,7 @@ export class CrossingLevel {
 
     this.player = null;
     this.traffic = [];
+    this.controls = null;
 
     this.startZ = 7;
     this.finishZ = -7;
@@ -44,6 +45,12 @@ export class CrossingLevel {
 
     this.game.setCamera(camera);
 
+    this.controls = this.game.input.registerBindings({
+      moveUp: ["KeyW", "ArrowUp"],
+      moveDown: ["KeyS", "ArrowDown"],
+      moveLeft: ["KeyA", "ArrowLeft"],
+      moveRight: ["KeyD", "ArrowRight"]
+    });
     this.game.setMessage(
       "Cross the road. One key press = one grid step. Reach the green pavement."
     );
@@ -178,24 +185,24 @@ export class CrossingLevel {
   }
 
   updatePlayerInput() {
-    const input = this.game.input;
+    const controls = this.controls;
 
     let dx = 0;
     let dz = 0;
 
-    if (input.wasPressed("KeyW") || input.wasPressed("ArrowUp")) {
+    if (controls.consumeBuffered("moveUp")) {
       dz = -this.gridSize;
     }
 
-    if (input.wasPressed("KeyS") || input.wasPressed("ArrowDown")) {
+    if (controls.consumeBuffered("moveDown")) {
       dz = this.gridSize;
     }
 
-    if (input.wasPressed("KeyA") || input.wasPressed("ArrowLeft")) {
+    if (controls.consumeBuffered("moveLeft")) {
       dx = -this.gridSize;
     }
 
-    if (input.wasPressed("KeyD") || input.wasPressed("ArrowRight")) {
+    if (controls.consumeBuffered("moveRight")) {
       dx = this.gridSize;
     }
 
@@ -215,7 +222,7 @@ export class CrossingLevel {
 
     if (this.player.position.z <= this.finishZ) {
       this.completed = true;
-      this.game.setMessage("You made it across. Press 3 for Level 3.");
+      this.game.completeLevel("You made it across. Heading to Level 3.");
     }
   }
 
@@ -227,11 +234,7 @@ export class CrossingLevel {
 
       if (playerBox.intersectsBox(vehicleBox)) {
         this.completed = true;
-        this.game.setMessage("Hit by traffic. Restarting…");
-
-        window.setTimeout(() => {
-          this.game.restartLevel();
-        }, 700);
+        this.game.failLevel("Hit by traffic. Restarting from the checkpoint.");
 
         return;
       }
@@ -251,6 +254,7 @@ export class CrossingLevel {
   }
 
   dispose() {
+    this.controls?.dispose();
     disposeObject3D(this.root);
   }
 }

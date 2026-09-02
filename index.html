@@ -16,11 +16,28 @@
       <strong>Wits Commute Sim</strong>
       <span id="level-name">Loading…</span>
       <span class="spacer"></span>
-      <span>1 / 2 / 3 = switch level · P = pause</span>
+      <span>P = pause</span>
     </div>
 
     <div id="hud"></div>
     <div id="message"></div>
+
+    <main id="menu" aria-live="polite">
+      <section class="menu-card" aria-labelledby="menu-title">
+        <p class="menu-kicker">COMS3006A / COMS3025A</p>
+        <h1 id="menu-title">Wits Commute Simulator</h1>
+        <p id="menu-copy">Park. Cross. Cheat.</p>
+        <button id="menu-primary-action" data-game-action="start" type="button">
+          Start journey
+        </button>
+        <div id="dev-level-select" hidden>
+          <p>Development level select</p>
+          <button data-game-action="level-1" type="button">Level 1</button>
+          <button data-game-action="level-2" type="button">Level 2</button>
+          <button data-game-action="level-3" type="button">Level 3</button>
+        </div>
+      </section>
+    </main>
 
     <script type="module" src="./src/main.js"></script>
   </body>
