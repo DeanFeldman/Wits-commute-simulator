@@ -28,7 +28,11 @@ src/
 │   └── AssetManager.js
 ├── levels/
 │   ├── ParkingLevel.js
-│   ├── CrossingLevel.js
+│   ├── crossing/
+│   │   ├── CrossingLevel.js
+│   │   ├── CrossingStrip.js
+│   │   ├── Level2StripGenerator.js
+│   │   └── Level2StripLibrary.js
 │   └── CheatingLevel.js
 ├── shared/
 │   ├── VehicleController.js

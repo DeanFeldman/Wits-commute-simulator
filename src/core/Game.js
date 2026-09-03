@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { InputManager } from "./InputManager.js";
 
 import { ParkingLevel } from "../levels/ParkingLevel.js";
-import { CrossingLevel } from "../levels/CrossingLevel.js";
+import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 
 const LEVEL_STATES = new Map([
