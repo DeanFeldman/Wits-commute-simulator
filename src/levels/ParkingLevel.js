@@ -4,6 +4,7 @@ import { VehicleController } from "../shared/VehicleController.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 
 export class ParkingLevel {
   constructor(game) {
@@ -22,8 +23,10 @@ export class ParkingLevel {
     this.collisionWorld = null;
     this.cameraShake = 0;
     this.asphaltUniforms = null;
+    this.audio = new LevelAudio();
 
     this.condition = 100;
+    this.elapsedTime = 0;
     this.potholes = [];
     this.potholeCooldown = 0;
 
@@ -44,18 +47,25 @@ export class ParkingLevel {
   load() {
     const scene = this.game.scene;
 
-    scene.background = new THREE.Color(0x18202a);
-    scene.fog = new THREE.Fog(0x18202a, 35, 75);
+    scene.background = new THREE.Color(0x101522);
+    scene.fog = new THREE.Fog(0x101522, 26, 68);
 
     scene.add(this.root);
+    this.audio.startDrone(74, 0.012);
 
-    const hemi = new THREE.HemisphereLight(0x8da7c4, 0x18110d, 1.7);
+    const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 0.75);
     this.root.add(hemi);
 
-    const streetLight = new THREE.DirectionalLight(0xffd6a3, 2.4);
-    streetLight.position.set(-8, 14, 8);
-    streetLight.castShadow = true;
-    this.root.add(streetLight);
+    const duskSun = new THREE.DirectionalLight(0xffb56a, 1.8);
+    duskSun.position.set(-18, 11, 8);
+    duskSun.castShadow = true;
+    duskSun.shadow.mapSize.set(1536, 1536);
+    duskSun.shadow.camera.left = -18;
+    duskSun.shadow.camera.right = 18;
+    duskSun.shadow.camera.top = 18;
+    duskSun.shadow.camera.bottom = -18;
+    duskSun.shadow.bias = -0.0004;
+    this.root.add(duskSun);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(42, 42),
@@ -77,6 +87,7 @@ export class ParkingLevel {
     this.createPotholes();
     this.createParkingBay();
     this.createPlayerCar();
+    this.createStreetLights();
     this.collisionWorld.rebuild();
 
     const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
@@ -254,6 +265,16 @@ export class ParkingLevel {
       const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff1b0 }));
       headlight.position.set(x, 0.55, -2.02);
       body.add(headlight);
+
+      const beam = new THREE.SpotLight(0xfff0bd, 16, 22, Math.PI / 7, 0.45, 1.4);
+      beam.position.set(x, 0.55, -2.05);
+      beam.target.position.set(x, -0.15, -11);
+      beam.castShadow = x < 0;
+      if (beam.castShadow) {
+        beam.shadow.mapSize.set(1024, 1024);
+        beam.shadow.bias = -0.00035;
+      }
+      body.add(beam, beam.target);
     }
 
     carRoot.position.set(0, 0, 12);
@@ -262,6 +283,30 @@ export class ParkingLevel {
     this.root.add(carRoot);
   }
 
+  createStreetLights() {
+    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x27313d, roughness: 0.72 });
+    const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffc779 });
+    const positions = [[-10.2, 10], [10.2, 3], [-10.2, -5], [10.2, -13]];
+
+    for (const [x, z] of positions) {
+      const pole = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 5, 8), poleMaterial);
+      shaft.position.y = 2.5;
+      pole.add(shaft);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial);
+      lamp.position.y = 5;
+      pole.add(lamp);
+      pole.position.set(x, 0, z);
+      this.root.add(pole);
+
+      const light = new THREE.PointLight(0xffbd68, 7, 13, 2);
+      light.position.set(x, 5, z);
+      // Two shadow casters keep the dusk look without multiplying shadow-map cost.
+      light.castShadow = z === 10 || z === -5;
+      if (light.castShadow) light.shadow.mapSize.set(512, 512);
+      this.root.add(light);
+    }
+  }
   update(dt) {
     if (this.completed) {
       return;
@@ -273,6 +318,7 @@ export class ParkingLevel {
       throttle: (controls.isDown("accelerate") ? 1 : 0) - (controls.isDown("brake") ? 1 : 0),
       steering: (controls.isDown("steerLeft") ? 1 : 0) - (controls.isDown("steerRight") ? 1 : 0)
     });
+    this.audio.updateEngine(this.vehicle.speed);
     this.car.position.x = clamp(this.car.position.x, -10.2, 10.2);
     this.car.position.z = clamp(this.car.position.z, -16, 16);
     if (this.collisionWorld.firstHit(this.car, [2.1, 1.1, 4], (collider) => collider.tag === "parked-car")) {
@@ -289,7 +335,8 @@ export class ParkingLevel {
 
     this.game.setHUD(`
       <strong>Park at Wits</strong><br>
-      Condition: ${Math.round(this.condition)}%<br>
+      <span class="hud-label">CONDITION</span><div class="meter condition"><i style="width: ${this.condition}%"></i></div>${Math.round(this.condition)}%<br>
+      Time: ${this.elapsedTime.toFixed(1)}s<br>
       Speed: ${Math.abs(this.vehicle.speed).toFixed(1)}<br>
       Goal: stop inside the cyan bay<br>
       Containment (${Math.round(this.parkingStatus.containmentPercent)}%): ${this.parkingStatus.containment ? "PASS" : "FAIL"}<br>
@@ -322,6 +369,8 @@ export class ParkingLevel {
         this.vehicle.speed *= 0.6;
         this.cameraShake = 0.5;
         this.game.flashHUD();
+        this.game.playAlertTone(145, 0.16);
+        this.audio.cue(92, 0.18, 0.18);
         this.condition = Math.max(0, this.condition - 10);
         this.potholeCooldown = 0.8;
         break;
@@ -431,6 +480,7 @@ export class ParkingLevel {
   }
 
   dispose() {
+    this.audio.dispose();
     this.controls?.dispose();
     disposeObject3D(this.root);
   }

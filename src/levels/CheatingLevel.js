@@ -3,6 +3,7 @@ import { clamp } from "../shared/math.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 
 export class CheatingLevel {
   constructor(game) {
@@ -39,6 +40,9 @@ export class CheatingLevel {
 
     this.answerProgress = 0;
     this.suspicion = 0;
+    this.timeRemaining = 75;
+    this.copyLean = 0;
+    this.audio = new LevelAudio();
 
     this.yaw = 0;
     this.pitch = -0.05;
@@ -52,6 +56,7 @@ export class CheatingLevel {
     scene.background = new THREE.Color(0x17191e);
 
     scene.add(this.root);
+    this.audio.startDrone(39, 0.004);
     this.collisionWorld = new CollisionWorld(this.root);
 
     const ambient = new THREE.HemisphereLight(0xaec8df, 0x17120f, 0.55);
@@ -257,14 +262,17 @@ export class CheatingLevel {
     }
 
     this.updateTutor(dt);
+    this.audio.updateClock(dt);
     this.updateMouseLook();
     this.updateCheating(dt);
+    this.timeRemaining = Math.max(0, this.timeRemaining - dt);
 
     this.game.setHUD(`
       <strong>Don't Get Caught</strong><br>
-      Answers copied: ${Math.round(this.answerProgress)}%<br>
-      Suspicion: ${Math.round(this.suspicion)}%<br>
-      ${this.controls.isDown("copy") ? "COPYING…" : "Facing forward"}
+      <span class="hud-label">ANSWERS</span><div class="meter progress"><i style="width: ${this.answerProgress}%"></i></div>${Math.round(this.answerProgress)}%<br>
+      <span class="hud-label">SUSPICION</span><div class="meter suspicion"><i style="width: ${this.suspicion}%"></i></div>${Math.round(this.suspicion)}%<br>
+      Time remaining: ${Math.ceil(this.timeRemaining)}s<br>
+      ${this.controls.isDown("copy") ? "COPYING — lean exposed" : "Facing forward — safe posture"}
     `);
 
     if (this.answerProgress >= 100) {
@@ -272,7 +280,14 @@ export class CheatingLevel {
       this.game.completeLevel("Test completed. Calculating results…");
     }
 
+    if (this.timeRemaining <= 0) {
+      this.completed = true;
+      this.game.failLevel("Time is up. Restarting from the checkpoint.");
+    }
+
     if (this.suspicion >= 100) {
+      this.game.flashHUD();
+      this.game.playAlertTone(120, 0.2);
       this.completed = true;
       this.game.failLevel("Caught! Restarting from the checkpoint.");
     }
@@ -291,6 +306,7 @@ export class CheatingLevel {
     this.patrolState = this.tutorMover.pauseTimer > 0 ? "scan" : "walk";
     this.stateTimer = this.tutorMover.pauseTimer;
     this.updateTutorAnimation(dt, isWalking);
+    this.audio.updateTutorFootsteps(dt, isWalking, this.tutor.position.x, this.playerPosition.x);
     const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.tutorHead.getWorldQuaternion(new THREE.Quaternion()));
     this.visionTarget.position.copy(this.tutorHead.getWorldPosition(new THREE.Vector3())).addScaledVector(headForward, 10);
   }
@@ -308,8 +324,9 @@ export class CheatingLevel {
   updateMouseLook() {
     const mouse = this.game.input.consumeMouseDelta();
 
-    this.yaw -= mouse.x * 0.002;
-    this.pitch -= mouse.y * 0.002;
+    const sensitivity = this.game.levelThreeLookSensitivity ?? 1;
+    this.yaw -= mouse.x * 0.002 * sensitivity;
+    this.pitch -= mouse.y * 0.002 * sensitivity;
 
     this.yaw = clamp(this.yaw, -1.0, 1.0);
     this.pitch = clamp(this.pitch, -0.65, 0.45);
@@ -321,12 +338,16 @@ export class CheatingLevel {
 
   updateCheating(dt) {
     const copying = this.controls.isDown("copy");
+    const targetLean = copying ? 1 : 0;
+    this.copyLean += (targetLean - this.copyLean) * Math.min(1, dt * 12);
+    this.camera.rotation.z = -this.copyLean * 0.12;
 
     const seen = this.canTutorSeePlayer();
     this.playerSeen = seen;
 
     if (copying) {
       this.answerProgress += 16 * dt;
+      if (this.answerProgress > 0 && Math.floor(this.answerProgress) % 12 === 0) this.audio.cue(680, 0.04, 0.025);
 
       if (seen) {
         this.suspicion += 34 * dt;
@@ -362,6 +383,7 @@ export class CheatingLevel {
   }
 
   dispose() {
+    this.audio.dispose();
     this.controls?.dispose();
 
     if (document.pointerLockElement === this.game.renderer.domElement) {

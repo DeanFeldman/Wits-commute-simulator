@@ -4,6 +4,7 @@ import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { GridHopController } from "../shared/GridHopController.js";
 import { VehicleController } from "../shared/VehicleController.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 
 export class CrossingLevel {
   constructor(game) {
@@ -18,6 +19,7 @@ export class CrossingLevel {
     this.hopController = null;
     this.crossingTime = 0;
     this.backwardPenalty = 0;
+    this.attempts = 0;
     this.traffic = [];
     this.lanes = [];
     this.recoveryTimer = 0;
@@ -26,6 +28,7 @@ export class CrossingLevel {
     this.crowdContactCooldown = 0;
     this.playerRig = null;
     this.playerAnimationTime = 0;
+    this.audio = new LevelAudio();
 
     this.startZ = 8;
     this.finishZ = -8;
@@ -42,6 +45,7 @@ export class CrossingLevel {
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
+    this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
     const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.9);
@@ -353,6 +357,7 @@ export class CrossingLevel {
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardPenalty += 0.5;
     if (landedDirection) this.updateCheckpoint();
+    if (landedDirection) this.audio.cue(180, 0.05, 0.045);
     this.checkFinish();
     this.updateTraffic(dt);
     this.updateCrowds(dt);
@@ -362,12 +367,13 @@ export class CrossingLevel {
 
     this.game.setHUD(`
       <strong>Cross the Road</strong><br>
+      Attempts: ${this.attempts + 1}<br>
       Cell: ${this.hopController.gridPosition.x.toFixed(1)}, ${this.hopController.gridPosition.y.toFixed(1)}<br>
       Time: ${(this.crossingTime + this.backwardPenalty).toFixed(1)}s${this.backwardPenalty > 0 ? " (backtrack penalty)" : ""}<br>
       Goal: reach the far green pavement<br>
       Checkpoint: ${this.checkpoint.label}<br>
       Crowd delay: ${this.hopController.delayTimer > 0 ? "blocked" : "clear"}<br>
-      Wait for a safe gap in each lane
+      <span class="gap-hint">${this.getNextGapHint()}</span>
     `);
   }
 
@@ -404,6 +410,7 @@ export class CrossingLevel {
         vehicle.mover.pause(vehicle.stopTimer);
         vehicle.passenger.position.x = vehicle.root.position.x;
         vehicle.passenger.visible = true;
+        this.audio.cue(520, 0.13, 0.1, vehicle.root.position.x / 12);
       }
 
       const x = vehicle.root.position.x;
@@ -521,6 +528,7 @@ export class CrossingLevel {
   }
 
   dispose() {
+    this.audio.dispose();
     this.controls?.dispose();
     disposeObject3D(this.root);
   }

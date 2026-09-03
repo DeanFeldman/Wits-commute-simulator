@@ -57,6 +57,7 @@ export class Game {
     this.collisionDebug = false;
     this.journeyScore = 0;
     this.journeyTime = 0;
+    this.levelThreeLookSensitivity = 1;
 
     this.hudElement = document.querySelector("#hud");
     this.messageElement = document.querySelector("#message");
@@ -67,14 +68,27 @@ export class Game {
     this.menuCopyElement = document.querySelector("#menu-copy");
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
+    this.pauseMenuElement = document.querySelector("#pause-menu");
+    this.lookSensitivityInput = document.querySelector("#look-sensitivity");
+    this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
+    this.sensitivityControl = document.querySelector("#sensitivity-control");
+    this.instructionElement = document.querySelector("#instruction-card");
+    this.instructionTitle = document.querySelector("#instruction-title");
+    this.instructionCopy = document.querySelector("#instruction-copy");
     this.currentMessage = "";
 
     this.animate = this.animate.bind(this);
     this.onResize = this.onResize.bind(this);
     this.onMenuClick = this.onMenuClick.bind(this);
+    this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
+    this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
+    this.onInstructionClick = this.onInstructionClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
     this.menuElement.addEventListener("click", this.onMenuClick);
+    this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
+    this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
+    this.instructionElement.addEventListener("click", this.onInstructionClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
   }
 
@@ -100,6 +114,9 @@ export class Game {
     this.menuTitleElement.textContent = "Wits Commute Simulator";
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
+    this.menuPrimaryAction.dataset.gameAction = "start";
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
   }
 
@@ -121,6 +138,8 @@ export class Game {
     this.menuCopyElement.textContent = `You reached class without getting caught. Score: ${this.journeyScore}. Time: ${this.journeyTime.toFixed(1)}s.`;
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
   }
 
@@ -255,7 +274,11 @@ export class Game {
     }
 
     this.isPaused = true;
-    this.setMessage("Paused — press P to resume.");
+    if (this.currentLevelNumber === 3) {
+      this.pauseMenuElement.hidden = false;
+      if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
+    }
+    this.setMessage("Paused — press P or Resume to continue.");
   }
 
   resume() {
@@ -264,6 +287,7 @@ export class Game {
     }
 
     this.isPaused = false;
+    this.pauseMenuElement.hidden = true;
     this.clock.getDelta();
     this.setMessage("");
   }
@@ -335,6 +359,11 @@ export class Game {
       return;
     }
 
+    if (action === "credits") {
+      this.showCredits();
+      return;
+    }
+
     if (action === "menu") {
       this.showMenu();
       return;
@@ -343,6 +372,43 @@ export class Game {
     if (action?.startsWith("level-")) {
       this.startLevel(Number(action.at(-1)));
     }
+  }
+
+  showCredits() {
+    this.menuTitleElement.textContent = "Credits";
+    this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
+    this.menuPrimaryAction.textContent = "Back to menu";
+    this.menuPrimaryAction.dataset.gameAction = "menu";
+    this.menuElement.hidden = false;
+  }
+
+  showInstruction(level) {
+    const briefs = {
+      1: "Drive with W/S and steer with A/D. Avoid potholes, then stop straight inside the cyan bay.",
+      2: "Use arrow keys or WASD: each press hops one grid cell. Reach the far pavement and wait for traffic gaps.",
+      3: "Click for mouse-look. Hold Space to copy, then release when the tutor can see you. P opens settings."
+    };
+    this.instructionTitle.textContent = level.name;
+    this.instructionCopy.textContent = briefs[this.currentLevelNumber] ?? "Complete the objective to continue.";
+    this.instructionElement.hidden = false;
+  }
+
+  onInstructionClick(event) {
+    if (event.target.closest("[data-instruction-action='dismiss']")) {
+      this.instructionElement.hidden = true;
+    }
+  }
+  onPauseMenuClick(event) {
+    if (event.target.closest("[data-pause-action='resume']")) {
+      this.resume();
+      this.input.requestPointerLock();
+    }
+  }
+
+  onLookSensitivityInput(event) {
+    this.levelThreeLookSensitivity = Number(event.target.value);
+    this.lookSensitivityValue.value = `${this.levelThreeLookSensitivity.toFixed(1)}x`;
+    this.lookSensitivityValue.textContent = `${this.levelThreeLookSensitivity.toFixed(1)}x`;
   }
 
   animate() {

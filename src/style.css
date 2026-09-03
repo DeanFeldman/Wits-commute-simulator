@@ -167,3 +167,44 @@ body {
   0% { background: rgba(255, 61, 79, 0.95); transform: translateX(4px); }
   100% { background: rgba(5, 8, 14, 0.82); transform: translateX(0); }
 }
+#pause-menu {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(5, 8, 14, 0.58);
+  z-index: 25;
+}
+
+#pause-menu[hidden] {
+  display: none;
+}
+
+.sensitivity-control {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.25rem 0;
+  color: #e3e8ef;
+}
+
+.sensitivity-control input {
+  width: 100%;
+  accent-color: #35e0d1;
+}
+
+.sensitivity-control output {
+  color: #35e0d1;
+  font-weight: 700;
+}
+.hud-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: #c7ced8; }
+.meter { height: 6px; margin: 0.2rem 0; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,0.16); }
+.meter i { display: block; height: 100%; border-radius: inherit; transition: width 120ms linear; }
+.meter.condition i { background: #ffbd68; }
+.meter.progress i { background: #6fd59a; }
+.meter.suspicion i { background: #f06b78; }
+.gap-hint { color: #b9f6e7; font-weight: 700; }
+
+#instruction-card { position: fixed; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgba(5, 8, 14, 0.58); z-index: 24; }
+#instruction-card[hidden] { display: none; }
+#instruction-copy { line-height: 1.55; color: #d8e0eb; }

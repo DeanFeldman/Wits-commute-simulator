@@ -40,6 +40,28 @@
       </section>
     </main>
 
+
+
+    <section id="instruction-card" hidden aria-live="polite">
+      <div class="menu-card">
+        <p class="menu-kicker">LEVEL BRIEF</p>
+        <h2 id="instruction-title"></h2>
+        <p id="instruction-copy"></p>
+        <button data-instruction-action="dismiss" type="button">Got it</button>
+      </div>
+    </section>
+    <section id="pause-menu" hidden aria-label="Pause menu">
+      <div class="menu-card">
+        <p class="menu-kicker">LEVEL 3 CONTROLS</p>
+        <h2>Paused</h2>
+        <label id="sensitivity-control" class="sensitivity-control" for="look-sensitivity">
+          Look sensitivity
+          <input id="look-sensitivity" type="range" min="0.4" max="2" step="0.1" value="1" />
+          <output id="look-sensitivity-value">1.0x</output>
+        </label>
+        <button data-pause-action="resume" type="button">Resume</button>
+      </div>
+    </section>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
