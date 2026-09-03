@@ -490,7 +490,29 @@ export class CrossingLevel {
     }
   }
 
+  getNextGapHint() {
+    const lane = this.lanes.reduce((closest, candidate) => {
+      if (!closest || Math.abs(candidate.z - this.player.position.z) < Math.abs(closest.z - this.player.position.z)) {
+        return candidate;
+      }
+      return closest;
+    }, null);
+
+    if (!lane || Math.abs(lane.z - this.player.position.z) > this.gridSize) {
+      return "Next gap: move to the kerb";
+    }
+
+    const closestVehicle = this.traffic
+      .filter((vehicle) => vehicle.lane === lane)
+      .reduce((nearest, vehicle) => (!nearest || Math.abs(vehicle.root.position.x - this.player.position.x) < Math.abs(nearest.root.position.x - this.player.position.x) ? vehicle : nearest), null);
+    const distance = Math.abs((closestVehicle?.root.position.x ?? 99) - this.player.position.x);
+    return distance > 4.5 ? "Next gap: GO" : "Next gap: WAIT";
+  }
+
   failAtCheckpoint(wasTaxi) {
+    this.attempts += 1;
+    this.game.flashHUD();
+    this.game.playAlertTone(wasTaxi ? 110 : 165, 0.14);
     this.recoveryTimer = 0.3;
     this.player.visible = false;
     this.game.setMessage(wasTaxi
