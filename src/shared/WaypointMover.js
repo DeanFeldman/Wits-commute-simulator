@@ -41,6 +41,13 @@ export class WaypointMover {
     this.pauseTimer = Math.max(this.pauseTimer, seconds);
   }
 
+  reset(position = this.points[0], startIndex = 1) {
+    this.object.position.copy(position);
+    this.index = startIndex;
+    this.pauseTimer = 0;
+    this.finished = false;
+  }
+
   setDebugVisible(visible) {
     if (this.debugLine) this.debugLine.visible = visible;
   }
