@@ -1,6 +1,34 @@
+# Dependencies
 node_modules/
+
+# Production build
 dist/
-.DS_Store
+
+# Logs
 *.log
+
+# IDE / OS
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
+
+# Blender working files
+*.blend
+*.blend1
+*.blend2
+
+# Raw photography
+*.cr2
+*.cr3
+*.nef
+*.arw
+*.dng
+*.raf
+*.orf
+*.rw2
+
+# Raw/reference-photo working folders
+raw-photos/
+reference/raw/
+working-assets/

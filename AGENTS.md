@@ -4,6 +4,9 @@ This file is the primary context document for AI coding assistants working on **
 
 Read this file before changing code.
 
+Make sure you are very efficeint since there is a5 hour codex limit
+
+
 ---
 
 # 1. Project Summary

@@ -1,6 +1,10 @@
 import * as THREE from "three";
-import { clamp, moveTowards } from "../shared/math.js";
+import { clamp } from "../shared/math.js";
+import { VehicleController } from "../shared/VehicleController.js";
+import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
+import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 
 export class ParkingLevel {
   constructor(game) {
@@ -10,11 +14,19 @@ export class ParkingLevel {
     this.root = new THREE.Group();
 
     this.car = null;
+    this.controls = null;
 
-    this.speed = 0;
-    this.heading = 0;
+    this.vehicle = null;
+    this.wheels = [];
+    this.frontWheelPivots = [];
+    this.suspension = null;
+    this.collisionWorld = null;
+    this.cameraShake = 0;
+    this.asphaltUniforms = null;
+    this.audio = new LevelAudio();
 
     this.condition = 100;
+    this.elapsedTime = 0;
     this.potholes = [];
     this.potholeCooldown = 0;
 
@@ -26,29 +38,39 @@ export class ParkingLevel {
       angle: 0
     };
 
+    this.parkingStatus = { containment: false, alignment: false, rest: false, containmentPercent: 0, holdTime: 0 };
+    this.parkingConfirmationDuration = 0.75;
+
     this.completed = false;
   }
 
   load() {
     const scene = this.game.scene;
 
-    scene.background = new THREE.Color(0x18202a);
-    scene.fog = new THREE.Fog(0x18202a, 35, 75);
+    scene.background = new THREE.Color(0x101522);
+    scene.fog = new THREE.Fog(0x101522, 26, 68);
 
     scene.add(this.root);
+    this.audio.startDrone(74, 0.012);
 
-    const hemi = new THREE.HemisphereLight(0x8da7c4, 0x18110d, 1.7);
+    const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 0.75);
     this.root.add(hemi);
 
-    const streetLight = new THREE.DirectionalLight(0xffd6a3, 2.4);
-    streetLight.position.set(-8, 14, 8);
-    streetLight.castShadow = true;
-    this.root.add(streetLight);
+    const duskSun = new THREE.DirectionalLight(0xffb56a, 1.8);
+    duskSun.position.set(-18, 11, 8);
+    duskSun.castShadow = true;
+    duskSun.shadow.mapSize.set(1536, 1536);
+    duskSun.shadow.camera.left = -18;
+    duskSun.shadow.camera.right = 18;
+    duskSun.shadow.camera.top = 18;
+    duskSun.shadow.camera.bottom = -18;
+    duskSun.shadow.bias = -0.0004;
+    this.root.add(duskSun);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(42, 42),
       new THREE.MeshStandardMaterial({
-        color: 0x3d4146,
+        color: 0x507048,
         roughness: 0.95
       })
     );
@@ -57,21 +79,62 @@ export class ParkingLevel {
     ground.receiveShadow = true;
     this.root.add(ground);
 
+    this.collisionWorld = new CollisionWorld(this.root);
+
+    this.createRoadCorridor();
     this.createRoadMarkings();
     this.createParkedCars();
     this.createPotholes();
     this.createParkingBay();
     this.createPlayerCar();
+    this.createStreetLights();
+    this.collisionWorld.rebuild();
 
     const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
     camera.position.set(0, 6, 9);
     this.game.setCamera(camera);
 
+    this.controls = this.game.input.registerBindings({
+      accelerate: ["KeyW", "ArrowUp"],
+      brake: ["KeyS", "ArrowDown"],
+      steerLeft: ["KeyA", "ArrowLeft"],
+      steerRight: ["KeyD", "ArrowRight"]
+    });
     this.game.setMessage(
       "Drive to the cyan bay. W/S = throttle, A/D = steer, R = restart."
     );
   }
 
+  createRoadCorridor() {
+    const asphaltMaterial = createAsphaltMaterial();
+    this.asphaltUniforms = asphaltMaterial.uniforms;
+    const road = new THREE.Mesh(
+      new THREE.PlaneGeometry(22, 42, 64, 128),
+      asphaltMaterial
+    );
+
+    road.rotation.x = -Math.PI / 2;
+    road.position.y = 0.01;
+    road.receiveShadow = true;
+    this.root.add(road);
+
+    const kerbMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb8b8af,
+      roughness: 0.8
+    });
+
+    for (const x of [-11.25, 11.25]) {
+      const kerb = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.25, 42),
+        kerbMaterial
+      );
+
+      kerb.position.set(x, 0.125, 0);
+      kerb.castShadow = true;
+      kerb.receiveShadow = true;
+      this.root.add(kerb);
+    }
+  }
   createRoadMarkings() {
     const material = new THREE.MeshBasicMaterial({ color: 0xc8b35b });
 
@@ -109,6 +172,7 @@ export class ParkingLevel {
       car.receiveShadow = true;
 
       this.root.add(car);
+      this.collisionWorld.add({ object: car, size: [2.2, 1.1, 4.2], color: 0xff6b6b, tag: "parked-car" });
     }
   }
 
@@ -134,6 +198,7 @@ export class ParkingLevel {
       pothole.position.set(x, 0.02, z);
       this.root.add(pothole);
       this.potholes.push(pothole);
+      this.collisionWorld.add({ object: pothole, size: [1.9, 0.15, 1.9], color: 0xffc857, tag: "pothole" });
     }
   }
 
@@ -161,108 +226,137 @@ export class ParkingLevel {
 
   createPlayerCar() {
     const carRoot = new THREE.Group();
+    const suspension = new THREE.Group();
+    suspension.position.y = 0.35;
+    carRoot.add(suspension);
+    this.suspension = suspension;
 
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(2.1, 0.9, 4),
-      new THREE.MeshStandardMaterial({ color: 0xf0b429 })
+    const body = new THREE.Group();
+    suspension.add(body);
+    const paint = new THREE.MeshStandardMaterial({ color: 0xf0b429, metalness: 0.35, roughness: 0.35 });
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 4), paint);
+    chassis.position.y = 0.42;
+    chassis.castShadow = true;
+    body.add(chassis);
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(1.65, 0.65, 1.9),
+      new THREE.MeshStandardMaterial({ color: 0x1d3144, metalness: 0.2, roughness: 0.18 })
     );
+    cabin.position.set(0, 0.95, 0.25);
+    cabin.castShadow = true;
+    body.add(cabin);
 
-    body.position.y = 0.75;
-    body.castShadow = true;
-
-    carRoot.add(body);
-
-    const wheelMaterial = new THREE.MeshStandardMaterial({
-      color: 0x151515
-    });
-
-    const wheelPositions = [
-      [-1.05, 0.35, 1.25],
-      [1.05, 0.35, 1.25],
-      [-1.05, 0.35, -1.25],
-      [1.05, 0.35, -1.25]
-    ];
-
-    for (const [x, y, z] of wheelPositions) {
-      const wheel = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.38, 0.38, 0.35, 16),
-        wheelMaterial
-      );
-
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.85 });
+    const wheelPositions = [[-1.05, 1.25, true], [1.05, 1.25, true], [-1.05, -1.25, false], [1.05, -1.25, false]];
+    for (const [x, z, isFront] of wheelPositions) {
+      const pivot = new THREE.Group();
+      pivot.position.set(x, 0, z);
+      suspension.add(pivot);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.35, 16), wheelMaterial);
       wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(x, y, z);
-      carRoot.add(wheel);
+      wheel.position.y = -0.02;
+      wheel.castShadow = true;
+      pivot.add(wheel);
+      this.wheels.push(wheel);
+      if (isFront) this.frontWheelPivots.push(pivot);
+    }
+
+    for (const x of [-0.65, 0.65]) {
+      const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff1b0 }));
+      headlight.position.set(x, 0.55, -2.02);
+      body.add(headlight);
+
+      const beam = new THREE.SpotLight(0xfff0bd, 16, 22, Math.PI / 7, 0.45, 1.4);
+      beam.position.set(x, 0.55, -2.05);
+      beam.target.position.set(x, -0.15, -11);
+      beam.castShadow = x < 0;
+      if (beam.castShadow) {
+        beam.shadow.mapSize.set(1024, 1024);
+        beam.shadow.bias = -0.00035;
+      }
+      body.add(beam, beam.target);
     }
 
     carRoot.position.set(0, 0, 12);
-
     this.car = carRoot;
-    this.root.add(this.car);
+    this.vehicle = new VehicleController(carRoot);
+    this.root.add(carRoot);
   }
 
+  createStreetLights() {
+    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x27313d, roughness: 0.72 });
+    const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffc779 });
+    const positions = [[-10.2, 10], [10.2, 3], [-10.2, -5], [10.2, -13]];
+
+    for (const [x, z] of positions) {
+      const pole = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 5, 8), poleMaterial);
+      shaft.position.y = 2.5;
+      pole.add(shaft);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial);
+      lamp.position.y = 5;
+      pole.add(lamp);
+      pole.position.set(x, 0, z);
+      this.root.add(pole);
+
+      const light = new THREE.PointLight(0xffbd68, 7, 13, 2);
+      light.position.set(x, 5, z);
+      // Two shadow casters keep the dusk look without multiplying shadow-map cost.
+      light.castShadow = z === 10 || z === -5;
+      if (light.castShadow) light.shadow.mapSize.set(512, 512);
+      this.root.add(light);
+    }
+  }
   update(dt) {
     if (this.completed) {
       return;
     }
 
-    const input = this.game.input;
-
-    const throttle =
-      (input.isDown("KeyW") || input.isDown("ArrowUp") ? 1 : 0) -
-      (input.isDown("KeyS") || input.isDown("ArrowDown") ? 1 : 0);
-
-    const steer =
-      (input.isDown("KeyA") || input.isDown("ArrowLeft") ? 1 : 0) -
-      (input.isDown("KeyD") || input.isDown("ArrowRight") ? 1 : 0);
-
-    const targetSpeed = throttle * 8;
-    this.speed = moveTowards(this.speed, targetSpeed, 10 * dt);
-
-    if (throttle === 0) {
-      this.speed = moveTowards(this.speed, 0, 5 * dt);
-    }
-
-    const steeringStrength =
-      (1.7 * clamp(Math.abs(this.speed) / 2.5, 0.2, 1.0)) *
-      Math.sign(this.speed || 1);
-
-    this.heading += steer * steeringStrength * dt;
-
-    this.car.rotation.y = this.heading;
-
-    const forward = new THREE.Vector3(
-      Math.sin(this.heading),
-      0,
-      Math.cos(this.heading)
-    );
-
-    this.car.position.addScaledVector(forward, -this.speed * dt);
-
-    this.car.position.x = clamp(this.car.position.x, -16, 16);
+    const controls = this.controls;
+    const previousPosition = this.car.position.clone();
+    this.vehicle.update(dt, {
+      throttle: (controls.isDown("accelerate") ? 1 : 0) - (controls.isDown("brake") ? 1 : 0),
+      steering: (controls.isDown("steerLeft") ? 1 : 0) - (controls.isDown("steerRight") ? 1 : 0)
+    });
+    this.audio.updateEngine(this.vehicle.speed);
+    this.car.position.x = clamp(this.car.position.x, -10.2, 10.2);
     this.car.position.z = clamp(this.car.position.z, -16, 16);
+    if (this.collisionWorld.firstHit(this.car, [2.1, 1.1, 4], (collider) => collider.tag === "parked-car")) {
+      this.car.position.copy(previousPosition);
+      this.vehicle.stop();
+    }
+    this.updateVehicleVisuals(dt);
+    this.updateAsphalt(dt);
 
     this.potholeCooldown = Math.max(0, this.potholeCooldown - dt);
     this.checkPotholes();
-    this.checkParking();
+    this.checkParking(dt);
     this.updateCamera(dt);
 
     this.game.setHUD(`
       <strong>Park at Wits</strong><br>
-      Condition: ${Math.round(this.condition)}%<br>
-      Speed: ${Math.abs(this.speed).toFixed(1)}<br>
-      Goal: stop inside the cyan bay
+      <span class="hud-label">CONDITION</span><div class="meter condition"><i style="width: ${this.condition}%"></i></div>${Math.round(this.condition)}%<br>
+      Time: ${this.elapsedTime.toFixed(1)}s<br>
+      Speed: ${Math.abs(this.vehicle.speed).toFixed(1)}<br>
+      Goal: stop inside the cyan bay<br>
+      Containment (${Math.round(this.parkingStatus.containmentPercent)}%): ${this.parkingStatus.containment ? "PASS" : "FAIL"}<br>
+      Alignment (12 degrees): ${this.parkingStatus.alignment ? "PASS" : "FAIL"}<br>
+      Rest (0.3 m/s): ${this.parkingStatus.rest ? "PASS" : "FAIL"}<br>
+      ${this.parkingStatus.holdTime > 0 ? `Confirming: ${Math.round(this.parkingStatus.holdTime / this.parkingConfirmationDuration * 100)}%` : "All three tests must pass"}
     `);
 
     if (this.condition <= 0) {
-      this.game.setMessage("Car condition reached 0%. Restarting…");
       this.completed = true;
-
-      window.setTimeout(() => {
-        this.game.restartLevel();
-      }, 900);
+      this.game.failLevel("Car condition reached 0%.");
     }
   }
 
+  updateAsphalt(dt) {
+    if (!this.asphaltUniforms) return;
+    this.asphaltUniforms.uTime.value += dt;
+    const headlight = this.car.localToWorld(new THREE.Vector3(0, 0.9, -2));
+    this.asphaltUniforms.uHeadlightPosition.value.copy(headlight);
+  }
   checkPotholes() {
     if (this.potholeCooldown > 0) {
       return;
@@ -272,7 +366,11 @@ export class ParkingLevel {
       const distance = pothole.position.distanceTo(this.car.position);
 
       if (distance < 1.35) {
-        this.speed *= 0.6;
+        this.vehicle.speed *= 0.6;
+        this.cameraShake = 0.5;
+        this.game.flashHUD();
+        this.game.playAlertTone(145, 0.16);
+        this.audio.cue(92, 0.18, 0.18);
         this.condition = Math.max(0, this.condition - 10);
         this.potholeCooldown = 0.8;
         break;
@@ -280,42 +378,101 @@ export class ParkingLevel {
     }
   }
 
-  checkParking() {
-    const dx = Math.abs(this.car.position.x - this.parkingBay.x);
-    const dz = Math.abs(this.car.position.z - this.parkingBay.z);
+  checkParking(dt) {
+    const containmentPercent = this.getParkingContainment() * 100;
+    const angleError = Math.abs(Math.atan2(
+      Math.sin(this.car.rotation.y - this.parkingBay.angle),
+      Math.cos(this.car.rotation.y - this.parkingBay.angle)
+    ));
+    this.parkingStatus.containment = containmentPercent >= 80;
+    this.parkingStatus.alignment = angleError <= THREE.MathUtils.degToRad(12);
+    this.parkingStatus.rest = Math.abs(this.vehicle.speed) < 0.3;
+    this.parkingStatus.containmentPercent = containmentPercent;
 
-    const inside =
-      dx < this.parkingBay.width * 0.42 &&
-      dz < this.parkingBay.depth * 0.42;
+    if (this.parkingStatus.containment && this.parkingStatus.alignment && this.parkingStatus.rest) {
+      this.parkingStatus.holdTime += dt;
+    } else {
+      this.parkingStatus.holdTime = 0;
+    }
 
-    const angleError = Math.abs(
-      Math.atan2(
-        Math.sin(this.heading - this.parkingBay.angle),
-        Math.cos(this.heading - this.parkingBay.angle)
-      )
-    );
-
-    const aligned = angleError < THREE.MathUtils.degToRad(18);
-    const stopped = Math.abs(this.speed) < 0.35;
-
-    if (inside && aligned && stopped) {
+    if (this.parkingStatus.holdTime >= this.parkingConfirmationDuration) {
       this.completed = true;
-      this.game.setMessage("Parked! Press 2 for Level 2.");
+      this.game.completeLevel("Parked! Heading to Level 2.");
     }
   }
 
+  getParkingContainment() {
+    const bay = this.parkingBay;
+    const bayCos = Math.cos(-bay.angle);
+    const baySin = Math.sin(-bay.angle);
+    const dx = this.car.position.x - bay.x;
+    const dz = this.car.position.z - bay.z;
+    const center = { x: dx * bayCos - dz * baySin, z: dx * baySin + dz * bayCos };
+    const carAngle = this.car.rotation.y - bay.angle;
+    const halfWidth = 1.05;
+    const halfDepth = 2;
+    const corners = [[-halfWidth, -halfDepth], [halfWidth, -halfDepth], [halfWidth, halfDepth], [-halfWidth, halfDepth]].map(([x, z]) => ({
+      x: center.x + x * Math.cos(carAngle) - z * Math.sin(carAngle),
+      z: center.z + x * Math.sin(carAngle) + z * Math.cos(carAngle)
+    }));
+    const bounds = [
+      { axis: "x", value: -bay.width / 2, greater: true }, { axis: "x", value: bay.width / 2, greater: false },
+      { axis: "z", value: -bay.depth / 2, greater: true }, { axis: "z", value: bay.depth / 2, greater: false }
+    ];
+    const clipped = bounds.reduce((polygon, bound) => this.clipParkingPolygon(polygon, bound), corners);
+    return this.polygonArea(clipped) / (halfWidth * 2 * halfDepth * 2);
+  }
+
+  clipParkingPolygon(polygon, bound) {
+    const result = [];
+    for (let index = 0; index < polygon.length; index++) {
+      const current = polygon[index];
+      const previous = polygon[(index + polygon.length - 1) % polygon.length];
+      const currentInside = bound.greater ? current[bound.axis] >= bound.value : current[bound.axis] <= bound.value;
+      const previousInside = bound.greater ? previous[bound.axis] >= bound.value : previous[bound.axis] <= bound.value;
+      if (currentInside !== previousInside) {
+        const otherAxis = bound.axis === "x" ? "z" : "x";
+        const t = (bound.value - previous[bound.axis]) / (current[bound.axis] - previous[bound.axis]);
+        result.push({ [bound.axis]: bound.value, [otherAxis]: previous[otherAxis] + t * (current[otherAxis] - previous[otherAxis]) });
+      }
+      if (currentInside) result.push(current);
+    }
+    return result;
+  }
+
+  polygonArea(polygon) {
+    return Math.abs(polygon.reduce((area, point, index) => {
+      const next = polygon[(index + 1) % polygon.length];
+      return area + point.x * next.z - next.x * point.z;
+    }, 0)) / 2;
+  }
+
+  updateVehicleVisuals(dt) {
+    const wheelSpin = this.vehicle.speed / 0.38 * dt;
+    for (const wheel of this.wheels) wheel.rotation.x -= wheelSpin;
+    for (const pivot of this.frontWheelPivots) pivot.rotation.y = this.vehicle.steering;
+    this.suspension.rotation.x = -this.vehicle.speed * 0.012 - this.cameraShake * 0.08;
+  }
+
+  toggleCollisionDebug(visible) {
+    this.collisionWorld.setDebugVisible(visible);
+  }
   updateCamera(dt) {
     const camera = this.game.camera;
 
     const behind = new THREE.Vector3(
-      Math.sin(this.heading) * 8,
+      Math.sin(this.car.rotation.y) * 8,
       5,
-      Math.cos(this.heading) * 8
+      Math.cos(this.car.rotation.y) * 8
     );
 
     const targetPosition = this.car.position.clone().add(behind);
 
     camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
+    if (this.cameraShake > 0) {
+      this.cameraShake = Math.max(0, this.cameraShake - dt);
+      camera.position.y += Math.sin(performance.now() * 0.07) * this.cameraShake * 0.35;
+    }
 
     const lookTarget = this.car.position.clone();
     lookTarget.y += 1;
@@ -323,6 +480,8 @@ export class ParkingLevel {
   }
 
   dispose() {
+    this.audio.dispose();
+    this.controls?.dispose();
     disposeObject3D(this.root);
   }
 }

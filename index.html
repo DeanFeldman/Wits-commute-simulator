@@ -11,17 +11,57 @@
   </head>
   <body>
     <div id="game-container"></div>
+    <div id="fade-overlay" aria-hidden="true"></div>
 
     <div id="top-bar">
       <strong>Wits Commute Sim</strong>
       <span id="level-name">Loading…</span>
       <span class="spacer"></span>
-      <span>1 / 2 / 3 = switch level</span>
+      <span>P = pause</span>
     </div>
 
     <div id="hud"></div>
     <div id="message"></div>
 
+    <main id="menu" aria-live="polite">
+      <section class="menu-card" aria-labelledby="menu-title">
+        <p class="menu-kicker">COMS3006A / COMS3025A</p>
+        <h1 id="menu-title">Wits Commute Simulator</h1>
+        <p id="menu-copy">Park. Cross. Cheat.</p>
+        <button id="menu-primary-action" data-game-action="start" type="button">
+          Start journey
+        </button>
+        <div id="dev-level-select" hidden>
+          <p>Development level select</p>
+          <button data-game-action="level-1" type="button">Level 1</button>
+          <button data-game-action="level-2" type="button">Level 2</button>
+          <button data-game-action="level-3" type="button">Level 3</button>
+        </div>
+      </section>
+    </main>
+
+
+
+    <section id="instruction-card" hidden aria-live="polite">
+      <div class="menu-card">
+        <p class="menu-kicker">LEVEL BRIEF</p>
+        <h2 id="instruction-title"></h2>
+        <p id="instruction-copy"></p>
+        <button data-instruction-action="dismiss" type="button">Got it</button>
+      </div>
+    </section>
+    <section id="pause-menu" hidden aria-label="Pause menu">
+      <div class="menu-card">
+        <p class="menu-kicker">LEVEL 3 CONTROLS</p>
+        <h2>Paused</h2>
+        <label id="sensitivity-control" class="sensitivity-control" for="look-sensitivity">
+          Look sensitivity
+          <input id="look-sensitivity" type="range" min="0.4" max="2" step="0.1" value="1" />
+          <output id="look-sensitivity-value">1.0x</output>
+        </label>
+        <button data-pause-action="resume" type="button">Resume</button>
+      </div>
+    </section>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
