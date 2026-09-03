@@ -45,6 +45,7 @@ export class CrossingStrip {
     // Retain `lane` as a convenience for any existing one-lane callers.
     this.lane = this.lanes[0] ?? null;
     this.traffic = [];
+    this.blockedCells = [];
     this.createGeometry();
     if (this.lanes.length > 0) this.createTraffic();
   }
@@ -115,6 +116,70 @@ export class CrossingStrip {
     if (isRoad) this.createRoadMarkings();
     if (isMedian) this.createMedianDetails();
     if (this.isCheckpoint) this.createCheckpointMarker();
+    if (this.definition.trees) this.createTrees();
+  }
+
+  createTrees() {
+    // Pick unique grid blocks using the strip's seeded RNG. Tree presets normally
+    // reserve the centre columns so the player's forward route stays open.
+    const config = this.definition.trees;
+    const blocks = [];
+    for (const rowOffset of config.rowOffsets) {
+      for (const column of config.columns) blocks.push({ column, rowOffset });
+    }
+    for (let index = blocks.length - 1; index > 0; index--) {
+      const other = Math.floor(this.random() * (index + 1));
+      [blocks[index], blocks[other]] = [blocks[other], blocks[index]];
+    }
+
+    const [minimumCount, maximumCount] = config.countRange;
+    const count = minimumCount + Math.floor(this.random() * (maximumCount - minimumCount + 1));
+    const [minimumScale, maximumScale] = config.scaleRange ?? [0.9, 1.1];
+    const gridSize = this.definition.depth / this.definition.rowSpan;
+    const trunkGeometry = new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7);
+    const canopyGeometry = new THREE.ConeGeometry(0.72, 1.45, 7);
+    const trunkMaterial = new THREE.MeshStandardMaterial({
+      color: config.trunkColor ?? 0x76513a,
+      roughness: 0.92,
+      flatShading: true
+    });
+    const canopyColors = config.canopyColors ?? [0x3f7f4c, 0x57934f, 0x6aa557];
+    const canopyMaterials = canopyColors.map((color) => new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.86,
+      flatShading: true
+    }));
+
+    for (let index = 0; index < count; index++) {
+      const block = blocks[index];
+      const tree = new THREE.Group();
+      tree.name = `strip-tree-${this.definition.index}-${index}`;
+      tree.userData.gridColumn = block.column;
+      tree.userData.rowOffset = block.rowOffset;
+
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.y = 0.68;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      const canopy = new THREE.Mesh(
+        canopyGeometry,
+        canopyMaterials[Math.floor(this.random() * canopyMaterials.length)]
+      );
+      canopy.position.y = 1.75;
+      canopy.castShadow = true;
+      tree.add(canopy);
+
+      const scale = minimumScale + this.random() * (maximumScale - minimumScale);
+      tree.scale.setScalar(scale);
+      tree.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
+      this.root.add(tree);
+      this.blockedCells.push({
+        x: tree.position.x,
+        z: this.z + tree.position.z,
+        type: "tree"
+      });
+    }
   }
 
   createRoadMarkings() {
