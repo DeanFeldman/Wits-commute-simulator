@@ -10,6 +10,8 @@ export class GridHopController {
     this.maxX = options.maxX ?? Infinity;
     this.minZ = options.minZ ?? -Infinity;
     this.maxZ = options.maxZ ?? Infinity;
+    this.canEnter = options.canEnter ?? (() => true);
+    this.onBlocked = options.onBlocked ?? null;
     this.gridPosition = new THREE.Vector2(object.position.x, object.position.z);
     this.queue = [];
     this.hop = null;
@@ -46,6 +48,10 @@ export class GridHopController {
     const targetZ = THREE.MathUtils.clamp(this.gridPosition.y + direction.z * this.cellSize, this.minZ, this.maxZ);
     const moved = targetX !== this.gridPosition.x || targetZ !== this.gridPosition.y;
     if (!moved) return;
+    if (!this.canEnter(targetX, targetZ)) {
+      this.onBlocked?.(targetX, targetZ);
+      return;
+    }
 
     const start = this.object.position.clone();
     const end = new THREE.Vector3(targetX, start.y, targetZ);

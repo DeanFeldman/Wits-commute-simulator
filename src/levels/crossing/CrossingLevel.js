@@ -30,6 +30,7 @@ export class CrossingLevel {
     this.traffic = [];
     this.lanes = [];
     this.strips = [];
+    this.blockedCells = [];
     this.layout = null;
     this.seed = null;
     this.recoveryTimer = 0;
@@ -80,7 +81,9 @@ export class CrossingLevel {
     this.collisionWorld.rebuild();
     this.hopController = new GridHopController(this.player, {
       cellSize: this.gridSize, hopDuration: 0.16, hopHeight: 0.38,
-      minX: -9.6, maxX: 9.6, minZ: this.finishZ, maxZ: this.startZ
+      minX: -9.6, maxX: 9.6, minZ: this.finishZ, maxZ: this.startZ,
+      canEnter: (x, z) => !this.isBlockedCell(x, z),
+      onBlocked: () => this.game.setMessage("A tree blocks that grid cell.")
     });
 
     const camera = new THREE.OrthographicCamera(-10, 10, 9, -9, 0.1, 100);
@@ -139,6 +142,7 @@ export class CrossingLevel {
     // Flat collections keep the existing collision and gap-hint code simple.
     this.lanes = this.strips.flatMap((strip) => strip.lanes);
     this.traffic = this.strips.flatMap((strip) => strip.traffic);
+    this.blockedCells = this.strips.flatMap((strip) => strip.blockedCells);
   }
 
   resolveSeed() {
@@ -293,6 +297,13 @@ export class CrossingLevel {
     else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue({ x: 0, z: 1 });
     else if (controls.consumeBuffered("moveLeft")) this.hopController.enqueue({ x: -1, z: 0 });
     else if (controls.consumeBuffered("moveRight")) this.hopController.enqueue({ x: 1, z: 0 });
+  }
+
+  isBlockedCell(x, z) {
+    const tolerance = this.gridSize * 0.1;
+    return this.blockedCells.some((cell) =>
+      Math.abs(cell.x - x) < tolerance && Math.abs(cell.z - z) < tolerance
+    );
   }
 
   checkFinish() {

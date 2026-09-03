@@ -146,6 +146,7 @@ export function validateLevel2Layout(layout) {
         errors.push(`Strip ${index} model paths must start with ./assets/.`);
       }
     }
+    if (strip.trees) validateTrees(strip, index, errors);
 
     if (!isHazardStrip(strip)) {
       trafficRun = 0;
@@ -244,6 +245,31 @@ function validateCrowd(strip, index, errors) {
   }
 }
 
+function validateTrees(strip, index, errors) {
+  const { countRange, columns, rowOffsets, scaleRange = [0.9, 1.1] } = strip.trees;
+  const validCountRange = Array.isArray(countRange) && countRange.length === 2
+    && Number.isInteger(countRange[0]) && Number.isInteger(countRange[1])
+    && countRange[0] >= 0 && countRange[0] <= countRange[1];
+  if (!validCountRange) errors.push(`Strip ${index} has an invalid tree count range.`);
+  if (!Array.isArray(columns) || columns.length === 0 || columns.some((column) => !Number.isInteger(column))) {
+    errors.push(`Strip ${index} has invalid tree columns.`);
+  } else if (Array.from({ length: 13 }, (_, column) => column - 6).every((column) => columns.includes(column))) {
+    errors.push(`Strip ${index} must leave at least one crossing column free of trees.`);
+  }
+  if (!Array.isArray(rowOffsets) || rowOffsets.length === 0
+    || rowOffsets.some((row) => !Number.isInteger(row) || row < 0 || row >= strip.rowSpan)) {
+    errors.push(`Strip ${index} has invalid tree row offsets.`);
+  }
+  if (!Array.isArray(scaleRange) || scaleRange.length !== 2
+    || !(scaleRange[0] > 0) || scaleRange[0] > scaleRange[1]) {
+    errors.push(`Strip ${index} has an invalid tree scale range.`);
+  }
+  if (validCountRange && Array.isArray(columns) && Array.isArray(rowOffsets)
+    && countRange[1] > columns.length * rowOffsets.length) {
+    errors.push(`Strip ${index} requests more trees than available grid blocks.`);
+  }
+}
+
 function isHazardStrip(strip) {
   return Boolean(strip?.traffic || strip?.crowd);
 }
@@ -275,6 +301,14 @@ function cloneStrip(strip) {
       ...strip.crowd,
       speedRange: [...strip.crowd.speedRange],
       rowOffsets: strip.crowd.rowOffsets ? [...strip.crowd.rowOffsets] : undefined
+    } : undefined,
+    trees: strip.trees ? {
+      ...strip.trees,
+      countRange: [...strip.trees.countRange],
+      columns: [...strip.trees.columns],
+      rowOffsets: [...strip.trees.rowOffsets],
+      scaleRange: strip.trees.scaleRange ? [...strip.trees.scaleRange] : undefined,
+      canopyColors: strip.trees.canopyColors ? [...strip.trees.canopyColors] : undefined
     } : undefined,
     traffic: cloneTraffic(strip.traffic)
   };

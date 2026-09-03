@@ -2,11 +2,54 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
 import { CrossingStrip } from "../src/levels/crossing/CrossingStrip.js";
+import { GridHopController } from "../src/shared/GridHopController.js";
 import {
   CUSTOM_HAZARD_STRIPS,
+  CUSTOM_SAFE_STRIPS,
   createSeededRandom,
   generateLevel2Layout
 } from "../src/levels/crossing/Level2StripGenerator.js";
+
+test("tree strips place a seeded set of trees on unique allowed blocks", () => {
+  const preset = CUSTOM_SAFE_STRIPS.find((strip) => strip.id === "tree-lined-safe-zone");
+  const definition = { ...preset, index: 3, rowStart: 4, width: 22, depth: 3.2 };
+  const createStrip = () => new CrossingStrip({
+    definition,
+    z: 0,
+    parent: new THREE.Group(),
+    random: createSeededRandom(1234),
+    audio: null
+  });
+  const positionsFor = (strip) => strip.root.children
+    .filter((child) => child.name.startsWith("strip-tree-"))
+    .map((tree) => [tree.userData.gridColumn, tree.userData.rowOffset]);
+
+  const firstPositions = positionsFor(createStrip());
+  const secondPositions = positionsFor(createStrip());
+  assert.deepEqual(firstPositions, secondPositions);
+  assert.ok(firstPositions.length >= 6 && firstPositions.length <= 9);
+  assert.equal(new Set(firstPositions.map((position) => position.join(":"))).size, firstPositions.length);
+  assert.ok(firstPositions.every(([column, row]) => Math.abs(column) >= 4 && [0, 1].includes(row)));
+});
+
+test("a tree-occupied grid cell rejects player movement", () => {
+  const object = new THREE.Object3D();
+  object.position.set(0, 0.9, 0);
+  let blockedCalls = 0;
+  const controller = new GridHopController(object, {
+    cellSize: 1.6,
+    hopDuration: 0.16,
+    canEnter: (x, z) => x !== 1.6 || z !== 0,
+    onBlocked: () => { blockedCalls += 1; }
+  });
+
+  controller.enqueue({ x: 1, z: 0 });
+  controller.update(0.2);
+
+  assert.deepEqual(controller.gridPosition.toArray(), [0, 0]);
+  assert.deepEqual(object.position.toArray(), [0, 0.9, 0]);
+  assert.equal(blockedCalls, 1);
+});
 
 test("traffic strips orient, space, and recycle their fixed vehicle pools", () => {
   const layout = generateLevel2Layout("traffic-runtime");

@@ -53,6 +53,39 @@ export const LEVEL_2_STRIPS = {
       surfaceColor: 0xb86f50,
       checkpoint: false,
       difficulty: 0
+    },
+    // Dense two-row garden. Only side columns are available to trees, leaving
+    // the middle of the crossing clear for the player.
+    {
+      id: "tree-lined-safe-zone",
+      type: "safe",
+      surface: "pavement",
+      rowSpan: 2,
+      surfaceColor: 0x78a85b,
+      checkpoint: false,
+      difficulty: 0,
+      trees: {
+        countRange: [6, 9],
+        columns: [-6, -5, -4, 4, 5, 6],
+        rowOffsets: [0, 1],
+        scaleRange: [0.85, 1.15],
+        canopyColors: [0x356f3f, 0x4d8846, 0x6b9e4f]
+      }
+    },
+    // A lighter one-row variation using the same reusable tree system.
+    {
+      id: "sparse-tree-verge",
+      type: "safe",
+      surface: "pavement",
+      surfaceColor: 0x8dbb69,
+      checkpoint: false,
+      difficulty: 0,
+      trees: {
+        countRange: [2, 4],
+        columns: [-6, -5, -4, 4, 5, 6],
+        rowOffsets: [0],
+        scaleRange: [0.75, 1]
+      }
     }
   ],
 
