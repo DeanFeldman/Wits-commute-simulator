@@ -144,3 +144,26 @@ body {
   background: transparent;
   color: #f4f4f5;
 }
+
+#fade-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: #05070a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease-in-out;
+}
+
+#fade-overlay.visible {
+  opacity: 1;
+}
+
+.damage-flash {
+  animation: damage-flash 500ms ease-out;
+}
+
+@keyframes damage-flash {
+  0% { background: rgba(255, 61, 79, 0.95); transform: translateX(4px); }
+  100% { background: rgba(5, 8, 14, 0.82); transform: translateX(0); }
+}

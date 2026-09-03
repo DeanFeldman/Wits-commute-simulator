@@ -35,7 +35,8 @@ export class Game {
       levelOne: "Digit1",
       levelTwo: "Digit2",
       levelThree: "Digit3",
-      restart: "KeyR"
+      restart: "KeyR",
+      debugColliders: "F3"
     });
 
     this.levelFactories = new Map([
@@ -53,11 +54,15 @@ export class Game {
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
+    this.collisionDebug = false;
+    this.journeyScore = 0;
+    this.journeyTime = 0;
 
     this.hudElement = document.querySelector("#hud");
     this.messageElement = document.querySelector("#message");
     this.levelNameElement = document.querySelector("#level-name");
     this.menuElement = document.querySelector("#menu");
+    this.fadeElement = document.querySelector("#fade-overlay");
     this.menuTitleElement = document.querySelector("#menu-title");
     this.menuCopyElement = document.querySelector("#menu-copy");
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
@@ -98,8 +103,8 @@ export class Game {
     this.menuElement.hidden = false;
   }
 
-  showResults() {
-    this.cancelTransition();
+  showResults(keepFade = false) {
+    if (!keepFade) this.cancelTransition();
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
@@ -113,19 +118,20 @@ export class Game {
     this.setHUD("");
     this.setMessage("");
     this.menuTitleElement.textContent = "Journey complete";
-    this.menuCopyElement.textContent = "You reached class without getting caught.";
+    this.menuCopyElement.textContent = `You reached class without getting caught. Score: ${this.journeyScore}. Time: ${this.journeyTime.toFixed(1)}s.`;
+    if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
     this.menuElement.hidden = false;
   }
 
-  async startLevel(levelNumber, checkpoint = "start") {
+  async startLevel(levelNumber, checkpoint = "start", keepFade = false) {
     const Level = this.levelFactories.get(levelNumber);
 
     if (!Level) {
       throw new Error(`Unknown level: ${levelNumber}`);
     }
 
-    this.cancelTransition();
+    if (!keepFade) this.cancelTransition();
     const loadVersion = ++this.loadVersion;
     const loadingMessage = `Loading Level ${levelNumber}…`;
 
@@ -171,6 +177,7 @@ export class Game {
 
     this.levelNameElement.textContent = level.name;
     this.isLoading = false;
+    if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
 
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
@@ -181,42 +188,43 @@ export class Game {
     this.currentCheckpoint = checkpoint;
   }
 
-  restartCurrentLevel() {
+  restartCurrentLevel(keepFade = false) {
     if (this.currentLevelNumber !== null) {
-      this.startLevel(this.currentLevelNumber, this.currentCheckpoint);
+      this.startLevel(this.currentLevelNumber, this.currentCheckpoint, keepFade);
     }
   }
 
   completeLevel(message) {
-    if (!this.currentLevelNumber || this.isTransitioning) {
-      return;
-    }
+    if (!this.currentLevelNumber || this.isTransitioning) return;
 
     const nextLevel = this.currentLevelNumber + 1;
+    this.journeyScore += 100;
     this.isTransitioning = true;
     this.setMessage(message);
-
-    this.scheduleTransition(() => {
-      if (nextLevel <= 3) {
-        this.startLevel(nextLevel);
-      } else {
-        this.showResults();
-      }
-    }, 900);
+    this.fadeTransition(() => {
+      if (nextLevel <= 3) this.startLevel(nextLevel, "start", true);
+      else this.showResults(true);
+    });
   }
 
   failLevel(message) {
-    if (this.currentLevelNumber === null || this.isTransitioning) {
-      return;
-    }
+    if (this.currentLevelNumber === null || this.isTransitioning) return;
 
     this.isTransitioning = true;
     this.setMessage(message);
-    this.scheduleTransition(() => this.restartCurrentLevel(), 900);
+    this.fadeTransition(() => this.restartCurrentLevel(true));
+  }
+
+  fadeTransition(callback) {
+    this.fadeElement.classList.add("visible");
+    this.scheduleTransition(callback, 280);
   }
 
   scheduleTransition(callback, delay) {
-    this.cancelTransition();
+    if (this.transitionTimer !== null) {
+      window.clearTimeout(this.transitionTimer);
+      this.transitionTimer = null;
+    }
     this.transitionTimer = window.setTimeout(() => {
       this.transitionTimer = null;
       callback();
@@ -224,6 +232,7 @@ export class Game {
   }
 
   cancelTransition() {
+    this.fadeElement?.classList.remove("visible");
     if (this.transitionTimer !== null) {
       window.clearTimeout(this.transitionTimer);
       this.transitionTimer = null;
@@ -276,6 +285,11 @@ export class Game {
     this.hudElement.innerHTML = html;
   }
 
+  flashHUD() {
+    this.hudElement.classList.remove("damage-flash");
+    void this.hudElement.offsetWidth;
+    this.hudElement.classList.add("damage-flash");
+  }
   setMessage(text = "") {
     this.currentMessage = text;
     this.messageElement.textContent = text;
@@ -300,6 +314,12 @@ export class Game {
       if (this.globalControls.wasPressed("levelThree")) {
         this.startLevel(3);
       }
+    }
+
+    if (this.globalControls.wasPressed("debugColliders")) {
+      this.collisionDebug = !this.collisionDebug;
+      this.currentLevel?.toggleCollisionDebug?.(this.collisionDebug);
+      this.setMessage(`Collision debug ${this.collisionDebug ? "on" : "off"}.`);
     }
 
     if (this.globalControls.wasPressed("restart")) {
@@ -343,6 +363,7 @@ export class Game {
       !this.isTransitioning &&
       this.currentLevel
     ) {
+      this.journeyTime += dt;
       this.currentLevel.update(dt);
     }
   }
