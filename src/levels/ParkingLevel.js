@@ -5,6 +5,7 @@ import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import { createWitsTerrain } from "../shared/WitsTerrain.js";
 
 export class ParkingLevel {
   constructor(game) {
@@ -51,6 +52,7 @@ export class ParkingLevel {
     scene.fog = new THREE.Fog(0x101522, 36, 96);
 
     scene.add(this.root);
+    this.root.add(createWitsTerrain({ baseY: -0.05 }));
     this.audio.startDrone(74, 0.012);
 
     const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 0.75);

@@ -4,6 +4,7 @@ import { CollisionWorld } from "../../shared/CollisionWorld.js";
 import { GridHopController } from "../../shared/GridHopController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
+import { createWitsTerrain } from "../../shared/WitsTerrain.js";
 import { CrossingStrip } from "./CrossingStrip.js";
 import {
   createSeededRandom,
@@ -56,6 +57,7 @@ export class CrossingLevel {
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
+    this.root.add(createWitsTerrain({ baseY: -2.3, nearScenery: true, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
@@ -128,7 +130,7 @@ export class CrossingLevel {
         random,
         audio: this.audio
       });
-      if (definition.traffic?.lanes?.some((lane) => lane.isHighway)) strip.root.position.y = -2;
+      if (definition.traffic?.lanes?.some((lane) => lane.isHighway)) strip.root.position.y = -1.5;
       this.strips.push(strip);
     }
 
@@ -225,35 +227,35 @@ export class CrossingLevel {
     }
     const campusGround = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), new THREE.MeshStandardMaterial({ color: 0x587449, roughness: 0.95 }));
     campusGround.rotation.x = -Math.PI / 2;
-    campusGround.position.y = -2.25;
+    campusGround.position.y = -1.75;
     this.root.add(campusGround);
     const highway = new THREE.Mesh(new THREE.BoxGeometry(22, 0.12, 8.4), new THREE.MeshStandardMaterial({ color: 0x252a31, roughness: 0.95 }));
-    highway.position.set(0, -2.08, this.bridgeZ);
+    highway.position.set(0, -1.58, this.bridgeZ);
     highway.receiveShadow = true;
     this.root.add(highway);
     for (const x of [-10.8, 10.8]) {
       const trenchWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.3, 8.8), metal);
-      trenchWall.position.set(x, -1.05, this.bridgeZ);
+      trenchWall.position.set(x, -0.8, this.bridgeZ);
       this.root.add(trenchWall);
     }
     for (const z of [-2.4, 0, 2.4]) {
       const marking = new THREE.Mesh(new THREE.BoxGeometry(21, 0.025, 0.08), cream);
-      marking.position.set(0, -2, this.bridgeZ + z);
+      marking.position.set(0, -1.5, this.bridgeZ + z);
       this.root.add(marking);
     }
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.28, 8.2), brick);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.28, 8.2), brick);
     deck.position.set(0, 0.14, this.bridgeZ);
     deck.castShadow = true;
     deck.receiveShadow = true;
     this.root.add(deck);
     for (const z of [this.bridgeZ - 5.1, this.bridgeZ + 5.1]) {
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.24, 2.8), brick);
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 2.8), brick);
       ramp.position.set(0, 0.12, z);
       ramp.rotation.x = 0;
       ramp.receiveShadow = true;
       this.root.add(ramp);
     }
-    for (const x of [-3.15, 3.15]) {
+    for (const x of [-2.05, 2.05]) {
       const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 8.4), metal);
       rail.position.set(x, 0.83, this.bridgeZ);
       this.root.add(rail);
@@ -564,6 +566,7 @@ export class CrossingLevel {
     const camera = this.game.camera;
 
     camera.position.x = this.player.position.x + 11;
+    camera.position.y = 10.5;
     camera.position.z = this.player.position.z + 17;
     camera.lookAt(
       this.player.position.x,
