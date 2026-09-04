@@ -49,6 +49,106 @@ Do not create files until the code needs them.
 
 ---
 
+## Placement Rules
+
+- `src/core/` - renderer, application lifecycle, game state, level switching and other engine-level orchestration.
+- `src/levels/` - mechanics, scene content, objectives and behaviour belonging to one level.
+- `src/shared/` - systems genuinely reused by more than one level or subsystem.
+- `src/shaders/` - imported JavaScript shader definitions and post-processing shader modules.
+- `src/ui/` - reusable UI or HUD modules when the code is large or reused enough to justify them.
+- `public/assets/` - static runtime assets such as models, textures, audio and files intentionally fetched at runtime.
+
+If an existing location fits, use it rather than creating another top-level source directory.
+
+---
+
+## Level Organisation
+
+Level organisation is based on complexity rather than forced symmetry.
+
+A level that only needs one main module may live directly under:
+
+```text
+src/levels/
+```
+
+For example:
+
+```text
+src/levels/ParkingLevel.js
+src/levels/CheatingLevel.js
+```
+
+When a level develops multiple support modules that belong only to that level, group them in a lowercase level directory:
+
+```text
+src/levels/crossing/
+├── CrossingLevel.js
+├── CrossingStrip.js
+├── Level2StripGenerator.js
+└── Level2StripLibrary.js
+```
+
+This means the current flat Level 1 and Level 3 modules and the Level 2 `crossing/` directory are not inherently inconsistent.
+
+Do not create empty `parking/` or `cheating/` directories merely for symmetry.
+
+If a single-module level later develops several level-specific support modules, moving it into its own directory should be a focused refactor rather than part of unrelated feature work.
+
+---
+
+## Source File Naming
+
+Classes and major modules use PascalCase:
+
+```text
+Game.js
+InputManager.js
+ParkingLevel.js
+CrossingStrip.js
+VehicleController.js
+```
+
+Utilities and function-only modules use camelCase:
+
+```text
+math.js
+disposeObject3D.js
+```
+
+Shader modules use camelCase ending in `Shader.js`:
+
+```text
+asphaltShader.js
+suspicionShader.js
+```
+
+Directories use lowercase names, with hyphens for multi-word names where needed.
+
+Runtime assets use the separate lowercase, hyphenated naming rules documented in `ASSETS_AND_CREDITS.md`.
+
+---
+
+## Shaders and Runtime Assets
+
+Imported JavaScript shader modules belong under:
+
+```text
+src/shaders/
+```
+
+Static runtime assets belong under:
+
+```text
+public/assets/
+```
+
+Do not create a parallel source directory such as `src/gfx/` for shader modules when `src/shaders/` already expresses that responsibility.
+
+A shader belongs under `public/assets/` only when it is deliberately loaded as a static runtime file rather than imported as JavaScript source.
+
+---
+
 ## main.js
 
 Responsibilities:

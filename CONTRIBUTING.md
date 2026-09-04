@@ -6,16 +6,59 @@ The goal of the workflow is to allow people to work in parallel without breaking
 
 ---
 
+## Sources of Truth
+
+Use the following documents for their respective concerns:
+
+- `CONTRIBUTING.md` - Git workflow, branches, commits and pull requests
+- `docs/ARCHITECTURE.md` - source-code placement, module boundaries and naming
+- `docs/GAME_DESIGN.md` - gameplay behaviour and intended mechanics
+- `docs/DEVELOPMENT.md` - phases, MVP scope and definition of done
+- `docs/ASSETS_AND_CREDITS.md` - runtime assets, naming and attribution
+- `docs/DEPLOYMENT.md` - production build and LAMP deployment
+- `docs/DECISIONS.md` - important technical and architectural decisions
+
+The README is an overview. If it conflicts with one of the detailed documents above, follow the detailed document and fix the contradiction.
+
+---
+
 ## Branch Strategy
-All development must happen on a branch matching one of these categories:
+
+All development happens on an issue branch.
+
+Use:
 
 ```text
-level-1/*
-level-2/*
-level-3/*
-engine/*
-gfx/*
-``` 
+<area>/<issue-number>-<short-description>
+```
+
+Allowed area prefixes:
+
+```text
+level-1/
+level-2/
+level-3/
+engine/
+gfx/
+docs/
+chore/
+```
+
+Examples:
+
+```text
+level-1/12-parking-validation
+level-2/27-crossing-traffic
+level-3/60-stealth-challenge
+engine/18-game-state
+gfx/34-suspicion-post-processing
+docs/42-deployment-guide
+chore/59-repository-conventions
+```
+
+Do not use a generic `feature/*` prefix when one of the project areas above applies.
+
+Choose the area that owns most of the change. Where practical, keep one issue per branch.
 
 `main` should always:
 
@@ -23,39 +66,23 @@ gfx/*
 - run
 - remain demonstrable
 
-Do not develop large features directly on `main`.
-
-Create a feature branch:
-
-```bash
-git checkout main
-git pull
-git checkout -b feature/your-feature
-```
-
-Examples:
-
-```text
-feature/wits-assets
-feature/parking-physics
-feature/crossing-traffic
-feature/tutor-vision
-feature/asphalt-shader
-feature/game-state
-```
+Do not develop directly on `main`.
 
 ---
 
 ## Before Starting Work
 
-Always update first:
+Always update `main` before creating a branch:
 
 ```bash
-git checkout main
+git switch main
 git pull
+git switch -c <area>/<issue-number>-<short-description>
 ```
 
-Then create or update your feature branch.
+If your Git version does not support `switch`, the equivalent `checkout` commands are acceptable.
+
+Before substantial work, check whether another team member already has a branch or PR touching the same files.
 
 ---
 
@@ -150,25 +177,51 @@ Everyone should regularly play the full game from Level 1 to Level 3.
 
 ## Code Placement
 
-Level-specific code belongs in:
+Detailed placement rules live in `docs/ARCHITECTURE.md`.
+
+In summary:
 
 ```text
-src/levels/
+src/core/       application and engine orchestration
+src/levels/     level-specific gameplay
+src/shared/     systems genuinely reused across levels
+src/shaders/    JavaScript shader and post-processing modules
+src/ui/         reusable UI modules when needed
+public/assets/  runtime models, textures, audio and other static assets
 ```
 
-Reusable code belongs in:
-
-```text
-src/shared/
-```
-
-Core engine / application code belongs in:
-
-```text
-src/core/
-```
+Do not create a new top-level source directory when an existing category already fits.
 
 Do not move code into `shared/` simply because it might be reused someday.
+
+## JavaScript File Naming
+
+Classes and major modules use PascalCase:
+
+```text
+Game.js
+InputManager.js
+ParkingLevel.js
+VehicleController.js
+```
+
+Utilities and function-only modules use camelCase:
+
+```text
+math.js
+disposeObject3D.js
+```
+
+Shader modules use camelCase ending in `Shader.js`:
+
+```text
+asphaltShader.js
+suspicionShader.js
+```
+
+Directories use lowercase names, with hyphens where a multi-word directory is needed.
+
+Do not rename existing modules purely for style in an unrelated feature PR.
 
 ---
 
@@ -187,6 +240,12 @@ If adding one:
 
 ## Assets
 
+Runtime assets belong under:
+
+```text
+public/assets/
+```
+
 Use:
 
 - lowercase filenames
@@ -194,7 +253,15 @@ Use:
 - relative paths
 - compressed `.glb` where practical
 
-Third-party assets must be recorded in:
+Imported JavaScript shader modules belong under:
+
+```text
+src/shaders/
+```
+
+A shader belongs under `public/assets/` only when it is intentionally loaded as a runtime static file rather than imported as source code.
+
+Third-party assets and external resources must be recorded in:
 
 ```text
 docs/ASSETS_AND_CREDITS.md

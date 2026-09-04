@@ -131,3 +131,41 @@ Feature work happens on branches and `main` should remain runnable.
 **Reason**
 
 The project has six contributors and frequent demonstrations / mentor feedback.
+
+---
+
+## 2026-09-04 — Repository and Branch Conventions
+
+**Decision**
+
+Issue branches use:
+
+```text
+<area>/<issue-number>-<short-description>
+```
+
+Supported areas are:
+
+```text
+level-1
+level-2
+level-3
+engine
+gfx
+docs
+chore
+```
+
+Level-specific code remains under `src/levels/`.
+
+A single-module level may live directly under `src/levels/`. When a level develops multiple level-specific support modules, those modules and the main level module are grouped in a lowercase level subdirectory.
+
+Imported JavaScript shader modules belong under `src/shaders/`. Static runtime assets belong under `public/assets/`.
+
+JavaScript classes and major modules use PascalCase, utilities use camelCase, and shader modules use camelCase ending in `Shader.js`.
+
+**Reason**
+
+The project has six contributors working in parallel. Explicit branch, naming and placement rules reduce merge conflicts, duplicated structures and uncertainty about where new work belongs.
+
+The convention preserves the current repository structure without unnecessary file moves while active feature branches may depend on those paths.
