@@ -31,8 +31,8 @@ export class ParkingLevel {
     this.potholeCooldown = 0;
 
     this.parkingBay = {
-      x: 7,
-      z: -8,
+      x: 15,
+      z: -20,
       width: 3.2,
       depth: 5.5,
       angle: 0
@@ -48,7 +48,7 @@ export class ParkingLevel {
     const scene = this.game.scene;
 
     scene.background = new THREE.Color(0x101522);
-    scene.fog = new THREE.Fog(0x101522, 26, 68);
+    scene.fog = new THREE.Fog(0x101522, 36, 96);
 
     scene.add(this.root);
     this.audio.startDrone(74, 0.012);
@@ -68,7 +68,7 @@ export class ParkingLevel {
     this.root.add(duskSun);
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(42, 42),
+      new THREE.PlaneGeometry(76, 76),
       new THREE.MeshStandardMaterial({
         color: 0x507048,
         roughness: 0.95
@@ -81,13 +81,14 @@ export class ParkingLevel {
 
     this.collisionWorld = new CollisionWorld(this.root);
 
-    this.createRoadCorridor();
+    this.createParkingSurface();
     this.createRoadMarkings();
     this.createParkedCars();
     this.createPotholes();
     this.createParkingBay();
     this.createPlayerCar();
     this.createStreetLights();
+    this.createLandmarks();
     this.collisionWorld.rebuild();
 
     const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
@@ -105,11 +106,11 @@ export class ParkingLevel {
     );
   }
 
-  createRoadCorridor() {
+  createParkingSurface() {
     const asphaltMaterial = createAsphaltMaterial();
     this.asphaltUniforms = asphaltMaterial.uniforms;
     const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(22, 42, 64, 128),
+      new THREE.PlaneGeometry(44, 64, 64, 128),
       asphaltMaterial
     );
 
@@ -123,9 +124,9 @@ export class ParkingLevel {
       roughness: 0.8
     });
 
-    for (const x of [-11.25, 11.25]) {
+    for (const x of [-22.25, 22.25]) {
       const kerb = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.25, 42),
+        new THREE.BoxGeometry(0.5, 0.25, 64),
         kerbMaterial
       );
 
@@ -134,46 +135,56 @@ export class ParkingLevel {
       kerb.receiveShadow = true;
       this.root.add(kerb);
     }
+    const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x8d918e, roughness: 0.85 });
+    for (const x of [-24, 24]) {
+      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(3, 0.12, 64), sidewalkMaterial);
+      sidewalk.position.set(x, 0.06, 0);
+      sidewalk.receiveShadow = true;
+      this.root.add(sidewalk);
+    }
   }
   createRoadMarkings() {
-    const material = new THREE.MeshBasicMaterial({ color: 0xc8b35b });
-
-    for (let z = 10; z >= -5; z -= 4) {
-      const marking = new THREE.Mesh(
-        new THREE.BoxGeometry(0.15, 0.02, 2),
-        material
-      );
-
-      marking.position.set(0, 0.02, z);
+    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
+    const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xd8b34f });
+    const bayLine = new THREE.BoxGeometry(0.1, 0.025, 5.5);
+    const endLine = new THREE.BoxGeometry(3.2, 0.025, 0.1);
+    const slotZ = [22, 15, 8, 1, -6, -13, -20, -27];
+    for (const x of [-15, -9, -3, 3, 9, 15]) for (const z of slotZ) {
+      for (const offset of [-1.6, 1.6]) {
+        const line = new THREE.Mesh(bayLine, lineMaterial);
+        line.position.set(x + offset, 0.025, z);
+        this.root.add(line);
+      }
+      const end = new THREE.Mesh(endLine, lineMaterial);
+      end.position.set(x, 0.025, z - 2.75);
+      this.root.add(end);
+    }
+    for (const x of [-18, -12, -6, 0, 6, 12, 18]) for (let z = 27; z >= -29; z -= 7) {
+      const marking = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 2.1), yellowMaterial);
+      marking.position.set(x, 0.03, z);
       this.root.add(marking);
     }
   }
 
   createParkedCars() {
-    const material = new THREE.MeshStandardMaterial({ color: 0x596273 });
-
-    const positions = [
-      [-6, -7],
-      [-2, -7],
-      [2, -7],
-      [11, -7],
-      [-9, 6],
-      [8, 4]
-    ];
-
-    for (const [x, z] of positions) {
-      const car = new THREE.Mesh(
-        new THREE.BoxGeometry(2.2, 1.1, 4.2),
-        material
-      );
-
-      car.position.set(x, 0.55, z);
-      car.castShadow = true;
-      car.receiveShadow = true;
-
-      this.root.add(car);
-      this.collisionWorld.add({ object: car, size: [2.2, 1.1, 4.2], color: 0xff6b6b, tag: "parked-car" });
+    const rows = [-15, -9, -3, 3, 9, 15];
+    const slots = [22, 15, 8, 1, -6, -13, -20, -27];
+    const parked = [];
+    for (const x of rows) for (const z of slots) if (x !== this.parkingBay.x || z !== this.parkingBay.z) parked.push([x, z]);
+    const body = new THREE.InstancedMesh(new THREE.BoxGeometry(2.2, 0.76, 4.15), new THREE.MeshStandardMaterial({ metalness: 0.18, roughness: 0.42 }), parked.length);
+    const cabin = new THREE.InstancedMesh(new THREE.BoxGeometry(1.62, 0.58, 1.95), new THREE.MeshStandardMaterial({ color: 0x182839, metalness: 0.15, roughness: 0.22 }), parked.length);
+    const colours = [0x3e6688, 0x9b3f3e, 0xd2d0c7, 0x293b4a, 0x66754e, 0x966d3f];
+    const matrix = new THREE.Matrix4();
+    for (let index = 0; index < parked.length; index++) {
+      const [x, z] = parked[index];
+      matrix.makeTranslation(x, 0.48, z); body.setMatrixAt(index, matrix); body.setColorAt(index, new THREE.Color(colours[index % colours.length]));
+      matrix.makeTranslation(x, 1.1, z + 0.18); cabin.setMatrixAt(index, matrix);
+      const collider = new THREE.Object3D(); collider.position.set(x, 0.55, z); this.root.add(collider);
+      this.collisionWorld.add({ object: collider, size: [2.2, 1.1, 4.2], color: 0xff6b6b, tag: String.fromCharCode(112, 97, 114, 107, 101, 100, 45, 99, 97, 114) });
     }
+    body.instanceMatrix.needsUpdate = true; body.instanceColor.needsUpdate = true; cabin.instanceMatrix.needsUpdate = true;
+    body.castShadow = body.receiveShadow = true; cabin.castShadow = cabin.receiveShadow = true;
+    this.root.add(body, cabin);
   }
 
   createPotholes() {
@@ -183,15 +194,15 @@ export class ParkingLevel {
     });
 
     const positions = [
-      [-3, 6],
-      [3, 1],
-      [-4, -3],
-      [5, -2]
+      [-18, 17, 1.05], [-12, 10, 0.72], [-6, 4, 0.92], [0, 13, 0.82],
+      [6, 8, 1.12], [12, 3, 0.76], [18, -4, 1.02], [-18, -10, 0.84],
+      [-12, -18, 1.1], [-6, -12, 0.74], [0, -23, 0.95], [6, -17, 0.8],
+      [12, -26, 1.04], [18, -14, 0.78]
     ];
 
-    for (const [x, z] of positions) {
+    for (const [x, z, scale] of positions) {
       const pothole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.75, 0.95, 0.08, 24),
+        new THREE.CylinderGeometry(0.7 * scale, 1 * scale, 0.07, 12),
         material
       );
 
@@ -277,7 +288,7 @@ export class ParkingLevel {
       body.add(beam, beam.target);
     }
 
-    carRoot.position.set(0, 0, 12);
+    carRoot.position.set(0, 0, 27);
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
@@ -307,6 +318,69 @@ export class ParkingLevel {
       this.root.add(light);
     }
   }
+  createLandmarks() {
+    const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0x717981, metalness: 0.35, roughness: 0.58 });
+    const highway = new THREE.Mesh(new THREE.PlaneGeometry(15, 74), new THREE.MeshStandardMaterial({ color: 0x20262c, roughness: 0.8 }));
+    highway.rotation.x = -Math.PI / 2;
+    highway.position.set(-32, 0.01, 0);
+    this.root.add(highway);
+    for (let z = -31; z <= 31; z += 4) {
+      const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.75, 3.6), barrierMaterial);
+      barrier.position.set(-26.2, 0.38, z);
+      barrier.castShadow = true;
+      this.root.add(barrier);
+    }
+    const traffic = new THREE.InstancedMesh(new THREE.BoxGeometry(2.1, 0.7, 4.2), new THREE.MeshStandardMaterial({ roughness: 0.45 }), 12);
+    const trafficMatrix = new THREE.Matrix4();
+    const trafficColours = [0xe0e1df, 0xb3423e, 0x42688c, 0x34383e];
+    for (let index = 0; index < 12; index++) {
+      trafficMatrix.makeTranslation(index % 2 ? -30.5 : -34, 0.45, -30 + index * 5.4);
+      traffic.setMatrixAt(index, trafficMatrix);
+      traffic.setColorAt(index, new THREE.Color(trafficColours[index % trafficColours.length]));
+    }
+    traffic.instanceMatrix.needsUpdate = true;
+    traffic.instanceColor.needsUpdate = true;
+    this.root.add(traffic);
+
+    const facadeMaterials = [0xa86e52, 0x9a866d, 0x6b4c44];
+    for (let index = 0; index < 5; index++) {
+      const building = new THREE.Group();
+      const block = new THREE.Mesh(new THREE.BoxGeometry(7 + (index % 2) * 3, 8 + (index % 3) * 2, 8), new THREE.MeshStandardMaterial({ color: facadeMaterials[index % facadeMaterials.length], roughness: 0.78 }));
+      block.position.y = 4 + (index % 3);
+      building.add(block);
+      const windows = new THREE.Mesh(new THREE.BoxGeometry(0.05, 3.1, 5.8), new THREE.MeshBasicMaterial({ color: 0xf0b35c }));
+      windows.position.set(-4.05 - (index % 2) * 1.5, 5, 0);
+      building.add(windows);
+      building.position.set(31 + (index % 2) * 5, 0, -25 + index * 12);
+      this.root.add(building);
+    }
+
+    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.28, 3.2, 6), new THREE.MeshStandardMaterial({ color: 0x5a422f, roughness: 0.9 }), 14);
+    const crown = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 5, 7), new THREE.MeshStandardMaterial({ color: 0x274d36, roughness: 0.95 }), 14);
+    const treeMatrix = new THREE.Matrix4();
+    for (let index = 0; index < 14; index++) {
+      const x = index % 2 ? 25.5 : -25.5;
+      const z = -29 + index * 4.4;
+      treeMatrix.makeTranslation(x, 1.6, z); trunk.setMatrixAt(index, treeMatrix);
+      treeMatrix.makeTranslation(x, 5, z); crown.setMatrixAt(index, treeMatrix);
+    }
+    trunk.instanceMatrix.needsUpdate = true;
+    crown.instanceMatrix.needsUpdate = true;
+    this.root.add(trunk, crown);
+
+    const signMaterial = new THREE.MeshStandardMaterial({ color: 0x174a78, roughness: 0.55 });
+    const binMaterial = new THREE.MeshStandardMaterial({ color: 0x2e5b45, roughness: 0.7 });
+    for (const [x, z] of [[20.5, 20], [20.5, -10], [-20.5, 4]]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), barrierMaterial); pole.position.set(x, 1.1, z);
+      const board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 0.1), signMaterial); board.position.set(x, 2.35, z);
+      this.root.add(pole, board);
+    }
+    for (const [x, z] of [[20.5, 12], [20.5, -22], [-20.5, -18]]) {
+      const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.42, 0.9, 10), binMaterial);
+      bin.position.set(x, 0.45, z); this.root.add(bin);
+    }
+  }
+
   update(dt) {
     if (this.completed) {
       return;
@@ -319,8 +393,8 @@ export class ParkingLevel {
       steering: (controls.isDown("steerLeft") ? 1 : 0) - (controls.isDown("steerRight") ? 1 : 0)
     });
     this.audio.updateEngine(this.vehicle.speed);
-    this.car.position.x = clamp(this.car.position.x, -10.2, 10.2);
-    this.car.position.z = clamp(this.car.position.z, -16, 16);
+    this.car.position.x = clamp(this.car.position.x, -21, 21);
+    this.car.position.z = clamp(this.car.position.z, -31, 31);
     if (this.collisionWorld.firstHit(this.car, [2.1, 1.1, 4], (collider) => collider.tag === "parked-car")) {
       this.car.position.copy(previousPosition);
       this.vehicle.stop();
