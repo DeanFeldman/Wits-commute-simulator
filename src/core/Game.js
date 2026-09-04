@@ -1,9 +1,14 @@
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
 
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
+import { SuspicionShader } from "../shaders/suspicionShader.js";
 
 const LEVEL_STATES = new Map([
   [1, "level1"],
@@ -28,6 +33,15 @@ export class Game {
       0.1,
       1000
     );
+    this.suspicionComposer = new EffectComposer(this.renderer);
+    this.suspicionRenderPass = new RenderPass(this.scene, this.camera);
+    this.suspicionPass = new ShaderPass(SuspicionShader);
+    this.suspicionOutputPass = new OutputPass();
+
+    this.suspicionComposer.addPass(this.suspicionRenderPass);
+    this.suspicionComposer.addPass(this.suspicionPass);
+    this.suspicionComposer.addPass(this.suspicionOutputPass);
+
     this.clock = new THREE.Clock();
     this.input = new InputManager(this.renderer.domElement);
     this.globalControls = this.input.registerBindings({
@@ -435,7 +449,20 @@ export class Game {
   }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+
+  if (this.currentLevelNumber === 3 && this.currentLevel) {
+      this.suspicionRenderPass.scene = this.scene;
+      this.suspicionRenderPass.camera = this.camera;
+      this.suspicionPass.uniforms.uSuspicion.value =
+      THREE.MathUtils.clamp(
+        (this.currentLevel.suspicion ?? 0) / 100,
+          0,
+          1
+        );
+      this.suspicionComposer.render();
+      return;
+      }
+  this.renderer.render(this.scene, this.camera);
   }
 
   onResize() {
@@ -460,5 +487,7 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
+
+    this.suspicionComposer.setSize(width, height);
   }
 }
