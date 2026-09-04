@@ -4,6 +4,7 @@ import { CollisionWorld } from "../../shared/CollisionWorld.js";
 import { GridHopController } from "../../shared/GridHopController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
+import { createWitsTerrain } from "../../shared/WitsTerrain.js";
 import { CrossingStrip } from "./CrossingStrip.js";
 import {
   createSeededRandom,
@@ -56,6 +57,7 @@ export class CrossingLevel {
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
+    this.root.add(createWitsTerrain({ baseY: -0.35, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
