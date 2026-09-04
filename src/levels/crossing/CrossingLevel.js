@@ -57,7 +57,7 @@ export class CrossingLevel {
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
-    this.root.add(createWitsTerrain({ baseY: -2.3, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
+    this.root.add(createWitsTerrain({ baseY: -2.3, nearScenery: true, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
