@@ -183,7 +183,7 @@ wits-commute-simulator/
 ## Important Project Rules
 
 - Keep `main` runnable.
-- Use feature branches.
+- Use issue branches following the naming convention in `CONTRIBUTING.md`.
 - Do not merge broken code into `main`.
 - Build the full game with primitive geometry before detailed visual production.
 - Keep level-specific code inside its level module.
