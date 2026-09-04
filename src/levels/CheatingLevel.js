@@ -5,6 +5,42 @@ import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 
+export const LEVEL_THREE_BALANCE = Object.freeze({
+  answerGainPerSecond: 5,
+  suspicionGainPerSecond: 30,
+  suspicionDecayPerSecond: 6,
+  tutorPauseSeconds: 2.6,
+  tutorTurnSpeed: 2.4
+});
+
+export function updateStealthMeters({
+  answerProgress,
+  suspicion,
+  copying,
+  seen,
+  dt
+}) {
+  let nextAnswer = answerProgress;
+  let nextSuspicion = suspicion;
+
+  if (copying) {
+    nextAnswer += LEVEL_THREE_BALANCE.answerGainPerSecond * dt;
+
+    if (seen) {
+      nextSuspicion +=
+        LEVEL_THREE_BALANCE.suspicionGainPerSecond * dt;
+    }
+  } else {
+    nextSuspicion -=
+      LEVEL_THREE_BALANCE.suspicionDecayPerSecond * dt;
+  }
+
+  return {
+    answerProgress: clamp(nextAnswer, 0, 100),
+    suspicion: clamp(nextSuspicion, 0, 100)
+  };
+}
+
 export class CheatingLevel {
   constructor(game) {
     this.game = game;
@@ -70,7 +106,7 @@ export class CheatingLevel {
     this.createLightingIdentity();
     this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
-      points: this.patrolPoints, speed: 2.1, pauseAtNodes: 2.2,
+      points: this.patrolPoints, speed: 2.1, pauseAtNodes: LEVEL_THREE_BALANCE.tutorPauseSeconds,
       debugRoot: this.root, debugColor: 0xff7f86
     });
     this.collisionWorld.rebuild();
@@ -295,30 +331,102 @@ export class CheatingLevel {
 
   updateTutor(dt) {
     const previousPosition = this.tutor.position.clone();
-    const state = this.tutorMover.update(dt);
-    const movement = this.tutor.position.clone().sub(previousPosition).setY(0);
+    this.tutorMover.update(dt);
+
+    const movement = this.tutor.position
+      .clone()
+      .sub(previousPosition)
+      .setY(0);
+
     const isWalking = movement.lengthSq() > 0.0001;
+    const isScanning = this.tutorMover.pauseTimer > 0;
+
     if (isWalking) {
       const targetYaw = Math.atan2(movement.x, movement.z);
-      const difference = Math.atan2(Math.sin(targetYaw - this.tutor.rotation.y), Math.cos(targetYaw - this.tutor.rotation.y));
-      this.tutor.rotation.y += THREE.MathUtils.clamp(difference, -5 * dt, 5 * dt);
+      const difference = Math.atan2(
+        Math.sin(targetYaw - this.tutor.rotation.y),
+        Math.cos(targetYaw - this.tutor.rotation.y)
+      );
+
+      this.tutor.rotation.y += THREE.MathUtils.clamp(
+        difference,
+        -5 * dt,
+        5 * dt
+      );
+    } else if (isScanning) {
+      // During each patrol pause, deliberately turn toward the player's
+      // side of the room instead of scanning only along the walking path.
+      const toPlayer = this.playerPosition
+        .clone()
+        .sub(this.tutor.position)
+        .setY(0);
+
+      if (toPlayer.lengthSq() > 0.0001) {
+        const targetYaw = Math.atan2(toPlayer.x, toPlayer.z);
+        const difference = Math.atan2(
+          Math.sin(targetYaw - this.tutor.rotation.y),
+          Math.cos(targetYaw - this.tutor.rotation.y)
+        );
+
+        const maxTurn =
+          LEVEL_THREE_BALANCE.tutorTurnSpeed * dt;
+
+        this.tutor.rotation.y += THREE.MathUtils.clamp(
+          difference,
+          -maxTurn,
+          maxTurn
+        );
+      }
     }
-    this.patrolState = this.tutorMover.pauseTimer > 0 ? "scan" : "walk";
+
+    this.patrolState = isScanning ? "scan" : "walk";
     this.stateTimer = this.tutorMover.pauseTimer;
+    this.tutorTime += dt;
+
     this.updateTutorAnimation(dt, isWalking);
-    this.audio.updateTutorFootsteps(dt, isWalking, this.tutor.position.x, this.playerPosition.x);
-    const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.tutorHead.getWorldQuaternion(new THREE.Quaternion()));
-    this.visionTarget.position.copy(this.tutorHead.getWorldPosition(new THREE.Vector3())).addScaledVector(headForward, 10);
+
+    this.audio.updateTutorFootsteps(
+      dt,
+      isWalking,
+      this.tutor.position.x,
+      this.playerPosition.x
+    );
+
+    const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+      this.tutorHead.getWorldQuaternion(new THREE.Quaternion())
+    );
+
+    this.visionTarget.position
+      .copy(this.tutorHead.getWorldPosition(new THREE.Vector3()))
+      .addScaledVector(headForward, 10);
   }
 
   updateTutorAnimation(dt, isWalking) {
-    if (isWalking) this.tutorWalkPhase += dt * 11;
-    const stride = isWalking ? Math.sin(this.tutorWalkPhase) * 0.48 : 0;
+    if (isWalking) {
+      this.tutorWalkPhase += dt * 11;
+    }
+
+    const stride = isWalking
+      ? Math.sin(this.tutorWalkPhase) * 0.48
+      : 0;
+
     this.tutorLegs[0].rotation.x = stride;
     this.tutorLegs[1].rotation.x = -stride;
-    this.tutorBody.position.y = isWalking ? Math.abs(Math.sin(this.tutorWalkPhase)) * 0.045 : 0;
-    if (this.patrolState === "scan") this.tutorHead.rotation.y = Math.sin(this.stateTimer * 6) * 0.48;
-    else this.tutorHead.rotation.y = Math.sin(this.tutorWalkPhase * 0.5) * (isWalking ? 0.07 : 0.025);
+
+    this.tutorBody.position.y = isWalking
+      ? Math.abs(Math.sin(this.tutorWalkPhase)) * 0.045
+      : 0;
+
+    if (this.patrolState === "scan") {
+      // Once the body has turned toward the room, sweep the vision cone
+      // slightly so the pause reads as deliberate observation.
+      this.tutorHead.rotation.y =
+        Math.sin(this.tutorTime * 3.2) * 0.2;
+    } else {
+      this.tutorHead.rotation.y =
+        Math.sin(this.tutorWalkPhase * 0.5) *
+        (isWalking ? 0.07 : 0.025);
+    }
   }
 
   updateMouseLook() {
@@ -339,27 +447,37 @@ export class CheatingLevel {
   updateCheating(dt) {
     const copying = this.controls.isDown("copy");
     const targetLean = copying ? 1 : 0;
-    this.copyLean += (targetLean - this.copyLean) * Math.min(1, dt * 12);
+
+    this.copyLean +=
+      (targetLean - this.copyLean) *
+      Math.min(1, dt * 12);
+
     this.camera.rotation.z = -this.copyLean * 0.12;
 
     const seen = this.canTutorSeePlayer();
     this.playerSeen = seen;
 
-    if (copying) {
-      this.answerProgress += 16 * dt;
-      if (this.answerProgress > 0 && Math.floor(this.answerProgress) % 12 === 0) this.audio.cue(680, 0.04, 0.025);
+    const previousAnswer = this.answerProgress;
 
-      if (seen) {
-        this.suspicion += 34 * dt;
-      } else {
-        this.suspicion -= 7 * dt;
-      }
-    } else {
-      this.suspicion -= 18 * dt;
+    const meters = updateStealthMeters({
+      answerProgress: this.answerProgress,
+      suspicion: this.suspicion,
+      copying,
+      seen,
+      dt
+    });
+
+    this.answerProgress = meters.answerProgress;
+    this.suspicion = meters.suspicion;
+
+    // Cue once when crossing each 12% answer milestone.
+    if (
+      copying &&
+      Math.floor(previousAnswer / 12) <
+        Math.floor(this.answerProgress / 12)
+    ) {
+      this.audio.cue(680, 0.04, 0.025);
     }
-
-    this.answerProgress = clamp(this.answerProgress, 0, 100);
-    this.suspicion = clamp(this.suspicion, 0, 100);
   }
 
   canTutorSeePlayer() {
