@@ -5,7 +5,16 @@ import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
-import { createWitsTerrain } from "../shared/WitsTerrain.js";
+import {
+  attachCarModel,
+  createSeededRandom,
+  pickRandomCar
+} from "../shared/VehicleModelLibrary.js";
+import {
+  createParkingEnvironment,
+  PARKING_LAYOUT
+} from "./parking/ParkingEnvironment.js";
+
 
 export class ParkingLevel {
   constructor(game) {
@@ -25,6 +34,8 @@ export class ParkingLevel {
     this.cameraShake = 0;
     this.asphaltUniforms = null;
     this.audio = new LevelAudio();
+    this.environment = null;
+    this.impactCooldown = 0;
 
     this.condition = 100;
     this.elapsedTime = 0;
@@ -45,106 +56,146 @@ export class ParkingLevel {
     this.completed = false;
   }
 
-  load() {
-    const scene = this.game.scene;
+load() {
+  const scene = this.game.scene;
 
-    scene.background = new THREE.Color(0x101522);
-    scene.fog = new THREE.Fog(0x101522, 36, 96);
+  scene.background = new THREE.Color(0x101522);
+  scene.fog = new THREE.Fog(0x101522, 36, 96);
 
-    scene.add(this.root);
-    this.root.add(createWitsTerrain({ baseY: -0.05 }));
-    this.audio.startDrone(74, 0.012);
+  scene.add(this.root);
+  this.audio.startDrone(74, 0.012);
 
-    const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 0.75);
-    this.root.add(hemi);
+  const hemi = new THREE.HemisphereLight(
+    0x5e7898,
+    0x170d09,
+    0.75
+  );
+  this.root.add(hemi);
 
-    const duskSun = new THREE.DirectionalLight(0xffb56a, 1.8);
-    duskSun.position.set(-18, 11, 8);
-    duskSun.castShadow = true;
-    duskSun.shadow.mapSize.set(1536, 1536);
-    duskSun.shadow.camera.left = -18;
-    duskSun.shadow.camera.right = 18;
-    duskSun.shadow.camera.top = 18;
-    duskSun.shadow.camera.bottom = -18;
-    duskSun.shadow.bias = -0.0004;
-    this.root.add(duskSun);
+  const duskSun = new THREE.DirectionalLight(
+    0xffb56a,
+    1.8
+  );
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(76, 76),
-      new THREE.MeshStandardMaterial({
-        color: 0x507048,
-        roughness: 0.95
-      })
+  duskSun.position.set(-18, 11, 8);
+  duskSun.castShadow = true;
+  duskSun.shadow.mapSize.set(1536, 1536);
+  duskSun.shadow.camera.left = -18;
+  duskSun.shadow.camera.right = 18;
+  duskSun.shadow.camera.top = 18;
+  duskSun.shadow.camera.bottom = -18;
+  duskSun.shadow.bias = -0.0004;
+
+  this.root.add(duskSun);
+
+  this.collisionWorld = new CollisionWorld(this.root);
+
+  this.createParkingSurface();
+  this.createRoadMarkings();
+  this.createParkedCars();
+  this.createPotholes();
+  this.createParkingBay();
+  this.createPlayerCar();
+
+  this.environment = createParkingEnvironment({
+    collisionWorld: this.collisionWorld,
+    playerCar: this.car
+  });
+
+  this.root.add(this.environment.root);
+
+  this.createStreetLights();
+
+  this.collisionWorld.rebuild();
+
+  const camera = new THREE.PerspectiveCamera(
+    58,
+    1,
+    0.1,
+    150
+  );
+
+  camera.position.set(0, 6, 9);
+  this.game.setCamera(camera);
+
+  this.controls = this.game.input.registerBindings({
+    accelerate: ["KeyW", "ArrowUp"],
+    brake: ["KeyS", "ArrowDown"],
+    steerLeft: ["KeyA", "ArrowLeft"],
+    steerRight: ["KeyD", "ArrowRight"]
+  });
+
+  this.game.setMessage(
+    "Drive to the cyan bay. W/S = throttle, A/D = steer, R = restart."
+  );
+}
+
+
+createParkingSurface() {
+  const lot = PARKING_LAYOUT.mainLot;
+
+  const asphaltMaterial = createAsphaltMaterial();
+  this.asphaltUniforms = asphaltMaterial.uniforms;
+
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(lot.width, lot.depth, 64, 128),
+    asphaltMaterial
+  );
+
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(lot.x, 0.01, lot.z);
+  road.receiveShadow = true;
+  this.root.add(road);
+
+  const kerbMaterial = new THREE.MeshStandardMaterial({
+    color: 0xb8b8af,
+    roughness: 0.8
+  });
+
+  const halfWidth = lot.width / 2;
+
+  for (const x of [
+    lot.x - halfWidth - 0.25,
+    lot.x + halfWidth + 0.25
+  ]) {
+    const kerb = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.25, lot.depth),
+      kerbMaterial
     );
 
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.root.add(ground);
+    kerb.position.set(x, 0.125, lot.z);
+    kerb.castShadow = true;
+    kerb.receiveShadow = true;
+    this.root.add(kerb);
 
-    this.collisionWorld = new CollisionWorld(this.root);
-
-    this.createParkingSurface();
-    this.createRoadMarkings();
-    this.createParkedCars();
-    this.createPotholes();
-    this.createParkingBay();
-    this.createPlayerCar();
-    this.createStreetLights();
-    this.createLandmarks();
-    this.collisionWorld.rebuild();
-
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 150);
-    camera.position.set(0, 6, 9);
-    this.game.setCamera(camera);
-
-    this.controls = this.game.input.registerBindings({
-      accelerate: ["KeyW", "ArrowUp"],
-      brake: ["KeyS", "ArrowDown"],
-      steerLeft: ["KeyA", "ArrowLeft"],
-      steerRight: ["KeyD", "ArrowRight"]
+    this.collisionWorld.add({
+      object: kerb,
+      size: [0.5, 0.25, lot.depth],
+      color: 0xff6b6b,
+      tag: "kerb"
     });
-    this.game.setMessage(
-      "Drive to the cyan bay. W/S = throttle, A/D = steer, R = restart."
-    );
   }
 
-  createParkingSurface() {
-    const asphaltMaterial = createAsphaltMaterial();
-    this.asphaltUniforms = asphaltMaterial.uniforms;
-    const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(44, 64, 64, 128),
-      asphaltMaterial
+  const sidewalkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x8d918e,
+    roughness: 0.85
+  });
+
+  for (const x of [
+    lot.x - halfWidth - 2,
+    lot.x + halfWidth + 2
+  ]) {
+    const sidewalk = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 0.12, lot.depth),
+      sidewalkMaterial
     );
 
-    road.rotation.x = -Math.PI / 2;
-    road.position.y = 0.01;
-    road.receiveShadow = true;
-    this.root.add(road);
-
-    const kerbMaterial = new THREE.MeshStandardMaterial({
-      color: 0xb8b8af,
-      roughness: 0.8
-    });
-
-    for (const x of [-22.25, 22.25]) {
-      const kerb = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.25, 64),
-        kerbMaterial
-      );
-
-      kerb.position.set(x, 0.125, 0);
-      kerb.castShadow = true;
-      kerb.receiveShadow = true;
-      this.root.add(kerb);
-    }
-    const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x8d918e, roughness: 0.85 });
-    for (const x of [-24, 24]) {
-      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(3, 0.12, 64), sidewalkMaterial);
-      sidewalk.position.set(x, 0.06, 0);
-      sidewalk.receiveShadow = true;
-      this.root.add(sidewalk);
-    }
+    sidewalk.position.set(x, 0.06, lot.z);
+    sidewalk.receiveShadow = true;
+    this.root.add(sidewalk);
   }
+}
+
   createRoadMarkings() {
     const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
     const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xd8b34f });
@@ -173,20 +224,23 @@ export class ParkingLevel {
     const slots = [22, 15, 8, 1, -6, -13, -20, -27];
     const parked = [];
     for (const x of rows) for (const z of slots) if (x !== this.parkingBay.x || z !== this.parkingBay.z) parked.push([x, z]);
-    const body = new THREE.InstancedMesh(new THREE.BoxGeometry(2.2, 0.76, 4.15), new THREE.MeshStandardMaterial({ metalness: 0.18, roughness: 0.42 }), parked.length);
-    const cabin = new THREE.InstancedMesh(new THREE.BoxGeometry(1.62, 0.58, 1.95), new THREE.MeshStandardMaterial({ color: 0x182839, metalness: 0.15, roughness: 0.22 }), parked.length);
-    const colours = [0x3e6688, 0x9b3f3e, 0xd2d0c7, 0x293b4a, 0x66754e, 0x966d3f];
-    const matrix = new THREE.Matrix4();
-    for (let index = 0; index < parked.length; index++) {
-      const [x, z] = parked[index];
-      matrix.makeTranslation(x, 0.48, z); body.setMatrixAt(index, matrix); body.setColorAt(index, new THREE.Color(colours[index % colours.length]));
-      matrix.makeTranslation(x, 1.1, z + 0.18); cabin.setMatrixAt(index, matrix);
-      const collider = new THREE.Object3D(); collider.position.set(x, 0.55, z); this.root.add(collider);
-      this.collisionWorld.add({ object: collider, size: [2.2, 1.1, 4.2], color: 0xff6b6b, tag: String.fromCharCode(112, 97, 114, 107, 101, 100, 45, 99, 97, 114) });
+    const random = createSeededRandom(3006);
+
+    for (const [x, z] of parked) {
+      const holder = new THREE.Group();
+      holder.position.set(x, 0, z);
+      this.root.add(holder);
+
+      const spec = pickRandomCar(random, { allowThomas: true });
+      attachCarModel(holder, spec, "lite").catch((error) => {
+        console.warn(`Unable to load parked car ${spec.id}`, error);
+      });
+
+      const collider = new THREE.Object3D();
+      collider.position.set(x, 0.55, z);
+      this.root.add(collider);
+      this.collisionWorld.add({ object: collider, size: spec.collider, color: 0xff6b6b, tag: String.fromCharCode(112, 97, 114, 107, 101, 100, 45, 99, 97, 114) });
     }
-    body.instanceMatrix.needsUpdate = true; body.instanceColor.needsUpdate = true; cabin.instanceMatrix.needsUpdate = true;
-    body.castShadow = body.receiveShadow = true; cabin.castShadow = cabin.receiveShadow = true;
-    this.root.add(body, cabin);
   }
 
   createPotholes() {
@@ -290,7 +344,11 @@ export class ParkingLevel {
       body.add(beam, beam.target);
     }
 
-    carRoot.position.set(0, 0, 27);
+    carRoot.position.set(
+      PARKING_LAYOUT.mainEntrance.x,
+      0,
+      27
+    );
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
@@ -320,87 +378,80 @@ export class ParkingLevel {
       this.root.add(light);
     }
   }
-  createLandmarks() {
-    const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0x717981, metalness: 0.35, roughness: 0.58 });
-    const highway = new THREE.Mesh(new THREE.PlaneGeometry(15, 74), new THREE.MeshStandardMaterial({ color: 0x20262c, roughness: 0.8 }));
-    highway.rotation.x = -Math.PI / 2;
-    highway.position.set(-32, 0.01, 0);
-    this.root.add(highway);
-    for (let z = -31; z <= 31; z += 4) {
-      const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.75, 3.6), barrierMaterial);
-      barrier.position.set(-26.2, 0.38, z);
-      barrier.castShadow = true;
-      this.root.add(barrier);
-    }
-    const traffic = new THREE.InstancedMesh(new THREE.BoxGeometry(2.1, 0.7, 4.2), new THREE.MeshStandardMaterial({ roughness: 0.45 }), 12);
-    const trafficMatrix = new THREE.Matrix4();
-    const trafficColours = [0xe0e1df, 0xb3423e, 0x42688c, 0x34383e];
-    for (let index = 0; index < 12; index++) {
-      trafficMatrix.makeTranslation(index % 2 ? -30.5 : -34, 0.45, -30 + index * 5.4);
-      traffic.setMatrixAt(index, trafficMatrix);
-      traffic.setColorAt(index, new THREE.Color(trafficColours[index % trafficColours.length]));
-    }
-    traffic.instanceMatrix.needsUpdate = true;
-    traffic.instanceColor.needsUpdate = true;
-    this.root.add(traffic);
 
-    const facadeMaterials = [0xa86e52, 0x9a866d, 0x6b4c44];
-    for (let index = 0; index < 5; index++) {
-      const building = new THREE.Group();
-      const block = new THREE.Mesh(new THREE.BoxGeometry(7 + (index % 2) * 3, 8 + (index % 3) * 2, 8), new THREE.MeshStandardMaterial({ color: facadeMaterials[index % facadeMaterials.length], roughness: 0.78 }));
-      block.position.y = 4 + (index % 3);
-      building.add(block);
-      const windows = new THREE.Mesh(new THREE.BoxGeometry(0.05, 3.1, 5.8), new THREE.MeshBasicMaterial({ color: 0xf0b35c }));
-      windows.position.set(-4.05 - (index % 2) * 1.5, 5, 0);
-      building.add(windows);
-      building.position.set(31 + (index % 2) * 5, 0, -25 + index * 12);
-      this.root.add(building);
-    }
-
-    const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.28, 3.2, 6), new THREE.MeshStandardMaterial({ color: 0x5a422f, roughness: 0.9 }), 14);
-    const crown = new THREE.InstancedMesh(new THREE.ConeGeometry(2.1, 5, 7), new THREE.MeshStandardMaterial({ color: 0x274d36, roughness: 0.95 }), 14);
-    const treeMatrix = new THREE.Matrix4();
-    for (let index = 0; index < 14; index++) {
-      const x = index % 2 ? 25.5 : -25.5;
-      const z = -29 + index * 4.4;
-      treeMatrix.makeTranslation(x, 1.6, z); trunk.setMatrixAt(index, treeMatrix);
-      treeMatrix.makeTranslation(x, 5, z); crown.setMatrixAt(index, treeMatrix);
-    }
-    trunk.instanceMatrix.needsUpdate = true;
-    crown.instanceMatrix.needsUpdate = true;
-    this.root.add(trunk, crown);
-
-    const signMaterial = new THREE.MeshStandardMaterial({ color: 0x174a78, roughness: 0.55 });
-    const binMaterial = new THREE.MeshStandardMaterial({ color: 0x2e5b45, roughness: 0.7 });
-    for (const [x, z] of [[20.5, 20], [20.5, -10], [-20.5, 4]]) {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2, 8), barrierMaterial); pole.position.set(x, 1.1, z);
-      const board = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 0.1), signMaterial); board.position.set(x, 2.35, z);
-      this.root.add(pole, board);
-    }
-    for (const [x, z] of [[20.5, 12], [20.5, -22], [-20.5, -18]]) {
-      const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.42, 0.9, 10), binMaterial);
-      bin.position.set(x, 0.45, z); this.root.add(bin);
-    }
-  }
 
   update(dt) {
     if (this.completed) {
       return;
     }
 
-    const controls = this.controls;
-    const previousPosition = this.car.position.clone();
-    this.vehicle.update(dt, {
-      throttle: (controls.isDown("accelerate") ? 1 : 0) - (controls.isDown("brake") ? 1 : 0),
-      steering: (controls.isDown("steerLeft") ? 1 : 0) - (controls.isDown("steerRight") ? 1 : 0)
-    });
-    this.audio.updateEngine(this.vehicle.speed);
-    this.car.position.x = clamp(this.car.position.x, -21, 21);
-    this.car.position.z = clamp(this.car.position.z, -31, 31);
-    if (this.collisionWorld.firstHit(this.car, [2.1, 1.1, 4], (collider) => collider.tag === "parked-car")) {
-      this.car.position.copy(previousPosition);
-      this.vehicle.stop();
-    }
+   const controls = this.controls;
+
+this.elapsedTime += dt;
+this.impactCooldown = Math.max(
+  0,
+  this.impactCooldown - dt
+);
+
+const previousPosition = this.car.position.clone();
+
+this.vehicle.update(dt, {
+  throttle:
+    (controls.isDown("accelerate") ? 1 : 0) -
+    (controls.isDown("brake") ? 1 : 0),
+
+  steering:
+    (controls.isDown("steerLeft") ? 1 : 0) -
+    (controls.isDown("steerRight") ? 1 : 0)
+});
+
+this.audio.updateEngine(this.vehicle.speed);
+
+this.environment?.update(dt);
+
+// Keep Level 1 contained, but allow the actual fence/barriers
+// to be reached rather than clamping before them.
+this.car.position.x = clamp(
+  this.car.position.x,
+  -23.5,
+  23.5
+);
+
+this.car.position.z = clamp(
+  this.car.position.z,
+  -33.5,
+  44.5
+);
+
+const hit = this.collisionWorld.firstHit(
+  this.car,
+  [2.1, 1.1, 4],
+  (collider) => collider.tag !== "pothole"
+);
+
+if (hit) {
+  this.car.position.copy(previousPosition);
+  this.vehicle.stop();
+
+  if (this.impactCooldown <= 0) {
+    this.condition = Math.max(
+      0,
+      this.condition - 5
+    );
+
+    this.cameraShake = Math.max(
+      this.cameraShake,
+      0.28
+    );
+
+    this.game.flashHUD();
+    this.game.playAlertTone(118, 0.12);
+    this.audio.cue(78, 0.12, 0.15);
+
+    this.impactCooldown = 0.55;
+  }
+}
+
     this.updateVehicleVisuals(dt);
     this.updateAsphalt(dt);
 
@@ -442,40 +493,77 @@ export class ParkingLevel {
       const distance = pothole.position.distanceTo(this.car.position);
 
       if (distance < 1.35) {
-        this.vehicle.speed *= 0.6;
-        this.cameraShake = 0.5;
+        this.vehicle.speed *= 0.82;
+        this.cameraShake = Math.max(this.cameraShake, 0.22);
         this.game.flashHUD();
-        this.game.playAlertTone(145, 0.16);
-        this.audio.cue(92, 0.18, 0.18);
-        this.condition = Math.max(0, this.condition - 10);
-        this.potholeCooldown = 0.8;
+        this.game.playAlertTone(145, 0.1);
+        this.audio.cue(92, 0.12, 0.14);
+
+        // Light damage only
+        this.condition = Math.max(0, this.condition - 4);
+
+        // Slightly longer cooldown so one pothole doesn't shred the car
+        this.potholeCooldown = 1.2;
         break;
       }
     }
   }
 
   checkParking(dt) {
-    const containmentPercent = this.getParkingContainment() * 100;
-    const angleError = Math.abs(Math.atan2(
-      Math.sin(this.car.rotation.y - this.parkingBay.angle),
-      Math.cos(this.car.rotation.y - this.parkingBay.angle)
-    ));
-    this.parkingStatus.containment = containmentPercent >= 80;
-    this.parkingStatus.alignment = angleError <= THREE.MathUtils.degToRad(12);
-    this.parkingStatus.rest = Math.abs(this.vehicle.speed) < 0.3;
-    this.parkingStatus.containmentPercent = containmentPercent;
+  const containmentPercent =
+    this.getParkingContainment() * 100;
 
-    if (this.parkingStatus.containment && this.parkingStatus.alignment && this.parkingStatus.rest) {
-      this.parkingStatus.holdTime += dt;
-    } else {
-      this.parkingStatus.holdTime = 0;
-    }
+  const delta =
+    this.car.rotation.y -
+    this.parkingBay.angle;
 
-    if (this.parkingStatus.holdTime >= this.parkingConfirmationDuration) {
-      this.completed = true;
-      this.game.completeLevel("Parked! Heading to Level 2.");
-    }
+  const facingError = Math.abs(
+    Math.atan2(
+      Math.sin(delta),
+      Math.cos(delta)
+    )
+  );
+
+  // Treat both directions along the bay axis as valid.
+  // This means 0° and ±180° can both pass.
+  const angleError = Math.min(
+    facingError,
+    Math.abs(Math.PI - facingError)
+  );
+
+  this.parkingStatus.containment =
+    containmentPercent >= 80;
+
+  this.parkingStatus.alignment =
+    angleError <= THREE.MathUtils.degToRad(12);
+
+  this.parkingStatus.rest =
+    Math.abs(this.vehicle.speed) < 0.3;
+
+  this.parkingStatus.containmentPercent =
+    containmentPercent;
+
+  if (
+    this.parkingStatus.containment &&
+    this.parkingStatus.alignment &&
+    this.parkingStatus.rest
+  ) {
+    this.parkingStatus.holdTime += dt;
+  } else {
+    this.parkingStatus.holdTime = 0;
   }
+
+  if (
+    this.parkingStatus.holdTime >=
+    this.parkingConfirmationDuration
+  ) {
+    this.completed = true;
+
+    this.game.completeLevel(
+      "Parked! Heading to Level 2."
+    );
+  }
+}
 
   getParkingContainment() {
     const bay = this.parkingBay;
