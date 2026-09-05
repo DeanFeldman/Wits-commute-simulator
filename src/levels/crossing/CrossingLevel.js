@@ -77,7 +77,6 @@ export class CrossingLevel {
     sun.target.position.set(0, 0, 0);
     // Build the generated environment before placing gameplay actors into it.
     await this.createStrips();
-    this.createAmicDeckLandmarks();
     this.createPlayer();
     this.createCrowds();
     this.collisionWorld.rebuild();
@@ -110,7 +109,6 @@ export class CrossingLevel {
     // A URL seed reproduces a layout; otherwise each new Level 2 start gets a new seed.
     this.seed = this.resolveSeed();
     this.layout = generateLevel2Layout(this.seed);
-    this.layout = this.createAmicDeckLayout(this.layout);
     if (import.meta.env.DEV) {
       const failures = validateGeneratedLayouts(100, this.seed);
       if (failures.length > 0) throw new Error(`Level 2 validation failed: ${JSON.stringify(failures[0])}`);
@@ -155,152 +153,6 @@ export class CrossingLevel {
     const values = new Uint32Array(1);
     globalThis.crypto.getRandomValues(values);
     return values[0];
-  }
-
-  createAmicDeckLayout(generated) {
-    const start = { ...generated.strips[0], rowSpan: 3, surfaceColor: 0xa86446 };
-    const sourceRoad = generated.strips.find((strip) => strip.traffic?.lanes)
-      ?? generated.strips.find((strip) => strip.traffic);
-    const sourceTaxi = generated.strips.find((strip) => strip.traffic?.taxiStops);
-    const lanes = sourceRoad.traffic.lanes ?? [sourceRoad.traffic];
-    const bridgeHighway = {
-      ...sourceRoad,
-      rowSpan: 4,
-      traffic: { lanes: [
-        { ...lanes[0], rowOffset: 0, vehicleCount: 2, isHighway: true },
-        { ...(lanes[1] ?? lanes[0]), rowOffset: 1, vehicleCount: 3, isHighway: true },
-        { ...lanes[0], rowOffset: 2, vehicleCount: 2, isHighway: true },
-        { ...(lanes[1] ?? lanes[0]), rowOffset: 3, vehicleCount: 3, isHighway: true }
-      ] }
-    };
-    const path = { ...generated.strips[2], rowSpan: 3, surfaceColor: 0x9b7259, traffic: null, crowd: null };
-    const valeRoad = {
-      ...sourceRoad,
-      rowSpan: 4,
-      traffic: { lanes: [
-        { ...lanes[0], rowOffset: 0, vehicleCount: 2 },
-        { ...(lanes[1] ?? lanes[0]), rowOffset: 1, vehicleCount: 3 },
-        { ...(sourceTaxi?.traffic ?? lanes[0]), rowOffset: 2, vehicleCount: 3 },
-        { ...lanes[0], rowOffset: 3, direction: 1, vehicleCount: 2 }
-      ] }
-    };
-    const finish = { ...generated.strips.at(-1), rowSpan: 3, surfaceColor: 0xa86446 };
-    let rowStart = 0;
-    const strips = [start, bridgeHighway, path, valeRoad, finish].map((strip, index) => {
-      const positioned = { ...strip, index, rowStart, width: 22, depth: STRIP_DEPTH * strip.rowSpan };
-      rowStart += strip.rowSpan;
-      return positioned;
-    });
-    this.bridgeZ = 5.6;
-    this.groundPathZ = 0;
-    this.valeRoadZ = -5.6;
-    return { ...generated, rowCount: rowStart, strips };
-  }
-
-  createAmicDeckLandmarks() {
-    // Overlay the active crossing with the Amic Deck's brick plazas and Vale Rd zebra route.
-    const brick = new THREE.MeshStandardMaterial({ color: 0xa86446, roughness: 0.9, flatShading: true });
-    const cream = new THREE.MeshBasicMaterial({ color: 0xf1ead4 });
-    const metal = new THREE.MeshStandardMaterial({ color: 0x56616a, roughness: 0.65 });
-    const green = new THREE.MeshStandardMaterial({ color: 0x2f7147, roughness: 0.9, flatShading: true });
-    for (const z of [this.startZ, this.finishZ]) {
-      const plaza = new THREE.Mesh(new THREE.BoxGeometry(22, 0.04, 3.1), brick);
-      plaza.position.set(0, 0.13, z);
-      plaza.receiveShadow = true;
-      this.root.add(plaza);
-      for (const x of [-8.5, 8.5]) {
-        const planter = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 1.2), green);
-        planter.position.set(x, 0.25, z);
-        this.root.add(planter);
-        const tree = new THREE.Mesh(new THREE.ConeGeometry(0.8, 2.5, 7), green);
-        tree.position.set(x, 1.55, z);
-        tree.castShadow = true;
-        this.root.add(tree);
-      }
-    }
-    for (let x = -4.8; x <= 4.8; x += 1.2) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.035, 6.4), cream);
-      stripe.position.set(x, 0.04, this.valeRoadZ);
-      this.root.add(stripe);
-    }
-    const campusGround = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), new THREE.MeshStandardMaterial({ color: 0x587449, roughness: 0.95 }));
-    campusGround.rotation.x = -Math.PI / 2;
-    campusGround.position.y = -1.75;
-    this.root.add(campusGround);
-    const highway = new THREE.Mesh(new THREE.BoxGeometry(22, 0.12, 8.4), new THREE.MeshStandardMaterial({ color: 0x252a31, roughness: 0.95 }));
-    highway.position.set(0, -1.58, this.bridgeZ);
-    highway.receiveShadow = true;
-    this.root.add(highway);
-    for (const x of [-10.8, 10.8]) {
-      const trenchWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.3, 8.8), metal);
-      trenchWall.position.set(x, -0.8, this.bridgeZ);
-      this.root.add(trenchWall);
-    }
-    for (const z of [-2.4, 0, 2.4]) {
-      const marking = new THREE.Mesh(new THREE.BoxGeometry(21, 0.025, 0.08), cream);
-      marking.position.set(0, -1.5, this.bridgeZ + z);
-      this.root.add(marking);
-    }
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.28, 8.2), brick);
-    deck.position.set(0, 0.14, this.bridgeZ);
-    deck.castShadow = true;
-    deck.receiveShadow = true;
-    this.root.add(deck);
-    for (const z of [this.bridgeZ - 5.1, this.bridgeZ + 5.1]) {
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 2.8), brick);
-      ramp.position.set(0, 0.12, z);
-      ramp.rotation.x = 0;
-      ramp.receiveShadow = true;
-      this.root.add(ramp);
-    }
-    for (const x of [-2.05, 2.05]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 8.4), metal);
-      rail.position.set(x, 0.83, this.bridgeZ);
-      this.root.add(rail);
-      for (let z = -3.6; z <= 3.6; z += 1.8) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.15, 8), metal);
-        post.position.set(x, 0.7, this.bridgeZ + z);
-        this.root.add(post);
-      }
-    }
-    for (const x of [-9.5, 9.5]) {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), metal);
-      pole.position.set(x, 2.75, this.bridgeZ);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), cream);
-      lamp.position.set(x, 5.45, this.bridgeZ);
-      this.root.add(pole, lamp);
-    }
-    const shelter = new THREE.Group();
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(4, 0.18, 1.2), metal);
-    roof.position.y = 2.1;
-    shelter.add(roof);
-    for (const x of [-1.7, 1.7]) {
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.1, 8), metal);
-      post.position.set(x, 1.05, 0);
-      shelter.add(post);
-    }
-    shelter.position.set(-7.5, 0, this.startZ - 1.1);
-    this.root.add(shelter);
-    for (const z of [this.valeRoadZ - 2.6, this.valeRoadZ + 2.6]) {
-      const barrier = new THREE.Mesh(new THREE.BoxGeometry(10, 0.7, 0.12), metal);
-      barrier.position.set(0, 0.35, z);
-      this.root.add(barrier);
-    }
-    const pedestrianMaterial = new THREE.MeshStandardMaterial({ color: 0x355d87, roughness: 0.8 });
-    for (const [x, z] of [[-5, this.startZ], [-2.5, this.startZ + 1], [3.5, this.startZ - 1], [6, this.finishZ], [-4, this.finishZ + 1], [2, this.finishZ - 1]]) {
-      const pedestrian = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.85, 0.34), pedestrianMaterial);
-      body.position.y = 0.62;
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), cream);
-      head.position.y = 1.28;
-      pedestrian.add(body, head);
-      pedestrian.position.set(x, 0.12, z);
-      this.root.add(pedestrian);
-    }
-    const bridgePedestrian = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.45, 0.5), pedestrianMaterial);
-    bridgePedestrian.position.set(0, 1.03, 6.4);
-    this.root.add(bridgePedestrian);
-    this.blockedCells.push({ x: 0, z: 6.4 });
   }
 
   createCrowds() {
@@ -392,7 +244,6 @@ export class CrossingLevel {
     this.crossingTime += dt;
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
-    this.updateBridgeElevation();
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardPenalty += 0.5;
     if (landedDirection) this.updateCheckpoint();
