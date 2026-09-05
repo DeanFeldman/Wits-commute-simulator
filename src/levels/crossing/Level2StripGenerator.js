@@ -49,6 +49,15 @@ export function generateLevel2Layout(seed) {
   }
 
   const taxiPosition = hazardPositions[Math.floor(hazardPositions.length / 2)];
+  // A second protected checkpoint sits earlier in the crossing, well clear of
+  // the taxi's median so the two checkpoints don't collide.
+  const earlyCheckpointHazardPosition = hazardPositions[Math.max(1, Math.floor(hazardPositions.length / 3) - 1)];
+  const taxiCheckpointRow = taxiPosition - 1;
+  const earlyCheckpointRow = earlyCheckpointHazardPosition - 1;
+  // Exactly one of the two median checkpoints is the Amic Deck bridge; the
+  // other stays a plain traffic island. Which slot gets the bridge is randomised.
+  const bridgeRow = random() < 0.5 ? earlyCheckpointRow : taxiCheckpointRow;
+
   const { hazards } = LEVEL_2_STRIPS;
   const hazardChoices = [...hazards.left, ...hazards.right, ...hazards.fast, ...hazards.custom];
 
@@ -65,13 +74,14 @@ export function generateLevel2Layout(seed) {
   const hazardsForLayout = shuffled(ordinaryHazards, random);
 
   // Layout recipe: fixed two-row start, then hazard/safe alternation.
-  // The protected checkpoint and taxi hazard sit near the middle.
+  // Two protected checkpoints (one dressed as the bridge) and the taxi
+  // hazard sit at fixed points through the crossing.
   const strips = [cloneStrip(LEVEL_2_STRIPS.start)];
   for (let index = 2; index < LEVEL_2_ROW_COUNT - 1; index++) {
     if (index === taxiPosition) {
       strips.push(cloneStrip(pick(hazards.taxi, random)));
-    } else if (index === taxiPosition - 1) {
-      strips.push(cloneStrip(LEVEL_2_STRIPS.checkpoint));
+    } else if (index === earlyCheckpointRow || index === taxiCheckpointRow) {
+      strips.push(cloneStrip(index === bridgeRow ? LEVEL_2_STRIPS.bridgeCheckpoint : LEVEL_2_STRIPS.checkpoint));
     } else if (index % 2 === 0) {
       strips.push(cloneStrip(hazardsForLayout.shift()));
     } else {
@@ -147,6 +157,10 @@ export function validateLevel2Layout(layout) {
       }
     }
     if (strip.trees) validateTrees(strip, index, errors);
+    // Validated regardless of hazard classification: the bridge checkpoint
+    // carries decorative highway traffic but is not itself a hazard.
+    if (strip.traffic) validateTraffic(strip, index, errors);
+    if (strip.crowd) validateCrowd(strip, index, errors);
 
     if (!isHazardStrip(strip)) {
       trafficRun = 0;
@@ -158,15 +172,13 @@ export function validateLevel2Layout(layout) {
     hardRun = strip.difficulty >= 2 ? hardRun + 1 : 0;
     if (trafficRun > 1) errors.push(`Traffic strips are adjacent at index ${index}.`);
     if (hardRun > 1) errors.push(`Difficult traffic strips are adjacent at index ${index}.`);
-    if (strip.traffic) validateTraffic(strip, index, errors);
-    if (strip.crowd) validateCrowd(strip, index, errors);
 
     if (strip.type === "taxi-hazard") {
       if (index < 3 || index > strips.length - 4) {
         errors.push(`Taxi strip ${index} is too close to the start or finish.`);
       }
-      if (strips[index - 1]?.type !== "median") {
-        errors.push(`Taxi strip ${index} must follow a protected median.`);
+      if (!strips[index - 1]?.checkpoint) {
+        errors.push(`Taxi strip ${index} must follow a protected checkpoint.`);
       }
     }
   }
@@ -175,11 +187,13 @@ export function validateLevel2Layout(layout) {
   if (layout.rowCount < LEVEL_2_ROW_COUNT) errors.push(`Layout must cover at least ${LEVEL_2_ROW_COUNT} rows.`);
 
   const checkpoints = strips.filter((strip) => strip.checkpoint);
-  if (checkpoints.length !== 2 || checkpoints[0]?.type !== "start" || checkpoints[1]?.type !== "median") {
-    errors.push("Layouts must contain exactly two checkpoints: the start and middle median.");
+  const medianCheckpointTypes = checkpoints.slice(1).map((strip) => strip.type).sort();
+  if (checkpoints.length !== 3 || checkpoints[0]?.type !== "start"
+    || medianCheckpointTypes.join(",") !== "bridge,median") {
+    errors.push("Layouts must contain exactly three checkpoints: the start, one bridge, and one median.");
   }
 
-  const requiredTypes = ["road-left", "road-right", "road-fast", "median", "taxi-hazard"];
+  const requiredTypes = ["road-left", "road-right", "road-fast", "median", "bridge", "taxi-hazard"];
   for (const type of requiredTypes) {
     if (!strips.some((strip) => strip.type === type)) errors.push(`Layout is missing ${type}.`);
   }
@@ -246,7 +260,7 @@ function validateCrowd(strip, index, errors) {
 }
 
 function validateTrees(strip, index, errors) {
-  const { countRange, columns, rowOffsets, scaleRange = [0.9, 1.1] } = strip.trees;
+  const { countRange, columns, rowOffsets, scale = 1 } = strip.trees;
   const validCountRange = Array.isArray(countRange) && countRange.length === 2
     && Number.isInteger(countRange[0]) && Number.isInteger(countRange[1])
     && countRange[0] >= 0 && countRange[0] <= countRange[1];
@@ -260,10 +274,7 @@ function validateTrees(strip, index, errors) {
     || rowOffsets.some((row) => !Number.isInteger(row) || row < 0 || row >= strip.rowSpan)) {
     errors.push(`Strip ${index} has invalid tree row offsets.`);
   }
-  if (!Array.isArray(scaleRange) || scaleRange.length !== 2
-    || !(scaleRange[0] > 0) || scaleRange[0] > scaleRange[1]) {
-    errors.push(`Strip ${index} has an invalid tree scale range.`);
-  }
+  if (!(scale > 0)) errors.push(`Strip ${index} has an invalid tree scale.`);
   if (validCountRange && Array.isArray(columns) && Array.isArray(rowOffsets)
     && countRange[1] > columns.length * rowOffsets.length) {
     errors.push(`Strip ${index} requests more trees than available grid blocks.`);
@@ -271,7 +282,11 @@ function validateTrees(strip, index, errors) {
 }
 
 function isHazardStrip(strip) {
-  return Boolean(strip?.traffic || strip?.crowd);
+  if (strip?.crowd) return true;
+  const lanes = strip?.traffic?.lanes ?? (strip?.traffic ? [strip.traffic] : []);
+  // Highway lanes dress the bridge checkpoint but are excluded from player
+  // collision, so they never count as a real hazard.
+  return lanes.some((lane) => !lane.isHighway);
 }
 
 function pick(values, random) {
@@ -307,7 +322,6 @@ function cloneStrip(strip) {
       countRange: [...strip.trees.countRange],
       columns: [...strip.trees.columns],
       rowOffsets: [...strip.trees.rowOffsets],
-      scaleRange: strip.trees.scaleRange ? [...strip.trees.scaleRange] : undefined,
       canopyColors: strip.trees.canopyColors ? [...strip.trees.canopyColors] : undefined
     } : undefined,
     traffic: cloneTraffic(strip.traffic)
