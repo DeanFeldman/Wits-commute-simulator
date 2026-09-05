@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  CheatingLevel,
   LEVEL_THREE_BALANCE,
   updateStealthMeters
 } from "../src/levels/CheatingLevel.js";
@@ -80,4 +81,20 @@ test("answer bar requires meaningful copying time", () => {
   });
 
   assert.equal(result.answerProgress, 31.25);
+});
+
+test("tutor patrol snakes through the desk aisles without diagonal shortcuts", () => {
+  const points = new CheatingLevel({}).patrolPoints;
+  const aisleDepths = [...new Set(points.map((point) => point.z))];
+
+  assert.deepEqual(aisleDepths, [-5.1, -2.65, -0.15, 2.35, 4.85, 7.35]);
+
+  for (let index = 0; index < points.length; index++) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    assert.ok(
+      current.x === next.x || current.z === next.z,
+      `patrol segment ${index} must remain inside a row or side aisle`
+    );
+  }
 });
