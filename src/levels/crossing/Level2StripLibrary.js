@@ -29,6 +29,62 @@ export const LEVEL_2_STRIPS = {
     difficulty: 0
   },
 
+  // The Amic Deck pedestrian bridge, dressed as a checkpoint over the sunken
+  // M1 highway. The highway lanes are marked `isHighway` so CrossingStrip
+  // sinks them below the deck and CrossingLevel excludes them from
+  // collision - the bridge is always safe to stand on, only the taxi and
+  // ordinary hazards can end a run. rowSpan is 6: the outer rows (0 and 5)
+  // are grass approaches with no traffic, the inner four carry the highway.
+  bridgeCheckpoint: {
+    id: "amic-deck-bridge",
+    type: "bridge",
+    surface: "road",
+    surfaceColor: 0x252a31,
+    rowSpan: 6,
+    checkpoint: true,
+    difficulty: 0,
+    traffic: {
+      lanes: [
+        {
+          rowOffset: 1,
+          direction: 1,
+          speed: 5.8,
+          gapRange: [7.5, 9],
+          allowedVehicleTypes: ["car", "hatchback"],
+          vehicleCount: 2,
+          isHighway: true
+        },
+        {
+          rowOffset: 2,
+          direction: -1,
+          speed: 6.2,
+          gapRange: [8, 9.5],
+          allowedVehicleTypes: ["car", "van"],
+          vehicleCount: 3,
+          isHighway: true
+        },
+        {
+          rowOffset: 3,
+          direction: 1,
+          speed: 5.8,
+          gapRange: [7.5, 9],
+          allowedVehicleTypes: ["car", "hatchback"],
+          vehicleCount: 2,
+          isHighway: true
+        },
+        {
+          rowOffset: 4,
+          direction: -1,
+          speed: 6.2,
+          gapRange: [8, 9.5],
+          allowedVehicleTypes: ["car", "van"],
+          vehicleCount: 3,
+          isHighway: true
+        }
+      ]
+    }
+  },
+
   // The generator chooses one of these between each pair of hazards.
   // Add custom safe strips and optional GLB models here.
   safe: [
@@ -68,7 +124,7 @@ export const LEVEL_2_STRIPS = {
         countRange: [6, 9],
         columns: [-6, -5, -4, 4, 5, 6],
         rowOffsets: [0, 1],
-        scaleRange: [0.85, 1.15],
+        scale: 1,
         canopyColors: [0x356f3f, 0x4d8846, 0x6b9e4f]
       }
     },
@@ -84,7 +140,7 @@ export const LEVEL_2_STRIPS = {
         countRange: [2, 4],
         columns: [-6, -5, -4, 4, 5, 6],
         rowOffsets: [0],
-        scaleRange: [0.75, 1]
+        scale: 1
       }
     }
   ],

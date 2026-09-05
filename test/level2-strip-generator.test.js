@@ -15,6 +15,7 @@ test("every generated piece comes from the editable strip library", () => {
     LEVEL_2_STRIPS.start.id,
     LEVEL_2_STRIPS.finish.id,
     LEVEL_2_STRIPS.checkpoint.id,
+    LEVEL_2_STRIPS.bridgeCheckpoint.id,
     ...LEVEL_2_STRIPS.safe.map((strip) => strip.id),
     ...Object.values(LEVEL_2_STRIPS.hazards).flat().map((strip) => strip.id)
   ]);
@@ -49,17 +50,21 @@ test("generated layouts begin safely and never place hazards together", () => {
     assert.equal(layout.strips[0].traffic, null);
     assert.equal(layout.strips[0].rowSpan, 2);
     assert.equal(layout.strips.at(-1).type, "finish");
-    assert.deepEqual(
-      layout.strips.filter((strip) => strip.checkpoint).map((strip) => strip.type),
-      ["start", "median"]
-    );
+    const checkpointTypes = layout.strips.filter((strip) => strip.checkpoint).map((strip) => strip.type);
+    assert.equal(checkpointTypes.length, 3);
+    assert.equal(checkpointTypes[0], "start");
+    assert.deepEqual([...checkpointTypes.slice(1)].sort(), ["bridge", "median"]);
     assert.deepEqual(validateLevel2Layout(layout), []);
 
     let trafficRun = 0;
     for (const strip of layout.strips) {
       assert.equal(strip.width, STRIP_WIDTH);
       assert.equal(strip.depth, STRIP_DEPTH * strip.rowSpan);
-      trafficRun = strip.traffic || strip.crowd ? trafficRun + 1 : 0;
+      // The bridge's highway lanes are decorative (excluded from player
+      // collision), so they don't count as a real hazard for adjacency.
+      const lanes = strip.traffic?.lanes ?? (strip.traffic ? [strip.traffic] : []);
+      const isRealHazard = Boolean(strip.crowd) || lanes.some((lane) => !lane.isHighway);
+      trafficRun = isRealHazard ? trafficRun + 1 : 0;
       assert.ok(trafficRun <= 1);
     }
   }
@@ -86,7 +91,7 @@ test("traffic rows expose bounded configuration and taxi rows follow a median", 
     const layout = generateLevel2Layout(seed);
     const taxiIndex = layout.strips.findIndex((strip) => strip.type === "taxi-hazard");
     assert.ok(taxiIndex >= 3 && taxiIndex <= layout.strips.length - 4);
-    assert.equal(layout.strips[taxiIndex - 1].type, "median");
+    assert.equal(layout.strips[taxiIndex - 1].checkpoint, true);
 
     for (const strip of layout.strips.filter((candidate) => candidate.traffic)) {
       const lanes = strip.traffic.lanes ?? [strip.traffic];

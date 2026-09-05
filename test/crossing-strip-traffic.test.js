@@ -30,6 +30,8 @@ test("tree strips place a seeded set of trees on unique allowed blocks", () => {
   assert.ok(firstPositions.length >= 6 && firstPositions.length <= 9);
   assert.equal(new Set(firstPositions.map((position) => position.join(":"))).size, firstPositions.length);
   assert.ok(firstPositions.every(([column, row]) => Math.abs(column) >= 4 && [0, 1].includes(row)));
+  const trees = createStrip().root.children.filter((child) => child.name.startsWith("strip-tree-"));
+  assert.ok(trees.every((tree) => tree.scale.x === 1 && tree.scale.y === 1 && tree.scale.z === 1));
 });
 
 test("a tree-occupied grid cell rejects player movement", () => {

@@ -7,6 +7,13 @@ const ROAD_COLOR = 0x3d4148;
 const VEHICLE_COLORS = [0xd65a5a, 0x496a9b, 0x6f7f51, 0xa45f98, 0xe8e1d0];
 const TRAFFIC_EDGE = 14;
 
+// The bridge checkpoint sinks its own surface/traffic by this much so they
+// read as the highway far below the deck (see createBridgeDetails).
+const BRIDGE_SINK = 2;
+// Only this much of the bridge's width is walkable; the rest is grass
+// shoulder over the sunken highway and is blocked off in createBridgeDetails.
+const BRIDGE_DECK_WIDTH = 7.2;
+
 // Low-poly vehicle dimensions. Length follows the vehicle's local forward axis.
 const VEHICLE_SHAPES = {
   car: { width: 1.3, height: 1.05, length: 2.6 },
@@ -25,6 +32,10 @@ export class CrossingStrip {
     this.root = new THREE.Group();
     this.root.name = `crossing-strip-${definition.index}-${definition.type}`;
     this.root.position.z = z;
+    this.isBridge = definition.type === "bridge";
+    // The bridge's own surface and highway traffic sink below the deck it
+    // draws in createBridgeDetails, reading as a sunken road far underneath.
+    if (this.isBridge) this.root.position.y = -BRIDGE_SINK;
     parent.add(this.root);
 
     // Old presets may declare one traffic object directly. Larger custom hazards
@@ -56,6 +67,7 @@ export class CrossingStrip {
 
   get checkpointLabel() {
     if (this.definition.type === "median") return "traffic island";
+    if (this.definition.type === "bridge") return "Amic Deck bridge";
     if (this.definition.type === "start") return "start";
     return "safe pavement";
   }
@@ -115,7 +127,15 @@ export class CrossingStrip {
 
     if (isRoad) this.createRoadMarkings();
     if (isMedian) this.createMedianDetails();
-    if (this.isCheckpoint) this.createCheckpointMarker();
+    if (this.isBridge) this.createBridgeDetails();
+    if (this.isCheckpoint) {
+      // The bridge's flag sits on the deck itself (much narrower than the
+      // full strip) and is lifted back above the sunken root.
+      this.createCheckpointMarker(
+        this.isBridge ? BRIDGE_SINK : 0,
+        this.isBridge ? BRIDGE_DECK_WIDTH / 2 - 0.8 : undefined
+      );
+    }
     if (this.definition.trees) this.createTrees();
   }
 
@@ -134,7 +154,7 @@ export class CrossingStrip {
 
     const [minimumCount, maximumCount] = config.countRange;
     const count = minimumCount + Math.floor(this.random() * (maximumCount - minimumCount + 1));
-    const [minimumScale, maximumScale] = config.scaleRange ?? [0.9, 1.1];
+    const treeScale = config.scale ?? 1;
     const gridSize = this.definition.depth / this.definition.rowSpan;
     const trunkGeometry = new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7);
     const canopyGeometry = new THREE.ConeGeometry(0.72, 1.45, 7);
@@ -170,8 +190,7 @@ export class CrossingStrip {
       canopy.castShadow = true;
       tree.add(canopy);
 
-      const scale = minimumScale + this.random() * (maximumScale - minimumScale);
-      tree.scale.setScalar(scale);
+      tree.scale.setScalar(treeScale);
       tree.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
       this.root.add(tree);
       this.blockedCells.push({
@@ -228,7 +247,7 @@ export class CrossingStrip {
     }
   }
 
-createCheckpointMarker() {
+createCheckpointMarker(yOffset = 0, x = this.definition.width / 2 - 0.8) {
   // Small checkpoint flag placed near the edge of the safe strip.
   const flag = new THREE.Group();
 
@@ -248,14 +267,94 @@ createCheckpointMarker() {
   cloth.position.set(0.275, 1.02, 0);
   flag.add(cloth);
 
-  // Put it near the right-hand end of the strip
-  flag.position.set(
-    this.definition.width / 2 - 0.8,
-    this.definition.surface === "median" ? 0.21 : 0.13,
-    0
-  );
+  flag.position.set(x, yOffset + (this.definition.surface === "median" ? 0.21 : 0.13), 0);
 
   this.root.add(flag);
+}
+
+createBridgeDetails() {
+  // Draws the Amic Deck pedestrian bridge over the sunken M1: a brick deck
+  // and railings at true grade, lifted back up by BRIDGE_SINK to compensate
+  // this.root's sink (which otherwise only affects the highway below).
+  // Every mesh here is sized to this strip's own depth so nothing bleeds
+  // into the neighbouring rows above/below it. The strip's outer rows carry
+  // no traffic (see Level2StripLibrary) - they're the grass approach on
+  // either side of the deck, in the direction of travel.
+  const depth = this.definition.depth;
+  const width = this.definition.width;
+  const rowDepth = depth / this.definition.rowSpan;
+  const deckDepth = depth - 2 * rowDepth;
+  const wallX = width / 2 - 0.6;
+  const brick = new THREE.MeshStandardMaterial({ color: 0xa86446, roughness: 0.9, flatShading: true });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x56616a, roughness: 0.65 });
+  const cream = new THREE.MeshBasicMaterial({ color: 0xf1ead4 });
+  const grass = new THREE.MeshStandardMaterial({ color: 0x587449, roughness: 0.95, flatShading: true });
+
+  // World-connecting grass beyond the trench walls, clipped to this strip's
+  // own depth (it can spill sideways into open space, just not lengthwise
+  // into a neighbouring row).
+  const outerGround = new THREE.Mesh(new THREE.PlaneGeometry(width + 6, depth), grass);
+  outerGround.rotation.x = -Math.PI / 2;
+  outerGround.position.y = BRIDGE_SINK - 2.25;
+  this.root.add(outerGround);
+
+  for (const side of [-1, 1]) {
+    const trenchWall = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.3, depth), metal);
+    trenchWall.position.set(side * wallX, BRIDGE_SINK - 1.05, 0);
+    this.root.add(trenchWall);
+  }
+
+  // Full-width grass approaches at the two outer rows, covering the highway
+  // for the length of one row so the bridge opens and closes with grass
+  // before the crossing itself. The highway stays visible beside the deck
+  // everywhere in between - nothing here hides the underpass.
+  for (const side of [-1, 1]) {
+    const approach = new THREE.Mesh(new THREE.BoxGeometry(width, 0.16, rowDepth), grass);
+    approach.position.set(0, BRIDGE_SINK + 0.08, side * (depth / 2 - rowDepth / 2));
+    approach.receiveShadow = true;
+    this.root.add(approach);
+  }
+
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE_DECK_WIDTH, 0.28, deckDepth), brick);
+  deck.position.set(0, BRIDGE_SINK + 0.14, 0);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  this.root.add(deck);
+
+  for (const x of [-BRIDGE_DECK_WIDTH / 2 + 0.3, BRIDGE_DECK_WIDTH / 2 - 0.3]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, deckDepth), metal);
+    rail.position.set(x, BRIDGE_SINK + 0.83, 0);
+    this.root.add(rail);
+    // Inset slightly from the deck's own depth so the posts' cylinder
+    // radius doesn't poke past the deck into the grass approach.
+    const postSpan = deckDepth / 2 - 0.1;
+    for (let z = -postSpan; z <= postSpan + 0.001; z += (2 * postSpan) / 3) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.15, 8), metal);
+      post.position.set(x, BRIDGE_SINK + 0.7, z);
+      this.root.add(post);
+    }
+  }
+
+  for (const x of [-width / 2 + 1.5, width / 2 - 1.5]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), metal);
+    pole.position.set(x, BRIDGE_SINK + 2.75, 0);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), cream);
+    lamp.position.set(x, BRIDGE_SINK + 5.45, 0);
+    this.root.add(pole, lamp);
+  }
+
+  // Block every grid cell off the deck so the player can't walk off the
+  // bridge and end up floating over the sunken highway.
+  const gridStep = depth / this.definition.rowSpan;
+  const walkableHalfWidth = BRIDGE_DECK_WIDTH / 2 - 0.4;
+  const halfColumnCount = 6; // matches the level's -9.6..9.6 hop grid range
+  for (let column = -halfColumnCount; column <= halfColumnCount; column++) {
+    const x = column * gridStep;
+    if (Math.abs(x) <= walkableHalfWidth) continue;
+    for (let rowOffset = 0; rowOffset < this.definition.rowSpan; rowOffset++) {
+      this.blockedCells.push({ x, z: this.z + this.localZForRow(rowOffset), type: "bridge-edge" });
+    }
+  }
 }
 
   createTraffic() {

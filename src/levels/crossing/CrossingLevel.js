@@ -34,7 +34,6 @@ export class CrossingLevel {
     this.blockedCells = [];
     this.layout = null;
     this.seed = null;
-    this.recoveryTimer = 0;
     this.invulnerabilityTimer = 0;
     this.crowds = [];
     this.crowdContactCooldown = 0;
@@ -130,7 +129,6 @@ export class CrossingLevel {
         random,
         audio: this.audio
       });
-      if (definition.traffic?.lanes?.some((lane) => lane.isHighway)) strip.root.position.y = -1.5;
       this.strips.push(strip);
     }
 
@@ -390,14 +388,7 @@ export class CrossingLevel {
   update(dt) {
     if (this.completed) return;
 
-    this.updateRecovery(dt);
-    if (this.recoveryTimer > 0) {
-      this.updateTraffic(dt);
-      this.updateCrowds(dt);
-      this.updateCamera();
-      return;
-    }
-
+    this.updateInvulnerability(dt);
     this.crossingTime += dt;
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
@@ -441,10 +432,6 @@ export class CrossingLevel {
     rig.head.position.y = 0.72 + (hopping ? Math.sin(this.hopController.hopProgress * Math.PI) * 0.06 : Math.sin(this.playerAnimationTime * 1.5) * 0.015);
   }
 
-  updateBridgeElevation() {
-    // Amic Deck stays at pedestrian grade; only the M1 traffic trench is lowered.
-    this.player.position.y = 0.9;
-  }
   updateTraffic(dt) {
     for (const strip of this.strips) strip.update(dt);
   }
@@ -493,7 +480,7 @@ export class CrossingLevel {
   }
 
   checkCrowdCollisions() {
-    if (this.crowdContactCooldown > 0 || this.recoveryTimer > 0) return;
+    if (this.crowdContactCooldown > 0 || this.invulnerabilityTimer > 0) return;
     const playerBox = new THREE.Box3().setFromObject(this.player);
     for (const crowd of this.crowds) {
       if (!playerBox.intersectsBox(new THREE.Box3().setFromObject(crowd.mesh))) continue;
@@ -544,29 +531,20 @@ export class CrossingLevel {
     this.attempts += 1;
     this.game.flashHUD();
     this.game.playAlertTone(wasTaxi ? 110 : 165, 0.14);
-    this.recoveryTimer = 0.3;
-    this.player.visible = false;
+    this.hopController.reset({ x: this.checkpoint.x, y: 0.9, z: this.checkpoint.z });
+    this.invulnerabilityTimer = 0.6;
     this.game.setMessage(wasTaxi
-      ? "Taxi pickup ambush! Resetting at checkpoint."
-      : "Hit! Resetting at checkpoint.");
+      ? `Taxi pickup ambush! Teleported back to ${this.checkpoint.label}.`
+      : `Hit! Teleported back to ${this.checkpoint.label}.`);
   }
 
-  updateRecovery(dt) {
+  updateInvulnerability(dt) {
     if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer = Math.max(0, this.invulnerabilityTimer - dt);
-    if (this.recoveryTimer <= 0) return;
-    this.recoveryTimer = Math.max(0, this.recoveryTimer - dt);
-    if (this.recoveryTimer > 0) return;
-
-    this.hopController.reset({ x: this.checkpoint.x, y: 0.9, z: this.checkpoint.z });
-    this.player.visible = true;
-    this.invulnerabilityTimer = 0.6;
-    this.game.setMessage(`Restarted at ${this.checkpoint.label}.`);
   }
   updateCamera() {
     const camera = this.game.camera;
 
     camera.position.x = this.player.position.x + 11;
-    camera.position.y = 10.5;
     camera.position.z = this.player.position.z + 17;
     camera.lookAt(
       this.player.position.x,
