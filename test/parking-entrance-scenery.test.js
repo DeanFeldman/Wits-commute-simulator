@@ -10,6 +10,7 @@ import {
   getLevelOneParkingSpaces
 } from "../src/levels/ParkingLevel.js";
 import { PARKING_LAYOUT } from "../src/levels/parking/ParkingEnvironment.js";
+import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 
 const EPSILON = 0.001;
 
@@ -45,7 +46,7 @@ test("generated rows match the annotated Wits aerial structure", () => {
   assert.equal(layout.topRow.count, 20);
   assert.equal(layout.doubleRows.length, 6);
   assert.equal(layout.verticalRoads.length, 7);
-  assert.equal(spaces.length, 363);
+  assert.equal(spaces.length, 359);
 
   const topRow = spaces.filter((space) => space.rowName === "top-row");
   assert.equal(topRow.length, 20);
@@ -69,7 +70,7 @@ test("generated rows match the annotated Wits aerial structure", () => {
   assert.ok(new Set(rowStarts).size > 3, "interior rows have staggered northern starts");
   assert.ok(new Set(rowEnds).size > 3, "interior rows have staggered southern ends");
   assert.ok(spaces.some((space) => space.rowName === "west-upper"));
-  assert.equal(spaces.filter((space) => space.rowName === "east-angled").length, 21);
+  assert.equal(spaces.filter((space) => space.rowName === "east-angled").length, 17);
   assert.ok(layout.rearRoad.depth <= 5.2, "north drive lane remains narrow");
   assert.ok(layout.topRow.step.x >= PARKING_BAY_LENGTH, "top-row bays are parallel parked");
   assert.ok(Math.abs(layout.topRow.rotation - Math.PI / 2) < 0.2, "top-row cars run along the curb");
@@ -113,8 +114,25 @@ test("only the playable target bay is reserved and cars fit within every bay", (
   assert.equal(targets[0].x, 3);
   assert.ok(targets[0].z < 26, "target remains clear of the entrance turning area");
 
-  assert.ok(2.05 < PARKING_BAY_WIDTH);
-  assert.ok(4.15 < PARKING_BAY_LENGTH);
+  // Every vehicle in the parking pack has to fit a square bay.
+  const widest = Math.max(...PARKING_CAR_SPECS.map((spec) => spec.collider[0]));
+  const longest = Math.max(...PARKING_CAR_SPECS.map((spec) => spec.collider[2]));
+  assert.ok(widest < PARKING_BAY_WIDTH, "the widest packed car fits a bay");
+  assert.ok(longest <= PARKING_BAY_LENGTH, "the longest packed car fits a bay");
+
+  // Perpendicular rows only need the slot pitch to beat the car width.
+  assert.ok(layout.slotSpacing > widest, "neighbouring bays clear the widest car");
+
+  // Angled bays need more room along the row, because a turned car reaches
+  // further into its neighbour. Measure the step on the car's width axis.
+  const east = layout.eastAngledRow;
+  const rightX = Math.cos(east.rotation);
+  const rightZ = -Math.sin(east.rotation);
+  const angledClearance = Math.abs(east.step.x * rightX + east.step.z * rightZ);
+  assert.ok(
+    angledClearance >= widest,
+    `angled bays clear the widest car (${angledClearance.toFixed(2)} m of ${widest} m)`
+  );
   for (const space of spaces) {
     assert.ok(Number.isFinite(space.x));
     assert.ok(Number.isFinite(space.z));

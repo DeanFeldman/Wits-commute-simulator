@@ -3,6 +3,11 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 
 const ROAD_TEXTURE_PATH = "./assets/textures/road/";
 
+// World size of one asphalt texture tile. The lot shader multiplies its uvs
+// by SHADER_UV_TILING, so surfaces that use the shader divide by that first.
+export const ROAD_TILE_METRES = 8;
+export const SHADER_UV_TILING = Object.freeze({ x: 12, y: 10 });
+
 const vertexShader = `
 uniform float uTime;
 uniform sampler2D uDisplacementTexture;
@@ -60,7 +65,9 @@ void main() {
 }
 `;
 
-export function createAsphaltMaterial() {
+// One texture set is shared by the lot shader and the surrounding streets, so
+// the four maps are downloaded and uploaded to the GPU only once per level load.
+export function createRoadTextures() {
   const configureTexture = (texture, { colour = false } = {}) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -70,26 +77,31 @@ export function createAsphaltMaterial() {
   };
 
   const textureLoader = new THREE.TextureLoader();
-  const roadTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_diff_2k.jpg`),
-    { colour: true }
-  );
-  const roughnessTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_rough_2k.jpg`)
-  );
-  const displacementTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_disp_2k.png`)
-  );
-  const normalTexture = configureTexture(
-    new EXRLoader().load(`${ROAD_TEXTURE_PATH}asphalt_02_nor_gl_2k.exr`)
-  );
 
+  return {
+    colour: configureTexture(
+      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_diff_2k.jpg`),
+      { colour: true }
+    ),
+    roughness: configureTexture(
+      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_rough_2k.jpg`)
+    ),
+    displacement: configureTexture(
+      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_disp_2k.png`)
+    ),
+    normal: configureTexture(
+      new EXRLoader().load(`${ROAD_TEXTURE_PATH}asphalt_02_nor_gl_2k.exr`)
+    )
+  };
+}
+
+export function createAsphaltMaterial(textures = createRoadTextures()) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uRoadTexture: { value: roadTexture },
-      uRoughnessTexture: { value: roughnessTexture },
-      uDisplacementTexture: { value: displacementTexture },
-      uNormalTexture: { value: normalTexture },
+      uRoadTexture: { value: textures.colour },
+      uRoughnessTexture: { value: textures.roughness },
+      uDisplacementTexture: { value: textures.displacement },
+      uNormalTexture: { value: textures.normal },
       uTime: { value: 0 },
       uHeadlightPosition: { value: new THREE.Vector3() },
       uHeadlightDistance: { value: 13 }
@@ -97,4 +109,40 @@ export function createAsphaltMaterial() {
     vertexShader,
     fragmentShader
   });
+}
+
+// Lit surface for the streets around the lot. It reuses the parking textures so
+// the campus roads and the M1 read as the same asphalt as the parking floor,
+// without paying for a second set of 2K maps.
+export function createRoadMaterial(textures) {
+  return new THREE.MeshStandardMaterial({
+    map: textures.colour,
+    roughnessMap: textures.roughness,
+    normalMap: textures.normal,
+    roughness: 1,
+    metalness: 0,
+    // The lot shader outputs its asphalt unlit and around half brightness, so
+    // the lit street material is tinted to land on the same tarmac tone under
+    // the dusk sun. The normal map is eased off because these surfaces are seen
+    // at grazing angles, where full strength reads as streaking.
+    color: 0x86898e,
+    normalScale: new THREE.Vector2(0.45, 0.45)
+  });
+}
+
+// Rewrites a geometry's uv attribute so one texture tile covers
+// ROAD_TILE_METRES of world surface, whatever the size of the mesh.
+export function applyRoadUvs(geometry, widthMetres, depthMetres) {
+  const uv = geometry.attributes.uv;
+  if (!uv) return geometry;
+
+  const scaleU = widthMetres / ROAD_TILE_METRES;
+  const scaleV = depthMetres / ROAD_TILE_METRES;
+
+  for (let index = 0; index < uv.count; index++) {
+    uv.setXY(index, uv.getX(index) * scaleU, uv.getY(index) * scaleV);
+  }
+
+  uv.needsUpdate = true;
+  return geometry;
 }

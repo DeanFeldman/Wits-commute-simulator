@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { applyRoadUvs } from "../../shaders/asphaltShader.js";
 import {
   attachCarModel,
   createSeededRandom,
@@ -211,17 +212,20 @@ function createBackdropWall(root) {
   });
 }
 
-function createCampusRoad(root) {
+function createCampusRoad(root, roadMaterial) {
   const { campusRoad, bridgeRoad } = PARKING_LAYOUT;
-  const asphalt = material(COLORS.asphalt, 0.93);
+  // The streets share the parking lot's asphalt maps, so the whole level reads
+  // as one surface. Falls back to flat colour if no texture set was supplied.
+  const asphalt = roadMaterial ?? material(COLORS.asphalt, 0.93);
 
   // Main road between the two parking areas.
-  box(
+  const mainRoad = box(
     root,
     [campusRoad.width, 0.12, campusRoad.depth],
     [campusRoad.x, 0.0, campusRoad.z],
     asphalt
   );
+  applyRoadUvs(mainRoad.geometry, campusRoad.width, campusRoad.depth);
 
   // Centre dashed line.
   createDashedLine(root, {
@@ -260,7 +264,7 @@ function createCampusRoad(root) {
   }
 
   // Right-side road running toward / over the M1.
-  box(
+  const bridge = box(
     root,
     [
       bridgeRoad.width,
@@ -274,6 +278,7 @@ function createCampusRoad(root) {
     ],
     asphalt
   );
+  applyRoadUvs(bridge.geometry, bridgeRoad.width, bridgeRoad.depth);
 
   createDashedLine(root, {
     axis: "z",
@@ -291,10 +296,11 @@ function createCampusRoad(root) {
   }
 }
 
-function createM1(root) {
+function createM1(root, roadMaterial) {
   const { m1, bridgeRoad } = PARKING_LAYOUT;
-  const highwayMat = material(COLORS.m1, 0.88);
-  box(root, [m1.width, 0.14, m1.depth], [m1.x, m1.y, m1.z], highwayMat);
+  const highwayMat = roadMaterial ?? material(COLORS.m1, 0.88);
+  const highway = box(root, [m1.width, 0.14, m1.depth], [m1.x, m1.y, m1.z], highwayMat);
+  applyRoadUvs(highway.geometry, m1.width, m1.depth);
 
   const laneZ = [-5.2, -1.75, 1.75, 5.2].map((offset) => m1.z + offset);
   const paint = new THREE.MeshBasicMaterial({ color: 0xd7d5c2 });
@@ -791,13 +797,13 @@ function createTrees(root) {
   root.add(trunk, canopy);
 }
 
-export function createParkingEnvironment({ collisionWorld, playerCar }) {
+export function createParkingEnvironment({ collisionWorld, playerCar, roadMaterial = null }) {
   const root = new THREE.Group();
   root.name = "parking-environment";
 
   createSeparatedGround(root);
-  createCampusRoad(root);
-  const { laneZ } = createM1(root);
+  createCampusRoad(root, roadMaterial);
+  const { laneZ } = createM1(root, roadMaterial);
   const updateM1Traffic = createM1Traffic(root, laneZ);
   createArmBuilding(root, collisionWorld);
   createFlowerHall(root);

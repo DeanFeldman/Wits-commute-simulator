@@ -3,11 +3,19 @@ import { clamp } from "../shared/math.js";
 import { VehicleController } from "../shared/VehicleController.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
-import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
+import {
+  ROAD_TILE_METRES,
+  SHADER_UV_TILING,
+  createAsphaltMaterial,
+  createRoadMaterial,
+  createRoadTextures
+} from "../shaders/asphaltShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import { createInstancedCarField } from "../shared/InstancedCarField.js";
 import {
   attachPlayerCarModel,
-  createSeededRandom
+  createSeededRandom,
+  pickRandomParkingCar
 } from "../shared/VehicleModelLibrary.js";
 import {
   createParkingEnvironment,
@@ -45,11 +53,17 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   westUpperRow: Object.freeze({ name: "west-upper", x: -58.2, startZ: -45.5, endZ: -37.7 }),
   westRow: Object.freeze({ name: "west-row", x: -58.25, startZ: -32.5, endZ: 26 }),
   doubleRows: DOUBLE_ROW_CONFIGS,
+  // Angled bays need more room along the row than square ones: a car turned
+  // 45 degrees only clears its neighbour once the step projected onto the car's
+  // width axis exceeds the car's width. At the old 2.8 m step that projection
+  // was 1.85 m, narrower than every vehicle in the parking pack, so the cars
+  // overlapped. 3.5 m clears the widest of them with room to spare, and the row
+  // still starts and ends on the same points along the east curb.
   eastAngledRow: Object.freeze({
     name: "east-angled",
     start: Object.freeze({ x: 56.6, z: -30 }),
-    step: Object.freeze({ x: -0.19, z: 2.8 }),
-    count: 21,
+    step: Object.freeze({ x: -0.238, z: 3.5 }),
+    count: 17,
     rotation: -Math.PI / 4
   }),
   verticalRoads: Object.freeze([
@@ -123,6 +137,70 @@ export function getLevelOneParkingSpaces() {
     })),
     ...createParkingRow(layout.eastAngledRow)
   ];
+}
+
+
+// ShapeGeometry emits only the outline vertices and writes raw shape
+// coordinates straight into its uv attribute. That left the asphalt shader with
+// no interior vertices to displace and made it tile the road textures more than
+// a thousand times across the lot, which reads as flat grey noise. Each convex
+// piece is therefore built here as a subdivided quad carrying world-scaled uvs.
+// The pieces stay convex and visually continuous, as the layout contract
+// requires.
+function createAsphaltQuadGeometry(corners, lot) {
+  const local = corners.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)));
+  const [p0, p1, p2, p3] = local;
+
+  const segmentsFor = (a, b) =>
+    THREE.MathUtils.clamp(Math.round(a.distanceTo(b) / 2.5), 2, 64);
+  const segmentsU = Math.max(segmentsFor(p0, p1), segmentsFor(p3, p2));
+  const segmentsV = Math.max(segmentsFor(p0, p3), segmentsFor(p1, p2));
+
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const tileU = ROAD_TILE_METRES * SHADER_UV_TILING.x;
+  const tileV = ROAD_TILE_METRES * SHADER_UV_TILING.y;
+
+  for (let j = 0; j <= segmentsV; j++) {
+    const v = j / segmentsV;
+    for (let i = 0; i <= segmentsU; i++) {
+      const u = i / segmentsU;
+      const top = p0.clone().lerp(p1, u);
+      const bottom = p3.clone().lerp(p2, u);
+      const point = top.lerp(bottom, v);
+
+      positions.push(point.x, point.y, 0);
+      normals.push(0, 0, 1);
+      uvs.push(point.x / tileU, point.y / tileV);
+    }
+  }
+
+  // Keep the winding facing up once the mesh is laid flat.
+  const edgeA = p1.clone().sub(p0);
+  const edgeB = p3.clone().sub(p0);
+  const counterClockwise = edgeA.x * edgeB.y - edgeA.y * edgeB.x > 0;
+
+  const indices = [];
+  for (let j = 0; j < segmentsV; j++) {
+    for (let i = 0; i < segmentsU; i++) {
+      const a = j * (segmentsU + 1) + i;
+      const b = a + 1;
+      const c = a + segmentsU + 2;
+      const d = a + segmentsU + 1;
+
+      if (counterClockwise) indices.push(a, b, c, a, c, d);
+      else indices.push(a, c, b, a, d, c);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeBoundingSphere();
+  return geometry;
 }
 
 
@@ -218,7 +296,8 @@ load() {
 
   this.environment = createParkingEnvironment({
     collisionWorld: this.collisionWorld,
-    playerCar: this.car
+    playerCar: this.car,
+    roadMaterial: createRoadMaterial(this.roadTextures)
   });
 
   this.root.add(this.environment.root);
@@ -300,14 +379,12 @@ load() {
 createParkingSurface() {
   const lot = PARKING_LAYOUT.mainLot;
 
-  const asphaltMaterial = createAsphaltMaterial();
+  this.roadTextures = createRoadTextures();
+  const asphaltMaterial = createAsphaltMaterial(this.roadTextures);
   this.asphaltUniforms = asphaltMaterial.uniforms;
 
   const addAsphaltPiece = (points, name) => {
-    const shape = new THREE.Shape(
-      points.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)))
-    );
-    const road = new THREE.Mesh(new THREE.ShapeGeometry(shape), asphaltMaterial);
+    const road = new THREE.Mesh(createAsphaltQuadGeometry(points, lot), asphaltMaterial);
     road.rotation.x = -Math.PI / 2;
     road.position.set(lot.x, 0.035, lot.z);
     road.receiveShadow = true;
@@ -404,42 +481,42 @@ createParkingSurface() {
 
   createParkedCars() {
     const random = createSeededRandom(3006);
-    const colors = [0xe6e3dc, 0x22272d, 0x9aa5a8, 0xb73530, 0x24528b, 0xc99b2e, 0x2f6950];
-    const occupied = getLevelOneParkingSpaces()
-      .filter((space) => !space.isTarget && random() > 0.08)
-      .map((space) => ({ ...space, colorIndex: Math.floor(random() * colors.length) }));
-    const bodyGeometry = new THREE.BoxGeometry(2.05, 0.55, 4.15);
-    const cabinGeometry = new THREE.BoxGeometry(1.72, 0.42, 2.15);
-    const dummy = new THREE.Object3D();
+    const placements = [];
 
-    colors.forEach((color, colorIndex) => {
-      const cars = occupied.filter((space) => space.colorIndex === colorIndex);
-      const body = new THREE.InstancedMesh(bodyGeometry, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }), cars.length);
-      const cabin = new THREE.InstancedMesh(cabinGeometry, new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(0.72), roughness: 0.55 }), cars.length);
-      cars.forEach((space, index) => {
-        dummy.position.set(space.x, 0.34, space.z);
-        dummy.rotation.set(0, space.angle, 0);
-        dummy.updateMatrix();
-        body.setMatrixAt(index, dummy.matrix);
-        dummy.position.y = 0.82;
-        dummy.updateMatrix();
-        cabin.setMatrixAt(index, dummy.matrix);
-      });
-      body.castShadow = true;
-      body.receiveShadow = true;
-      cabin.castShadow = true;
-      body.name = `placeholder-car-bodies-${colorIndex}`;
-      cabin.name = `placeholder-car-cabins-${colorIndex}`;
-      this.root.add(body, cabin);
-    });
+    for (const space of getLevelOneParkingSpaces()) {
+      if (space.isTarget) continue;
 
-    for (const { x, z, angle } of occupied) {
+      // Keep the documented seeded vacancy rate so the lot reads as busy but
+      // not perfectly full.
+      if (random() <= 0.08) continue;
+
+      // Every vehicle in the pack is modelled at its own heading. The loader
+      // normalises each one to a 4.2 m length, grounds it and turns it to +Z
+      // forward, so a bay only has to supply its own rotation here.
+      const spec = pickRandomParkingCar(random);
+      placements.push({ spec, x: space.x, z: space.z, angle: space.angle });
+
+      const [colliderWidth, colliderHeight, colliderLength] = spec.collider;
       const collider = new THREE.Object3D();
-      collider.position.set(x, 0.6, z);
-      collider.rotation.y = angle;
+      collider.position.set(space.x, colliderHeight / 2, space.z);
+      collider.rotation.y = space.angle;
       this.root.add(collider);
-      this.collisionWorld.add({ object: collider, size: [2.05, 1.2, 4.15], color: 0xff6b6b, tag: "parked-car" });
+      this.collisionWorld.add({
+        object: collider,
+        size: [colliderWidth, colliderHeight, colliderLength],
+        color: 0xff6b6b,
+        tag: "parked-car"
+      });
     }
+
+    createInstancedCarField(placements, { variant: "lite" })
+      .then((field) => {
+        field.name = "level-one-parked-cars";
+        this.root.add(field);
+      })
+      .catch((error) => {
+        console.warn("Parked car models could not be loaded.", error);
+      });
   }
 
   createPotholes() {

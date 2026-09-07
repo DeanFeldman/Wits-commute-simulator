@@ -261,6 +261,13 @@ async function getPrototype(spec, variant) {
   return prototypeCache.get(key);
 }
 
+// Exposed so InstancedCarField can bake a prototype into instanced meshes.
+// The prototype is already scaled to a 4.2 m length, grounded at Y = 0 and
+// turned to +Z forward, so callers can place it with a plain holder transform.
+export function loadVehiclePrototype(spec, variant = "game") {
+  return getPrototype(spec, variant);
+}
+
 export async function attachCarModel(
   holder,
   spec,
