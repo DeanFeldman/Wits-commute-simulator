@@ -53,18 +53,15 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   westUpperRow: Object.freeze({ name: "west-upper", x: -58.2, startZ: -45.5, endZ: -37.7 }),
   westRow: Object.freeze({ name: "west-row", x: -58.25, startZ: -32.5, endZ: 26 }),
   doubleRows: DOUBLE_ROW_CONFIGS,
-  // Angled bays need more room along the row than square ones: a car turned
-  // 45 degrees only clears its neighbour once the step projected onto the car's
-  // width axis exceeds the car's width. At the old 2.8 m step that projection
-  // was 1.85 m, narrower than every vehicle in the parking pack, so the cars
-  // overlapped. 3.5 m clears the widest of them with room to spare, and the row
-  // still starts and ends on the same points along the east curb.
-  eastAngledRow: Object.freeze({
-    name: "east-angled",
-    start: Object.freeze({ x: 56.6, z: -30 }),
-    step: Object.freeze({ x: -0.238, z: 3.5 }),
-    count: 17,
-    rotation: -Math.PI / 4
+  // Square bays along the east curb, facing into the lot like every other row.
+  // The x step follows the curb as the boundary narrows from x = 58.4 at the
+  // north end to x = 54.7 at the south, holding each car 0.15 m clear of it.
+  eastRow: Object.freeze({
+    name: "east-row",
+    start: Object.freeze({ x: 56.04, z: -30 }),
+    step: Object.freeze({ x: -0.1805, z: 2.6 }),
+    count: 22,
+    rotation: -Math.PI / 2
   }),
   verticalRoads: Object.freeze([
     Object.freeze({ x: -50.7, width: 6, startZ: -39.5, endZ: 28 }),
@@ -135,7 +132,7 @@ export function getLevelOneParkingSpaces() {
       spacing,
       target: layout.target
     })),
-    ...createParkingRow(layout.eastAngledRow)
+    ...createParkingRow(layout.eastRow)
   ];
 }
 

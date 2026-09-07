@@ -30,8 +30,11 @@ void main() {
   float fineDamage = noise(position.xy * 1.4 + uTime * 0.015);
   float textureHeight = texture2D(uDisplacementTexture, uv * vec2(12.0, 10.0)).r;
   vDamage = smoothstep(0.56, 0.85, broadDamage) * mix(0.65, 1.0, fineDamage);
+  // The damaged patches dish the surface downwards. The lot sits only a few
+  // centimetres above the grass under it, so this stays shallow enough that a
+  // puddle never sinks through the asphalt and shows the ground through it.
   vec3 damagedPosition = position;
-  damagedPosition.z -= vDamage * 0.1 + (textureHeight - 0.5) * 0.035;
+  damagedPosition.z -= vDamage * 0.042 + (textureHeight - 0.5) * 0.016;
   vec4 worldPosition = modelMatrix * vec4(damagedPosition, 1.0);
   vWorldPosition = worldPosition.xyz;
   gl_Position = projectionMatrix * viewMatrix * worldPosition;

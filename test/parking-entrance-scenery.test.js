@@ -46,7 +46,7 @@ test("generated rows match the annotated Wits aerial structure", () => {
   assert.equal(layout.topRow.count, 20);
   assert.equal(layout.doubleRows.length, 6);
   assert.equal(layout.verticalRoads.length, 7);
-  assert.equal(spaces.length, 359);
+  assert.equal(spaces.length, 364);
 
   const topRow = spaces.filter((space) => space.rowName === "top-row");
   assert.equal(topRow.length, 20);
@@ -70,11 +70,14 @@ test("generated rows match the annotated Wits aerial structure", () => {
   assert.ok(new Set(rowStarts).size > 3, "interior rows have staggered northern starts");
   assert.ok(new Set(rowEnds).size > 3, "interior rows have staggered southern ends");
   assert.ok(spaces.some((space) => space.rowName === "west-upper"));
-  assert.equal(spaces.filter((space) => space.rowName === "east-angled").length, 17);
+  assert.equal(spaces.filter((space) => space.rowName === "east-row").length, 22);
   assert.ok(layout.rearRoad.depth <= 5.2, "north drive lane remains narrow");
   assert.ok(layout.topRow.step.x >= PARKING_BAY_LENGTH, "top-row bays are parallel parked");
   assert.ok(Math.abs(layout.topRow.rotation - Math.PI / 2) < 0.2, "top-row cars run along the curb");
-  assert.ok(Math.abs(layout.eastAngledRow.rotation) <= Math.PI / 4, "east bays use a gentler angle");
+  assert.ok(
+    Math.abs(Math.abs(layout.eastRow.rotation) - Math.PI / 2) < EPSILON,
+    "east bays are square to the curb, like every other row"
+  );
 });
 
 test("driving aisles remain open and align with both lower entrances", () => {
@@ -89,8 +92,18 @@ test("driving aisles remain open and align with both lower entrances", () => {
 
   const centralAisle = layout.verticalRoads[3];
   assert.equal(PARKING_LAYOUT.mainEntrance.x, centralAisle.x);
-  assert.equal(PARKING_LAYOUT.campusGate.x, centralAisle.x);
   assert.ok(centralAisle.endZ >= 34, "central aisle reaches the entrance opening");
+
+  // The campus checkpoint controls the street where it meets Yale Road. A gate
+  // standing in the middle of an open road guards nothing, so it has to sit
+  // short of the intersection and clear of both lot entrances.
+  const bridge = PARKING_LAYOUT.bridgeRoad;
+  const gate = PARKING_LAYOUT.campusGate;
+  assert.ok(gate.x + 7 < bridge.x - bridge.width / 2, "campus gate stops short of the intersection");
+  assert.ok(
+    gate.x - 7 > PARKING_LAYOUT.mainEntrance.x + PARKING_LAYOUT.mainEntrance.width,
+    "campus gate is clear of the lot entrances"
+  );
 
   const spawnAisle = layout.verticalRoads[1];
   assert.equal(layout.playerSpawn.x, spawnAisle.x);
@@ -123,15 +136,15 @@ test("only the playable target bay is reserved and cars fit within every bay", (
   // Perpendicular rows only need the slot pitch to beat the car width.
   assert.ok(layout.slotSpacing > widest, "neighbouring bays clear the widest car");
 
-  // Angled bays need more room along the row, because a turned car reaches
-  // further into its neighbour. Measure the step on the car's width axis.
-  const east = layout.eastAngledRow;
+  // Whatever angle a row sits at, neighbouring cars only clear each other once
+  // the step measured on the car's own width axis beats the car width.
+  const east = layout.eastRow;
   const rightX = Math.cos(east.rotation);
   const rightZ = -Math.sin(east.rotation);
-  const angledClearance = Math.abs(east.step.x * rightX + east.step.z * rightZ);
+  const eastClearance = Math.abs(east.step.x * rightX + east.step.z * rightZ);
   assert.ok(
-    angledClearance >= widest,
-    `angled bays clear the widest car (${angledClearance.toFixed(2)} m of ${widest} m)`
+    eastClearance >= widest,
+    `east bays clear the widest car (${eastClearance.toFixed(2)} m of ${widest} m)`
   );
   for (const space of spaces) {
     assert.ok(Number.isFinite(space.x));
@@ -152,6 +165,6 @@ test("the parking surface keeps the irregular north, west-step, and east boundar
 
   const westOuterEdge = layout.westRow.x - PARKING_BAY_LENGTH / 2;
   assert.ok(Math.abs(westOuterEdge - (-61)) <= 0.3, "west row reaches the curb");
-  assert.ok(layout.eastAngledRow.start.x >= 55, "angled east row reaches the upper curb");
+  assert.ok(layout.eastRow.start.x >= 55, "east row reaches the upper curb");
   assert.ok(layout.topRow.start.z <= -46.5, "top row reaches the north curb");
 });

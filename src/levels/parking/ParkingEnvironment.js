@@ -52,7 +52,10 @@ export const PARKING_LAYOUT = Object.freeze({
   // Bigger Flower Hall so it fills the left/background scene more strongly.
   flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
 
-campusGate: { x: -2.5, z: 41 }
+// Campus checkpoint. It sits just west of the Yale Road intersection, where
+  // a gate across the street actually controls something, rather than standing
+  // in the middle of an open road.
+  campusGate: { x: 58, z: 41 }
 });
 
 const COLORS = {
@@ -212,6 +215,26 @@ function createBackdropWall(root) {
   });
 }
 
+// Spans of the parking-side kerb line, skipping each entrance opening so the
+// street surface runs uninterrupted into the lot.
+function kerbRunsBetweenEntrances(left, right) {
+  const openings = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.mainEntrance]
+    .map((entrance) => {
+      const width = (entrance.boundaryWidth ?? entrance.width) + 1.5;
+      return { left: entrance.x - width / 2, right: entrance.x + width / 2 };
+    })
+    .sort((a, b) => a.left - b.left);
+
+  const runs = [];
+  let start = left;
+  for (const opening of openings) {
+    if (opening.left > start) runs.push([start, Math.min(opening.left, right)]);
+    start = Math.max(start, opening.right);
+  }
+  if (start < right) runs.push([start, right]);
+  return runs;
+}
+
 function createCampusRoad(root, roadMaterial) {
   const { campusRoad, bridgeRoad } = PARKING_LAYOUT;
   // The streets share the parking lot's asphalt maps, so the whole level reads
@@ -236,31 +259,28 @@ function createCampusRoad(root, roadMaterial) {
     y: 0.075
   });
 
-  // Kerbs + pavements along the main road.
-  for (const side of [-1, 1]) {
-    box(
-      root,
-      [campusRoad.width, 0.16, 0.42],
-      [
-        campusRoad.x,
-        0.08,
-        campusRoad.z +
-          side * (campusRoad.depth / 2 + 0.24)
-      ],
-      material(COLORS.kerb, 0.82)
-    );
+  // Kerbs + pavements along the main road. On the parking side they have to
+  // break at every entrance, otherwise a raised kerb and a pavement run
+  // straight across the driving surface and the street stops connecting to
+  // the lot.
+  const kerbMaterial = material(COLORS.kerb, 0.82);
+  const pavementMaterial = material(COLORS.concrete, 0.9);
+  const halfWidth = campusRoad.width / 2;
 
-    box(
-      root,
-      [campusRoad.width, 0.08, 1.7],
-      [
-        campusRoad.x,
-        0.06,
-        campusRoad.z +
-          side * (campusRoad.depth / 2 + 1.28)
-      ],
-      material(COLORS.concrete, 0.9)
-    );
+  for (const side of [-1, 1]) {
+    const kerbZ = campusRoad.z + side * (campusRoad.depth / 2 + 0.24);
+    const pavementZ = campusRoad.z + side * (campusRoad.depth / 2 + 1.28);
+    const runs = side < 0
+      ? kerbRunsBetweenEntrances(campusRoad.x - halfWidth, campusRoad.x + halfWidth)
+      : [[campusRoad.x - halfWidth, campusRoad.x + halfWidth]];
+
+    for (const [start, end] of runs) {
+      const length = end - start;
+      if (length <= 0.2) continue;
+      const centre = start + length / 2;
+      box(root, [length, 0.16, 0.42], [centre, 0.08, kerbZ], kerbMaterial);
+      box(root, [length, 0.08, 1.7], [centre, 0.06, pavementZ], pavementMaterial);
+    }
   }
 
   // Right-side road running toward / over the M1.
@@ -619,9 +639,21 @@ function createMainParkingBoundary(root, collisionWorld) {
   }
 }
 
-function createOpenParkingEntrance(root, entrance) {
-  const asphalt = material(COLORS.asphalt, 0.93);
-  plane(root, entrance.width, 11, entrance.x, 0.068, entrance.z + 1, asphalt);
+// Throat of asphalt joining the campus road to the lot. It overlaps the lot
+// edge and the road edge so neither join shows a seam, and it uses the shared
+// road material so all three surfaces read as one piece of tarmac.
+function createOpenParkingEntrance(root, entrance, roadMaterial) {
+  const asphalt = roadMaterial ?? material(COLORS.asphalt, 0.93);
+  const front = PARKING_LAYOUT.campusRoad.z - PARKING_LAYOUT.campusRoad.depth / 2;
+  const back = 33.2;
+  const depth = front - back + 0.8;
+  const throat = box(
+    root,
+    [entrance.width, 0.1, depth],
+    [entrance.x, 0.0, back + depth / 2],
+    asphalt
+  );
+  applyRoadUvs(throat.geometry, entrance.width, depth);
 }
 
 function createParkingEntranceCurbs(root, collisionWorld) {
@@ -810,8 +842,8 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   createOtherParking(root);
   createSecondaryParkingLink(root);
   createMainParkingBoundary(root, collisionWorld);
-  createOpenParkingEntrance(root, PARKING_LAYOUT.mainEntrance);
-  createOpenParkingEntrance(root, PARKING_LAYOUT.parkingBoomEntrance);
+  createOpenParkingEntrance(root, PARKING_LAYOUT.mainEntrance, roadMaterial);
+  createOpenParkingEntrance(root, PARKING_LAYOUT.parkingBoomEntrance, roadMaterial);
   createParkingEntranceCurbs(root, collisionWorld);
   const updateCampusBoom = createCampusBoomGate(root, collisionWorld, playerCar);
   const updateParkingBoom = createParkingBoomEntrance(root, collisionWorld, playerCar);

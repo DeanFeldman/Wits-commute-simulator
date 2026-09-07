@@ -26,7 +26,7 @@ Level 1 is based on the real Wits third-year parking area beside the ARM buildin
 - Six long north-south double parking strips.
 - Consistent drive aisles between the strips.
 - A horizontal/parallel-parked row following the north curb.
-- A gentler angled single row following the east curb.
+- A single row following the east curb, square to it like the other rows.
 - A lower street with a west player entrance and a separate central Entrance 9 checkpoint.
 - Dense parking with only a small number of empty spaces.
 
@@ -94,16 +94,17 @@ These rows are intentionally close to the curb. Do not reintroduce a strip of un
 
 ### East edge
 
-- Start: `(56.6, -30)`
-- Step: `(-0.238, 3.5)`
-- Count: `17`
-- Rotation: `-45 degrees`
+- Name: `east-row`
+- Start: `(56.04, -30)`
+- Step: `(-0.1805, 2.6)`
+- Count: `22`
+- Rotation: `-90 degrees`
 
-This row follows the narrowing east boundary. Keep it close to the curb and avoid returning to the earlier, more aggressive `-60 degree` zigzag.
+This row follows the narrowing east boundary, which runs from `x = 58.4` at its northern end to `x = 54.7` at its southern end. The `x` step tracks that taper and holds every car `0.15 m` clear of the boundary. Keep it close to the curb.
 
-Angled bays need a longer step than square ones. A car turned 45 degrees reaches further along the row, so neighbours only clear each other once the step, projected onto the car's width axis, exceeds the car's width. The earlier `2.8` step gave `1.85 m` of clearance, which is narrower than every vehicle in the parking pack, so parked cars intersected. `3.5` gives `2.31 m` and clears the widest of them. The row still begins and ends on the same points along the curb; it simply holds four fewer cars. `test/parking-entrance-scenery.test.js` asserts this clearance.
+The bays are square to the curb, matching every other row. They were previously angled at `-45 degrees`, which both looked out of place beside the square rows and did not fit: a car turned 45 degrees reaches further along the row, so neighbours only clear each other once the step, measured on the car's own width axis, exceeds the car's width. At `-90 degrees` that measurement is simply the `2.6 m` slot pitch, which clears the widest vehicle in the parking pack. `test/parking-entrance-scenery.test.js` asserts both the rotation and the clearance.
 
-The current generator produces 359 total spaces before seeded vacancies are applied.
+The current generator produces 364 total spaces before seeded vacancies are applied.
 
 ## Drive Aisles
 
@@ -129,12 +130,21 @@ When changing a row, check both edges of every adjacent aisle. A row move should
 
 The entrance is flanked by slightly elevated concrete curbs. They have `parking-entrance-curb` colliders; the normal Level 1 collision response stops the car and removes condition. The entrance boom is red/white, remains visible/down at spawn, and raises when the player rolls close to it. Keep the driving surface unobstructed between the street and aisle.
 
-### Central entrance/checkpoint
+### Central entrance
 
 - Main entrance centre: `X = -2.5`, width `9`
-- Campus gate/checkpoint centre: `X = -2.5`
 
-This is the Entrance 9-style canopy/checkpoint and is separate from the player's west spawn entrance. Do not merge the two without an explicit design request.
+This opening in the lot boundary lines up with the central drive aisle. It is separate from the player's west spawn entrance. Do not merge the two without an explicit design request.
+
+### Campus checkpoint
+
+- Centre: `X = 58`, `Z = 41`
+
+This is the Entrance 9-style canopy and boom. It controls the campus street where that street meets Yale Road, so it sits just west of the intersection rather than in the middle of an open road, where a gate would guard nothing. It must stay clear of both lot entrances and stop short of the crossing road; the test asserts both.
+
+### Kerb breaks
+
+The kerb and pavement on the parking side of the campus road are built as runs that stop either side of every entrance opening. Building them as one continuous box lays a raised kerb straight across the driving surface, and the street then visibly fails to connect to the lot. Any new opening must be added to `kerbRunsBetweenEntrances`.
 
 ## Target and Parking Validation
 
@@ -162,6 +172,7 @@ Moving the target or its row requires checking containment geometry, approach sp
 ## Surface, Lighting, and Sky
 
 - The lot uses the custom damaged/wet asphalt shader from `src/shaders/asphaltShader.js` and textures under `./assets/textures/road/`.
+- The shader dishes its damaged patches downwards. The lot floor sits only a few centimetres above the ground plane beneath it, so that displacement is deliberately shallow. Deepen it and the wet patches sink through the asphalt and show grass through the parking floor.
 - The three asphalt pieces are built as subdivided convex quads, not `ShapeGeometry`. `ShapeGeometry` emits only the outline vertices and writes raw shape coordinates into its uv attribute, which left the shader with nothing to displace and tiled the textures more than a thousand times across the lot. Keep the pieces convex, keep them subdivided, and keep uvs scaled by `ROAD_TILE_METRES`.
 - The surrounding streets share the same four texture maps through `createRoadMaterial`, so the campus road and the M1 read as the same tarmac. One texture set is loaded per level load and handed to both.
 - Runtime asset paths must stay relative because the game is deployed from a subdirectory.
