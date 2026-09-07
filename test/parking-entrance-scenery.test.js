@@ -17,18 +17,20 @@ test("Level 1 parking uses every vehicle type from the generic passenger pack", 
   assert.ok(PARKING_CAR_SPECS.every((spec) => spec.packRootChildren.length === 5));
 });
 
-test("Level 1 rotates the single-road-double-road-double-road-single layout by 90 degrees", () => {
+test("Level 1 matches the dense north-south row pattern in the aerial reference", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
 
-  assert.equal(layout.verticalColumns.length, 8);
-  assert.equal(layout.verticalRoads.length, 5);
+  assert.equal(layout.verticalColumns.length, 14);
+  assert.equal(layout.verticalRoads.length, 7);
 
   const roadColumnPairs = [
     [layout.verticalColumns[0], layout.verticalColumns[1]],
-    [layout.verticalColumns[1], layout.verticalColumns[2]],
-    [layout.verticalColumns[3], layout.verticalColumns[4]],
-    [layout.verticalColumns[5], layout.verticalColumns[6]],
-    [layout.verticalColumns[6], layout.verticalColumns[7]]
+    [layout.verticalColumns[2], layout.verticalColumns[3]],
+    [layout.verticalColumns[4], layout.verticalColumns[5]],
+    [layout.verticalColumns[6], layout.verticalColumns[7]],
+    [layout.verticalColumns[8], layout.verticalColumns[9]],
+    [layout.verticalColumns[10], layout.verticalColumns[11]],
+    [layout.verticalColumns[12], layout.verticalColumns[13]]
   ];
 
   for (let index = 0; index < layout.verticalRoads.length; index++) {
@@ -47,8 +49,8 @@ test("all spaces are filled except the playable target bay", () => {
   const targetSpaces = spaces.filter((space) => space.isTarget);
   const parkedSpaces = spaces.filter((space) => !space.isTarget);
 
-  assert.equal(spaces.length, 213);
-  assert.equal(parkedSpaces.length, 212);
+  assert.equal(spaces.length, 315);
+  assert.equal(parkedSpaces.length, 314);
   assert.equal(targetSpaces.length, 1);
   assert.deepEqual(
     { x: targetSpaces[0].x, z: targetSpaces[0].z, angle: targetSpaces[0].angle },
@@ -77,10 +79,10 @@ test("parking spaces fit inside the lot without overlap and leave connected road
     bottom: lot.z + lot.depth / 2
   };
 
-  assert.equal(layout.playerSpawn.x, layout.verticalRoads[2].x);
+  assert.equal(layout.playerSpawn.x, layout.verticalRoads[5].x);
   assert.ok(layout.playerSpawn.z < lotBounds.bottom);
   assert.equal(layout.playerSpawn.angle, 0);
-  assert.equal(PARKING_LAYOUT.mainEntrance.x, layout.verticalRoads[2].x);
+  assert.equal(PARKING_LAYOUT.mainEntrance.x, layout.verticalRoads[5].x);
 
   for (const space of spaces) {
     const isRotated = Math.abs(Math.sin(space.angle)) > 0.9;

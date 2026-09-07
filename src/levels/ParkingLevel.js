@@ -19,38 +19,46 @@ import {
 
 export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   parkingSpaceWidth: 3.2,
-  parkingSpaceDepth: 6.4,
-  verticalRoadWidth: 8.5,
+  parkingSpaceDepth: 5.8,
+  verticalRoadWidth: 4.4,
   verticalSlotZs: Object.freeze(Array.from(
-    { length: 23 },
-    (_, index) => Number((-41.5 + index * 3.25).toFixed(2))
+    { length: 20 },
+    (_, index) => Number((-32.5 + index * 3.25).toFixed(2))
   )),
   verticalColumns: Object.freeze([
-    Object.freeze({ x: -43.65, angle: Math.PI / 2 }),
-    Object.freeze({ x: -28.75, angle: Math.PI / 2 }),
-    Object.freeze({ x: -13.85, angle: Math.PI / 2 }),
-    Object.freeze({ x: -7.45, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 7.45, angle: Math.PI / 2 }),
-    Object.freeze({ x: 13.85, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 28.75, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 43.65, angle: -Math.PI / 2 })
+    Object.freeze({ x: -56, angle: Math.PI / 2 }),
+    Object.freeze({ x: -46, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -40.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: -30, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -24.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: -14, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -8.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: 2, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 7.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 18, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 23.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 34, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 39.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 50, angle: -Math.PI / 2 })
   ]),
   verticalRoads: Object.freeze([
-    Object.freeze({ x: -36.2, width: 8.5 }),
-    Object.freeze({ x: -21.3, width: 8.5 }),
-    Object.freeze({ x: 0, width: 8.5 }),
-    Object.freeze({ x: 21.3, width: 8.5 }),
-    Object.freeze({ x: 36.2, width: 8.5 })
+    Object.freeze({ x: -51, width: 4.2 }),
+    Object.freeze({ x: -35.1, width: 4.4 }),
+    Object.freeze({ x: -19.1, width: 4.4 }),
+    Object.freeze({ x: -3.1, width: 4.4 }),
+    Object.freeze({ x: 12.9, width: 4.4 }),
+    Object.freeze({ x: 28.9, width: 4.4 }),
+    Object.freeze({ x: 44.9, width: 4.4 })
   ]),
-  verticalRoad: Object.freeze({ z: -5.575, depth: 75.15 }),
-  rearRoad: Object.freeze({ z: -46.35, depth: 6.4, width: 98 }),
-  rearRowZ: -52.8,
+  verticalRoad: Object.freeze({ z: -1.625, depth: 67.75 }),
+  rearRoad: Object.freeze({ z: -38.5, depth: 7.2, width: 118 }),
+  rearRowZ: -45.2,
   rearRowXs: Object.freeze(Array.from(
-    { length: 29 },
-    (_, index) => Number((-44.8 + index * 3.2).toFixed(1))
+    { length: 35 },
+    (_, index) => Number((-54.4 + index * 3.2).toFixed(1))
   )),
-  targetSlotX: -22.4,
-  playerSpawn: Object.freeze({ x: 0, z: 25.5, angle: 0 }),
+  targetSlotX: -9.6,
+  playerSpawn: Object.freeze({ x: 28.9, z: 29.5, angle: 0 }),
   skyViewScale: 1.65
 });
 
@@ -253,10 +261,17 @@ createParkingSurface() {
   const asphaltMaterial = createAsphaltMaterial();
   this.asphaltUniforms = asphaltMaterial.uniforms;
 
-  const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(lot.width, lot.depth, 64, 128),
-    asphaltMaterial
-  );
+  // The real Wits lot narrows slightly toward the M1-facing edge instead of
+  // forming a perfect rectangle. ShapeGeometry keeps that aerial silhouette.
+  const halfWidth = lot.width / 2;
+  const halfDepth = lot.depth / 2;
+  const lotShape = new THREE.Shape([
+    new THREE.Vector2(-halfWidth, halfDepth),
+    new THREE.Vector2(halfWidth - 2, halfDepth),
+    new THREE.Vector2(halfWidth - 5, -halfDepth),
+    new THREE.Vector2(-halfWidth, -halfDepth)
+  ]);
+  const road = new THREE.Mesh(new THREE.ShapeGeometry(lotShape), asphaltMaterial);
 
   road.rotation.x = -Math.PI / 2;
   road.position.set(lot.x, 0.01, lot.z);
@@ -268,12 +283,7 @@ createParkingSurface() {
     roughness: 0.8
   });
 
-  const halfWidth = lot.width / 2;
-
-  for (const x of [
-    lot.x - halfWidth - 0.25,
-    lot.x + halfWidth + 0.25
-  ]) {
+  for (const x of [lot.x - halfWidth - 0.25, lot.x + halfWidth - 3.25]) {
     const kerb = new THREE.Mesh(
       new THREE.BoxGeometry(0.5, 0.25, lot.depth),
       kerbMaterial
@@ -297,10 +307,7 @@ createParkingSurface() {
     roughness: 0.85
   });
 
-  for (const x of [
-    lot.x - halfWidth - 2,
-    lot.x + halfWidth + 2
-  ]) {
+  for (const x of [lot.x - halfWidth - 2, lot.x + halfWidth - 1]) {
     const sidewalk = new THREE.Mesh(
       new THREE.BoxGeometry(3, 0.12, lot.depth),
       sidewalkMaterial
@@ -388,15 +395,18 @@ createParkingSurface() {
       roughness: 1
     });
 
-    const rearRoadZ = LEVEL_ONE_PARKING_LAYOUT.rearRoad.z;
-    const positions = [
-      [-21.3, 22, 1.05], [-21.3, 6, 0.72], [-21.3, -10, 0.92], [-21.3, -28, 0.82], [-21.3, -40, 1.12],
-      [0, 16, 0.76], [0, 0, 1.02], [0, -16, 0.84], [0, -32, 1.1],
-      [21.3, 22, 0.74], [21.3, 6, 0.95], [21.3, -10, 0.8], [21.3, -28, 1.04], [21.3, -40, 0.9],
-      [-36.2, 14, 0.82], [-36.2, -18, 1.02], [36.2, 8, 0.88], [36.2, -26, 0.96],
-      [-27, rearRoadZ, 0.74], [-10, rearRoadZ, 0.95], [10, rearRoadZ, 0.8],
-      [27, rearRoadZ, 1.04]
-    ];
+    const layout = LEVEL_ONE_PARKING_LAYOUT;
+    const positions = layout.verticalRoads.flatMap((road, roadIndex) => [
+      [road.x, 24 - (roadIndex % 2) * 5, 0.72 + (roadIndex % 3) * 0.12],
+      [road.x, 4 - (roadIndex % 3) * 3, 0.78 + (roadIndex % 2) * 0.16],
+      [road.x, -17 + (roadIndex % 2) * 4, 0.74 + (roadIndex % 4) * 0.09]
+    ]);
+    positions.push(
+      [-42, layout.rearRoad.z, 0.78],
+      [-18, layout.rearRoad.z, 0.9],
+      [8, layout.rearRoad.z, 0.76],
+      [34, layout.rearRoad.z, 0.96]
+    );
 
     for (const [x, z, scale] of positions) {
       const pothole = new THREE.Mesh(
@@ -468,7 +478,7 @@ createParkingSurface() {
   createStreetLights() {
     const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x27313d, roughness: 0.72 });
     const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffc779 });
-    const positions = [[-10.2, 10], [10.2, 3], [-10.2, -5], [10.2, -13]];
+    const positions = [[-51, 13], [-19.1, -6], [12.9, 12], [44.9, -8]];
 
     for (const [x, z] of positions) {
       const pole = new THREE.Group();

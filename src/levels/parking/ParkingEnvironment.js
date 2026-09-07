@@ -9,30 +9,30 @@ import {
 
 export const PARKING_LAYOUT = Object.freeze({
   groundY: 0,
-  // The playable parking grid is rotated into a longer north/south footprint.
-  // Its front edge remains at z=32 so the surrounding campus road stays put.
-  mainLot: { x: 0, z: -12, width: 98, depth: 88 },
+  // Broad, slightly tapered footprint matching the aerial shape of the Wits
+  // parking area between the ARM building, M1 and Yale Road.
+  mainLot: { x: 0, z: -8, width: 122, depth: 84 },
 
   // Wider road so it runs across the whole visible scene and fades into fog.
-  campusRoad: { x: 0, z: 39, width: 165, depth: 10 },
+  campusRoad: { x: 0, z: 41, width: 185, depth: 10 },
 
-  m1: { x: 0, z: -68, width: 180, depth: 15, y: -2.7 },
-  bridgeRoad: { x: 67, z: -5, width: 9, depth: 145, y: 0.08 },
+  m1: { x: 0, z: -65, width: 190, depth: 15, y: 0.02 },
+  bridgeRoad: { x: 72, z: -5, width: 11, depth: 150, y: 0.08 },
 
   // Move main entrance a bit to the right and make it actually meet the road.
-  mainEntrance: { x: 0, z: 33.5, width: 9 },
+  mainEntrance: { x: 28.9, z: 35.5, width: 9 },
 
   // Duplicate the entrance position for the opposite parking.
-  otherEntrance: { x: 0, z: 44.5, width: 9 },
+  otherEntrance: { x: 0, z: 46.5, width: 9 },
 
-  otherParking: { x: 0, z: 59, width: 28, depth: 22 },
+  otherParking: { x: 0, z: 61, width: 28, depth: 22 },
 
-  armBuilding: { x: -72, z: 0, width: 13, depth: 48, height: 9 },
+  armBuilding: { x: -80, z: -7, width: 36, depth: 62, height: 10 },
 
   // Bigger Flower Hall so it fills the left/background scene more strongly.
-  flowerHall: { x: -28, z: 61, width: 42, depth: 24, height: 10 },
+  flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
 
-campusGate: { x: 56, z: 39 }
+campusGate: { x: 28.9, z: 41 }
 });
 
 const COLORS = {
@@ -136,10 +136,9 @@ function createFenceRun(root, collisionWorld, {
 
 function createSeparatedGround(root) {
   const grass = material(COLORS.grass, 0.98, { flatShading: true });
-  // Front/campus side. Stops before the M1 trench so it cannot cover the highway.
-  box(root, [170, 0.14, 138], [0, -0.11, 34], grass);
-  // Far/north side beyond the M1.
-  box(root, [170, 0.14, 58], [0, -0.11, -81], grass);
+  // Satellite imagery is continuous terrain; a single ground slab avoids the
+  // sky-coloured bands that previously separated the lot from its roads.
+  box(root, [230, 0.14, 210], [0, -0.11, 0], grass);
 }
 function createBackdropWall(root) {
   const wallMat = material(0x6f766f, 0.92);
@@ -228,30 +227,11 @@ function createCampusRoad(root) {
     y: bridgeRoad.y + 0.1
   });
 
-  // Keep the parking entrance open; the pedestrian crossing belongs to the
-  // relocated campus checkpoint on the right-hand side.
-  const zebra = new THREE.MeshBasicMaterial({
-    color: COLORS.white
-  });
-
-  const zebraStart =
-    PARKING_LAYOUT.campusGate.x - 4;
-
-  const zebraEnd =
-    PARKING_LAYOUT.campusGate.x + 4;
-
-  for (
-    let x = zebraStart;
-    x <= zebraEnd;
-    x += 1.25
-  ) {
-    box(
-      root,
-      [0.62, 0.025, 8.1],
-      [x, 0.085, campusRoad.z],
-      zebra,
-      { receiveShadow: false }
-    );
+  // Short yellow guide lines mark the Entrance 9 approach without the large
+  // zebra crossing that was not present in the aerial reference.
+  const entranceX = PARKING_LAYOUT.mainEntrance.x;
+  for (const x of [entranceX - 2.7, entranceX + 2.7]) {
+    box(root, [0.1, 0.025, campusRoad.depth - 1.4], [x, 0.085, campusRoad.z], new THREE.MeshBasicMaterial({ color: 0xd8b34f }), { receiveShadow: false });
   }
 }
 
@@ -364,8 +344,25 @@ function createArmBuilding(root, collisionWorld) {
   const a = PARKING_LAYOUT.armBuilding;
   const brick = material(COLORS.brick, 0.88);
   const concrete = material(0xb1aaa0, 0.9);
+  const roof = material(0x89979b, 0.76, { metalness: 0.12 });
+
+  // Interlocking masses and the circular ARM roof are the dominant landmark
+  // in the supplied aerial reference.
   box(root, [a.width, a.height, a.depth], [a.x, a.height / 2, a.z], brick, { castShadow: true, name: "wits-arm-main" });
-  box(root, [a.width - 1.5, a.height + 3, 10], [a.x - 0.5, (a.height + 3) / 2, -12], material(COLORS.darkBrick, 0.88), { castShadow: true });
+  box(root, [a.width - 1, 0.45, a.depth - 1], [a.x, a.height + 0.2, a.z], roof, { castShadow: true });
+  box(root, [a.width + 9, a.height - 2, 18], [a.x - 2, (a.height - 2) / 2, a.z - 23], concrete, { castShadow: true });
+  box(root, [a.width + 5, 0.55, 20], [a.x - 1, a.height + 0.2, a.z + 20], roof, { castShadow: true });
+  box(root, [18, a.height + 3, 24], [a.x + 8, (a.height + 3) / 2, a.z + 18], material(COLORS.darkBrick, 0.88), { castShadow: true });
+
+  const domeBase = new THREE.Mesh(new THREE.CylinderGeometry(12, 12, 4, 32), concrete);
+  domeBase.position.set(a.x + 3, a.height + 2, a.z + 2);
+  domeBase.castShadow = true;
+  root.add(domeBase);
+  const domeRoof = new THREE.Mesh(new THREE.CylinderGeometry(10.8, 11.4, 1.1, 32), roof);
+  domeRoof.position.set(a.x + 3, a.height + 4.45, a.z + 2);
+  domeRoof.castShadow = true;
+  root.add(domeRoof);
+
   box(root, [1.2, 2.1, a.depth - 4], [a.x + a.width / 2 + 0.55, 1.05, a.z], concrete);
   const windows = new THREE.MeshBasicMaterial({ color: COLORS.window });
   for (let z = -19; z <= 19; z += 5.5) {
@@ -376,6 +373,7 @@ function createArmBuilding(root, collisionWorld) {
   // Parking-facing walkway.
   box(root, [2.1, 0.08, a.depth + 4], [a.x + a.width / 2 + 1.5, 0.05, a.z], material(COLORS.concrete, 0.9));
   addCollider(collisionWorld, root, [a.x, a.height / 2, a.z], [a.width, a.height, a.depth], "wits-arm");
+  addCollider(collisionWorld, root, [a.x + 3, 4, a.z + 2], [24, 8, 24], "wits-arm-dome");
 }
 
 function createFlowerHall(root) {
@@ -785,11 +783,11 @@ function createWitsMainGate(root) {
 
 function createTrees(root) {
   const positions = [
-    [-55, 22], [-55, 12], [-55, -2], [-55, -17],
-    [-8, 51], [-2, 69], [32, 67], [40, 63],
-    [-48, 56], [-42, 67], [45, 34], [48, 20],
-    [57, -18], [57, -28], [-58, -62], [-40, -66],
-    [58, -65], [74, -58], [-72, 78], [70, 78]
+    [-104, -35], [-104, -15], [-104, 8], [-101, 28],
+    [-70, -55], [-48, -57], [-22, -57], [55, -56],
+    [64, -44], [64, -19], [64, 5], [64, 26],
+    [-91, 35], [-76, 38], [-61, 39], [51, 56],
+    [65, 58], [84, 20], [85, -20], [85, -55]
   ];
   const trunk = new THREE.InstancedMesh(
     new THREE.CylinderGeometry(0.16, 0.24, 2.6, 6),
@@ -829,7 +827,6 @@ export function createParkingEnvironment({ collisionWorld, playerCar }) {
   createOpenParkingEntrance(root);
   const updateBoom = createCampusBoomGate(root, collisionWorld, playerCar);
   createWitsMainGate(root);
-  createBackdropWall(root);
   createTrees(root);
 
 
