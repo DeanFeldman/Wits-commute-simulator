@@ -45,7 +45,7 @@ test("generated rows match the annotated Wits aerial structure", () => {
   assert.equal(layout.topRow.count, 20);
   assert.equal(layout.doubleRows.length, 6);
   assert.equal(layout.verticalRoads.length, 7);
-  assert.equal(spaces.length, 357);
+  assert.equal(spaces.length, 363);
 
   const topRow = spaces.filter((space) => space.rowName === "top-row");
   assert.equal(topRow.length, 20);
@@ -94,6 +94,10 @@ test("driving aisles remain open and align with both lower entrances", () => {
   const spawnAisle = layout.verticalRoads[1];
   assert.equal(layout.playerSpawn.x, spawnAisle.x);
   assert.equal(PARKING_LAYOUT.parkingBoomEntrance.x, spawnAisle.x);
+  assert.ok(
+    PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth > PARKING_LAYOUT.parkingBoomEntrance.width,
+    "raised curb shoulders flank the asphalt entrance"
+  );
   assert.equal(layout.playerSpawn.angle, 0, "player faces north into the parking lot");
   assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
 });

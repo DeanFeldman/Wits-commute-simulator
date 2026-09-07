@@ -39,7 +39,7 @@ export const PARKING_LAYOUT = Object.freeze({
   mainEntrance: { x: -2.5, z: 35.5, width: 9 },
 
   // Player entrance aligned with the second aisle from the west.
-  parkingBoomEntrance: { x: -34.5, z: 35.5, width: 7 },
+  parkingBoomEntrance: { x: -34.5, z: 35.5, width: 7, boundaryWidth: 17 },
 
   // Duplicate the entrance position for the opposite parking.
   otherEntrance: { x: 0, z: 46.5, width: 9 },
@@ -575,8 +575,8 @@ function createMainParkingBoundary(root, collisionWorld) {
 
   const openings = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.mainEntrance]
     .map((entrance) => ({
-      left: entrance.x - entrance.width / 2,
-      right: entrance.x + entrance.width / 2
+      left: entrance.x - (entrance.boundaryWidth ?? entrance.width) / 2,
+      right: entrance.x + (entrance.boundaryWidth ?? entrance.width) / 2
     }))
     .sort((a, b) => a.left - b.left);
   let runStart = left;
@@ -615,7 +615,30 @@ function createMainParkingBoundary(root, collisionWorld) {
 
 function createOpenParkingEntrance(root, entrance) {
   const asphalt = material(COLORS.asphalt, 0.93);
-  box(root, [entrance.width, 0.09, 10], [entrance.x, 0.03, entrance.z + 1.5], asphalt);
+  plane(root, entrance.width, 11, entrance.x, 0.068, entrance.z + 1, asphalt);
+}
+
+function createParkingEntranceCurbs(root, collisionWorld) {
+  const entrance = PARKING_LAYOUT.parkingBoomEntrance;
+  const shoulderWidth = (entrance.boundaryWidth - entrance.width) / 2;
+  const curbMaterial = material(COLORS.kerb, 0.84);
+  for (const side of [-1, 1]) {
+    const x = entrance.x + side * (entrance.width / 2 + shoulderWidth / 2);
+    box(
+      root,
+      [shoulderWidth, 0.28, 2.5],
+      [x, 0.14, 34.7],
+      curbMaterial,
+      { castShadow: true, name: "parking-entrance-curb" }
+    );
+    addCollider(
+      collisionWorld,
+      root,
+      [x, 0.2, 34.7],
+      [shoulderWidth, 0.5, 2.5],
+      "parking-entrance-curb"
+    );
+  }
 }
 
 function createParkingBoomEntrance(root, collisionWorld, playerCar) {
@@ -783,6 +806,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar }) {
   createMainParkingBoundary(root, collisionWorld);
   createOpenParkingEntrance(root, PARKING_LAYOUT.mainEntrance);
   createOpenParkingEntrance(root, PARKING_LAYOUT.parkingBoomEntrance);
+  createParkingEntranceCurbs(root, collisionWorld);
   const updateCampusBoom = createCampusBoomGate(root, collisionWorld, playerCar);
   const updateParkingBoom = createParkingBoomEntrance(root, collisionWorld, playerCar);
   createTrees(root);

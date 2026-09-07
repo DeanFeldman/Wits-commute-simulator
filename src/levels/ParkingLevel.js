@@ -21,8 +21,8 @@ export const PARKING_AISLE_WIDTH = 6;
 export const PARKING_LINE_WIDTH = 0.08;
 
 const DOUBLE_ROW_CONFIGS = Object.freeze([
-  Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 27 }),
-  Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 29 }),
+  Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 32 }),
+  Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 32 }),
   Object.freeze({ name: "row-c", centerX: -10.5, startZ: -35.5, endZ: 25 }),
   Object.freeze({ name: "row-d", centerX: 5.5, startZ: -33.8, endZ: 25 }),
   Object.freeze({ name: "row-e", centerX: 21.5, startZ: -32.1, endZ: 28 }),
