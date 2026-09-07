@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { disposeObject3D } from "../../shared/disposeObject3D.js";
 import { CollisionWorld } from "../../shared/CollisionWorld.js";
-import { GridHopController } from "../../shared/GridHopController.js";
+import { GridHopController } from "./GridHopController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
-import { createWitsTerrain } from "../../shared/WitsTerrain.js";
+import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip } from "./CrossingStrip.js";
 import {
   createSeededRandom,

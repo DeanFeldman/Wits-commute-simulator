@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
 import { CrossingStrip } from "../src/levels/crossing/CrossingStrip.js";
-import { GridHopController } from "../src/shared/GridHopController.js";
+import { GridHopController } from "../src/levels/crossing/GridHopController.js";
 import {
   CUSTOM_HAZARD_STRIPS,
   CUSTOM_SAFE_STRIPS,

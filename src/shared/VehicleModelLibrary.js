@@ -5,8 +5,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 // relative so the deployed game also works from a subdirectory.
 const BASE_PATH = "./assets/cars/";
 const TARGET_LENGTH = 4.2;
-const PARKING_PACK_FILE = "generic_passenger_car_pack.glb";
-export const PLAYER_CAR_MODEL_PATH = "./assets/models/vehicles/car_scene.glb";
+const PARKING_PACK_FILE = "generic-passenger-car-pack.glb";
+export const PLAYER_CAR_MODEL_PATH = "./assets/models/vehicles/car-scene.glb";
 const PLAYER_CAR_PROP_NAMES = new Set([
   "chest_base",
   "wheel_004",
@@ -284,7 +284,7 @@ export async function attachPlayerCarModel(holder) {
       throw new Error("Player car scene is missing RootNode.");
     }
 
-    // car_scene.glb is an authored showcase scene. Remove its surrounding
+    // car-scene.glb is an authored showcase scene. Remove its surrounding
     // props so the player gets only the vehicle itself.
     for (const child of [...rootNode.children]) {
       if (PLAYER_CAR_PROP_NAMES.has(child.name)) rootNode.remove(child);

@@ -156,7 +156,7 @@ export class CheatingLevel {
     try {
       const { EXRLoader } = await import("three/addons/loaders/EXRLoader.js");
       const texture = await new EXRLoader().loadAsync(
-        "./assets/hdri/sunset_jhbcentral_4k.exr"
+        "./assets/hdri/sunset-jhbcentral-4k.exr"
       );
       texture.mapping = THREE.EquirectangularReflectionMapping;
       this.backgroundTexture = texture;

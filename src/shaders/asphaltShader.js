@@ -71,17 +71,17 @@ export function createAsphaltMaterial() {
 
   const textureLoader = new THREE.TextureLoader();
   const roadTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_diff_2k.jpg`),
+    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-diff-2k.jpg`),
     { colour: true }
   );
   const roughnessTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_rough_2k.jpg`)
+    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-rough-2k.jpg`)
   );
   const displacementTexture = configureTexture(
-    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt_02_disp_2k.png`)
+    textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-disp-2k.png`)
   );
   const normalTexture = configureTexture(
-    new EXRLoader().load(`${ROAD_TEXTURE_PATH}asphalt_02_nor_gl_2k.exr`)
+    new EXRLoader().load(`${ROAD_TEXTURE_PATH}asphalt-02-nor-gl-2k.exr`)
   );
 
   return new THREE.ShaderMaterial({
