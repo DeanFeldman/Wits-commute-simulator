@@ -95,13 +95,15 @@ These rows are intentionally close to the curb. Do not reintroduce a strip of un
 ### East edge
 
 - Start: `(56.6, -30)`
-- Step: `(-0.19, 2.8)`
-- Count: `21`
+- Step: `(-0.238, 3.5)`
+- Count: `17`
 - Rotation: `-45 degrees`
 
 This row follows the narrowing east boundary. Keep it close to the curb and avoid returning to the earlier, more aggressive `-60 degree` zigzag.
 
-The current generator produces 363 total spaces before seeded vacancies are applied.
+Angled bays need a longer step than square ones. A car turned 45 degrees reaches further along the row, so neighbours only clear each other once the step, projected onto the car's width axis, exceeds the car's width. The earlier `2.8` step gave `1.85 m` of clearance, which is narrower than every vehicle in the parking pack, so parked cars intersected. `3.5` gives `2.31 m` and clears the widest of them. The row still begins and ends on the same points along the curb; it simply holds four fewer cars. `test/parking-entrance-scenery.test.js` asserts this clearance.
+
+The current generator produces 359 total spaces before seeded vacancies are applied.
 
 ## Drive Aisles
 
@@ -149,15 +151,19 @@ Moving the target or its row requires checking containment geometry, approach sp
 ## Cars and Performance
 
 - The player car uses `./assets/models/vehicles/car_scene.glb` through `attachPlayerCarModel`.
-- Parked cars currently use seeded, low-poly instanced body/cabin meshes for browser performance.
+- Parked cars use the ten vehicles in `./assets/cars/generic_passenger_car_pack.glb`, picked by the same seeded sequence.
+- Every vehicle in that pack is modelled at its own heading, and one of them is also skewed inside its own node. `VehicleModelLibrary` normalises each one to a `4.2 m` length, grounds it at `Y = 0` and rotates it to `+Z` forward, so a bay only supplies its own rotation. Do not place pack vehicles without going through that loader.
+- `src/shared/InstancedCarField.js` bakes each prototype mesh into an `InstancedMesh`, so the whole lot costs one draw call per prototype mesh rather than one per car. Keep this batching when adding spaces.
 - Approximately 8% of non-target bays are left empty by a deterministic seeded random sequence.
-- Parked-car colliders are approximately `2.05 x 1.2 x 4.15`, safely inside a standard bay.
+- Parked-car colliders come from each vehicle's `PARKING_CAR_SPECS` entry, between `2.0` and `2.15` wide and `4.5` long, inside a standard bay.
 - Parking lines use two `InstancedMesh` batches. Preserve instancing or equivalent batching when adding spaces.
 - Do not create repeated geometry or materials inside the update loop.
 
 ## Surface, Lighting, and Sky
 
 - The lot uses the custom damaged/wet asphalt shader from `src/shaders/asphaltShader.js` and textures under `./assets/textures/road/`.
+- The three asphalt pieces are built as subdivided convex quads, not `ShapeGeometry`. `ShapeGeometry` emits only the outline vertices and writes raw shape coordinates into its uv attribute, which left the shader with nothing to displace and tiled the textures more than a thousand times across the lot. Keep the pieces convex, keep them subdivided, and keep uvs scaled by `ROAD_TILE_METRES`.
+- The surrounding streets share the same four texture maps through `createRoadMaterial`, so the campus road and the M1 read as the same tarmac. One texture set is loaded per level load and handed to both.
 - Runtime asset paths must stay relative because the game is deployed from a subdirectory.
 - Level 1 deliberately uses a light-blue sky (`0x8ec9ee`), not an HDRI skybox.
 - Chase view uses matching fog. Sky view removes fog while active and restores it when returning to chase view.
