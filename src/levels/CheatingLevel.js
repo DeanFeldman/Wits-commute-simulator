@@ -9,7 +9,7 @@ export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerSecond: 5,
   suspicionGainPerSecond: 30,
   suspicionDecayPerSecond: 6,
-  tutorPauseSeconds: 2.6,
+  tutorPauseSeconds: 2.0,
   tutorTurnSpeed: 2.4
 });
 
@@ -25,7 +25,9 @@ const DESK_ROWS = 6;
 const DESK_ROW_SPACING = 2.5;
 const FRONT_DESK_ROW_Z = -4.3;
 const TUTOR_AISLE_X = 9;
+const PLAYER_DANGER_AISLE_Z = 2.35;
 const WINDOW_CENTERS_Z = [-4.7, 1.7, 8.1];
+const TUTOR_CENTER_AISLE_X = DESK_COLUMN_SPACING / 2;
 const WINDOW_WIDTH = 3.6;
 const WINDOW_BOTTOM_Y = 1.4;
 const WINDOW_TOP_Y = 4.8;
@@ -76,21 +78,44 @@ export class CheatingLevel {
     this.collisionWorld = null;
 
     this.tutorTime = 0;
-    this.patrolPoints = [
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, -5.1),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, -5.1),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, -2.65),
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, -2.65),
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, -0.15),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, -0.15),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, 2.35),
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 2.35),
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 4.85),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, 4.85),
-      new THREE.Vector3(TUTOR_AISLE_X, 0.95, 7.35),
-      new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 7.35)
-    ];
-    this.patrolIndex = 1;
+this.patrolPoints = [
+  // Start at the front of the classroom and walk directly toward
+  // the player's area through the central aisle.
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -5.1),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -2.65),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -0.15),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, 2.35),
+
+  // Turn away before passing behind the player.
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -0.15),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -2.65),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -5.1),
+
+  // Sweep one front row.
+  new THREE.Vector3(-TUTOR_AISLE_X, 0.95, -5.1),
+  new THREE.Vector3(TUTOR_AISLE_X, 0.95, -5.1),
+
+  // Come back down the central aisle toward the player.
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -5.1),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -2.65),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -0.15),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, 2.35),
+
+  // Visit the rear portion of the room.
+  new THREE.Vector3(TUTOR_AISLE_X, 0.95, 2.35),
+  new THREE.Vector3(TUTOR_AISLE_X, 0.95, 4.85),
+  new THREE.Vector3(TUTOR_AISLE_X, 0.95, 7.35),
+  new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 7.35),
+  new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 4.85),
+  new THREE.Vector3(-TUTOR_AISLE_X, 0.95, 2.35),
+
+  // Finish by returning into the player's line of sight.
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, 2.35),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -0.15),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -2.65),
+  new THREE.Vector3(TUTOR_CENTER_AISLE_X, 0.95, -5.1)
+];
+    //this.patrolIndex = 1;
     this.patrolState = "walk";
     this.stateTimer = 0;
     this.occluders = [];
@@ -232,7 +257,15 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           object.receiveShadow = true;
         });
         this.root.add(desk);
-        this.occluders.push(desk);
+
+const isPlayerDesk =
+  Math.abs(x - this.playerPosition.x) < 0.01 &&
+  Math.abs(rowZ + 0.8 - this.playerPosition.z) < 0.01;
+
+if (!isPlayerDesk) {
+  desk.userData.blocksTutorVision = true;
+  this.occluders.push(desk);
+}
         this.collisionWorld.add({ object: desk, size: [0.7, 0.7, 0.5], color: 0x785f48, tag: "desk" });
       }
     }
@@ -265,7 +298,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         );
         chair.rotation.y = -Math.PI / 2;
         this.root.add(chair);
-        this.occluders.push(chair);
+        //this.occluders.push(chair);
       }
     }
 
@@ -311,7 +344,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       instances.castShadow = true;
       instances.receiveShadow = true;
       this.root.add(instances);
-      this.occluders.push(instances);
+      //this.occluders.push(instances);
       return instances;
     };
     const setStudentPart = (instances, index, x, y, z, rotationX = 0) => {
@@ -777,7 +810,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       // Once the body has turned toward the room, sweep the vision cone
       // slightly so the pause reads as deliberate observation.
       this.tutorHead.rotation.y =
-        Math.sin(this.tutorTime * 3.2) * 0.2;
+  Math.sin(this.tutorTime * 2.4) *
+  THREE.MathUtils.degToRad(18);
     } else {
       this.tutorHead.rotation.y =
         Math.sin(this.tutorWalkPhase * 0.5) *
@@ -836,21 +870,53 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
   }
 
-  canTutorSeePlayer() {
-    const eye = this.tutorHead.getWorldPosition(new THREE.Vector3());
-    const toPlayer = this.playerPosition.clone().sub(eye);
-    const distance = toPlayer.length();
-    if (distance > 11) return false;
+canTutorSeePlayer() {
+  const eye = this.tutorHead.getWorldPosition(new THREE.Vector3());
+  const toPlayer = this.playerPosition.clone().sub(eye);
+  const distance = toPlayer.length();
 
-    const direction = toPlayer.normalize();
-    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.tutorHead.getWorldQuaternion(new THREE.Quaternion()));
-    if (forward.dot(direction) < Math.cos(THREE.MathUtils.degToRad(32))) return false;
+  if (distance > 11) return false;
 
-    this.root.updateMatrixWorld(true);
-    this.raycaster.set(eye, direction);
-    this.raycaster.far = distance - 0.08;
-    return this.raycaster.intersectObjects(this.occluders, true).length === 0;
+  const direction = toPlayer.normalize();
+
+  const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+    this.tutorHead.getWorldQuaternion(new THREE.Quaternion())
+  );
+
+  if (
+    forward.dot(direction) <
+    Math.cos(THREE.MathUtils.degToRad(32))
+  ) {
+    return false;
   }
+
+  this.root.updateMatrixWorld(true);
+
+  this.raycaster.set(eye, direction);
+  this.raycaster.far = distance - 0.08;
+
+  const hits = this.raycaster.intersectObjects(
+    this.occluders,
+    true
+  );
+
+  // Only substantial classroom geometry should block the tutor's view.
+  // Chairs and nearby students should not make the player permanently
+  // invisible from across the room.
+  return !hits.some((hit) => {
+    let object = hit.object;
+
+    while (object) {
+      if (object.userData.blocksTutorVision) {
+        return true;
+      }
+
+      object = object.parent;
+    }
+
+    return false;
+  });
+}
   toggleCollisionDebug(visible) {
     this.collisionWorld.setDebugVisible(visible);
     this.tutorMover?.setDebugVisible(visible);

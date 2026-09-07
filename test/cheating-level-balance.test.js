@@ -85,13 +85,27 @@ test("answer bar requires meaningful copying time", () => {
 
 test("tutor patrol snakes through the desk aisles without diagonal shortcuts", () => {
   const points = new CheatingLevel({}).patrolPoints;
-  const aisleDepths = [...new Set(points.map((point) => point.z))];
+  const aisleDepths = [...new Set(points.map((point) => point.z))]
+    .sort((a, b) => a - b);
 
-  assert.deepEqual(aisleDepths, [-5.1, -2.65, -0.15, 2.35, 4.85, 7.35]);
+  assert.deepEqual(
+    aisleDepths,
+    [-5.1, -2.65, -0.15, 2.35, 4.85, 7.35]
+  );
+
+  const centralAislePoints = points.filter(
+    (point) => point.x === 0.95
+  );
+
+  assert.ok(
+    centralAislePoints.length >= 10,
+    "tutor should repeatedly patrol the central aisle in front of the player"
+  );
 
   for (let index = 0; index < points.length; index++) {
     const current = points[index];
     const next = points[(index + 1) % points.length];
+
     assert.ok(
       current.x === next.x || current.z === next.z,
       `patrol segment ${index} must remain inside a row or side aisle`
