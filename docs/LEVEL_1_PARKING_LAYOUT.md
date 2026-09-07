@@ -197,6 +197,17 @@ Any of the three bays completes the level. Changing `freeBayCount` or the separa
 - The sky camera is orthographic, centred over the lot at `Y = 90`, with `skyViewScale = 1.65`.
 - The level must always start in chase view. Do not let the sky-view toggle alter the starting camera state.
 
+## The M1 Cutting
+
+The motorway runs in a cutting below the parking lot, as it does on the ground: you look over the lot fence, across a verge, and down onto the carriageway. `PARKING_LAYOUT.m1.y` is the level of the trench floor, not the road's thickness.
+
+Two things follow from that and are easy to break:
+
+- The terrain slab has to stop at each lip of the cutting. It is drawn as a southern and a northern piece for exactly that reason. Restoring it to one slab paves straight over the trench.
+- The retaining walls run from the trench floor up to the lip, so the wall face is what you see when you look over the edge. They are not walls standing on the ground beside a flat road.
+
+Anything placed near the north edge has to sit on the verge rather than over the trench; several trees had to move south when the cutting was dug. The right-hand road crosses it, so it carries a deck and rails over the span.
+
 ## Collision and Boundary Rules
 
 - Fences, curbs, buildings, parked cars, and a closed boom use `CollisionWorld`.

@@ -33,7 +33,10 @@ export const PARKING_LAYOUT = Object.freeze({
   // Wider road so it runs across the whole visible scene and fades into fog.
   campusRoad: { x: 0, z: 41, width: 185, depth: 10 },
 
-  m1: { x: 0, z: -65, width: 190, depth: 15, y: 0.02 },
+  // The M1 runs in a cutting below the parking lot, as it does on the ground:
+  // you look over the lot fence, across a verge, and down onto the carriageway.
+  // y is the level of the trench floor.
+  m1: { x: 0, z: -62, width: 190, depth: 15, y: -4 },
   bridgeRoad: { x: 72, z: -5, width: 11, depth: 150, y: 0.08 },
 
   // Player entrance aligned with the second aisle from the west, and the exit
@@ -178,9 +181,18 @@ function createAngledFenceRun(root, collisionWorld, {
 
 function createSeparatedGround(root) {
   const grass = material(COLORS.grass, 0.98, { flatShading: true });
-  // Satellite imagery is continuous terrain; a single ground slab avoids the
-  // sky-coloured bands that previously separated the lot from its roads.
-  box(root, [230, 0.14, 210], [0, -0.11, 0], grass);
+  const { m1 } = PARKING_LAYOUT;
+
+  // Terrain is one continuous surface, which avoids the sky-coloured bands that
+  // once separated the lot from its roads, but it has to stop at each lip of
+  // the motorway cutting rather than paving over the trench.
+  const southLip = m1.z + m1.depth / 2;
+  const northLip = m1.z - m1.depth / 2;
+  const southDepth = 105 - southLip;
+  const northDepth = northLip + 105;
+
+  box(root, [230, 0.14, southDepth], [0, -0.11, southLip + southDepth / 2], grass);
+  box(root, [230, 0.14, northDepth], [0, -0.11, northLip - northDepth / 2], grass);
 }
 function createBackdropWall(root) {
   const wallMat = material(0x6f766f, 0.92);
@@ -290,18 +302,38 @@ function createM1(root, roadMaterial) {
 
   const laneZ = [-5.2, -1.75, 1.75, 5.2].map((offset) => m1.z + offset);
 
-  // Retaining walls stop at the bridge opening so the bridge reads as crossing the trench.
-  const wallMat = material(0x666c70, 0.84);
-  const bridgeHalf = bridgeRoad.width / 2 + 0.8;
-  for (const wallZ of [m1.z - m1.depth / 2 - 0.3, m1.z + m1.depth / 2 + 0.3]) {
-    const leftWidth = (bridgeRoad.x - bridgeHalf) - (-m1.width / 2);
-    const rightWidth = (m1.width / 2) - (bridgeRoad.x + bridgeHalf);
-    box(root, [leftWidth, 2.6, 0.45], [-m1.width / 2 + leftWidth / 2, m1.y + 1.3, wallZ], wallMat);
-    box(root, [rightWidth, 2.6, 0.45], [bridgeRoad.x + bridgeHalf + rightWidth / 2, m1.y + 1.3, wallZ], wallMat);
+  // Retaining walls hold the ground up on either side of the cutting. They run
+  // from the trench floor to the lip, so the face of the wall is what you see
+  // when you look over the edge from the lot.
+  const wallMat = material(0x8f9498, 0.86);
+  const parapetMat = material(0xa2a6a2, 0.88);
+  const wallThickness = 0.7;
+  const wallHeight = Math.abs(m1.y) + 0.2;
+  const lips = [
+    { z: m1.z + m1.depth / 2 + wallThickness / 2 },
+    { z: m1.z - m1.depth / 2 - wallThickness / 2 }
+  ];
+
+  for (const lip of lips) {
+    box(root, [m1.width, wallHeight, wallThickness], [m1.x, m1.y + wallHeight / 2, lip.z], wallMat, {
+      castShadow: true
+    });
+    // Low parapet along the top edge, so the drop reads from ground level.
+    box(root, [m1.width, 0.8, wallThickness + 0.25], [m1.x, 0.4, lip.z], parapetMat, {
+      castShadow: true
+    });
   }
 
-  // Bridge side rails only over the trench; the deck itself is the ground-level right road.
-  const bridgeSpan = m1.depth + 4;
+  // The right-hand road crosses the cutting, so it needs a deck under it and
+  // rails along it rather than simply floating over the gap.
+  const bridgeSpan = m1.depth + wallThickness * 2 + 1.4;
+  box(
+    root,
+    [bridgeRoad.width + 1.2, 0.85, bridgeSpan],
+    [bridgeRoad.x, -0.4, m1.z],
+    material(0x7d8285, 0.88),
+    { castShadow: true }
+  );
   for (const x of [bridgeRoad.x - bridgeRoad.width / 2 + 0.28, bridgeRoad.x + bridgeRoad.width / 2 - 0.28]) {
     box(root, [0.14, 0.86, bridgeSpan], [x, 0.54, m1.z], material(COLORS.metal, 0.66, { metalness: 0.28 }), { castShadow: true });
   }
@@ -796,10 +828,10 @@ function createSecondaryParkingLink(root) {
 function createTrees(root) {
   const positions = [
     [-104, -35], [-104, -15], [-104, 8], [-101, 28],
-    [-70, -55], [-48, -57], [-22, -57], [55, -56],
+    [-70, -51], [-48, -51], [-22, -51], [55, -46],
     [64, -44], [64, -19], [64, 5], [64, 26],
     [-91, 35], [-76, 38], [-61, 39], [51, 56],
-    [65, 58], [84, 20], [85, -20], [85, -55]
+    [65, 58], [84, 20], [85, -20], [85, -50]
   ];
   const trunk = new THREE.InstancedMesh(
     new THREE.CylinderGeometry(0.16, 0.24, 2.6, 6),
