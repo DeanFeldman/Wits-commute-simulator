@@ -80,7 +80,7 @@ test("generated rows match the annotated Wits aerial structure", () => {
   );
 });
 
-test("driving aisles remain open and align with both lower entrances", () => {
+test("driving aisles remain open and align with the lot entrance", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
   const blocks = layout.doubleRows;
 
@@ -90,19 +90,19 @@ test("driving aisles remain open and align with both lower entrances", () => {
     assert.ok(nextLeftEdge - previousRightEdge + EPSILON >= PARKING_AISLE_WIDTH);
   }
 
-  const centralAisle = layout.verticalRoads[3];
-  assert.equal(PARKING_LAYOUT.mainEntrance.x, centralAisle.x);
-  assert.ok(centralAisle.endZ >= 34, "central aisle reaches the entrance opening");
+  // The boom entrance is the only way in. There is deliberately no second
+  // opening in the lot boundary.
+  assert.equal(PARKING_LAYOUT.mainEntrance, undefined, "the disused central entrance is gone");
 
   // The campus checkpoint controls the street where it meets Yale Road. A gate
   // standing in the middle of an open road guards nothing, so it has to sit
-  // short of the intersection and clear of both lot entrances.
+  // short of the intersection and well clear of the lot entrance.
   const bridge = PARKING_LAYOUT.bridgeRoad;
   const gate = PARKING_LAYOUT.campusGate;
   assert.ok(gate.x + 7 < bridge.x - bridge.width / 2, "campus gate stops short of the intersection");
   assert.ok(
-    gate.x - 7 > PARKING_LAYOUT.mainEntrance.x + PARKING_LAYOUT.mainEntrance.width,
-    "campus gate is clear of the lot entrances"
+    gate.x - 7 > PARKING_LAYOUT.parkingBoomEntrance.x + PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth,
+    "campus gate is clear of the lot entrance"
   );
 
   const spawnAisle = layout.verticalRoads[1];
@@ -112,6 +112,19 @@ test("driving aisles remain open and align with both lower entrances", () => {
     PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth > PARKING_LAYOUT.parkingBoomEntrance.width,
     "raised curb shoulders flank the asphalt entrance"
   );
+  // The exit mirrors the entrance one aisle to the east, and the two openings
+  // must not meet, or the boundary between them disappears.
+  const exitAisle = layout.verticalRoads[2];
+  const entry = PARKING_LAYOUT.parkingBoomEntrance;
+  const exit = PARKING_LAYOUT.parkingBoomExit;
+  assert.equal(exit.x, exitAisle.x, "exit lines up with the third aisle");
+  assert.equal(exit.width, entry.width);
+  assert.equal(exit.boundaryWidth, entry.boundaryWidth);
+  assert.ok(
+    exit.x - exit.boundaryWidth / 2 - (entry.x + entry.boundaryWidth / 2) >= 1,
+    "a run of boundary survives between the entrance and the exit"
+  );
+
   assert.equal(layout.playerSpawn.angle, 0, "player faces north into the parking lot");
   assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
 });

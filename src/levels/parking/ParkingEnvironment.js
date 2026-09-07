@@ -36,11 +36,11 @@ export const PARKING_LAYOUT = Object.freeze({
   m1: { x: 0, z: -65, width: 190, depth: 15, y: 0.02 },
   bridgeRoad: { x: 72, z: -5, width: 11, depth: 150, y: 0.08 },
 
-  // Lower-middle opening aligned with the central drive aisle.
-  mainEntrance: { x: -2.5, z: 35.5, width: 9 },
-
-  // Player entrance aligned with the second aisle from the west.
-  parkingBoomEntrance: { x: -34.5, z: 35.5, width: 7, boundaryWidth: 17 },
+  // Player entrance aligned with the second aisle from the west, and the exit
+  // on the third. Their aisles are 16 m apart, so the boundary openings are
+  // 12 m wide: any wider and the two gaps meet, leaving no fence between them.
+  parkingBoomEntrance: { x: -34.5, z: 35.5, width: 7, boundaryWidth: 12 },
+  parkingBoomExit: { x: -18.5, z: 35.5, width: 7, boundaryWidth: 12 },
 
   // Duplicate the entrance position for the opposite parking.
   otherEntrance: { x: 0, z: 46.5, width: 9 },
@@ -105,24 +105,6 @@ function addCollider(collisionWorld, root, position, size, tag, rotationY = 0) {
   return object;
 }
 
-function createDashedLine(root, {
-  axis = "x", centerX = 0, centerZ = 0, span = 80, step = 6,
-  dash = 2.8, thickness = 0.11, y = 0.075, color = COLORS.paint
-}) {
-  const mat = new THREE.MeshBasicMaterial({ color });
-  for (let offset = -span / 2 + step / 2; offset <= span / 2 - step / 2; offset += step) {
-    const geometry = axis === "x"
-      ? new THREE.BoxGeometry(dash, 0.025, thickness)
-      : new THREE.BoxGeometry(thickness, 0.025, dash);
-    const stripe = new THREE.Mesh(geometry, mat);
-    stripe.position.set(
-      axis === "x" ? centerX + offset : centerX,
-      y,
-      axis === "z" ? centerZ + offset : centerZ
-    );
-    root.add(stripe);
-  }
-}
 
 function createFenceRun(root, collisionWorld, {
   x, z, length, axis = "x", tag = "fence", collider = true
@@ -215,12 +197,19 @@ function createBackdropWall(root) {
   });
 }
 
+// Every break in the lot boundary: the entrance and the exit are identical
+// apart from where they sit.
+const LOT_OPENINGS = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit];
+
 // Spans of the parking-side kerb line, skipping each entrance opening so the
 // street surface runs uninterrupted into the lot.
 function kerbRunsBetweenEntrances(left, right) {
-  const openings = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.mainEntrance]
+  const openings = LOT_OPENINGS
     .map((entrance) => {
-      const width = (entrance.boundaryWidth ?? entrance.width) + 1.5;
+      // Only the driving surface breaks the kerb. The raised shoulders either
+      // side of the throat are themselves kerb, so the run passes under them
+      // and no gap opens between the two.
+      const width = entrance.width + 0.4;
       return { left: entrance.x - width / 2, right: entrance.x + width / 2 };
     })
     .sort((a, b) => a.left - b.left);
@@ -249,15 +238,6 @@ function createCampusRoad(root, roadMaterial) {
     asphalt
   );
   applyRoadUvs(mainRoad.geometry, campusRoad.width, campusRoad.depth);
-
-  // Centre dashed line.
-  createDashedLine(root, {
-    axis: "x",
-    centerX: campusRoad.x,
-    centerZ: campusRoad.z,
-    span: campusRoad.width - 4,
-    y: 0.075
-  });
 
   // Kerbs + pavements along the main road. On the parking side they have to
   // break at every entrance, otherwise a raised kerb and a pavement run
@@ -300,20 +280,6 @@ function createCampusRoad(root, roadMaterial) {
   );
   applyRoadUvs(bridge.geometry, bridgeRoad.width, bridgeRoad.depth);
 
-  createDashedLine(root, {
-    axis: "z",
-    centerX: bridgeRoad.x,
-    centerZ: bridgeRoad.z,
-    span: bridgeRoad.depth - 8,
-    y: bridgeRoad.y + 0.1
-  });
-
-  // Short yellow guide lines mark the Entrance 9 approach without the large
-  // zebra crossing that was not present in the aerial reference.
-  const entranceX = PARKING_LAYOUT.mainEntrance.x;
-  for (const x of [entranceX - 2.7, entranceX + 2.7]) {
-    box(root, [0.1, 0.025, campusRoad.depth - 1.4], [x, 0.085, campusRoad.z], new THREE.MeshBasicMaterial({ color: 0xd8b34f }), { receiveShadow: false });
-  }
 }
 
 function createM1(root, roadMaterial) {
@@ -323,12 +289,6 @@ function createM1(root, roadMaterial) {
   applyRoadUvs(highway.geometry, m1.width, m1.depth);
 
   const laneZ = [-5.2, -1.75, 1.75, 5.2].map((offset) => m1.z + offset);
-  const paint = new THREE.MeshBasicMaterial({ color: 0xd7d5c2 });
-  for (const boundary of [-3.5, 0, 3.5]) {
-    for (let x = -72; x <= 72; x += 7) {
-      box(root, [3.4, 0.025, 0.11], [x, m1.y + 0.09, m1.z + boundary], paint, { receiveShadow: false });
-    }
-  }
 
   // Retaining walls stop at the bridge opening so the bridge reads as crossing the trench.
   const wallMat = material(0x666c70, 0.84);
@@ -599,7 +559,7 @@ function createMainParkingBoundary(root, collisionWorld) {
   const left = -61;
   const right = 54;
 
-  const openings = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.mainEntrance]
+  const openings = LOT_OPENINGS
     .map((entrance) => ({
       left: entrance.x - (entrance.boundaryWidth ?? entrance.width) / 2,
       right: entrance.x + (entrance.boundaryWidth ?? entrance.width) / 2
@@ -656,8 +616,7 @@ function createOpenParkingEntrance(root, entrance, roadMaterial) {
   applyRoadUvs(throat.geometry, entrance.width, depth);
 }
 
-function createParkingEntranceCurbs(root, collisionWorld) {
-  const entrance = PARKING_LAYOUT.parkingBoomEntrance;
+function createParkingEntranceCurbs(root, collisionWorld, entrance) {
   const shoulderWidth = (entrance.boundaryWidth - entrance.width) / 2;
   const curbMaterial = material(COLORS.kerb, 0.84);
   for (const side of [-1, 1]) {
@@ -679,8 +638,7 @@ function createParkingEntranceCurbs(root, collisionWorld) {
   }
 }
 
-function createParkingBoomEntrance(root, collisionWorld, playerCar) {
-  const entrance = PARKING_LAYOUT.parkingBoomEntrance;
+function createParkingBoomEntrance(root, collisionWorld, playerCar, entrance) {
   const boomRed = material(0xc34842, 0.62);
   const boomWhite = material(0xe7e1d2, 0.62);
   const baseX = entrance.x - entrance.width / 2 + 0.35;
@@ -714,10 +672,27 @@ function createParkingBoomEntrance(root, collisionWorld, playerCar) {
   };
 }
 
+// Entrance 9-style checkpoint on the campus street.
+//
+// The whole structure is modelled in a local frame where +X runs across the
+// lanes and +Z runs the way traffic travels, then the group is turned a quarter
+// turn so it lines up with a street that runs east to west. Without that turn
+// the boom lies along the road instead of across it, and the canopy spans the
+// wrong axis. Colliders are added in root space because CollisionWorld reads
+// local positions and ignores parent transforms.
 function createCampusBoomGate(root, collisionWorld, playerCar) {
   const checkpoint = PARKING_LAYOUT.campusGate;
   const road = PARKING_LAYOUT.campusRoad;
-  const gateZ = road.z + 3.2;
+
+  const gate = new THREE.Group();
+  gate.name = "campus-checkpoint";
+  gate.position.set(checkpoint.x, 0, road.z);
+  gate.rotation.y = Math.PI / 2;
+  root.add(gate);
+
+  // A local offset, in world space.
+  const toWorld = (localX, localZ) => [checkpoint.x + localZ, road.z - localX];
+
   const roofMat = material(0xd5d9da, 0.54, { metalness: 0.25 });
   const supportMat = material(0x747b7c, 0.6, { metalness: 0.35 });
   const islandMat = material(0xb89f83, 0.82);
@@ -729,60 +704,79 @@ function createCampusBoomGate(root, collisionWorld, playerCar) {
     opacity: 0.72
   });
 
-  // Entrance 9-style checkpoint: a broad metal canopy with two clear lanes.
-  box(root, [13.5, 0.55, 10.8], [checkpoint.x, 4.75, gateZ], roofMat, { castShadow: true });
-  box(root, [14.0, 0.16, 11.3], [checkpoint.x, 5.1, gateZ], material(0xe8ebea, 0.48, { metalness: 0.3 }), { castShadow: true });
-  for (const x of [checkpoint.x - 5.5, checkpoint.x + 5.5]) {
-    for (const z of [gateZ - 4.15, gateZ + 4.15]) {
-      box(root, [0.32, 4.5, 0.32], [x, 2.25, z], supportMat, { castShadow: true });
+  // Broad metal canopy with two clear lanes beneath it.
+  box(gate, [13.5, 0.55, 10.8], [0, 4.75, 0], roofMat, { castShadow: true });
+  box(gate, [14.0, 0.16, 11.3], [0, 5.1, 0], material(0xe8ebea, 0.48, { metalness: 0.3 }), { castShadow: true });
+  for (const x of [-5.5, 5.5]) {
+    for (const z of [-4.15, 4.15]) {
+      box(gate, [0.32, 4.5, 0.32], [x, 2.25, z], supportMat, { castShadow: true });
     }
   }
-  // Blue fascia makes the roof read as the Wits entrance from the sky camera.
-  for (const z of [gateZ - 5.48, gateZ + 5.48]) {
-    box(root, [13.7, 0.65, 0.18], [checkpoint.x, 4.65, z], material(COLORS.witsBlue, 0.58), { castShadow: true });
+  // Blue fascia faces each approach, so the gate reads as the Wits entrance.
+  for (const z of [-5.48, 5.48]) {
+    box(gate, [13.7, 0.65, 0.18], [0, 4.65, z], material(COLORS.witsBlue, 0.58), { castShadow: true });
   }
 
-  const boothX = checkpoint.x + 3.8;
-  box(root, [2.15, 0.24, 5.2], [boothX, 0.12, gateZ], islandMat, { castShadow: true });
-  box(root, [1.75, 2.55, 2.7], [boothX, 1.4, gateZ], material(0xb8b0a3, 0.76), { castShadow: true });
-  for (const z of [gateZ - 1.38, gateZ + 1.38]) {
-    box(root, [1.45, 0.92, 0.05], [boothX, 1.65, z], glassMat, { receiveShadow: false });
+  // Guard booth on its island, beside the controlled lane.
+  const boothLocalX = 3.8;
+  box(gate, [2.15, 0.24, 5.2], [boothLocalX, 0.12, 0], islandMat, { castShadow: true });
+  box(gate, [1.75, 2.55, 2.7], [boothLocalX, 1.4, 0], material(0xb8b0a3, 0.76), { castShadow: true });
+  for (const z of [-1.38, 1.38]) {
+    box(gate, [1.45, 0.92, 0.05], [boothLocalX, 1.65, z], glassMat, { receiveShadow: false });
   }
-  addCollider(collisionWorld, root, [boothX, 1.4, gateZ], [2.15, 2.8, 5.2], "entrance-nine-booth");
+  const [boothX, boothZ] = toWorld(boothLocalX, 0);
+  addCollider(
+    collisionWorld,
+    root,
+    [boothX, 1.4, boothZ],
+    [2.15, 2.8, 5.2],
+    "entrance-nine-booth",
+    Math.PI / 2
+  );
 
-  for (const x of [checkpoint.x - 6.2, checkpoint.x + 6.2]) {
-    box(root, [0.42, 0.24, 10.5], [x, 0.12, gateZ], islandMat, { castShadow: true });
+  // Kerb islands along both road edges.
+  for (const x of [-6.2, 6.2]) {
+    box(gate, [0.42, 0.24, 10.5], [x, 0.12, 0], islandMat, { castShadow: true });
   }
 
+  // The boom itself, hinged at the kerb and reaching across the lane.
   const boomRed = material(0xc34842, 0.62);
   const boomWhite = material(0xe7e1d2, 0.62);
-  const baseX = checkpoint.x - 5.1;
-  const boomZ = gateZ - 2.25;
-  const pivot = new THREE.Group();
-  pivot.position.set(baseX, 1.05, boomZ);
-  root.add(pivot);
   const boomLength = 6.9;
-  box(pivot, [boomLength, 0.18, 0.2], [boomLength / 2, 0, 0], boomWhite, { castShadow: true });
-  for (let x = 0.6; x < boomLength; x += 1.15) box(pivot, [0.55, 0.19, 0.21], [x, 0.01, 0], boomRed, { castShadow: true });
-  box(root, [0.48, 1.15, 0.48], [pivot.position.x, 0.575, pivot.position.z], material(0x545b61, 0.7), { castShadow: true });
+  const pivotLocalX = -5.1;
+  const pivotLocalZ = -2.25;
 
+  const pivot = new THREE.Group();
+  pivot.position.set(pivotLocalX, 1.05, pivotLocalZ);
+  gate.add(pivot);
+  box(pivot, [boomLength, 0.18, 0.2], [boomLength / 2, 0, 0], boomWhite, { castShadow: true });
+  for (let x = 0.6; x < boomLength; x += 1.15) {
+    box(pivot, [0.55, 0.19, 0.21], [x, 0.01, 0], boomRed, { castShadow: true });
+  }
+  box(gate, [0.48, 1.15, 0.48], [pivotLocalX, 0.575, pivotLocalZ], material(0x545b61, 0.7), { castShadow: true });
+
+  // The arm sweeps from the kerb towards the middle of the road, so its
+  // blocking volume runs across the lanes in world space.
+  const [armStartX, armStartZ] = toWorld(pivotLocalX, pivotLocalZ);
+  const [armEndX, armEndZ] = toWorld(pivotLocalX + boomLength, pivotLocalZ);
   const boomCollider = addCollider(
     collisionWorld,
     root,
-    [baseX + boomLength / 2, 0.95, boomZ],
-    [boomLength, 1.0, 0.36],
+    [(armStartX + armEndX) / 2, 0.95, (armStartZ + armEndZ) / 2],
+    [0.36, 1.0, boomLength],
     "campus-boom"
   );
 
   let angle = 0;
   const update = (dt) => {
-    const dx = playerCar.position.x - checkpoint.x;
-    const dz = playerCar.position.z - boomZ;
-    const near = dx * dx + dz * dz < 55;
+    const dx = playerCar.position.x - boomCollider.position.x;
+    const dz = playerCar.position.z - (armStartZ + armEndZ) / 2;
+    const near = dx * dx + dz * dz < 90;
     const target = near ? Math.PI * 0.46 : 0;
     angle = THREE.MathUtils.lerp(angle, target, 1 - Math.exp(-4.5 * dt));
     pivot.rotation.z = angle;
-    // CollisionWorld ignores Z rotation, so move the blocking volume above the car when open.
+    // CollisionWorld ignores Z rotation, so move the blocking volume above the
+    // car once the arm is clearly up.
     boomCollider.position.y = angle > 0.62 ? 3.0 : 0.9;
   };
 
@@ -842,18 +836,21 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   createOtherParking(root);
   createSecondaryParkingLink(root);
   createMainParkingBoundary(root, collisionWorld);
-  createOpenParkingEntrance(root, PARKING_LAYOUT.mainEntrance, roadMaterial);
-  createOpenParkingEntrance(root, PARKING_LAYOUT.parkingBoomEntrance, roadMaterial);
-  createParkingEntranceCurbs(root, collisionWorld);
+  for (const opening of LOT_OPENINGS) {
+    createOpenParkingEntrance(root, opening, roadMaterial);
+    createParkingEntranceCurbs(root, collisionWorld, opening);
+  }
   const updateCampusBoom = createCampusBoomGate(root, collisionWorld, playerCar);
-  const updateParkingBoom = createParkingBoomEntrance(root, collisionWorld, playerCar);
+  const updateLotBooms = LOT_OPENINGS.map(
+    (opening) => createParkingBoomEntrance(root, collisionWorld, playerCar, opening)
+  );
   createTrees(root);
 
 
   const update = (dt) => {
     updateM1Traffic(dt);
     updateCampusBoom(dt);
-    updateParkingBoom(dt);
+    for (const updateBoom of updateLotBooms) updateBoom(dt);
   };
 
   return { root, update };

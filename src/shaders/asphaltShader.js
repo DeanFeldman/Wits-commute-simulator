@@ -52,6 +52,16 @@ varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying float vDamage;
 
+float hash(vec2 point) {
+  return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);
+}
+float noise(vec2 point) {
+  vec2 cell = floor(point);
+  vec2 fraction = fract(point);
+  fraction = fraction * fraction * (3.0 - 2.0 * fraction);
+  return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), fraction.x), mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0, 1.0)), fraction.x), fraction.y);
+}
+
 void main() {
   vec2 tiledUv = vUv * vec2(12.0, 10.0);
   vec3 textureColour = texture2D(uRoadTexture, tiledUv).rgb;
@@ -60,10 +70,41 @@ void main() {
   float microRelief = dot(normalize(surfaceNormal), normalize(vec3(0.35, 0.8, 0.48))) * 0.5 + 0.5;
   vec3 dryAsphalt = textureColour * mix(0.42, 0.72, microRelief);
   vec3 damagedAsphalt = mix(dryAsphalt, vec3(0.025, 0.03, 0.035), vDamage);
+
   float headlight = 1.0 - smoothstep(0.0, uHeadlightDistance, distance(vWorldPosition, uHeadlightPosition));
-  float movingSheen = sin((vUv.x + vUv.y) * 18.0 - uTime * 1.8) * 0.5 + 0.5;
-  float wetness = vDamage * movingSheen * (1.0 - roughness * 0.55) * (0.25 + headlight * 0.75);
-  vec3 colour = damagedAsphalt + vec3(0.16, 0.19, 0.23) * wetness + vec3(1.0, 0.78, 0.45) * headlight * 0.12;
+
+  // The outline of a pool is worked out per pixel from world position. Reading
+  // it from an interpolated vertex value instead spreads the edge over metres,
+  // which is what made the water look like a soft glow rather than a puddle.
+  vec2 groundPosition = vWorldPosition.xz;
+  float shape = noise(groundPosition * 0.09) * 0.68 + noise(groundPosition * 0.27) * 0.32;
+  float lowGround = shape + vDamage * 0.16;
+
+  // Only the low tail of that noise holds water, so pools stay occasional
+  // rather than flooding the lot, and the narrow band gives each one an edge
+  // about half a metre across instead of a gradient metres wide.
+  float water = smoothstep(0.65, 0.672, lowGround);
+
+  // Wet tarmac is darker than dry tarmac. What lifts a puddle is not the
+  // asphalt underneath but the sky reflected off the surface of the water, and
+  // that reflection grows sharply as the view flattens out.
+  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+  float grazing = pow(1.0 - clamp(viewDirection.y, 0.0, 1.0), 4.0);
+  float fresnel = mix(0.12, 0.95, grazing);
+
+  // Slight chop, so the reflection is not a dead flat mirror.
+  float chop = sin(groundPosition.x * 2.4 + uTime * 0.8) * sin(groundPosition.y * 2.9 - uTime * 0.6);
+  float reflection = fresnel * (0.88 + 0.12 * chop) * (1.0 - roughness * 0.25);
+
+  vec3 skyColour = vec3(0.16, 0.34, 0.52);
+  vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection;
+
+  // Headlights glint off standing water instead of glowing through it.
+  waterColour += vec3(1.0, 0.9, 0.72) * pow(headlight, 2.5) * (0.3 + 0.7 * grazing) * 0.8;
+
+  vec3 colour = mix(damagedAsphalt, waterColour, water);
+  colour += vec3(1.0, 0.78, 0.45) * headlight * 0.1;
+
   gl_FragColor = vec4(colour, 1.0);
 }
 `;

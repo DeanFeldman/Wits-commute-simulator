@@ -299,7 +299,6 @@ load() {
 
   this.root.add(this.environment.root);
 
-  this.createStreetLights();
 
   this.collisionWorld.rebuild();
 
@@ -411,9 +410,10 @@ createParkingSurface() {
   ], "level-one-parking-asphalt-west-upper");
 }
 
+  // Bay outlines are the only paint in Level 1. The lot floor and the streets
+  // are left unmarked on purpose.
   createRoadMarkings() {
     const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
-    const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xd8b34f });
     const layout = LEVEL_ONE_PARKING_LAYOUT;
     const spaces = getLevelOneParkingSpaces();
     const sideLines = new THREE.InstancedMesh(
@@ -443,37 +443,6 @@ createParkingSurface() {
     endLines.name = "parking-bay-end-lines";
     this.root.add(sideLines, endLines);
 
-    const verticalDashGeometry = new THREE.BoxGeometry(0.12, 0.025, 2.8);
-    for (const road of layout.verticalRoads) {
-      for (let z = road.startZ + 2; z <= road.endZ - 2; z += 6) {
-        const dash = new THREE.Mesh(verticalDashGeometry, yellowMaterial);
-        dash.position.set(road.x, 0.03, z);
-        this.root.add(dash);
-      }
-    }
-
-    const rearDashGeometry = new THREE.BoxGeometry(2.8, 0.025, 0.12);
-    const rearRoadAngle = -Math.atan2(
-      layout.rearRoad.rightZ - layout.rearRoad.leftZ,
-      layout.rearRoad.width
-    );
-    for (let x = -48; x <= 48; x += 6) {
-      const dash = new THREE.Mesh(rearDashGeometry, yellowMaterial);
-      const progress = (x + 48) / 96;
-      const z = THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, progress);
-      dash.position.set(x, 0.03, z);
-      dash.rotation.y = rearRoadAngle;
-      this.root.add(dash);
-    }
-
-    // Hatched keep-clear box at the lower-middle entrance turning area.
-    const entrance = PARKING_LAYOUT.mainEntrance;
-    for (let x = entrance.x - 3.2; x <= entrance.x + 3.2; x += 1.05) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 5.2), yellowMaterial);
-      stripe.position.set(x, 0.04, 30.5);
-      stripe.rotation.y = -0.55;
-      this.root.add(stripe);
-    }
   }
 
   createParkedCars() {
@@ -600,34 +569,6 @@ createParkingSurface() {
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
-  }
-
-  createStreetLights() {
-    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x27313d, roughness: 0.72 });
-    const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffc779 });
-    const positions = LEVEL_ONE_PARKING_LAYOUT.verticalRoads.map((road, index) => [
-      road.x,
-      index % 2 === 0 ? 7 : -5
-    ]);
-
-    for (const [index, [x, z]] of positions.entries()) {
-      const pole = new THREE.Group();
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 5, 8), poleMaterial);
-      shaft.position.y = 2.5;
-      pole.add(shaft);
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), glowMaterial);
-      lamp.position.y = 5;
-      pole.add(lamp);
-      pole.position.set(x, 0, z);
-      this.root.add(pole);
-
-      const light = new THREE.PointLight(0xffbd68, 7, 13, 2);
-      light.position.set(x, 5, z);
-      // Two shadow casters keep the dusk look without multiplying shadow-map cost.
-      light.castShadow = index === 1 || index === 5;
-      if (light.castShadow) light.shadow.mapSize.set(512, 512);
-      this.root.add(light);
-    }
   }
 
 

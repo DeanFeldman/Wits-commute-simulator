@@ -27,10 +27,10 @@ Level 1 is based on the real Wits third-year parking area beside the ARM buildin
 - Consistent drive aisles between the strips.
 - A horizontal/parallel-parked row following the north curb.
 - A single row following the east curb, square to it like the other rows.
-- A lower street with a west player entrance and a separate central Entrance 9 checkpoint.
+- A lower street with a single west player entrance into the lot, and an Entrance 9 checkpoint further east where that street meets Yale Road.
 - Dense parking with only a small number of empty spaces.
 
-Do not add directional arrows to the lot. Dashed centre markings are intentional.
+Parking bay outlines are the only paint anywhere in the level. The lot floor, the campus street, the M1 and the bridge road all carry no markings: no lane dashes, no centre lines, no directional arrows and no hatched keep-clear boxes. Do not reintroduce them.
 
 ## Standard Dimensions
 
@@ -124,27 +124,35 @@ When changing a row, check both edges of every adjacent aisle. A row move should
 
 - Drive aisle centre: `X = -34.5`
 - Asphalt throat: 7 m wide and continuous from the lower street into the lot
-- Boundary opening: 17 m wide, including the two curb shoulders
+- Boundary opening: 12 m wide, including the two curb shoulders
 - Player spawn: `(-34.5, 0, 41)`
 - Player heading: `0`, facing north into the parking lot
 
 The entrance is flanked by slightly elevated concrete curbs. They have `parking-entrance-curb` colliders; the normal Level 1 collision response stops the car and removes condition. The entrance boom is red/white, remains visible/down at spawn, and raises when the player rolls close to it. Keep the driving surface unobstructed between the street and aisle.
 
-### Central entrance
+### Exit
 
-- Main entrance centre: `X = -2.5`, width `9`
+- Drive aisle centre: `X = -18.5`
+- Asphalt throat: 7 m wide
+- Boundary opening: 12 m wide, including the two curb shoulders
 
-This opening in the lot boundary lines up with the central drive aisle. It is separate from the player's west spawn entrance. Do not merge the two without an explicit design request.
+The exit is the entrance built again one aisle to the east. Same throat, same curb shoulders, same boom behaviour: down by default, rising as the player rolls up to it, from either side. Both openings are generated from `LOT_OPENINGS`, so anything added to one is added to the other.
+
+The two aisles are 16 m apart, which caps how wide those openings can be. At the entrance's earlier 17 m the two gaps met and the run of boundary between them disappeared, so both are 12 m. Widening either one again without moving an aisle will reopen that hole; the test asserts a run of boundary survives between them.
+
+A third, central opening once existed at `X = -2.5` with its own throat and keep-clear markings. It was removed along with the checkpoint that used to stand over it, and the boundary, kerb and pavement now run straight through. Do not reopen it without an explicit design request.
 
 ### Campus checkpoint
 
 - Centre: `X = 58`, `Z = 41`
 
-This is the Entrance 9-style canopy and boom. It controls the campus street where that street meets Yale Road, so it sits just west of the intersection rather than in the middle of an open road, where a gate would guard nothing. It must stay clear of both lot entrances and stop short of the crossing road; the test asserts both.
+This is the Entrance 9-style canopy and boom. It controls the campus street where that street meets Yale Road, so it sits just west of the intersection rather than in the middle of an open road, where a gate would guard nothing. It must stay clear of the lot entrance and stop short of the crossing road; the test asserts both.
+
+The checkpoint is modelled in a local frame where `+X` runs across the lanes and `+Z` runs the way traffic travels, then the whole group is turned a quarter turn to line up with a street running east to west. Without that turn the boom lies along the road instead of across it. Its colliders are added in root space with world coordinates, because `CollisionWorld` reads local positions and ignores parent transforms; anything added inside the rotated group will not collide where it appears.
 
 ### Kerb breaks
 
-The kerb and pavement on the parking side of the campus road are built as runs that stop either side of every entrance opening. Building them as one continuous box lays a raised kerb straight across the driving surface, and the street then visibly fails to connect to the lot. Any new opening must be added to `kerbRunsBetweenEntrances`.
+The kerb and pavement on the parking side of the campus road are built as runs that break at the entrance, sized to the driving surface rather than the boundary opening. The raised shoulders either side of the throat are themselves kerb, so the run passes under them and no notch opens between the two. Building the kerb as one continuous box instead lays a raised kerb straight across the driving surface, and the street then visibly fails to connect to the lot.
 
 ## Target and Parking Validation
 
@@ -172,6 +180,10 @@ Moving the target or its row requires checking containment geometry, approach sp
 ## Surface, Lighting, and Sky
 
 - The lot uses the custom damaged/wet asphalt shader from `src/shaders/asphaltShader.js` and textures under `./assets/textures/road/`.
+- Standing water is shaped in the fragment shader, from world-position noise, not carried over from the vertices. An interpolated mask spreads a pool's edge over metres, which reads as a soft glow rather than water; per-pixel noise with a narrow threshold band gives each pool an edge about half a metre across. Keep it in the fragment stage.
+- Only the low tail of that noise holds water, so pools stay occasional. Widening the threshold floods the lot.
+- The pools are shaded as water, not as light: the tarmac under them is darkened, and what lifts them is the dusk sky reflected off the surface, growing sharply as the view flattens out. Headlights glint off them rather than glowing through them. Brightening a pool directly, instead of reflecting something into it, is what makes it look like a lamp on the ground.
+- The lot has no lamp posts. Every pole previously stood in the middle of a drive aisle with no collider, so the car drove through it. Any replacement belongs on the perimeter, and needs a collider.
 - The shader dishes its damaged patches downwards. The lot floor sits only a few centimetres above the ground plane beneath it, so that displacement is deliberately shallow. Deepen it and the wet patches sink through the asphalt and show grass through the parking floor.
 - The three asphalt pieces are built as subdivided convex quads, not `ShapeGeometry`. `ShapeGeometry` emits only the outline vertices and writes raw shape coordinates into its uv attribute, which left the shader with nothing to displace and tiled the textures more than a thousand times across the lot. Keep the pieces convex, keep them subdivided, and keep uvs scaled by `ROAD_TILE_METRES`.
 - The surrounding streets share the same four texture maps through `createRoadMaterial`, so the campus road and the M1 read as the same tarmac. One texture set is loaded per level load and handed to both.
