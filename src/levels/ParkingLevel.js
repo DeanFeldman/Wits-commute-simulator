@@ -26,20 +26,20 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
     (_, index) => Number((-32.5 + index * 3.25).toFixed(2))
   )),
   verticalColumns: Object.freeze([
-    Object.freeze({ x: -56, angle: Math.PI / 2 }),
-    Object.freeze({ x: -46, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -40.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: -30, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -24.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: -14, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -8.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: 2, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 7.8, angle: Math.PI / 2 }),
-    Object.freeze({ x: 18, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 23.8, angle: Math.PI / 2 }),
-    Object.freeze({ x: 34, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 39.8, angle: Math.PI / 2 }),
-    Object.freeze({ x: 50, angle: -Math.PI / 2 })
+    Object.freeze({ x: -56, angle: Math.PI / 2, startIndex: 3 }),
+    Object.freeze({ x: -46, angle: -Math.PI / 2, startIndex: 0 }),
+    Object.freeze({ x: -40.2, angle: Math.PI / 2, startIndex: 0 }),
+    Object.freeze({ x: -30, angle: -Math.PI / 2, startIndex: 1 }),
+    Object.freeze({ x: -24.2, angle: Math.PI / 2, startIndex: 1 }),
+    Object.freeze({ x: -14, angle: -Math.PI / 2, startIndex: 2 }),
+    Object.freeze({ x: -8.2, angle: Math.PI / 2, startIndex: 2 }),
+    Object.freeze({ x: 2, angle: -Math.PI / 2, startIndex: 3 }),
+    Object.freeze({ x: 7.8, angle: Math.PI / 2, startIndex: 3 }),
+    Object.freeze({ x: 18, angle: -Math.PI / 2, startIndex: 4 }),
+    Object.freeze({ x: 23.8, angle: Math.PI / 2, startIndex: 4 }),
+    Object.freeze({ x: 34, angle: -Math.PI / 2, startIndex: 5 }),
+    Object.freeze({ x: 39.8, angle: Math.PI / 2, startIndex: 5 }),
+    Object.freeze({ x: 50, angle: -Math.PI / 2, startIndex: 6 })
   ]),
   verticalRoads: Object.freeze([
     Object.freeze({ x: -51, width: 4.2 }),
@@ -51,8 +51,8 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
     Object.freeze({ x: 44.9, width: 4.4 })
   ]),
   verticalRoad: Object.freeze({ z: -1.625, depth: 67.75 }),
-  rearRoad: Object.freeze({ z: -38.5, depth: 7.2, width: 118 }),
-  rearRowZ: -45.2,
+  rearRoad: Object.freeze({ leftZ: -38.3, rightZ: -30.9, depth: 7.2, width: 118 }),
+  rearRow: Object.freeze({ leftZ: -45.2, rightZ: -37.8 }),
   rearRowXs: Object.freeze(Array.from(
     { length: 35 },
     (_, index) => Number((-54.4 + index * 3.2).toFixed(1))
@@ -67,16 +67,22 @@ export function getLevelOneParkingSpaces() {
   const spaces = [];
 
   for (const column of layout.verticalColumns) {
-    for (const z of layout.verticalSlotZs) {
+    for (const z of layout.verticalSlotZs.slice(column.startIndex)) {
       spaces.push({ x: column.x, z, angle: column.angle, isTarget: false });
     }
   }
 
   for (const x of layout.rearRowXs) {
+    const progress = (x - layout.rearRowXs[0]) /
+      (layout.rearRowXs.at(-1) - layout.rearRowXs[0]);
+    const z = THREE.MathUtils.lerp(layout.rearRow.leftZ, layout.rearRow.rightZ, progress);
     spaces.push({
       x,
-      z: layout.rearRowZ,
-      angle: Math.PI,
+      z,
+      angle: Math.PI - Math.atan2(
+        layout.rearRow.rightZ - layout.rearRow.leftZ,
+        layout.rearRowXs.at(-1) - layout.rearRowXs[0]
+      ),
       isTarget: Math.abs(x - layout.targetSlotX) < 0.001
     });
   }
@@ -117,12 +123,13 @@ export class ParkingLevel {
     this.potholes = [];
     this.potholeCooldown = 0;
 
+    const targetSpace = getLevelOneParkingSpaces().find((space) => space.isTarget);
     this.parkingBay = {
-      x: LEVEL_ONE_PARKING_LAYOUT.targetSlotX,
-      z: LEVEL_ONE_PARKING_LAYOUT.rearRowZ,
+      x: targetSpace.x,
+      z: targetSpace.z,
       width: LEVEL_ONE_PARKING_LAYOUT.parkingSpaceWidth,
       depth: LEVEL_ONE_PARKING_LAYOUT.parkingSpaceDepth,
-      angle: Math.PI
+      angle: targetSpace.angle
     };
 
     this.parkingStatus = { containment: false, alignment: false, rest: false, containmentPercent: 0, holdTime: 0 };
@@ -267,7 +274,7 @@ createParkingSurface() {
   const halfDepth = lot.depth / 2;
   const lotShape = new THREE.Shape([
     new THREE.Vector2(-halfWidth, halfDepth),
-    new THREE.Vector2(halfWidth - 2, halfDepth),
+    new THREE.Vector2(halfWidth - 2, halfDepth - 8),
     new THREE.Vector2(halfWidth - 5, -halfDepth),
     new THREE.Vector2(-halfWidth, -halfDepth)
   ]);
@@ -283,20 +290,29 @@ createParkingSurface() {
     roughness: 0.8
   });
 
-  for (const x of [lot.x - halfWidth - 0.25, lot.x + halfWidth - 3.25]) {
+  const rightEdgeDeltaX = -3;
+  const rightEdgeDepth = lot.depth - 8;
+  const rightEdgeAngle = Math.atan2(rightEdgeDeltaX, rightEdgeDepth);
+  const edges = [
+    { x: lot.x - halfWidth - 0.25, z: lot.z, depth: lot.depth, angle: 0 },
+    { x: lot.x + halfWidth - 3.5, z: lot.z + 4, depth: rightEdgeDepth, angle: rightEdgeAngle }
+  ];
+
+  for (const edge of edges) {
     const kerb = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.25, lot.depth),
+      new THREE.BoxGeometry(0.5, 0.25, edge.depth),
       kerbMaterial
     );
 
-    kerb.position.set(x, 0.125, lot.z);
+    kerb.position.set(edge.x, 0.125, edge.z);
+    kerb.rotation.y = edge.angle;
     kerb.castShadow = true;
     kerb.receiveShadow = true;
     this.root.add(kerb);
 
     this.collisionWorld.add({
       object: kerb,
-      size: [0.5, 0.25, lot.depth],
+      size: [0.5, 0.25, edge.depth],
       color: 0xff6b6b,
       tag: "kerb"
     });
@@ -307,13 +323,18 @@ createParkingSurface() {
     roughness: 0.85
   });
 
-  for (const x of [lot.x - halfWidth - 2, lot.x + halfWidth - 1]) {
+  const sidewalks = [
+    { x: lot.x - halfWidth - 2, z: lot.z, depth: lot.depth, angle: 0 },
+    { x: lot.x + halfWidth - 1.5, z: lot.z + 4, depth: rightEdgeDepth, angle: rightEdgeAngle }
+  ];
+  for (const edge of sidewalks) {
     const sidewalk = new THREE.Mesh(
-      new THREE.BoxGeometry(3, 0.12, lot.depth),
+      new THREE.BoxGeometry(3, 0.12, edge.depth),
       sidewalkMaterial
     );
 
-    sidewalk.position.set(x, 0.06, lot.z);
+    sidewalk.position.set(edge.x, 0.06, edge.z);
+    sidewalk.rotation.y = edge.angle;
     sidewalk.receiveShadow = true;
     this.root.add(sidewalk);
   }
@@ -358,9 +379,16 @@ createParkingSurface() {
     }
 
     const rearDashGeometry = new THREE.BoxGeometry(2.8, 0.025, 0.12);
+    const rearRoadAngle = -Math.atan2(
+      layout.rearRoad.rightZ - layout.rearRoad.leftZ,
+      layout.rearRoad.width
+    );
     for (let x = -45; x <= 45; x += 6) {
       const dash = new THREE.Mesh(rearDashGeometry, yellowMaterial);
-      dash.position.set(x, 0.03, layout.rearRoad.z);
+      const progress = (x + layout.rearRoad.width / 2) / layout.rearRoad.width;
+      const z = THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, progress);
+      dash.position.set(x, 0.03, z);
+      dash.rotation.y = rearRoadAngle;
       this.root.add(dash);
     }
   }
@@ -402,10 +430,10 @@ createParkingSurface() {
       [road.x, -17 + (roadIndex % 2) * 4, 0.74 + (roadIndex % 4) * 0.09]
     ]);
     positions.push(
-      [-42, layout.rearRoad.z, 0.78],
-      [-18, layout.rearRoad.z, 0.9],
-      [8, layout.rearRoad.z, 0.76],
-      [34, layout.rearRoad.z, 0.96]
+      [-42, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.14), 0.78],
+      [-18, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.35), 0.9],
+      [8, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.57), 0.76],
+      [34, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.79), 0.96]
     );
 
     for (const [x, z, scale] of positions) {

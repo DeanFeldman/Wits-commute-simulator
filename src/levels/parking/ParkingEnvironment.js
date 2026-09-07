@@ -134,6 +134,43 @@ function createFenceRun(root, collisionWorld, {
   }
 }
 
+function createAngledFenceRun(root, collisionWorld, {
+  startX, startZ, endX, endZ, tag = "fence"
+}) {
+  const dx = endX - startX;
+  const dz = endZ - startZ;
+  const length = Math.hypot(dx, dz);
+  const centerX = (startX + endX) / 2;
+  const centerZ = (startZ + endZ) / 2;
+  const rotationY = -Math.atan2(dz, dx);
+  const metal = material(COLORS.metal, 0.66, { metalness: 0.28 });
+
+  box(root, [length, 0.34, 0.42], [centerX, 0.17, centerZ], material(0x747a7c, 0.82)).rotation.y = rotationY;
+  for (const y of [0.68, 1.08]) {
+    const rail = box(root, [length, 0.09, 0.09], [centerX, y, centerZ], metal, { castShadow: true });
+    rail.rotation.y = rotationY;
+  }
+
+  const postCount = Math.max(2, Math.floor(length / 3.4) + 1);
+  for (let index = 0; index < postCount; index++) {
+    const progress = index / (postCount - 1);
+    box(root, [0.11, 1.25, 0.11], [
+      THREE.MathUtils.lerp(startX, endX, progress),
+      0.63,
+      THREE.MathUtils.lerp(startZ, endZ, progress)
+    ], metal, { castShadow: true });
+  }
+
+  addCollider(
+    collisionWorld,
+    root,
+    [centerX, 0.65, centerZ],
+    [length, 1.3, 0.7],
+    tag,
+    rotationY
+  );
+}
+
 function createSeparatedGround(root) {
   const grass = material(COLORS.grass, 0.98, { flatShading: true });
   // Satellite imagery is continuous terrain; a single ground slab avoids the
@@ -520,7 +557,13 @@ function createMainParkingBoundary(root, collisionWorld) {
   const back = lot.z - lot.depth / 2;
 
   createFenceRun(root, collisionWorld, { x: left - 0.1, z: lot.z, length: lot.depth, axis: "z" });
-  createFenceRun(root, collisionWorld, { x: right + 0.1, z: lot.z, length: lot.depth, axis: "z" });
+  createAngledFenceRun(root, collisionWorld, {
+    startX: right - 2,
+    startZ: back + 8,
+    endX: right - 5,
+    endZ: front,
+    tag: "fence"
+  });
 
   const openingLeft = entrance.x - entrance.width / 2;
   const openingRight = entrance.x + entrance.width / 2;
@@ -537,16 +580,14 @@ function createMainParkingBoundary(root, collisionWorld) {
     });
   }
 
-  // M1-facing barrier: low base plus visible rails, never an opaque wall.
-  const barrierMat = material(COLORS.metal, 0.65, { metalness: 0.3 });
-  box(root, [lot.width + 1.2, 0.38, 0.5], [lot.x, 0.19, back - 0.35], material(0x747a7c, 0.82));
-  for (const y of [0.68, 1.08]) {
-    box(root, [lot.width + 1.2, 0.09, 0.09], [lot.x, y, back - 0.35], barrierMat, { castShadow: true });
-  }
-  for (let x = left; x <= right + 0.01; x += 3.4) {
-    box(root, [0.11, 1.25, 0.11], [x, 0.63, back - 0.35], barrierMat, { castShadow: true });
-  }
-  addCollider(collisionWorld, root, [lot.x, 0.65, back - 0.35], [lot.width + 1.2, 1.3, 0.7], "m1-barrier");
+  // The M1-facing barrier follows the same diagonal as the real northern edge.
+  createAngledFenceRun(root, collisionWorld, {
+    startX: left,
+    startZ: back - 0.35,
+    endX: right - 2,
+    endZ: back + 7.65,
+    tag: "m1-barrier"
+  });
 }
 
 function createOpenParkingEntrance(root) {
