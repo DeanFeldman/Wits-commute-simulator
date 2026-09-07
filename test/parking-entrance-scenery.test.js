@@ -7,7 +7,9 @@ import {
   PARKING_BAY_WIDTH,
   createDoubleParkingRow,
   createParkingRow,
-  getLevelOneParkingSpaces
+  getLevelOneParkingSpaces,
+  parkingBayKey,
+  pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
 import { PARKING_LAYOUT } from "../src/levels/parking/ParkingEnvironment.js";
 import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
@@ -129,16 +131,9 @@ test("driving aisles remain open and align with the lot entrance", () => {
   assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
 });
 
-test("only the playable target bay is reserved and cars fit within every bay", () => {
+test("cars fit within every bay", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
   const spaces = getLevelOneParkingSpaces();
-  const targets = spaces.filter((space) => space.isTarget);
-
-  assert.equal(targets.length, 1);
-  assert.equal(targets[0].rowName, layout.target.rowName);
-  assert.equal(targets[0].rowIndex, layout.target.index);
-  assert.equal(targets[0].x, 3);
-  assert.ok(targets[0].z < 26, "target remains clear of the entrance turning area");
 
   // Every vehicle in the parking pack has to fit a square bay.
   const widest = Math.max(...PARKING_CAR_SPECS.map((spec) => spec.collider[0]));
@@ -180,4 +175,58 @@ test("the parking surface keeps the irregular north, west-step, and east boundar
   assert.ok(Math.abs(westOuterEdge - (-61)) <= 0.3, "west row reaches the curb");
   assert.ok(layout.eastRow.start.x >= 55, "east row reaches the upper curb");
   assert.ok(layout.topRow.start.z <= -46.5, "top row reaches the north curb");
+});
+
+// A small deterministic generator, so the draw can be replayed in a test.
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+test("the lot fills except for a few bays, drawn at random and kept apart", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const spaces = getLevelOneParkingSpaces();
+
+  assert.equal(layout.freeBayCount, 3);
+  assert.ok(layout.freeBaySeparation > 0);
+
+  const free = pickFreeParkingBays(spaces, seededRandom(2024));
+  assert.equal(free.length, layout.freeBayCount);
+
+  // Every bay drawn is a real bay, and no bay is drawn twice.
+  const keys = new Set(free.map(parkingBayKey));
+  assert.equal(keys.size, free.length, "the free bays are distinct");
+  for (const bay of free) {
+    assert.ok(
+      spaces.some((space) => parkingBayKey(space) === parkingBayKey(bay)),
+      "a free bay comes from the generated grid"
+    );
+  }
+
+  // They are spread out, so the player has somewhere to choose between.
+  for (let a = 0; a < free.length; a++) {
+    for (let b = a + 1; b < free.length; b++) {
+      const distance = Math.hypot(free[a].x - free[b].x, free[a].z - free[b].z);
+      assert.ok(
+        distance >= layout.freeBaySeparation,
+        `free bays stay ${layout.freeBaySeparation} m apart (got ${distance.toFixed(1)} m)`
+      );
+    }
+  }
+
+  // Same generator, same draw: the run is reproducible when it needs to be.
+  const repeat = pickFreeParkingBays(spaces, seededRandom(2024));
+  assert.deepEqual(repeat.map(parkingBayKey), free.map(parkingBayKey));
+
+  // A different generator picks somewhere else, so runs are not identical.
+  const other = pickFreeParkingBays(spaces, seededRandom(7));
+  assert.notDeepEqual(other.map(parkingBayKey), free.map(parkingBayKey));
+
+  // The draw still fills its quota when the separation cannot be honoured.
+  const crowded = pickFreeParkingBays(spaces.slice(0, 4), seededRandom(11), { separation: 500 });
+  assert.equal(crowded.length, layout.freeBayCount);
+  assert.equal(new Set(crowded.map(parkingBayKey)).size, layout.freeBayCount);
 });

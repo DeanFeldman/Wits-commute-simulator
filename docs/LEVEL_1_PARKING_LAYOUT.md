@@ -28,7 +28,7 @@ Level 1 is based on the real Wits third-year parking area beside the ARM buildin
 - A horizontal/parallel-parked row following the north curb.
 - A single row following the east curb, square to it like the other rows.
 - A lower street with a single west player entrance into the lot, and an Entrance 9 checkpoint further east where that street meets Yale Road.
-- Dense parking with only a small number of empty spaces.
+- Dense parking. Every bay is taken except the three the player is being sent to.
 
 Parking bay outlines are the only paint anywhere in the level. The lot floor, the campus street, the M1 and the bridge road all carry no markings: no lane dashes, no centre lines, no directional arrows and no hatched keep-clear boxes. Do not reintroduce them.
 
@@ -154,17 +154,21 @@ The checkpoint is modelled in a local frame where `+X` runs across the lanes and
 
 The kerb and pavement on the parking side of the campus road are built as runs that break at the entrance, sized to the driving surface rather than the boundary opening. The raised shoulders either side of the throat are themselves kerb, so the run passes under them and no notch opens between the two. Building the kerb as one continuous box instead lays a raised kerb straight across the driving surface, and the street then visibly fails to connect to the lot.
 
-## Target and Parking Validation
+## Free Bays and Parking Validation
 
-The playable cyan target is `row-d-left`, index `17`, currently centred at approximately `(3, 10.4)` and rotated `-90 degrees`.
+There is no scripted target bay. `pickFreeParkingBays` draws `freeBayCount` bays at random from the generated grid on every run, and the lot fills completely around them. The draw shuffles first and then filters, so it stays uniform, and it rejects any bay within `freeBaySeparation` of one already chosen, so the three are spread across the lot and the player has a real choice. If the separation cannot be satisfied the quota is topped up anyway, so the function always returns the count asked for while bays remain.
 
-Success still requires all three checks:
+Pass a generator into `pickFreeParkingBays` to replay a draw; the level passes `Math.random`, and the test passes a seeded one.
 
-1. sufficient vehicle containment in the target bay;
+Each free bay carries a waypoint: the painted outline on the ground, a translucent column of light tall enough to clear the parked cars, and a floating pin that bobs and turns. The column is the part that matters. With the lot full, a free bay is invisible from anywhere but directly beside it, so without something standing above roof height the player has nothing to aim at.
+
+Success requires all three checks, scored against whichever free bay the car is closest to filling:
+
+1. sufficient vehicle containment in that bay;
 2. alignment within the configured tolerance;
 3. near-zero speed for the confirmation period.
 
-Moving the target or its row requires checking containment geometry, approach space, spawn route, and collision clearance—not only the visible cyan outline.
+Any of the three bays completes the level. Changing `freeBayCount` or the separation requires rechecking that every bay the draw can return has approach space and collision clearance, not just the visible marker.
 
 ## Cars and Performance
 
