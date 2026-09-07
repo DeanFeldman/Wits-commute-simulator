@@ -49,8 +49,8 @@ test("all spaces are filled except the playable target bay", () => {
   const targetSpaces = spaces.filter((space) => space.isTarget);
   const parkedSpaces = spaces.filter((space) => !space.isTarget);
 
-  assert.equal(spaces.length, 276);
-  assert.equal(parkedSpaces.length, 275);
+  assert.equal(spaces.length, 294);
+  assert.equal(parkedSpaces.length, 293);
   assert.equal(targetSpaces.length, 1);
   assert.equal(targetSpaces[0].x, layout.targetSlotX);
   assert.ok(targetSpaces[0].z >= layout.rearRow.leftZ);
@@ -59,14 +59,11 @@ test("all spaces are filled except the playable target bay", () => {
 
   for (const column of layout.verticalColumns) {
     const columnSpaces = spaces.filter((space) => space.x === column.x);
-    assert.equal(columnSpaces.length, layout.verticalSlotZs.length - column.startIndex);
+    assert.ok(columnSpaces.length >= 17);
     assert.ok(columnSpaces.every((space) => space.angle === column.angle));
   }
 
-  const verticalSpaceCount = layout.verticalColumns.reduce(
-    (count, column) => count + layout.verticalSlotZs.length - column.startIndex,
-    0
-  );
+  const verticalSpaceCount = spaces.length - layout.rearRowXs.length;
   const rearRow = spaces.slice(verticalSpaceCount);
   assert.equal(rearRow.length, layout.rearRowXs.length);
   assert.ok(rearRow[0].z < rearRow.at(-1).z, "north row follows the skewed boundary");
@@ -77,6 +74,7 @@ test("parking spaces fit inside the lot without overlap and leave connected road
   const layout = LEVEL_ONE_PARKING_LAYOUT;
   const lot = PARKING_LAYOUT.mainLot;
   const spaces = getLevelOneParkingSpaces();
+  const verticalSpaceCount = spaces.length - layout.rearRowXs.length;
   const lotBounds = {
     left: lot.x - lot.width / 2,
     right: lot.x + lot.width / 2,
@@ -100,7 +98,8 @@ test("parking spaces fit inside the lot without overlap and leave connected road
     assert.ok(space.z + halfZ <= lotBounds.bottom + EPSILON);
   }
 
-  const verticalParkingBack = Math.min(...layout.verticalSlotZs) - layout.parkingSpaceWidth / 2;
+  const verticalSpaces = spaces.slice(0, verticalSpaceCount);
+  const verticalParkingBack = Math.min(...verticalSpaces.map((space) => space.z)) - layout.parkingSpaceWidth / 2;
   const rearRoadFront = layout.rearRoad.leftZ + layout.rearRoad.depth / 2;
   const rearRoadBack = layout.rearRoad.leftZ - layout.rearRoad.depth / 2;
   const rearRowFront = layout.rearRow.leftZ + layout.parkingSpaceDepth / 2;
@@ -108,11 +107,14 @@ test("parking spaces fit inside the lot without overlap and leave connected road
   assert.ok(verticalParkingBack > rearRoadFront, "vertical columns stop before the rear road");
   assert.ok(rearRoadBack > rearRowFront, "rear road stops before the horizontal parking row");
 
-  for (let index = 1; index < layout.verticalSlotZs.length; index++) {
-    assert.ok(
-      layout.verticalSlotZs[index] - layout.verticalSlotZs[index - 1] >= layout.parkingSpaceWidth,
-      "vertical spaces do not overlap"
-    );
+  for (const column of layout.verticalColumns) {
+    const columnSpaces = verticalSpaces.filter((space) => space.x === column.x);
+    for (let index = 1; index < columnSpaces.length; index++) {
+      assert.ok(
+        columnSpaces[index].z - columnSpaces[index - 1].z >= layout.parkingSpaceWidth,
+        "vertical spaces do not overlap"
+      );
+    }
   }
 
   for (let index = 1; index < layout.rearRowXs.length; index++) {

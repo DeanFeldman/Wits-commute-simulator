@@ -21,25 +21,23 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   parkingSpaceWidth: 3.2,
   parkingSpaceDepth: 5.8,
   verticalRoadWidth: 4.4,
-  verticalSlotZs: Object.freeze(Array.from(
-    { length: 20 },
-    (_, index) => Number((-32.5 + index * 3.25).toFixed(2))
-  )),
+  verticalSlotStep: 3.25,
+  verticalEndZ: 29.25,
   verticalColumns: Object.freeze([
-    Object.freeze({ x: -56, angle: Math.PI / 2, startIndex: 3 }),
-    Object.freeze({ x: -46, angle: -Math.PI / 2, startIndex: 0 }),
-    Object.freeze({ x: -40.2, angle: Math.PI / 2, startIndex: 0 }),
-    Object.freeze({ x: -30, angle: -Math.PI / 2, startIndex: 1 }),
-    Object.freeze({ x: -24.2, angle: Math.PI / 2, startIndex: 1 }),
-    Object.freeze({ x: -14, angle: -Math.PI / 2, startIndex: 2 }),
-    Object.freeze({ x: -8.2, angle: Math.PI / 2, startIndex: 2 }),
-    Object.freeze({ x: 2, angle: -Math.PI / 2, startIndex: 3 }),
-    Object.freeze({ x: 7.8, angle: Math.PI / 2, startIndex: 3 }),
-    Object.freeze({ x: 18, angle: -Math.PI / 2, startIndex: 4 }),
-    Object.freeze({ x: 23.8, angle: Math.PI / 2, startIndex: 4 }),
-    Object.freeze({ x: 34, angle: -Math.PI / 2, startIndex: 5 }),
-    Object.freeze({ x: 39.8, angle: Math.PI / 2, startIndex: 5 }),
-    Object.freeze({ x: 50, angle: -Math.PI / 2, startIndex: 6 })
+    Object.freeze({ x: -56, angle: Math.PI / 2 }),
+    Object.freeze({ x: -46, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -40.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: -30, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -24.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: -14, angle: -Math.PI / 2 }),
+    Object.freeze({ x: -8.2, angle: Math.PI / 2 }),
+    Object.freeze({ x: 2, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 7.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 18, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 23.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 34, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 39.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: 50, angle: -Math.PI / 2 })
   ]),
   verticalRoads: Object.freeze([
     Object.freeze({ x: -51, width: 4.2 }),
@@ -65,9 +63,22 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
 export function getLevelOneParkingSpaces() {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
   const spaces = [];
+  const rowLeftX = layout.rearRowXs[0];
+  const rowRightX = layout.rearRowXs.at(-1);
 
   for (const column of layout.verticalColumns) {
-    for (const z of layout.verticalSlotZs.slice(column.startIndex)) {
+    const progress = (column.x - rowLeftX) / (rowRightX - rowLeftX);
+    const rearRoadZ = THREE.MathUtils.lerp(
+      layout.rearRoad.leftZ,
+      layout.rearRoad.rightZ,
+      progress
+    );
+    const startZ = rearRoadZ +
+      layout.rearRoad.depth / 2 +
+      layout.parkingSpaceWidth / 2 +
+      0.65;
+
+    for (let z = startZ; z <= layout.verticalEndZ; z += layout.verticalSlotStep) {
       spaces.push({ x: column.x, z, angle: column.angle, isTarget: false });
     }
   }
