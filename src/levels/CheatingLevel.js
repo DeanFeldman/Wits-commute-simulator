@@ -67,6 +67,7 @@ export class CheatingLevel {
 
     this.camera = null;
     this.controls = null;
+    this.backgroundTexture = null;
 
     this.playerPosition = new THREE.Vector3(0, 0.95, 4);
 
@@ -115,6 +116,7 @@ export class CheatingLevel {
     const scene = this.game.scene;
 
     scene.background = new THREE.Color(0xb9d8e8);
+    const skyboxPromise = this.loadSkybox(scene);
 
     scene.add(this.root);
     this.audio.startDrone(39, 0.004);
@@ -128,6 +130,7 @@ export class CheatingLevel {
     this.root.add(ceiling);
 
     const roomAssets = await this.createRoom();
+    await skyboxPromise;
     this.createLightingIdentity(roomAssets);
     this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
@@ -147,6 +150,22 @@ export class CheatingLevel {
     this.game.setMessage(
       "Click the game for mouse-look. Hold SPACE to copy. Release when the tutor watches you."
     );
+  }
+
+  async loadSkybox(scene) {
+    try {
+      const { EXRLoader } = await import("three/addons/loaders/EXRLoader.js");
+      const texture = await new EXRLoader().loadAsync(
+        "./assets/hdri/sunset_jhbcentral_4k.exr"
+      );
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      this.backgroundTexture = texture;
+      scene.background = texture;
+      scene.background = texture;
+scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
+    } catch (error) {
+      console.warn("Unable to load the Level 3 Johannesburg skybox", error);
+    }
   }
 
   async createRoom() {
@@ -449,11 +468,11 @@ export class CheatingLevel {
       roughness: 0.72
     });
     const glassMaterial = new THREE.MeshStandardMaterial({
-      color: 0xbfe8ff,
-      emissive: 0x7bc7ef,
-      emissiveIntensity: 0.35,
+      color: 0xeaf7ff,
+      emissive: 0xb9e7ff,
+      emissiveIntensity: 0.08,
       transparent: true,
-      opacity: 0.48,
+      opacity: 0.24,
       roughness: 0.12,
       metalness: 0.05,
       side: THREE.DoubleSide,
@@ -840,6 +859,7 @@ export class CheatingLevel {
   dispose() {
     this.audio.dispose();
     this.controls?.dispose();
+    this.backgroundTexture?.dispose();
 
     if (document.pointerLockElement === this.game.renderer.domElement) {
       document.exitPointerLock?.();

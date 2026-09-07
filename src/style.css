@@ -75,6 +75,33 @@ body {
   text-align: center;
 }
 
+#level1-view-toggle {
+  position: fixed;
+  top: 4.5rem;
+  right: 1rem;
+  z-index: 12;
+  padding: 0.65rem 1rem;
+  border: 1px solid #35e0d1;
+  border-radius: 8px;
+  background: rgba(5, 8, 14, 0.86);
+  color: #f4f4f5;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+
+#level1-view-toggle:hover,
+#level1-view-toggle:focus-visible,
+#level1-view-toggle[aria-pressed="true"] {
+  background: #35e0d1;
+  color: #071111;
+}
+
+#level1-view-toggle[hidden] {
+  display: none;
+}
+
 .hidden {
   display: none;
 }
