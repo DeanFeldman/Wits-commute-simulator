@@ -11,7 +11,23 @@ export const PARKING_LAYOUT = Object.freeze({
   groundY: 0,
   // Broad, slightly tapered footprint matching the aerial shape of the Wits
   // parking area between the ARM building, M1 and Yale Road.
-  mainLot: { x: 0, z: -8, width: 122, depth: 84 },
+  mainLot: {
+    x: 0,
+    z: -8,
+    width: 122,
+    depth: 84,
+    outline: Object.freeze([
+      Object.freeze([-55, -50]),
+      Object.freeze([59, -38]),
+      Object.freeze([54, 34]),
+      Object.freeze([-61, 34]),
+      Object.freeze([-61, -33]),
+      Object.freeze([-56, -33]),
+      Object.freeze([-56, -42]),
+      Object.freeze([-61, -42]),
+      Object.freeze([-61, -50])
+    ])
+  },
 
   // Wider road so it runs across the whole visible scene and fades into fog.
   campusRoad: { x: 0, z: 41, width: 185, depth: 10 },
@@ -19,8 +35,11 @@ export const PARKING_LAYOUT = Object.freeze({
   m1: { x: 0, z: -65, width: 190, depth: 15, y: 0.02 },
   bridgeRoad: { x: 72, z: -5, width: 11, depth: 150, y: 0.08 },
 
-  // Move main entrance a bit to the right and make it actually meet the road.
-  mainEntrance: { x: 28.9, z: 35.5, width: 9 },
+  // Lower-middle opening aligned with the central drive aisle.
+  mainEntrance: { x: -2.5, z: 35.5, width: 9 },
+
+  // Player entrance aligned with the second aisle from the west.
+  parkingBoomEntrance: { x: -34.5, z: 35.5, width: 7 },
 
   // Duplicate the entrance position for the opposite parking.
   otherEntrance: { x: 0, z: 46.5, width: 9 },
@@ -32,7 +51,7 @@ export const PARKING_LAYOUT = Object.freeze({
   // Bigger Flower Hall so it fills the left/background scene more strongly.
   flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
 
-campusGate: { x: 28.9, z: 41 }
+campusGate: { x: -2.5, z: 41 }
 });
 
 const COLORS = {
@@ -550,50 +569,88 @@ function createOtherParking(root) {
 
 function createMainParkingBoundary(root, collisionWorld) {
   const lot = PARKING_LAYOUT.mainLot;
-  const entrance = PARKING_LAYOUT.mainEntrance;
-  const left = lot.x - lot.width / 2;
-  const right = lot.x + lot.width / 2;
-  const front = lot.z + lot.depth / 2;
-  const back = lot.z - lot.depth / 2;
+  const front = 34;
+  const left = -61;
+  const right = 54;
 
-  createFenceRun(root, collisionWorld, { x: left - 0.1, z: lot.z, length: lot.depth, axis: "z" });
-  createAngledFenceRun(root, collisionWorld, {
-    startX: right - 2,
-    startZ: back + 8,
-    endX: right - 5,
-    endZ: front,
-    tag: "fence"
-  });
-
-  const openingLeft = entrance.x - entrance.width / 2;
-  const openingRight = entrance.x + entrance.width / 2;
-  const frontLeftLength = openingLeft - left;
-  const frontRightLength = right - openingRight;
-  if (frontLeftLength > 0.5) {
-    createFenceRun(root, collisionWorld, {
-      x: left + frontLeftLength / 2, z: front + 0.15, length: frontLeftLength, axis: "x"
-    });
+  const openings = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.mainEntrance]
+    .map((entrance) => ({
+      left: entrance.x - entrance.width / 2,
+      right: entrance.x + entrance.width / 2
+    }))
+    .sort((a, b) => a.left - b.left);
+  let runStart = left;
+  for (const opening of openings) {
+    const length = opening.left - runStart;
+    if (length > 0.5) {
+      createFenceRun(root, collisionWorld, {
+        x: runStart + length / 2, z: front + 0.15, length, axis: "x"
+      });
+    }
+    runStart = opening.right;
   }
-  if (frontRightLength > 0.5) {
+  const finalLength = right - runStart;
+  if (finalLength > 0.5) {
     createFenceRun(root, collisionWorld, {
-      x: openingRight + frontRightLength / 2, z: front + 0.15, length: frontRightLength, axis: "x"
+      x: runStart + finalLength / 2, z: front + 0.15, length: finalLength, axis: "x"
     });
   }
 
-  // The M1-facing barrier follows the same diagonal as the real northern edge.
-  createAngledFenceRun(root, collisionWorld, {
-    startX: left,
-    startZ: back - 0.35,
-    endX: right - 2,
-    endZ: back + 7.65,
-    tag: "m1-barrier"
-  });
+  // Follow every non-southern segment of the irregular aerial footprint.
+  const outline = lot.outline;
+  for (let index = 0; index < outline.length; index++) {
+    const [startX, startZ] = outline[index];
+    const [endX, endZ] = outline[(index + 1) % outline.length];
+    if (Math.abs(startZ - front) < 0.01 && Math.abs(endZ - front) < 0.01) continue;
+    if (startX === endX && startZ === endZ) continue;
+    createAngledFenceRun(root, collisionWorld, {
+      startX,
+      startZ,
+      endX,
+      endZ,
+      tag: index === 0 ? "m1-barrier" : "fence"
+    });
+  }
 }
 
-function createOpenParkingEntrance(root) {
-  const e = PARKING_LAYOUT.mainEntrance;
+function createOpenParkingEntrance(root, entrance) {
   const asphalt = material(COLORS.asphalt, 0.93);
-  box(root, [e.width, 0.09, 6], [e.x, 0.03, e.z + 2.5], asphalt);
+  box(root, [entrance.width, 0.09, 10], [entrance.x, 0.03, entrance.z + 1.5], asphalt);
+}
+
+function createParkingBoomEntrance(root, collisionWorld, playerCar) {
+  const entrance = PARKING_LAYOUT.parkingBoomEntrance;
+  const boomRed = material(0xc34842, 0.62);
+  const boomWhite = material(0xe7e1d2, 0.62);
+  const baseX = entrance.x - entrance.width / 2 + 0.35;
+  const boomZ = 36.1;
+  const boomLength = entrance.width - 0.7;
+  const pivot = new THREE.Group();
+  pivot.position.set(baseX, 1.05, boomZ);
+  root.add(pivot);
+  box(pivot, [boomLength, 0.18, 0.2], [boomLength / 2, 0, 0], boomWhite, { castShadow: true });
+  for (let x = 0.55; x < boomLength; x += 1.05) {
+    box(pivot, [0.5, 0.19, 0.21], [x, 0.01, 0], boomRed, { castShadow: true });
+  }
+  box(root, [0.52, 1.2, 0.52], [baseX, 0.6, boomZ], material(0x545b61, 0.7), { castShadow: true });
+
+  const boomCollider = addCollider(
+    collisionWorld,
+    root,
+    [baseX + boomLength / 2, 0.95, boomZ],
+    [boomLength, 1, 0.36],
+    "parking-entrance-boom"
+  );
+  let angle = 0;
+  return (dt) => {
+    const dx = playerCar.position.x - entrance.x;
+    const dz = playerCar.position.z - boomZ;
+    // Keep the barrier visible at spawn, then raise it as the player rolls up.
+    const target = dx * dx + dz * dz < 14 ? Math.PI * 0.46 : 0;
+    angle = THREE.MathUtils.lerp(angle, target, 1 - Math.exp(-4.5 * dt));
+    pivot.rotation.z = angle;
+    boomCollider.position.y = angle > 0.62 ? 3 : 0.9;
+  };
 }
 
 function createCampusBoomGate(root, collisionWorld, playerCar) {
@@ -724,14 +781,17 @@ export function createParkingEnvironment({ collisionWorld, playerCar }) {
   createOtherParking(root);
   createSecondaryParkingLink(root);
   createMainParkingBoundary(root, collisionWorld);
-  createOpenParkingEntrance(root);
-  const updateBoom = createCampusBoomGate(root, collisionWorld, playerCar);
+  createOpenParkingEntrance(root, PARKING_LAYOUT.mainEntrance);
+  createOpenParkingEntrance(root, PARKING_LAYOUT.parkingBoomEntrance);
+  const updateCampusBoom = createCampusBoomGate(root, collisionWorld, playerCar);
+  const updateParkingBoom = createParkingBoomEntrance(root, collisionWorld, playerCar);
   createTrees(root);
 
 
   const update = (dt) => {
     updateM1Traffic(dt);
-    updateBoom(dt);
+    updateCampusBoom(dt);
+    updateParkingBoom(dt);
   };
 
   return { root, update };

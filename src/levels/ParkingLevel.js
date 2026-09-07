@@ -6,10 +6,8 @@ import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import {
-  attachCarModel,
   attachPlayerCarModel,
-  createSeededRandom,
-  pickRandomParkingCar
+  createSeededRandom
 } from "../shared/VehicleModelLibrary.js";
 import {
   createParkingEnvironment,
@@ -17,91 +15,114 @@ import {
 } from "./parking/ParkingEnvironment.js";
 
 
+export const PARKING_BAY_WIDTH = 2.5;
+export const PARKING_BAY_LENGTH = 5;
+export const PARKING_AISLE_WIDTH = 6;
+export const PARKING_LINE_WIDTH = 0.08;
+
+const DOUBLE_ROW_CONFIGS = Object.freeze([
+  Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 27 }),
+  Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 29 }),
+  Object.freeze({ name: "row-c", centerX: -10.5, startZ: -35.5, endZ: 25 }),
+  Object.freeze({ name: "row-d", centerX: 5.5, startZ: -33.8, endZ: 25 }),
+  Object.freeze({ name: "row-e", centerX: 21.5, startZ: -32.1, endZ: 28 }),
+  Object.freeze({ name: "row-f", centerX: 37.5, startZ: -30.5, endZ: 26 })
+]);
+
 export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
-  parkingSpaceWidth: 3.2,
-  parkingSpaceDepth: 5.8,
-  verticalRoadWidth: 4.4,
-  verticalSlotStep: 3.25,
-  verticalEndZ: 29.25,
-  verticalColumns: Object.freeze([
-    Object.freeze({ x: -56, angle: Math.PI / 2 }),
-    Object.freeze({ x: -46, angle: -Math.PI / 2, northReferenceX: -43.1 }),
-    Object.freeze({ x: -40.2, angle: Math.PI / 2, northReferenceX: -43.1 }),
-    Object.freeze({ x: -30, angle: -Math.PI / 2, northReferenceX: -27.1 }),
-    Object.freeze({ x: -24.2, angle: Math.PI / 2, northReferenceX: -27.1 }),
-    Object.freeze({ x: -14, angle: -Math.PI / 2, northReferenceX: -11.1 }),
-    Object.freeze({ x: -8.2, angle: Math.PI / 2, northReferenceX: -11.1 }),
-    Object.freeze({ x: 2, angle: -Math.PI / 2, northReferenceX: 4.9 }),
-    Object.freeze({ x: 7.8, angle: Math.PI / 2, northReferenceX: 4.9 }),
-    Object.freeze({ x: 18, angle: -Math.PI / 2, northReferenceX: 20.9 }),
-    Object.freeze({ x: 23.8, angle: Math.PI / 2, northReferenceX: 20.9 }),
-    Object.freeze({ x: 34, angle: -Math.PI / 2, northReferenceX: 36.9 }),
-    Object.freeze({ x: 39.8, angle: Math.PI / 2, northReferenceX: 36.9 }),
-    Object.freeze({ x: 50, angle: -Math.PI / 2 })
-  ]),
+  parkingSpaceWidth: PARKING_BAY_WIDTH,
+  parkingSpaceDepth: PARKING_BAY_LENGTH,
+  aisleWidth: PARKING_AISLE_WIDTH,
+  lineWidth: PARKING_LINE_WIDTH,
+  slotSpacing: 2.6,
+  topRow: Object.freeze({
+    name: "top-row",
+    start: Object.freeze({ x: -50, z: -48.2 }),
+    step: Object.freeze({ x: 5.15, z: 0.542 }),
+    count: 20,
+    rotation: Math.atan2(5.15, 0.542)
+  }),
+  westUpperRow: Object.freeze({ name: "west-upper", x: -58.2, startZ: -45.5, endZ: -37.7 }),
+  westRow: Object.freeze({ name: "west-row", x: -58.25, startZ: -32.5, endZ: 26 }),
+  doubleRows: DOUBLE_ROW_CONFIGS,
+  eastAngledRow: Object.freeze({
+    name: "east-angled",
+    start: Object.freeze({ x: 56.6, z: -30 }),
+    step: Object.freeze({ x: -0.19, z: 2.8 }),
+    count: 21,
+    rotation: -Math.PI / 4
+  }),
   verticalRoads: Object.freeze([
-    Object.freeze({ x: -51, width: 4.2 }),
-    Object.freeze({ x: -35.1, width: 4.4 }),
-    Object.freeze({ x: -19.1, width: 4.4 }),
-    Object.freeze({ x: -3.1, width: 4.4 }),
-    Object.freeze({ x: 12.9, width: 4.4 }),
-    Object.freeze({ x: 28.9, width: 4.4 }),
-    Object.freeze({ x: 44.9, width: 4.4 })
+    Object.freeze({ x: -50.7, width: 6, startZ: -39.5, endZ: 28 }),
+    Object.freeze({ x: -34.5, width: 6, startZ: -39.5, endZ: 29 }),
+    Object.freeze({ x: -18.5, width: 6, startZ: -38, endZ: 29 }),
+    Object.freeze({ x: -2.5, width: 6, startZ: -36.5, endZ: 34 }),
+    Object.freeze({ x: 13.5, width: 6, startZ: -34.5, endZ: 29 }),
+    Object.freeze({ x: 29.5, width: 6, startZ: -33, endZ: 29 }),
+    Object.freeze({ x: 45.5, width: 6, startZ: -31.5, endZ: 27 })
   ]),
-  verticalRoad: Object.freeze({ z: -1.625, depth: 67.75 }),
-  rearRoad: Object.freeze({ leftZ: -38.3, rightZ: -30.9, depth: 7.2, width: 118 }),
-  rearRow: Object.freeze({ leftZ: -45.2, rightZ: -37.8 }),
-  rearRowXs: Object.freeze(Array.from(
-    { length: 35 },
-    (_, index) => Number((-54.4 + index * 3.2).toFixed(1))
-  )),
-  targetSlotX: -9.6,
-  playerSpawn: Object.freeze({ x: 28.9, z: 29.5, angle: 0 }),
+  rearRoad: Object.freeze({ leftZ: -40.4, rightZ: -30.2, depth: 5.2, width: 108 }),
+  target: Object.freeze({ rowName: "row-d-left", index: 17 }),
+  playerSpawn: Object.freeze({ x: -34.5, z: 41, angle: 0 }),
   skyViewScale: 1.65
 });
 
+export function createParkingRow({ name, start, count, step, rotation, targetIndex = -1 }) {
+  return Array.from({ length: count }, (_, index) => ({
+    x: start.x + step.x * index,
+    z: start.z + step.z * index,
+    angle: rotation,
+    rowName: name,
+    rowIndex: index,
+    isTarget: index === targetIndex
+  }));
+}
+
+export function createDoubleParkingRow({ name, centerX, startZ, endZ, spacing, target }) {
+  const count = Math.floor((endZ - startZ) / spacing) + 1;
+  const halfLength = PARKING_BAY_LENGTH / 2;
+  return [
+    ...createParkingRow({
+      name: `${name}-left`,
+      start: { x: centerX - halfLength, z: startZ },
+      count,
+      step: { x: 0, z: spacing },
+      rotation: -Math.PI / 2,
+      targetIndex: target?.rowName === `${name}-left` ? target.index : -1
+    }),
+    ...createParkingRow({
+      name: `${name}-right`,
+      start: { x: centerX + halfLength, z: startZ },
+      count,
+      step: { x: 0, z: spacing },
+      rotation: Math.PI / 2,
+      targetIndex: target?.rowName === `${name}-right` ? target.index : -1
+    })
+  ];
+}
+
 export function getLevelOneParkingSpaces() {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
-  const spaces = [];
-  const rowLeftX = layout.rearRowXs[0];
-  const rowRightX = layout.rearRowXs.at(-1);
+  const spacing = layout.slotSpacing;
+  const verticalRow = (row, rotation = Math.PI / 2) => createParkingRow({
+    name: row.name,
+    start: { x: row.x, z: row.startZ },
+    count: Math.floor((row.endZ - row.startZ) / spacing) + 1,
+    step: { x: 0, z: spacing },
+    rotation
+  });
 
-  for (const column of layout.verticalColumns) {
-    // A paired parking strip shares one northern edge. Successive strips still
-    // step down to follow the real lot's skewed M1 boundary.
-    const northReferenceX = column.northReferenceX ?? column.x;
-    const progress = (northReferenceX - rowLeftX) / (rowRightX - rowLeftX);
-    const rearRoadZ = THREE.MathUtils.lerp(
-      layout.rearRoad.leftZ,
-      layout.rearRoad.rightZ,
-      progress
-    );
-    const startZ = rearRoadZ +
-      layout.rearRoad.depth / 2 +
-      layout.parkingSpaceWidth / 2 +
-      0.65;
-
-    for (let z = startZ; z <= layout.verticalEndZ; z += layout.verticalSlotStep) {
-      spaces.push({ x: column.x, z, angle: column.angle, isTarget: false });
-    }
-  }
-
-  for (const x of layout.rearRowXs) {
-    const progress = (x - layout.rearRowXs[0]) /
-      (layout.rearRowXs.at(-1) - layout.rearRowXs[0]);
-    const z = THREE.MathUtils.lerp(layout.rearRow.leftZ, layout.rearRow.rightZ, progress);
-    spaces.push({
-      x,
-      z,
-      angle: Math.PI - Math.atan2(
-        layout.rearRow.rightZ - layout.rearRow.leftZ,
-        layout.rearRowXs.at(-1) - layout.rearRowXs[0]
-      ),
-      isTarget: Math.abs(x - layout.targetSlotX) < 0.001
-    });
-  }
-
-  return spaces;
+  return [
+    ...createParkingRow(layout.topRow),
+    ...verticalRow(layout.westUpperRow),
+    ...verticalRow(layout.westRow),
+    ...layout.doubleRows.flatMap((row) => createDoubleParkingRow({
+      ...row,
+      spacing,
+      target: layout.target
+    })),
+    ...createParkingRow(layout.eastAngledRow)
+  ];
 }
 
 
@@ -282,110 +303,75 @@ createParkingSurface() {
   const asphaltMaterial = createAsphaltMaterial();
   this.asphaltUniforms = asphaltMaterial.uniforms;
 
-  // The real Wits lot narrows slightly toward the M1-facing edge instead of
-  // forming a perfect rectangle. ShapeGeometry keeps that aerial silhouette.
-  const halfWidth = lot.width / 2;
-  const halfDepth = lot.depth / 2;
-  const lotShape = new THREE.Shape([
-    new THREE.Vector2(-halfWidth, halfDepth),
-    new THREE.Vector2(halfWidth - 2, halfDepth - 8),
-    new THREE.Vector2(halfWidth - 5, -halfDepth),
-    new THREE.Vector2(-halfWidth, -halfDepth)
-  ]);
-  const road = new THREE.Mesh(new THREE.ShapeGeometry(lotShape), asphaltMaterial);
-
-  road.rotation.x = -Math.PI / 2;
-  road.position.set(lot.x, 0.01, lot.z);
-  road.receiveShadow = true;
-  this.root.add(road);
-
-  const kerbMaterial = new THREE.MeshStandardMaterial({
-    color: 0xb8b8af,
-    roughness: 0.8
-  });
-
-  const rightEdgeDeltaX = -3;
-  const rightEdgeDepth = lot.depth - 8;
-  const rightEdgeAngle = Math.atan2(rightEdgeDeltaX, rightEdgeDepth);
-  const edges = [
-    { x: lot.x - halfWidth - 0.25, z: lot.z, depth: lot.depth, angle: 0 },
-    { x: lot.x + halfWidth - 3.5, z: lot.z + 4, depth: rightEdgeDepth, angle: rightEdgeAngle }
-  ];
-
-  for (const edge of edges) {
-    const kerb = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.25, edge.depth),
-      kerbMaterial
+  const addAsphaltPiece = (points, name) => {
+    const shape = new THREE.Shape(
+      points.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)))
     );
+    const road = new THREE.Mesh(new THREE.ShapeGeometry(shape), asphaltMaterial);
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(lot.x, 0.035, lot.z);
+    road.receiveShadow = true;
+    road.name = name;
+    this.root.add(road);
+  };
 
-    kerb.position.set(edge.x, 0.125, edge.z);
-    kerb.rotation.y = edge.angle;
-    kerb.castShadow = true;
-    kerb.receiveShadow = true;
-    this.root.add(kerb);
-
-    this.collisionWorld.add({
-      object: kerb,
-      size: [0.5, 0.25, edge.depth],
-      color: 0xff6b6b,
-      tag: "kerb"
-    });
-  }
-
-  const sidewalkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x8d918e,
-    roughness: 0.85
-  });
-
-  const sidewalks = [
-    { x: lot.x - halfWidth - 2, z: lot.z, depth: lot.depth, angle: 0 },
-    { x: lot.x + halfWidth - 1.5, z: lot.z + 4, depth: rightEdgeDepth, angle: rightEdgeAngle }
-  ];
-  for (const edge of sidewalks) {
-    const sidewalk = new THREE.Mesh(
-      new THREE.BoxGeometry(3, 0.12, edge.depth),
-      sidewalkMaterial
-    );
-
-    sidewalk.position.set(edge.x, 0.06, edge.z);
-    sidewalk.rotation.y = edge.angle;
-    sidewalk.receiveShadow = true;
-    this.root.add(sidewalk);
-  }
+  // Convex pieces avoid the concave polygon triangulation artefacts that let
+  // the grass ground show through the parking floor.
+  addAsphaltPiece([
+    [-56, -50],
+    [59, -38],
+    [54, 34],
+    [-56, 34]
+  ], "level-one-parking-asphalt-main");
+  addAsphaltPiece([
+    [-61, -33],
+    [-56, -33],
+    [-56, 34],
+    [-61, 34]
+  ], "level-one-parking-asphalt-west-main");
+  addAsphaltPiece([
+    [-61, -50],
+    [-56, -50],
+    [-56, -42],
+    [-61, -42]
+  ], "level-one-parking-asphalt-west-upper");
 }
 
   createRoadMarkings() {
     const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
     const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xd8b34f });
     const layout = LEVEL_ONE_PARKING_LAYOUT;
-    const sideLine = new THREE.BoxGeometry(0.09, 0.025, layout.parkingSpaceDepth);
-    const endLine = new THREE.BoxGeometry(layout.parkingSpaceWidth, 0.025, 0.09);
-
-    for (const space of getLevelOneParkingSpaces()) {
-      const outline = new THREE.Group();
-      outline.position.set(space.x, 0.025, space.z);
-      outline.rotation.y = space.angle;
-
-      for (const offset of [-layout.parkingSpaceWidth / 2, layout.parkingSpaceWidth / 2]) {
-        const line = new THREE.Mesh(sideLine, lineMaterial);
-        line.position.x = offset;
-        outline.add(line);
+    const spaces = getLevelOneParkingSpaces();
+    const sideLines = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(layout.lineWidth, 0.025, layout.parkingSpaceDepth),
+      lineMaterial,
+      spaces.length * 2
+    );
+    const endLines = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(layout.parkingSpaceWidth, 0.025, layout.lineWidth),
+      lineMaterial,
+      spaces.length * 2
+    );
+    const rowMatrix = new THREE.Matrix4();
+    const localMatrix = new THREE.Matrix4();
+    const instanceMatrix = new THREE.Matrix4();
+    spaces.forEach((space, index) => {
+      rowMatrix.makeRotationY(space.angle);
+      rowMatrix.setPosition(space.x, 0.035, space.z);
+      for (let side = 0; side < 2; side++) {
+        localMatrix.makeTranslation((side ? 1 : -1) * layout.parkingSpaceWidth / 2, 0, 0);
+        sideLines.setMatrixAt(index * 2 + side, instanceMatrix.multiplyMatrices(rowMatrix, localMatrix));
+        localMatrix.makeTranslation(0, 0, (side ? 1 : -1) * layout.parkingSpaceDepth / 2);
+        endLines.setMatrixAt(index * 2 + side, instanceMatrix.multiplyMatrices(rowMatrix, localMatrix));
       }
+    });
+    sideLines.name = "parking-bay-side-lines";
+    endLines.name = "parking-bay-end-lines";
+    this.root.add(sideLines, endLines);
 
-      for (const offset of [-layout.parkingSpaceDepth / 2, layout.parkingSpaceDepth / 2]) {
-        const line = new THREE.Mesh(endLine, lineMaterial);
-        line.position.z = offset;
-        outline.add(line);
-      }
-
-      this.root.add(outline);
-    }
-
-    const roadStart = layout.verticalRoad.z - layout.verticalRoad.depth / 2 + 3;
-    const roadEnd = layout.verticalRoad.z + layout.verticalRoad.depth / 2 - 3;
     const verticalDashGeometry = new THREE.BoxGeometry(0.12, 0.025, 2.8);
     for (const road of layout.verticalRoads) {
-      for (let z = roadStart; z <= roadEnd; z += 6) {
+      for (let z = road.startZ + 2; z <= road.endZ - 2; z += 6) {
         const dash = new THREE.Mesh(verticalDashGeometry, yellowMaterial);
         dash.position.set(road.x, 0.03, z);
         this.root.add(dash);
@@ -397,37 +383,62 @@ createParkingSurface() {
       layout.rearRoad.rightZ - layout.rearRoad.leftZ,
       layout.rearRoad.width
     );
-    for (let x = -45; x <= 45; x += 6) {
+    for (let x = -48; x <= 48; x += 6) {
       const dash = new THREE.Mesh(rearDashGeometry, yellowMaterial);
-      const progress = (x + layout.rearRoad.width / 2) / layout.rearRoad.width;
+      const progress = (x + 48) / 96;
       const z = THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, progress);
       dash.position.set(x, 0.03, z);
       dash.rotation.y = rearRoadAngle;
       this.root.add(dash);
     }
+
+    // Hatched keep-clear box at the lower-middle entrance turning area.
+    const entrance = PARKING_LAYOUT.mainEntrance;
+    for (let x = entrance.x - 3.2; x <= entrance.x + 3.2; x += 1.05) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 5.2), yellowMaterial);
+      stripe.position.set(x, 0.04, 30.5);
+      stripe.rotation.y = -0.55;
+      this.root.add(stripe);
+    }
   }
 
   createParkedCars() {
     const random = createSeededRandom(3006);
+    const colors = [0xe6e3dc, 0x22272d, 0x9aa5a8, 0xb73530, 0x24528b, 0xc99b2e, 0x2f6950];
+    const occupied = getLevelOneParkingSpaces()
+      .filter((space) => !space.isTarget && random() > 0.08)
+      .map((space) => ({ ...space, colorIndex: Math.floor(random() * colors.length) }));
+    const bodyGeometry = new THREE.BoxGeometry(2.05, 0.55, 4.15);
+    const cabinGeometry = new THREE.BoxGeometry(1.72, 0.42, 2.15);
+    const dummy = new THREE.Object3D();
 
-    for (const { x, z, angle, isTarget } of getLevelOneParkingSpaces()) {
-      if (isTarget) continue;
-
-      const holder = new THREE.Group();
-      holder.position.set(x, 0, z);
-      holder.rotation.y = angle;
-      this.root.add(holder);
-
-      const spec = pickRandomParkingCar(random);
-      attachCarModel(holder, spec, "lite").catch((error) => {
-        console.warn(`Unable to load parked car ${spec.id}`, error);
+    colors.forEach((color, colorIndex) => {
+      const cars = occupied.filter((space) => space.colorIndex === colorIndex);
+      const body = new THREE.InstancedMesh(bodyGeometry, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }), cars.length);
+      const cabin = new THREE.InstancedMesh(cabinGeometry, new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(0.72), roughness: 0.55 }), cars.length);
+      cars.forEach((space, index) => {
+        dummy.position.set(space.x, 0.34, space.z);
+        dummy.rotation.set(0, space.angle, 0);
+        dummy.updateMatrix();
+        body.setMatrixAt(index, dummy.matrix);
+        dummy.position.y = 0.82;
+        dummy.updateMatrix();
+        cabin.setMatrixAt(index, dummy.matrix);
       });
+      body.castShadow = true;
+      body.receiveShadow = true;
+      cabin.castShadow = true;
+      body.name = `placeholder-car-bodies-${colorIndex}`;
+      cabin.name = `placeholder-car-cabins-${colorIndex}`;
+      this.root.add(body, cabin);
+    });
 
+    for (const { x, z, angle } of occupied) {
       const collider = new THREE.Object3D();
-      collider.position.set(x, 0.55, z);
+      collider.position.set(x, 0.6, z);
       collider.rotation.y = angle;
       this.root.add(collider);
-      this.collisionWorld.add({ object: collider, size: spec.collider, color: 0xff6b6b, tag: String.fromCharCode(112, 97, 114, 107, 101, 100, 45, 99, 97, 114) });
+      this.collisionWorld.add({ object: collider, size: [2.05, 1.2, 4.15], color: 0xff6b6b, tag: "parked-car" });
     }
   }
 
@@ -520,9 +531,12 @@ createParkingSurface() {
   createStreetLights() {
     const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x27313d, roughness: 0.72 });
     const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xffc779 });
-    const positions = [[-51, 13], [-19.1, -6], [12.9, 12], [44.9, -8]];
+    const positions = LEVEL_ONE_PARKING_LAYOUT.verticalRoads.map((road, index) => [
+      road.x,
+      index % 2 === 0 ? 7 : -5
+    ]);
 
-    for (const [x, z] of positions) {
+    for (const [index, [x, z]] of positions.entries()) {
       const pole = new THREE.Group();
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 5, 8), poleMaterial);
       shaft.position.y = 2.5;
@@ -536,7 +550,7 @@ createParkingSurface() {
       const light = new THREE.PointLight(0xffbd68, 7, 13, 2);
       light.position.set(x, 5, z);
       // Two shadow casters keep the dusk look without multiplying shadow-map cost.
-      light.castShadow = z === 10 || z === -5;
+      light.castShadow = index === 1 || index === 5;
       if (light.castShadow) light.shadow.mapSize.set(512, 512);
       this.root.add(light);
     }
