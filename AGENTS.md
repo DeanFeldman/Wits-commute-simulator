@@ -28,6 +28,8 @@ The three levels must remain genuinely distinct.
 
 ## Level 1 — Park at Wits
 
+Before changing Level 1 geometry, roads, parking rows, entrances, cameras, or vehicle placement, read `docs/LEVEL_1_PARKING_LAYOUT.md`. It records the approved dimensions, orientation conventions, reference-derived design, and invariants that must be preserved.
+
 **Player role:** Driver  
 **Core mechanic:** Precision driving and parking  
 **Movement:** Continuous  
