@@ -5,6 +5,41 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 // relative so the deployed game also works from a subdirectory.
 const BASE_PATH = "./assets/cars/";
 const TARGET_LENGTH = 4.2;
+const PARKING_PACK_FILE = "generic_passenger_car_pack.glb";
+export const PLAYER_CAR_MODEL_PATH = "./assets/models/vehicles/car_scene.glb";
+const PLAYER_CAR_PROP_NAMES = new Set([
+  "chest_base",
+  "wheel_004",
+  "wheel_005",
+  "shadowplane",
+  "vintage_lantern_7_base"
+]);
+
+// The source pack stores each vehicle as five consecutive RootNode children:
+// four wheel assemblies and one body assembly (or the body followed by wheels).
+// Keeping these definitions here lets Level 1 reuse one downloaded GLB while
+// still cloning only the selected vehicle, rather than the entire nine-car pack.
+export const PARKING_CAR_SPECS = Object.freeze([
+  { id: "pack-compact", name: "Compact", packBodyChild: 4, packRootChildren: [0, 1, 2, 3, 4], collider: [2.0, 1.55, 4.5] },
+  {
+    id: "pack-coupe",
+    name: "Coupe",
+    packBodyChild: 5,
+    packForwardAxis: "x",
+    // Its mesh geometry is baked 17.657 degrees off the node's local X axis.
+    packHeadingOffset: -THREE.MathUtils.degToRad(17.657),
+    packRootChildren: [5, 6, 7, 8, 9],
+    collider: [2.05, 1.45, 4.5]
+  },
+  { id: "pack-hatchback", name: "Hatchback", packBodyChild: 10, packRootChildren: [10, 11, 12, 13, 14], collider: [2.0, 1.65, 4.5] },
+  { id: "pack-minivan", name: "Minivan", packBodyChild: 16, packRootChildren: [15, 16, 17, 18, 19], collider: [2.1, 1.9, 4.5] },
+  { id: "pack-offroad", name: "Off-road", packBodyChild: 21, packRootChildren: [20, 21, 22, 23, 24], collider: [2.15, 1.85, 4.5] },
+  { id: "pack-pickup", name: "Pickup", packBodyChild: 26, packRootChildren: [25, 26, 27, 28, 29], collider: [2.15, 1.85, 4.5] },
+  { id: "pack-sedan", name: "Sedan", packBodyChild: 30, packRootChildren: [30, 31, 32, 33, 34], collider: [2.05, 1.55, 4.5] },
+  { id: "pack-sport", name: "Sport", packBodyChild: 39, packRootChildren: [35, 36, 37, 38, 39], collider: [2.05, 1.35, 4.5] },
+  { id: "pack-suv", name: "SUV", packBodyChild: 41, packRootChildren: [40, 41, 42, 43, 44], collider: [2.15, 1.9, 4.5] },
+  { id: "pack-wagon", name: "Wagon", packBodyChild: 45, packRootChildren: [45, 46, 47, 48, 49], collider: [2.05, 1.65, 4.5] }
+].map((spec) => Object.freeze({ ...spec, packRootChildren: Object.freeze(spec.packRootChildren) })));
 
 export const CAR_SPECS = Object.freeze([
   {
@@ -59,6 +94,8 @@ export const CAR_SPECS = Object.freeze([
 
 const loader = new GLTFLoader();
 const prototypeCache = new Map();
+let parkingPackPromise = null;
+let playerCarPrototypePromise = null;
 function normalizeVehicleModel(scene) {
   scene.updateMatrixWorld(true);
 
@@ -117,11 +154,81 @@ export function pickRandomCar(
   return candidates[candidates.length - 1];
 }
 
+export function pickRandomParkingCar(random = Math.random) {
+  return PARKING_CAR_SPECS[
+    Math.min(
+      PARKING_CAR_SPECS.length - 1,
+      Math.floor(random() * PARKING_CAR_SPECS.length)
+    )
+  ];
+}
+
 export function getCarSpec(id) {
   return CAR_SPECS.find((spec) => spec.id === id) ?? null;
 }
 
 async function getPrototype(spec, variant) {
+  if (spec.packRootChildren) {
+    const key = `${spec.id}:parking-pack`;
+
+    if (!prototypeCache.has(key)) {
+      parkingPackPromise ??= loader.loadAsync(`${BASE_PATH}${PARKING_PACK_FILE}`);
+      prototypeCache.set(
+        key,
+        parkingPackPromise.then((gltf) => {
+          const scene = gltf.scene.clone(true);
+          const rootNode = scene.getObjectByName("RootNode");
+
+          if (!rootNode) {
+            throw new Error("Generic passenger car pack is missing RootNode.");
+          }
+
+          const body = rootNode.children[spec.packBodyChild];
+          const selected = new Set(spec.packRootChildren);
+          for (let index = rootNode.children.length - 1; index >= 0; index--) {
+            if (!selected.has(index)) rootNode.remove(rootNode.children[index]);
+          }
+
+          normalizeVehicleModel(scene);
+
+          // The source scene displays its cars in a circle, so every vehicle
+          // has a different baked heading. Convert the body's local length
+          // axis to a shared +Z heading before holders rotate it into a bay.
+          if (!body) {
+            throw new Error(`Generic passenger car pack is missing body child ${spec.packBodyChild}.`);
+          }
+          scene.updateMatrixWorld(true);
+          const bodyRotation = body.getWorldQuaternion(new THREE.Quaternion());
+          const forward = new THREE.Vector3(
+            spec.packForwardAxis === "x" ? 1 : 0,
+            spec.packForwardAxis === "x" ? 0 : 1,
+            0
+          ).applyQuaternion(bodyRotation);
+          forward.y = 0;
+          if (forward.lengthSq() > 0.001) {
+            forward.normalize();
+            scene.rotateY(-Math.atan2(forward.x, forward.z));
+            scene.rotateY(spec.packHeadingOffset ?? 0);
+            // Rotating the imported scene also rotates its baked source offset;
+            // centre it again so every clone sits on its holder's origin.
+            normalizeVehicleModel(scene);
+          }
+
+          scene.traverse((child) => {
+            if (!child.isMesh) return;
+            child.visible = true;
+            child.castShadow = false;
+            child.receiveShadow = true;
+          });
+
+          return scene;
+        })
+      );
+    }
+
+    return prototypeCache.get(key);
+  }
+
   const file = spec[variant];
 
   if (!file) {
@@ -164,6 +271,48 @@ export async function attachCarModel(
   // clone(true) reuses geometry/material resources, which is what we want.
   const model = prototype.clone(true);
 
+  holder.add(model);
+  return model;
+}
+
+export async function attachPlayerCarModel(holder) {
+  playerCarPrototypePromise ??= loader.loadAsync(PLAYER_CAR_MODEL_PATH).then((gltf) => {
+    const scene = gltf.scene;
+    const rootNode = scene.getObjectByName("RootNode");
+
+    if (!rootNode) {
+      throw new Error("Player car scene is missing RootNode.");
+    }
+
+    // car_scene.glb is an authored showcase scene. Remove its surrounding
+    // props so the player gets only the vehicle itself.
+    for (const child of [...rootNode.children]) {
+      if (PLAYER_CAR_PROP_NAMES.has(child.name)) rootNode.remove(child);
+    }
+
+    scene.updateMatrixWorld(true);
+    const size = new THREE.Box3()
+      .setFromObject(scene)
+      .getSize(new THREE.Vector3());
+
+    // The source vehicle is modelled lengthwise on X; gameplay uses -Z as
+    // forward. Keep this conditional so a re-export with Z-forward still works.
+    if (size.x > size.z) scene.rotateY(-Math.PI / 2);
+
+    normalizeVehicleModel(scene);
+    scene.traverse((child) => {
+      if (!child.isMesh) return;
+      child.visible = true;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+
+    return scene;
+  });
+
+  const prototype = await playerCarPrototypePromise;
+  const model = prototype.clone(true);
+  model.name = "player-car-model";
   holder.add(model);
   return model;
 }

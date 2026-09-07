@@ -7,13 +7,74 @@ import { createAsphaltMaterial } from "../shaders/asphaltShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import {
   attachCarModel,
+  attachPlayerCarModel,
   createSeededRandom,
-  pickRandomCar
+  pickRandomParkingCar
 } from "../shared/VehicleModelLibrary.js";
 import {
   createParkingEnvironment,
   PARKING_LAYOUT
 } from "./parking/ParkingEnvironment.js";
+
+
+export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
+  parkingSpaceWidth: 3.2,
+  parkingSpaceDepth: 6.4,
+  verticalRoadWidth: 8.5,
+  verticalSlotZs: Object.freeze(Array.from(
+    { length: 23 },
+    (_, index) => Number((-41.5 + index * 3.25).toFixed(2))
+  )),
+  verticalColumns: Object.freeze([
+    Object.freeze({ x: -43.65, angle: Math.PI / 2 }),
+    Object.freeze({ x: -28.75, angle: Math.PI / 2 }),
+    Object.freeze({ x: -13.85, angle: Math.PI / 2 }),
+    Object.freeze({ x: -7.45, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 7.45, angle: Math.PI / 2 }),
+    Object.freeze({ x: 13.85, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 28.75, angle: -Math.PI / 2 }),
+    Object.freeze({ x: 43.65, angle: -Math.PI / 2 })
+  ]),
+  verticalRoads: Object.freeze([
+    Object.freeze({ x: -36.2, width: 8.5 }),
+    Object.freeze({ x: -21.3, width: 8.5 }),
+    Object.freeze({ x: 0, width: 8.5 }),
+    Object.freeze({ x: 21.3, width: 8.5 }),
+    Object.freeze({ x: 36.2, width: 8.5 })
+  ]),
+  verticalRoad: Object.freeze({ z: -5.575, depth: 75.15 }),
+  rearRoad: Object.freeze({ z: -46.35, depth: 6.4, width: 98 }),
+  rearRowZ: -52.8,
+  rearRowXs: Object.freeze(Array.from(
+    { length: 29 },
+    (_, index) => Number((-44.8 + index * 3.2).toFixed(1))
+  )),
+  targetSlotX: -22.4,
+  playerSpawn: Object.freeze({ x: 0, z: 25.5, angle: 0 }),
+  skyViewScale: 1.65
+});
+
+export function getLevelOneParkingSpaces() {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const spaces = [];
+
+  for (const column of layout.verticalColumns) {
+    for (const z of layout.verticalSlotZs) {
+      spaces.push({ x: column.x, z, angle: column.angle, isTarget: false });
+    }
+  }
+
+  for (const x of layout.rearRowXs) {
+    spaces.push({
+      x,
+      z: layout.rearRowZ,
+      angle: Math.PI,
+      isTarget: Math.abs(x - layout.targetSlotX) < 0.001
+    });
+  }
+
+  return spaces;
+}
 
 
 export class ParkingLevel {
@@ -32,6 +93,12 @@ export class ParkingLevel {
     this.suspension = null;
     this.collisionWorld = null;
     this.cameraShake = 0;
+    this.chaseCamera = null;
+    this.skyCamera = null;
+    this.skyViewActive = false;
+    this.viewToggle = null;
+    this.chaseFog = null;
+    this.onViewToggle = this.toggleSkyView.bind(this);
     this.asphaltUniforms = null;
     this.audio = new LevelAudio();
     this.environment = null;
@@ -43,11 +110,11 @@ export class ParkingLevel {
     this.potholeCooldown = 0;
 
     this.parkingBay = {
-      x: 15,
-      z: -20,
-      width: 3.2,
-      depth: 5.5,
-      angle: 0
+      x: LEVEL_ONE_PARKING_LAYOUT.targetSlotX,
+      z: LEVEL_ONE_PARKING_LAYOUT.rearRowZ,
+      width: LEVEL_ONE_PARKING_LAYOUT.parkingSpaceWidth,
+      depth: LEVEL_ONE_PARKING_LAYOUT.parkingSpaceDepth,
+      angle: Math.PI
     };
 
     this.parkingStatus = { containment: false, alignment: false, rest: false, containmentPercent: 0, holdTime: 0 };
@@ -59,8 +126,10 @@ export class ParkingLevel {
 load() {
   const scene = this.game.scene;
 
-  scene.background = new THREE.Color(0x101522);
-  scene.fog = new THREE.Fog(0x101522, 36, 96);
+  const skyColor = new THREE.Color(0x8ec9ee);
+  scene.background = skyColor;
+  scene.fog = new THREE.Fog(skyColor, 36, 96);
+  this.chaseFog = scene.fog;
 
   scene.add(this.root);
   this.audio.startDrone(74, 0.012);
@@ -115,7 +184,23 @@ load() {
     150
   );
 
-  camera.position.set(0, 6, 9);
+  const initialBehind = new THREE.Vector3(
+    Math.sin(this.car.rotation.y) * 8,
+    5,
+    Math.cos(this.car.rotation.y) * 8
+  );
+  camera.position.copy(this.car.position).add(initialBehind);
+  const initialLookTarget = this.car.position.clone();
+  initialLookTarget.y += 1;
+  camera.lookAt(initialLookTarget);
+  this.chaseCamera = camera;
+
+  this.skyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
+  this.skyCamera.position.set(PARKING_LAYOUT.mainLot.x, 90, PARKING_LAYOUT.mainLot.z);
+  this.skyCamera.up.set(0, 0, -1);
+  this.skyCamera.lookAt(PARKING_LAYOUT.mainLot.x, 0, PARKING_LAYOUT.mainLot.z);
+  this.updateSkyCameraFrustum();
+
   this.game.setCamera(camera);
 
   this.controls = this.game.input.registerBindings({
@@ -128,7 +213,38 @@ load() {
   this.game.setMessage(
     "Drive to the cyan bay. W/S = throttle, A/D = steer, R = restart."
   );
+
+  this.viewToggle = document.querySelector("#level1-view-toggle");
+  this.viewToggle.hidden = false;
+  this.viewToggle.addEventListener("click", this.onViewToggle);
 }
+
+  updateSkyCameraFrustum() {
+    if (!this.skyCamera) return;
+
+    const lot = PARKING_LAYOUT.mainLot;
+    const aspect = window.innerWidth / window.innerHeight;
+    this.skyCamera.userData.viewHeight = LEVEL_ONE_PARKING_LAYOUT.skyViewScale * Math.max(
+      lot.depth + 10,
+      (lot.width + 10) / aspect
+    );
+  }
+
+  toggleSkyView() {
+    this.skyViewActive = !this.skyViewActive;
+
+    if (this.skyViewActive) {
+      this.updateSkyCameraFrustum();
+      this.game.scene.fog = null;
+      this.game.setCamera(this.skyCamera);
+    } else {
+      this.game.scene.fog = this.chaseFog;
+      this.game.setCamera(this.chaseCamera);
+    }
+
+    this.viewToggle.textContent = this.skyViewActive ? "Chase view" : "Sky view";
+    this.viewToggle.setAttribute("aria-pressed", String(this.skyViewActive));
+  }
 
 
 createParkingSurface() {
@@ -199,45 +315,68 @@ createParkingSurface() {
   createRoadMarkings() {
     const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
     const yellowMaterial = new THREE.MeshBasicMaterial({ color: 0xd8b34f });
-    const bayLine = new THREE.BoxGeometry(0.1, 0.025, 5.5);
-    const endLine = new THREE.BoxGeometry(3.2, 0.025, 0.1);
-    const slotZ = [22, 15, 8, 1, -6, -13, -20, -27];
-    for (const x of [-15, -9, -3, 3, 9, 15]) for (const z of slotZ) {
-      for (const offset of [-1.6, 1.6]) {
-        const line = new THREE.Mesh(bayLine, lineMaterial);
-        line.position.set(x + offset, 0.025, z);
-        this.root.add(line);
+    const layout = LEVEL_ONE_PARKING_LAYOUT;
+    const sideLine = new THREE.BoxGeometry(0.09, 0.025, layout.parkingSpaceDepth);
+    const endLine = new THREE.BoxGeometry(layout.parkingSpaceWidth, 0.025, 0.09);
+
+    for (const space of getLevelOneParkingSpaces()) {
+      const outline = new THREE.Group();
+      outline.position.set(space.x, 0.025, space.z);
+      outline.rotation.y = space.angle;
+
+      for (const offset of [-layout.parkingSpaceWidth / 2, layout.parkingSpaceWidth / 2]) {
+        const line = new THREE.Mesh(sideLine, lineMaterial);
+        line.position.x = offset;
+        outline.add(line);
       }
-      const end = new THREE.Mesh(endLine, lineMaterial);
-      end.position.set(x, 0.025, z - 2.75);
-      this.root.add(end);
+
+      for (const offset of [-layout.parkingSpaceDepth / 2, layout.parkingSpaceDepth / 2]) {
+        const line = new THREE.Mesh(endLine, lineMaterial);
+        line.position.z = offset;
+        outline.add(line);
+      }
+
+      this.root.add(outline);
     }
-    for (const x of [-18, -12, -6, 0, 6, 12, 18]) for (let z = 27; z >= -29; z -= 7) {
-      const marking = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 2.1), yellowMaterial);
-      marking.position.set(x, 0.03, z);
-      this.root.add(marking);
+
+    const roadStart = layout.verticalRoad.z - layout.verticalRoad.depth / 2 + 3;
+    const roadEnd = layout.verticalRoad.z + layout.verticalRoad.depth / 2 - 3;
+    const verticalDashGeometry = new THREE.BoxGeometry(0.12, 0.025, 2.8);
+    for (const road of layout.verticalRoads) {
+      for (let z = roadStart; z <= roadEnd; z += 6) {
+        const dash = new THREE.Mesh(verticalDashGeometry, yellowMaterial);
+        dash.position.set(road.x, 0.03, z);
+        this.root.add(dash);
+      }
+    }
+
+    const rearDashGeometry = new THREE.BoxGeometry(2.8, 0.025, 0.12);
+    for (let x = -45; x <= 45; x += 6) {
+      const dash = new THREE.Mesh(rearDashGeometry, yellowMaterial);
+      dash.position.set(x, 0.03, layout.rearRoad.z);
+      this.root.add(dash);
     }
   }
 
   createParkedCars() {
-    const rows = [-15, -9, -3, 3, 9, 15];
-    const slots = [22, 15, 8, 1, -6, -13, -20, -27];
-    const parked = [];
-    for (const x of rows) for (const z of slots) if (x !== this.parkingBay.x || z !== this.parkingBay.z) parked.push([x, z]);
     const random = createSeededRandom(3006);
 
-    for (const [x, z] of parked) {
+    for (const { x, z, angle, isTarget } of getLevelOneParkingSpaces()) {
+      if (isTarget) continue;
+
       const holder = new THREE.Group();
       holder.position.set(x, 0, z);
+      holder.rotation.y = angle;
       this.root.add(holder);
 
-      const spec = pickRandomCar(random, { allowThomas: true });
+      const spec = pickRandomParkingCar(random);
       attachCarModel(holder, spec, "lite").catch((error) => {
         console.warn(`Unable to load parked car ${spec.id}`, error);
       });
 
       const collider = new THREE.Object3D();
       collider.position.set(x, 0.55, z);
+      collider.rotation.y = angle;
       this.root.add(collider);
       this.collisionWorld.add({ object: collider, size: spec.collider, color: 0xff6b6b, tag: String.fromCharCode(112, 97, 114, 107, 101, 100, 45, 99, 97, 114) });
     }
@@ -249,11 +388,14 @@ createParkingSurface() {
       roughness: 1
     });
 
+    const rearRoadZ = LEVEL_ONE_PARKING_LAYOUT.rearRoad.z;
     const positions = [
-      [-18, 17, 1.05], [-12, 10, 0.72], [-6, 4, 0.92], [0, 13, 0.82],
-      [6, 8, 1.12], [12, 3, 0.76], [18, -4, 1.02], [-18, -10, 0.84],
-      [-12, -18, 1.1], [-6, -12, 0.74], [0, -23, 0.95], [6, -17, 0.8],
-      [12, -26, 1.04], [18, -14, 0.78]
+      [-21.3, 22, 1.05], [-21.3, 6, 0.72], [-21.3, -10, 0.92], [-21.3, -28, 0.82], [-21.3, -40, 1.12],
+      [0, 16, 0.76], [0, 0, 1.02], [0, -16, 0.84], [0, -32, 1.1],
+      [21.3, 22, 0.74], [21.3, 6, 0.95], [21.3, -10, 0.8], [21.3, -28, 1.04], [21.3, -40, 0.9],
+      [-36.2, 14, 0.82], [-36.2, -18, 1.02], [36.2, 8, 0.88], [36.2, -26, 0.96],
+      [-27, rearRoadZ, 0.74], [-10, rearRoadZ, 0.95], [10, rearRoadZ, 0.8],
+      [27, rearRoadZ, 1.04]
     ];
 
     for (const [x, z, scale] of positions) {
@@ -287,6 +429,7 @@ createParkingSurface() {
       0.05,
       this.parkingBay.z
     );
+    outline.rotation.y = this.parkingBay.angle;
 
     this.root.add(outline);
   }
@@ -294,61 +437,29 @@ createParkingSurface() {
   createPlayerCar() {
     const carRoot = new THREE.Group();
     const suspension = new THREE.Group();
-    suspension.position.y = 0.35;
+    suspension.position.y = 0.04;
     carRoot.add(suspension);
     this.suspension = suspension;
 
-    const body = new THREE.Group();
-    suspension.add(body);
-    const paint = new THREE.MeshStandardMaterial({ color: 0xf0b429, metalness: 0.35, roughness: 0.35 });
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 4), paint);
-    chassis.position.y = 0.42;
-    chassis.castShadow = true;
-    body.add(chassis);
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(1.65, 0.65, 1.9),
-      new THREE.MeshStandardMaterial({ color: 0x1d3144, metalness: 0.2, roughness: 0.18 })
-    );
-    cabin.position.set(0, 0.95, 0.25);
-    cabin.castShadow = true;
-    body.add(cabin);
-
-    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x101114, roughness: 0.85 });
-    const wheelPositions = [[-1.05, 1.25, true], [1.05, 1.25, true], [-1.05, -1.25, false], [1.05, -1.25, false]];
-    for (const [x, z, isFront] of wheelPositions) {
-      const pivot = new THREE.Group();
-      pivot.position.set(x, 0, z);
-      suspension.add(pivot);
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.35, 16), wheelMaterial);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.y = -0.02;
-      wheel.castShadow = true;
-      pivot.add(wheel);
-      this.wheels.push(wheel);
-      if (isFront) this.frontWheelPivots.push(pivot);
-    }
+    attachPlayerCarModel(suspension).catch((error) => {
+      console.warn("Player car model could not be loaded.", error);
+    });
 
     for (const x of [-0.65, 0.65]) {
-      const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.08), new THREE.MeshBasicMaterial({ color: 0xfff1b0 }));
-      headlight.position.set(x, 0.55, -2.02);
-      body.add(headlight);
-
       const beam = new THREE.SpotLight(0xfff0bd, 16, 22, Math.PI / 7, 0.45, 1.4);
-      beam.position.set(x, 0.55, -2.05);
+      beam.position.set(x, 0.65, -2.05);
       beam.target.position.set(x, -0.15, -11);
       beam.castShadow = x < 0;
       if (beam.castShadow) {
         beam.shadow.mapSize.set(1024, 1024);
         beam.shadow.bias = -0.00035;
       }
-      body.add(beam, beam.target);
+      suspension.add(beam, beam.target);
     }
 
-    carRoot.position.set(
-      PARKING_LAYOUT.mainEntrance.x,
-      0,
-      27
-    );
+    const spawn = LEVEL_ONE_PARKING_LAYOUT.playerSpawn;
+    carRoot.position.set(spawn.x, 0, spawn.z);
+    carRoot.rotation.y = spawn.angle;
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
@@ -413,13 +524,13 @@ this.environment?.update(dt);
 // to be reached rather than clamping before them.
 this.car.position.x = clamp(
   this.car.position.x,
-  -23.5,
-  23.5
+  PARKING_LAYOUT.mainLot.x - PARKING_LAYOUT.mainLot.width / 2 + 0.5,
+  PARKING_LAYOUT.mainLot.x + PARKING_LAYOUT.mainLot.width / 2 - 0.5
 );
 
 this.car.position.z = clamp(
   this.car.position.z,
-  -33.5,
+  PARKING_LAYOUT.mainLot.z - PARKING_LAYOUT.mainLot.depth / 2 + 0.5,
   44.5
 );
 
@@ -445,7 +556,6 @@ if (hit) {
     );
 
     this.game.flashHUD();
-    this.game.playAlertTone(118, 0.12);
     this.audio.cue(78, 0.12, 0.15);
 
     this.impactCooldown = 0.55;
@@ -496,7 +606,6 @@ if (hit) {
         this.vehicle.speed *= 0.82;
         this.cameraShake = Math.max(this.cameraShake, 0.22);
         this.game.flashHUD();
-        this.game.playAlertTone(145, 0.1);
         this.audio.cue(92, 0.12, 0.14);
 
         // Light damage only
@@ -622,6 +731,15 @@ if (hit) {
     this.collisionWorld.setDebugVisible(visible);
   }
   updateCamera(dt) {
+    if (this.skyViewActive) {
+      const previousViewHeight = this.skyCamera.userData.viewHeight;
+      this.updateSkyCameraFrustum();
+      if (this.skyCamera.userData.viewHeight !== previousViewHeight) {
+        this.game.onResize();
+      }
+      return;
+    }
+
     const camera = this.game.camera;
 
     const behind = new THREE.Vector3(
@@ -646,6 +764,12 @@ if (hit) {
   dispose() {
     this.audio.dispose();
     this.controls?.dispose();
+    this.viewToggle?.removeEventListener("click", this.onViewToggle);
+    if (this.viewToggle) {
+      this.viewToggle.hidden = true;
+      this.viewToggle.textContent = "Sky view";
+      this.viewToggle.setAttribute("aria-pressed", "false");
+    }
     disposeObject3D(this.root);
   }
 }
