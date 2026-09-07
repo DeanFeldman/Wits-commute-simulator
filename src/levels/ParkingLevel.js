@@ -25,18 +25,18 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   verticalEndZ: 29.25,
   verticalColumns: Object.freeze([
     Object.freeze({ x: -56, angle: Math.PI / 2 }),
-    Object.freeze({ x: -46, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -40.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: -30, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -24.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: -14, angle: -Math.PI / 2 }),
-    Object.freeze({ x: -8.2, angle: Math.PI / 2 }),
-    Object.freeze({ x: 2, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 7.8, angle: Math.PI / 2 }),
-    Object.freeze({ x: 18, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 23.8, angle: Math.PI / 2 }),
-    Object.freeze({ x: 34, angle: -Math.PI / 2 }),
-    Object.freeze({ x: 39.8, angle: Math.PI / 2 }),
+    Object.freeze({ x: -46, angle: -Math.PI / 2, northReferenceX: -43.1 }),
+    Object.freeze({ x: -40.2, angle: Math.PI / 2, northReferenceX: -43.1 }),
+    Object.freeze({ x: -30, angle: -Math.PI / 2, northReferenceX: -27.1 }),
+    Object.freeze({ x: -24.2, angle: Math.PI / 2, northReferenceX: -27.1 }),
+    Object.freeze({ x: -14, angle: -Math.PI / 2, northReferenceX: -11.1 }),
+    Object.freeze({ x: -8.2, angle: Math.PI / 2, northReferenceX: -11.1 }),
+    Object.freeze({ x: 2, angle: -Math.PI / 2, northReferenceX: 4.9 }),
+    Object.freeze({ x: 7.8, angle: Math.PI / 2, northReferenceX: 4.9 }),
+    Object.freeze({ x: 18, angle: -Math.PI / 2, northReferenceX: 20.9 }),
+    Object.freeze({ x: 23.8, angle: Math.PI / 2, northReferenceX: 20.9 }),
+    Object.freeze({ x: 34, angle: -Math.PI / 2, northReferenceX: 36.9 }),
+    Object.freeze({ x: 39.8, angle: Math.PI / 2, northReferenceX: 36.9 }),
     Object.freeze({ x: 50, angle: -Math.PI / 2 })
   ]),
   verticalRoads: Object.freeze([
@@ -67,7 +67,10 @@ export function getLevelOneParkingSpaces() {
   const rowRightX = layout.rearRowXs.at(-1);
 
   for (const column of layout.verticalColumns) {
-    const progress = (column.x - rowLeftX) / (rowRightX - rowLeftX);
+    // A paired parking strip shares one northern edge. Successive strips still
+    // step down to follow the real lot's skewed M1 boundary.
+    const northReferenceX = column.northReferenceX ?? column.x;
+    const progress = (northReferenceX - rowLeftX) / (rowRightX - rowLeftX);
     const rearRoadZ = THREE.MathUtils.lerp(
       layout.rearRoad.leftZ,
       layout.rearRoad.rightZ,

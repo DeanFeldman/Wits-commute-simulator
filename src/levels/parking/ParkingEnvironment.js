@@ -599,47 +599,71 @@ function createOpenParkingEntrance(root) {
 function createCampusBoomGate(root, collisionWorld, playerCar) {
   const checkpoint = PARKING_LAYOUT.campusGate;
   const road = PARKING_LAYOUT.campusRoad;
-  const islandMat = material(COLORS.kerb, 0.84);
+  const gateZ = road.z + 3.2;
+  const roofMat = material(0xd5d9da, 0.54, { metalness: 0.25 });
+  const supportMat = material(0x747b7c, 0.6, { metalness: 0.35 });
+  const islandMat = material(0xb89f83, 0.82);
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x90b5bf,
+    roughness: 0.28,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.72
+  });
 
-  const hut = new THREE.Group();
-  hut.position.set(checkpoint.x, 0, road.z + road.depth / 2 + 1.45);
-  root.add(hut);
-  box(hut, [2.0, 2.2, 1.65], [0, 1.1, 0], material(0x8f826f, 0.8), { castShadow: true });
-  box(hut, [2.05, 0.68, 0.07], [0, 1.48, -0.86], new THREE.MeshBasicMaterial({ color: 0xbcd3d1 }), { receiveShadow: false });
-  addCollider(collisionWorld, root, [hut.position.x, 1.1, hut.position.z], [2.0, 2.2, 1.65], "campus-guard-hut");
+  // Entrance 9-style checkpoint: a broad metal canopy with two clear lanes.
+  box(root, [13.5, 0.55, 10.8], [checkpoint.x, 4.75, gateZ], roofMat, { castShadow: true });
+  box(root, [14.0, 0.16, 11.3], [checkpoint.x, 5.1, gateZ], material(0xe8ebea, 0.48, { metalness: 0.3 }), { castShadow: true });
+  for (const x of [checkpoint.x - 5.5, checkpoint.x + 5.5]) {
+    for (const z of [gateZ - 4.15, gateZ + 4.15]) {
+      box(root, [0.32, 4.5, 0.32], [x, 2.25, z], supportMat, { castShadow: true });
+    }
+  }
+  // Blue fascia makes the roof read as the Wits entrance from the sky camera.
+  for (const z of [gateZ - 5.48, gateZ + 5.48]) {
+    box(root, [13.7, 0.65, 0.18], [checkpoint.x, 4.65, z], material(COLORS.witsBlue, 0.58), { castShadow: true });
+  }
 
-  const baseZ = road.z + road.depth / 2 - 0.45;
-  box(root, [1.0, 0.25, 1.0], [checkpoint.x, 0.125, baseZ], islandMat);
+  const boothX = checkpoint.x + 3.8;
+  box(root, [2.15, 0.24, 5.2], [boothX, 0.12, gateZ], islandMat, { castShadow: true });
+  box(root, [1.75, 2.55, 2.7], [boothX, 1.4, gateZ], material(0xb8b0a3, 0.76), { castShadow: true });
+  for (const z of [gateZ - 1.38, gateZ + 1.38]) {
+    box(root, [1.45, 0.92, 0.05], [boothX, 1.65, z], glassMat, { receiveShadow: false });
+  }
+  addCollider(collisionWorld, root, [boothX, 1.4, gateZ], [2.15, 2.8, 5.2], "entrance-nine-booth");
+
+  for (const x of [checkpoint.x - 6.2, checkpoint.x + 6.2]) {
+    box(root, [0.42, 0.24, 10.5], [x, 0.12, gateZ], islandMat, { castShadow: true });
+  }
 
   const boomRed = material(0xc34842, 0.62);
   const boomWhite = material(0xe7e1d2, 0.62);
+  const baseX = checkpoint.x - 5.1;
+  const boomZ = gateZ - 2.25;
   const pivot = new THREE.Group();
-  pivot.position.set(checkpoint.x, 0.95, baseZ);
-  pivot.rotation.y = -Math.PI / 2;
+  pivot.position.set(baseX, 1.05, boomZ);
   root.add(pivot);
-  const boomLength = 4.2;
-  box(pivot, [boomLength, 0.16, 0.18], [-boomLength / 2, 0, 0], boomWhite, { castShadow: true });
-  for (let x = -0.55; x > -boomLength; x -= 1.05) box(pivot, [0.5, 0.17, 0.19], [x, 0.01, 0], boomRed, { castShadow: true });
+  const boomLength = 6.9;
+  box(pivot, [boomLength, 0.18, 0.2], [boomLength / 2, 0, 0], boomWhite, { castShadow: true });
+  for (let x = 0.6; x < boomLength; x += 1.15) box(pivot, [0.55, 0.19, 0.21], [x, 0.01, 0], boomRed, { castShadow: true });
   box(root, [0.48, 1.15, 0.48], [pivot.position.x, 0.575, pivot.position.z], material(0x545b61, 0.7), { castShadow: true });
 
   const boomCollider = addCollider(
     collisionWorld,
     root,
-    [checkpoint.x, 0.9, baseZ - boomLength / 2],
-    [0.36, 1.0, boomLength],
+    [baseX + boomLength / 2, 0.95, boomZ],
+    [boomLength, 1.0, 0.36],
     "campus-boom"
   );
-
-  box(root, [0.48, 1.15, 0.48], [checkpoint.x, 0.575, baseZ], material(0x545b61, 0.7), { castShadow: true });
 
   let angle = 0;
   const update = (dt) => {
     const dx = playerCar.position.x - checkpoint.x;
-    const dz = playerCar.position.z - road.z;
-    const near = dx * dx + dz * dz < 70;
+    const dz = playerCar.position.z - boomZ;
+    const near = dx * dx + dz * dz < 55;
     const target = near ? Math.PI * 0.46 : 0;
     angle = THREE.MathUtils.lerp(angle, target, 1 - Math.exp(-4.5 * dt));
-    pivot.rotation.z = -angle;
+    pivot.rotation.z = angle;
     // CollisionWorld ignores Z rotation, so move the blocking volume above the car when open.
     boomCollider.position.y = angle > 0.62 ? 3.0 : 0.9;
   };
@@ -648,177 +672,12 @@ function createCampusBoomGate(root, collisionWorld, playerCar) {
 }
 
 
-function createSecondaryParkingEntrance(root, collisionWorld) {
+function createSecondaryParkingLink(root) {
   const e = PARKING_LAYOUT.otherEntrance;
   const asphalt = material(COLORS.asphalt, 0.93);
-  const islandMat = material(COLORS.kerb, 0.84);
-  const boomRed = material(0xc34842, 0.62);
-  const boomWhite = material(0xe7e1d2, 0.62);
 
-  // Road link from the campus road into the opposite parking
+  // Keep this connection open; Entrance 9 is now the only checkpoint here.
   box(root, [e.width, 0.09, 6], [e.x, 0.03, e.z - 2.5], asphalt);
-
-  // Centre island
-  const island = box(root, [1.15, 0.28, 5.1], [e.x, 0.14, e.z - 2.25], islandMat, {
-    castShadow: true
-  });
-
-  addCollider(
-    collisionWorld,
-    root,
-    [island.position.x, 0.35, island.position.z],
-    [1.15, 0.7, 5.1],
-    "other-entrance-island"
-  );
-
-  // Hut
-  const hut = new THREE.Group();
-  hut.position.set(e.x, 0, e.z - 1.3);
-  root.add(hut);
-
-  box(hut, [1.65, 2.2, 1.8], [0, 1.1, 0], material(0x8f826f, 0.8), {
-    castShadow: true
-  });
-
-  box(
-    hut,
-    [1.72, 0.68, 0.07],
-    [0, 1.48, 0.94],
-    new THREE.MeshBasicMaterial({ color: 0xbcd3d1 }),
-    { receiveShadow: false }
-  );
-
-  addCollider(
-    collisionWorld,
-    root,
-    [e.x, 1.1, e.z - 1.3],
-    [1.65, 2.2, 1.8],
-    "other-guard-hut"
-  );
-
-  // Kerbs
-  for (const x of [e.x - e.width / 2, e.x + e.width / 2]) {
-    box(root, [0.32, 0.25, 6], [x, 0.125, e.z - 2.5], islandMat);
-
-    addCollider(
-      collisionWorld,
-      root,
-      [x, 0.35, e.z - 2.5],
-      [0.38, 0.7, 6],
-      "other-entrance-kerb"
-    );
-  }
-
-  // Decorative duplicated booms (raised)
-  const leftBaseX = e.x - e.width / 2 + 0.45;
-  const rightBaseX = e.x + e.width / 2 - 0.45;
-
-  box(root, [0.48, 1.15, 0.48], [leftBaseX, 0.575, e.z - 0.15], material(0x545b61, 0.7), {
-    castShadow: true
-  });
-
-  const leftBoom = new THREE.Group();
-  leftBoom.position.set(leftBaseX, 0.95, e.z - 0.15);
-  leftBoom.rotation.z = Math.PI * 0.42;
-  root.add(leftBoom);
-
-  box(leftBoom, [4.0, 0.16, 0.18], [2.0, 0, 0], boomWhite, { castShadow: true });
-  for (let x = 0.55; x < 4.0; x += 1.05) {
-    box(leftBoom, [0.5, 0.17, 0.19], [x, 0.01, 0], boomRed, { castShadow: true });
-  }
-
-  box(root, [0.48, 1.15, 0.48], [rightBaseX, 0.575, e.z - 0.15], material(0x545b61, 0.7), {
-    castShadow: true
-  });
-
-  const rightBoom = new THREE.Group();
-  rightBoom.position.set(rightBaseX, 0.95, e.z - 0.15);
-  rightBoom.rotation.z = -Math.PI * 0.42;
-  root.add(rightBoom);
-
-  box(rightBoom, [4.0, 0.16, 0.18], [-2.0, 0, 0], boomWhite, { castShadow: true });
-  for (let x = -0.55; x > -4.0; x -= 1.05) {
-    box(rightBoom, [0.5, 0.17, 0.19], [x, 0.01, 0], boomRed, { castShadow: true });
-  }
-}
-
-function createWitsMainGate(root) {
-  const g = PARKING_LAYOUT.campusGate;
-
-  const pillarMat = material(0xb6aca0, 0.82);
-  const signMat = material(COLORS.witsBlue, 0.64);
-  const metalMat = material(
-    0x5a6269,
-    0.68,
-    { metalness: 0.2 }
-  );
-  const pavementMat = material(COLORS.concrete, 0.9);
-
-  /*
-   * Campus road runs LEFT <-> RIGHT along X.
-   *
-   * So the gate sits at a fixed X position and spans
-   * across the road in Z.
-   *
-   *               pillar
-   *                  |
-   * =================|=================
-   *       CAMPUS ROAD / parking-road
-   * =================|=================
-   *                  |
-   *               pillar
-   */
-
-  const roadHalfWidth =
-    PARKING_LAYOUT.campusRoad.depth / 2;
-
-  const pillarOffset =
-    roadHalfWidth - 0.8;
-
-  // Two gate monuments on opposite sides of the SAME campus road.
-  for (const z of [
-    g.z - pillarOffset,
-    g.z + pillarOffset
-  ]) {
-    box(
-      root,
-      [1.35, 4.4, 1.35],
-      [g.x, 2.2, z],
-      pillarMat,
-      { castShadow: true }
-    );
-
-    // Wits blue sign panel facing along the approaching road.
-    box(
-      root,
-      [0.12, 1.35, 1.05],
-      [g.x - 0.74, 2.55, z],
-      signMat,
-      { receiveShadow: false }
-    );
-  }
-
-  // Beam spans across the campus road.
-  box(
-    root,
-    [0.28, 0.22, pillarOffset * 2],
-    [g.x, 3.85, g.z],
-    metalMat,
-    { castShadow: true }
-  );
-
-  // Pavement around both gate monuments.
-  for (const z of [
-    g.z - roadHalfWidth - 1.0,
-    g.z + roadHalfWidth + 1.0
-  ]) {
-    box(
-      root,
-      [6.5, 0.1, 1.5],
-      [g.x, 0.05, z],
-      pavementMat
-    );
-  }
 }
 
 
@@ -863,11 +722,10 @@ export function createParkingEnvironment({ collisionWorld, playerCar }) {
   createArmBuilding(root, collisionWorld);
   createFlowerHall(root);
   createOtherParking(root);
-  createSecondaryParkingEntrance(root, collisionWorld);
+  createSecondaryParkingLink(root);
   createMainParkingBoundary(root, collisionWorld);
   createOpenParkingEntrance(root);
   const updateBoom = createCampusBoomGate(root, collisionWorld, playerCar);
-  createWitsMainGate(root);
   createTrees(root);
 
 

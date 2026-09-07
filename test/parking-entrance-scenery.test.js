@@ -68,6 +68,17 @@ test("all spaces are filled except the playable target bay", () => {
   assert.equal(rearRow.length, layout.rearRowXs.length);
   assert.ok(rearRow[0].z < rearRow.at(-1).z, "north row follows the skewed boundary");
   assert.ok(rearRow.every((space) => space.angle === rearRow[0].angle));
+
+  const steppedPairs = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10], [11, 12]];
+  const pairTopEdges = steppedPairs.map(([leftIndex, rightIndex]) => {
+    const leftTop = spaces.find((space) => space.x === layout.verticalColumns[leftIndex].x);
+    const rightTop = spaces.find((space) => space.x === layout.verticalColumns[rightIndex].x);
+    assert.ok(Math.abs(leftTop.z - rightTop.z) < EPSILON, "each double row has a flat top step");
+    return leftTop.z;
+  });
+  for (let index = 1; index < pairTopEdges.length; index++) {
+    assert.ok(pairTopEdges[index] > pairTopEdges[index - 1], "row tops step along the north skew");
+  }
 });
 
 test("parking spaces fit inside the lot without overlap and leave connected roads", () => {
