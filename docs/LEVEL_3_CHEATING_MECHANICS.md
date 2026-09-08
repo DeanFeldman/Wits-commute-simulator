@@ -86,7 +86,7 @@ This gives the player three usable students on the left, three on the right, and
 The tablet asset is:
 
 ```text
-./assets/models/props/paper_tablet.glb
+./assets/models/props/paper-tablet.glb
 ```
 
 Runtime paths must remain relative. Tablets lie flat like paper on the desktop. If the model's source orientation changes, correct the transform in `createDeskTablet` rather than rotating individual desks.

@@ -276,7 +276,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       loader.loadAsync("./assets/models/props/cartoon-desk.glb"),
       loader.loadAsync("./assets/models/props/plastic-chair.glb"),
       loader.loadAsync("./assets/models/props/whiteboard.glb"),
-      loader.loadAsync("./assets/models/props/paper_tablet.glb"),
+      loader.loadAsync("./assets/models/props/paper-tablet.glb"),
       textureLoader.loadAsync("./assets/textures/classroom-terrazzo-floor.jpg"),
       textureLoader.loadAsync("./assets/textures/classroom-brick-wall.jpg")
     ]);

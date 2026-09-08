@@ -232,7 +232,7 @@ Level 3 — the tablets on surrounding desks that carry the answer words the pla
 peeks at, and the player's own desk tablet.
 
 File:
-`public/assets/models/props/paper_tablet.glb`
+`public/assets/models/props/paper-tablet.glb`
 
 Modified:
 Yes — rescaled; a dynamic canvas texture is applied at runtime to draw each
@@ -492,8 +492,6 @@ Original assets authored by the team:
 # Outstanding Housekeeping
 
 - Trace the source and licence of the normalised vehicle pack (see above).
-- `paper_tablet.glb` uses underscores, breaking the hyphen-separated naming rule
-  in this document. Renaming it also requires updating `CheatingLevel.js`.
 - The in-game credits screen (`Game.js`, `showCredits`) currently names only
   Three.js and the team. CC BY 4.0 requires the five model authors above to be
   credited in the distributed work, so they need to appear there too.
