@@ -187,3 +187,113 @@ JavaScript classes and major modules use PascalCase, utilities use camelCase, an
 The project has six contributors working in parallel. Explicit branch, naming and placement rules reduce merge conflicts, duplicated structures and uncertainty about where new work belongs.
 
 The convention preserves the current repository structure without unnecessary file moves while active feature branches may depend on those paths.
+
+---
+
+## 2026-09-08 — ACES Filmic Tone Mapping as the Renderer Baseline
+
+**Decision**
+
+`src/core/renderSettings.js` owns the renderer-level settings for all three
+levels: `ACESFilmicToneMapping` at exposure 1.0, an explicit
+`SRGBColorSpace` output, `PCFSoftShadowMap`, and a device pixel-ratio cap of
+2. `Game.js` calls `applyRendererBaseline()` once. The pixel-ratio cap and
+the two shadow settings were previously written inline in `Game.js` and keep
+the same values; tone mapping and the explicit colour space are new.
+
+Two levels are retuned with it. Level 2: `HemisphereLight` 2.9 to 2.65 and
+`DirectionalLight` 4.2 to 3.85 in `src/levels/crossing/CrossingLevel.js`.
+Level 1: `HemisphereLight` 0.75 to 1.63 and the dusk `DirectionalLight` 1.8 to
+3.91 in `src/levels/ParkingLevel.js`.
+
+Level 1's headlight `SpotLight` is deliberately left at 16, and
+`src/shaders/asphaltShader.js` is deliberately not touched at all. Both are
+explained below.
+
+**Reason**
+
+Three's default is `NoToneMapping`, which clamps. Any surface whose computed
+radiance exceeds 1.0 is cut flat, so a bright surface stops shading and reads
+as a cut-out slab, and values above 1.0 are wasted rather than meaningful.
+ACES rolls highlights off smoothly instead, so bright surfaces keep their
+gradient and headlights and spotlights read as light sources.
+
+**"ACES darkens everything" is wrong, and acting on that assumption misleads.**
+Three's implementation is not the bare ACES curve. In
+`node_modules/three/src/renderers/shaders/ShaderChunk/tonemapping_pars_fragment.glsl.js`
+line 62, immediately before the RRT/ODT fit:
+
+```glsl
+color *= toneMappingExposure / 0.6;
+```
+
+That is a 1.67x pre-gain at exposure 1.0, present specifically to offset the
+RRT's darkening. The net transfer is therefore sub-unity in the shadows,
+super-unity through the midtones, and compressive only above roughly 0.8. Which
+direction a level moves depends on where its histogram already sits. Measured
+viewport luminance:
+
+| Level | Pre-ACES | ACES, no retune | Shipped | Shipped vs pre-ACES |
+|---|---|---|---|---|
+| 1 — dusk lot | 0.1085 | 0.0633 | 0.1100 | +1.4 % |
+| 2 — midday | 0.5979 | 0.6258 | 0.6124 | +2.4 % |
+| 3 — classroom | 0.4771 | 0.4782 | 0.4827 | +1.2 % |
+
+All three land inside 5 % of where they were before the curve, which is the
+bar this change was held to.
+
+Level 2 got *brighter*, not darker, and lost 18.6 % saturation as its
+highlights rolled off — it carried the highest intensities in the game and was
+clipping. Hence the trim. Level 3 is unchanged within noise and is not touched.
+
+Level 1 sits at the other end. It is the darkest scene in the game, so it sits
+in the sub-unity part of the curve and lost 41.7 %. Its two ambient/key lights
+are scaled by 2.172, solved against the measured response rather than guessed:
+with the free-bay randomisation pinned so every frame held identical content,
+viewport luma read 0.0635 at the old intensities and 0.1019 at double them, and
+2.172 interpolates onto the 0.1085 measured before the curve. Measured back
+with the pin still in it lands at 0.1079; shipped, without the pin, at 0.1100.
+The headlight `SpotLight` is left alone: it was clipping before
+and now rolls off, which is the change working rather than a regression.
+
+**A withdrawn finding: the asphalt shader was going to be compensated, and should not have been.**
+This is recorded because the reasoning was wrong in an instructive way, and the
+next person to look at Level 1's exposure will be tempted by exactly the same
+argument.
+
+`createAsphaltMaterial()` is a raw `ShaderMaterial` with no light uniforms, so
+no light in the scene reaches the lot and the two constants at
+`asphaltShader.js:71` set its brightness outright. From that — which is true —
+it was concluded that the lot dominated Level 1's loss and that no light retune
+could recover it, so the constants had to be rescaled. The second half did not
+follow from the first, and was never checked.
+
+Measurement disproved it. Isolating the shader's own pixels — mask built from
+two renders differing only in those constants, with Level 1's free-bay
+randomisation temporarily pinned so both frames held identical content —
+the lot moved from mean 0.1054 / median 0.0700 before the curve to mean 0.1026
+/ median 0.0672 after: **−2.7 % mean, −4.0 % median**, already inside tolerance.
+Scaling the constants 2x over-brightened it by +44 %. The shader needs no
+compensation and none was applied.
+
+Level 1's −41.7 % is therefore almost entirely its *lit* geometry — the parked
+cars, buildings, kerbs and the surrounding street `MeshStandardMaterial`, which
+`createRoadMaterial` deliberately tints to match the shader's tone. A diff map
+of the chase view makes the same point: the shader changes nothing below
+`y = 233`, so the whole foreground the player looks at is lit street material,
+not the lot. The fix was a light retune after all, and that is what shipped.
+
+Two earlier attempts at a shader scale — 2.7232 and 2.3096 — were discarded.
+The first was derived from a patch that turned out to be the street material
+rather than the lot; the second from sky-view samples confounded by the
+free-bay randomisation, which changes frame content between runs. Neither
+number survives anywhere in the tree. `asphaltShader.js` is byte-for-byte
+unchanged.
+
+**Caveat on every percentage above.**
+All measurements were taken through headless Chrome rendering with SwiftShader,
+a software rasteriser, at 1280x720. The ratios are sound — the same scene
+through the same pipeline on both sides, with Level 2's layout seed pinned via
+`?level2Seed=` — but the absolute values are not hardware-representative.
+Treat the numbers as calibration for a first pass on real hardware, not as
+final values.

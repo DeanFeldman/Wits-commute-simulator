@@ -60,10 +60,15 @@ export class CrossingLevel {
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
-    const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.9);
+    // Trimmed from 2.9 / 4.2 for ACES, 2026-09-08. These were the highest
+    // intensities in the game and were clipping against NoToneMapping; the
+    // curve's 1.67x pre-gain pushed them further up rather than down, so
+    // midday measured 4.7% brighter and 18.6% less saturated after the
+    // change. See src/core/renderSettings.js and docs/DECISIONS.md.
+    const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.65);
     this.root.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff4d2, 4.2);
+    const sun = new THREE.DirectionalLight(0xfff4d2, 3.85);
     sun.position.set(-12, 22, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);

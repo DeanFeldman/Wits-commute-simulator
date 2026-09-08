@@ -297,16 +297,31 @@ async load() {
   scene.add(this.root);
   this.audio.startDrone(74, 0.012);
 
+  // Raised from 0.75 for ACES, 2026-09-08, with the dusk sun below. Level 1
+  // is the darkest scene in the game, and three's ACES curve is sub-unity
+  // down there, so the level lost 41.7% of its viewport luminance when tone
+  // mapping went in. Both lights are scaled by 2.172, solved against the
+  // measured response rather than guessed: with Level 1's free bays pinned so
+  // every frame held identical content, viewport luma read 0.0635 at the old
+  // intensities and 0.1019 at double them, and 2.172 is the interpolation
+  // onto the 0.1085 the level measured before the curve. With the pin still in
+  // it measures 0.1079; shipped, without the pin, 0.1100.
+  //
+  // The loss is in the lit geometry only. The lot floor is drawn by
+  // asphaltShader.js, a raw ShaderMaterial with no light uniforms - nothing
+  // here reaches it, and it was measured separately and needed no change.
+  // See docs/DECISIONS.md, 2026-09-08.
   const hemi = new THREE.HemisphereLight(
     0x5e7898,
     0x170d09,
-    0.75
+    1.63
   );
   this.root.add(hemi);
 
   const duskSun = new THREE.DirectionalLight(
     0xffb56a,
-    1.8
+    // 1.8 before ACES. Same 2.172 scale as the hemisphere above.
+    3.91
   );
 
   duskSun.position.set(-18, 11, 8);
