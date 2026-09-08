@@ -134,7 +134,9 @@ Contact with a vehicle.
 
 **Main systems:**
 - seated mouse-look
-- hold-to-copy interaction
+- hold-to-zoom tablet inspection
+- targeted hologram words
+- look-down desk typing and answer submission
 - tutor patrol
 - tutor vision cone
 - suspicion meter
@@ -146,7 +148,9 @@ Contact with a vehicle.
 Fill the answer bar before time expires.
 
 **Failure condition:**  
-Suspicion reaches 100%.
+Suspicion reaches 100% or the timer expires.
+
+See `docs/LEVEL_3_CHEATING_MECHANICS.md` for the current Level 3 interaction, layout, balance, and overlay contract.
 
 ---
 
@@ -162,6 +166,7 @@ wits-commute-simulator/
 ├── index.html
 ├── docs/
 │   ├── GAME_DESIGN.md
+│   ├── LEVEL_3_CHEATING_MECHANICS.md
 │   ├── ARCHITECTURE.md
 │   ├── DEVELOPMENT.md
 │   ├── DEPLOYMENT.md
@@ -204,6 +209,7 @@ Start here:
 - `AGENTS.md` — instructions for AI coding assistants
 - `CONTRIBUTING.md` — Git and collaboration rules
 - `docs/GAME_DESIGN.md` — gameplay source of truth
+- `docs/LEVEL_3_CHEATING_MECHANICS.md` — detailed Level 3 interaction and implementation contract
 - `docs/ARCHITECTURE.md` — code architecture
 - `docs/DEVELOPMENT.md` — development phases and working rules
 - `docs/DEPLOYMENT.md` — production build and Wits LAMP deployment

@@ -134,6 +134,24 @@ The project has six contributors and frequent demonstrations / mentor feedback.
 
 ---
 
+## 2026-09-08 — Level 3 Uses Peek, Recall, and Desk Entry
+
+**Decision**
+
+Replace continuous hold-to-copy progress with a spatial observation loop. The seated player holds left click to zoom at one of seven nearby answer tablets, reads the targeted hologram, releases zoom, looks down at their own paper, types the word, and submits it with Enter.
+
+The six left/right neighbours plus the tablet directly behind the player are functional. Other classroom tablets are decorative. Correct answers reroll the answered tablet, and suspicion is accumulated only while the tutor sees an active tablet peek.
+
+Zoom uses a semi-transparent heart-shaped hand overlay that rises from below the screen, sways slightly, and is anchored to the centre of the viewing opening. The HTML overlay remains hidden until Level 3 initializes to prevent refresh flashing.
+
+**Reason**
+
+The new mechanic makes the player deliberately look around the classroom, remember a specific answer, return to their own desk, and balance observation time against tutor attention. It is more spatial and readable than passive progress from holding Space while preserving Level 3's seated stealth identity.
+
+Detailed invariants are recorded in `docs/LEVEL_3_CHEATING_MECHANICS.md`.
+
+---
+
 ## 2026-09-04 — Repository and Branch Conventions
 
 **Decision**

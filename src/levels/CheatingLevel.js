@@ -220,7 +220,10 @@ this.patrolPoints = [
 
     this.game.setCamera(this.camera);
     this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
-    this.zoomOverlay?.classList.remove("visible");
+    if (this.zoomOverlay) {
+      this.zoomOverlay.classList.remove("visible");
+      this.zoomOverlay.hidden = false;
+    }
 
     window.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("mouseup", this.onMouseUp);
@@ -1354,6 +1357,9 @@ canTutorSeePlayer() {
     this.audio.dispose();
     this.backgroundTexture?.dispose();
     this.zoomOverlay?.classList.remove("visible");
+    if (this.zoomOverlay) {
+      this.zoomOverlay.hidden = true;
+    }
     this.zoomOverlay = null;
     window.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
