@@ -170,7 +170,7 @@ test("left mouse zooms even when no answer tablet is targeted", () => {
   assert.ok(level.camera.fov < 62);
 });
 
-test("a ray slightly above a tablet still hits its interaction target", () => {
+test("tablet targeting is forgiving near the paper but bounded vertically", () => {
   const level = new CheatingLevel({});
   const target = level.createTabletInteractionTarget(0, 0);
   const desk = {
@@ -181,12 +181,20 @@ test("a ray slightly above a tablet still hits its interaction target", () => {
   target.userData.cheatDesk = desk;
   level.cheatDesks = [desk];
   level.camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
-  level.camera.position.set(0, 1.2, 2);
-  level.camera.lookAt(0, 1.2, 0);
+  level.camera.position.set(0, 1.09, 2);
+  level.camera.lookAt(0, 0.94, 0);
   level.updateDeskTargeting();
 
   assert.equal(target.visible, false);
   assert.equal(level.targetCheatDesk, desk);
+
+  level.camera.lookAt(0, 1.35, 0);
+  level.updateDeskTargeting();
+  assert.equal(level.targetCheatDesk, null);
+
+  level.camera.lookAt(0, 0.55, 0);
+  level.updateDeskTargeting();
+  assert.equal(level.targetCheatDesk, null);
 });
 
 test("after peeking, the HUD tells the player to look down and type", () => {

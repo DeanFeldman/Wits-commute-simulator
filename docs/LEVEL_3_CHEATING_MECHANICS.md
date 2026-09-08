@@ -97,7 +97,7 @@ Targeting uses a ray cast from the centre of the active camera with a maximum in
 
 - Zoom is allowed even when no tablet is targeted.
 - A hologram is shown only when the player is both zooming and aiming at a functional tablet.
-- Each functional tablet has an invisible `1.25 × 0.70 × 0.75` interaction box that extends from the desk surface through the hologram area, so aiming slightly above the paper still targets that tablet.
+- Each functional tablet has an invisible `1.00 × 0.28 × 0.65` interaction box around the paper and compact hologram area. Aiming slightly above the paper still targets it, but looking clearly above or below the desk does not.
 - Only the currently targeted tablet's hologram may be visible.
 - A decorative tablet never produces a hologram.
 - Looking at the player desk takes precedence as the typing surface.
