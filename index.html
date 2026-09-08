@@ -12,6 +12,25 @@
   <body>
     <div id="game-container"></div>
     <div id="fade-overlay" aria-hidden="true"></div>
+    <section id="level1-intro" aria-label="Journey introduction" hidden>
+      <img
+        class="level1-intro-art"
+        src="./assets/images/ui/level1-story-loading-screen.png"
+        alt="A driver checking their watch from inside a car on a winding road"
+        draggable="false"
+      />
+      <div class="level1-intro-status" aria-live="polite">
+        <span class="level1-intro-status-light" aria-hidden="true"></span>
+        <span id="level1-intro-status-copy">Loading Level 1...</span>
+      </div>
+      <div class="level1-dialogue" aria-live="polite">
+        <p id="level1-dialogue-copy"></p>
+        <button id="level1-dialogue-continue" type="button">
+          Continue
+          <span aria-hidden="true">&#9660;</span>
+        </button>
+      </div>
+    </section>
     <div id="level3-zoom-overlay" aria-hidden="true" hidden>
       <img
         src="./assets/images/ui/level3-zoom-hands.png"

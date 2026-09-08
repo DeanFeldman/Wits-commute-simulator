@@ -120,23 +120,47 @@ export function createRoadTextures() {
     return texture;
   };
 
+  const pending = [];
+  const loadTexture = (loader, file, options) => {
+    let resolveLoad;
+    let rejectLoad;
+    const ready = new Promise((resolve, reject) => {
+      resolveLoad = resolve;
+      rejectLoad = reject;
+    });
+    const texture = loader.load(file, resolveLoad, undefined, rejectLoad);
+    pending.push(ready);
+    return configureTexture(texture, options);
+  };
   const textureLoader = new THREE.TextureLoader();
-
-  return {
-    colour: configureTexture(
-      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-diff-2k.jpg`),
+  const textures = {
+    colour: loadTexture(
+      textureLoader,
+      `${ROAD_TEXTURE_PATH}asphalt-02-diff-2k.jpg`,
       { colour: true }
     ),
-    roughness: configureTexture(
-      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-rough-2k.jpg`)
+    roughness: loadTexture(
+      textureLoader,
+      `${ROAD_TEXTURE_PATH}asphalt-02-rough-2k.jpg`
     ),
-    displacement: configureTexture(
-      textureLoader.load(`${ROAD_TEXTURE_PATH}asphalt-02-disp-2k.png`)
+    displacement: loadTexture(
+      textureLoader,
+      `${ROAD_TEXTURE_PATH}asphalt-02-disp-2k.png`
     ),
-    normal: configureTexture(
-      new EXRLoader().load(`${ROAD_TEXTURE_PATH}asphalt-02-nor-gl-2k.exr`)
+    normal: loadTexture(
+      new EXRLoader(),
+      `${ROAD_TEXTURE_PATH}asphalt-02-nor-gl-2k.exr`
     )
   };
+
+  // Materials can use the Texture objects immediately, while the intro waits
+  // on this promise before allowing the player into Level 1.
+  Object.defineProperty(textures, "ready", {
+    value: Promise.all(pending),
+    enumerable: false
+  });
+
+  return textures;
 }
 
 export function createAsphaltMaterial(textures = createRoadTextures()) {
