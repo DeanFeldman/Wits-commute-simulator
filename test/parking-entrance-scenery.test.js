@@ -2,116 +2,231 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   LEVEL_ONE_PARKING_LAYOUT,
-  getLevelOneParkingSpaces
+  PARKING_AISLE_WIDTH,
+  PARKING_BAY_LENGTH,
+  PARKING_BAY_WIDTH,
+  createDoubleParkingRow,
+  createParkingRow,
+  getLevelOneParkingSpaces,
+  parkingBayKey,
+  pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
 import { PARKING_LAYOUT } from "../src/levels/parking/ParkingEnvironment.js";
 import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 
 const EPSILON = 0.001;
 
-test("Level 1 parking uses every vehicle type from the generic passenger pack", () => {
-  assert.deepEqual(
-    PARKING_CAR_SPECS.map((spec) => spec.name),
-    ["Compact", "Coupe", "Hatchback", "Minivan", "Off-road", "Pickup", "Sedan", "Sport", "SUV", "Wagon"]
-  );
-  assert.ok(PARKING_CAR_SPECS.every((spec) => spec.packRootChildren.length === 5));
+test("Level 1 uses real-world parking dimensions and reusable row generators", () => {
+  assert.equal(PARKING_BAY_WIDTH, 2.5);
+  assert.equal(PARKING_BAY_LENGTH, 5);
+  assert.equal(PARKING_AISLE_WIDTH, 6);
+
+  const row = createParkingRow({
+    name: "sample",
+    start: { x: 2, z: 3 },
+    count: 3,
+    step: { x: 0, z: 2.6 },
+    rotation: Math.PI / 2
+  });
+  assert.deepEqual(row.map(({ x, z }) => [x, z]), [[2, 3], [2, 5.6], [2, 8.2]]);
+
+  const doubleRow = createDoubleParkingRow({
+    name: "sample-double",
+    centerX: 0,
+    startZ: 0,
+    endZ: 5.2,
+    spacing: 2.6
+  });
+  assert.equal(doubleRow.length, 6);
+  assert.deepEqual([...new Set(doubleRow.map((space) => space.x))], [-2.5, 2.5]);
 });
 
-test("Level 1 rotates the single-road-double-road-double-road-single layout by 90 degrees", () => {
-  const layout = LEVEL_ONE_PARKING_LAYOUT;
-
-  assert.equal(layout.verticalColumns.length, 8);
-  assert.equal(layout.verticalRoads.length, 5);
-
-  const roadColumnPairs = [
-    [layout.verticalColumns[0], layout.verticalColumns[1]],
-    [layout.verticalColumns[1], layout.verticalColumns[2]],
-    [layout.verticalColumns[3], layout.verticalColumns[4]],
-    [layout.verticalColumns[5], layout.verticalColumns[6]],
-    [layout.verticalColumns[6], layout.verticalColumns[7]]
-  ];
-
-  for (let index = 0; index < layout.verticalRoads.length; index++) {
-    const road = layout.verticalRoads[index];
-    const [columnLeft, columnRight] = roadColumnPairs[index];
-    const openWidth = columnRight.x - columnLeft.x - layout.parkingSpaceDepth;
-
-    assert.ok(openWidth + EPSILON >= road.width, `road ${index + 1} remains fully open`);
-    assert.ok(Math.abs((columnLeft.x + columnRight.x) / 2 - road.x) < EPSILON);
-  }
-});
-
-test("all spaces are filled except the playable target bay", () => {
+test("generated rows match the annotated Wits aerial structure", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
   const spaces = getLevelOneParkingSpaces();
-  const targetSpaces = spaces.filter((space) => space.isTarget);
-  const parkedSpaces = spaces.filter((space) => !space.isTarget);
 
-  assert.equal(spaces.length, 213);
-  assert.equal(parkedSpaces.length, 212);
-  assert.equal(targetSpaces.length, 1);
-  assert.deepEqual(
-    { x: targetSpaces[0].x, z: targetSpaces[0].z, angle: targetSpaces[0].angle },
-    { x: layout.targetSlotX, z: layout.rearRowZ, angle: Math.PI }
-  );
+  assert.equal(layout.topRow.count, 20);
+  assert.equal(layout.doubleRows.length, 6);
+  assert.equal(layout.verticalRoads.length, 7);
+  assert.equal(spaces.length, 364);
 
-  for (const column of layout.verticalColumns) {
-    const columnSpaces = spaces.filter((space) => space.x === column.x);
-    assert.equal(columnSpaces.length, layout.verticalSlotZs.length);
-    assert.ok(columnSpaces.every((space) => space.angle === column.angle));
+  const topRow = spaces.filter((space) => space.rowName === "top-row");
+  assert.equal(topRow.length, 20);
+  assert.ok(topRow[0].z < topRow.at(-1).z, "top row follows the angled M1 boundary");
+  assert.ok(topRow.every((space) => space.angle === topRow[0].angle));
+
+  for (const row of layout.doubleRows) {
+    const left = spaces.filter((space) => space.rowName === `${row.name}-left`);
+    const right = spaces.filter((space) => space.rowName === `${row.name}-right`);
+    assert.equal(left.length, right.length);
+    assert.ok(left.length >= 18);
+    assert.equal(left[0].z, right[0].z);
+    assert.equal(left.at(-1).z, right.at(-1).z);
+    assert.equal(right[0].x - left[0].x, PARKING_BAY_LENGTH);
+    assert.equal(left[0].angle, -Math.PI / 2);
+    assert.equal(right[0].angle, Math.PI / 2);
   }
 
-  const rearRow = spaces.filter((space) => space.z === layout.rearRowZ);
-  assert.equal(rearRow.length, layout.rearRowXs.length);
-  assert.ok(rearRow.every((space) => space.angle === Math.PI));
+  const rowStarts = layout.doubleRows.map((row) => row.startZ);
+  const rowEnds = layout.doubleRows.map((row) => row.endZ);
+  assert.ok(new Set(rowStarts).size > 3, "interior rows have staggered northern starts");
+  assert.ok(new Set(rowEnds).size > 3, "interior rows have staggered southern ends");
+  assert.ok(spaces.some((space) => space.rowName === "west-upper"));
+  assert.equal(spaces.filter((space) => space.rowName === "east-row").length, 22);
+  assert.ok(layout.rearRoad.depth <= 5.2, "north drive lane remains narrow");
+  assert.ok(layout.topRow.step.x >= PARKING_BAY_LENGTH, "top-row bays are parallel parked");
+  assert.ok(Math.abs(layout.topRow.rotation - Math.PI / 2) < 0.2, "top-row cars run along the curb");
+  assert.ok(
+    Math.abs(Math.abs(layout.eastRow.rotation) - Math.PI / 2) < EPSILON,
+    "east bays are square to the curb, like every other row"
+  );
 });
 
-test("parking spaces fit inside the lot without overlap and leave connected roads", () => {
+test("driving aisles remain open and align with the lot entrance", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
-  const lot = PARKING_LAYOUT.mainLot;
+  const blocks = layout.doubleRows;
+
+  for (let index = 1; index < blocks.length; index++) {
+    const previousRightEdge = blocks[index - 1].centerX + PARKING_BAY_LENGTH;
+    const nextLeftEdge = blocks[index].centerX - PARKING_BAY_LENGTH;
+    assert.ok(nextLeftEdge - previousRightEdge + EPSILON >= PARKING_AISLE_WIDTH);
+  }
+
+  // The boom entrance is the only way in. There is deliberately no second
+  // opening in the lot boundary.
+  assert.equal(PARKING_LAYOUT.mainEntrance, undefined, "the disused central entrance is gone");
+
+  // The campus checkpoint controls the street where it meets Yale Road. A gate
+  // standing in the middle of an open road guards nothing, so it has to sit
+  // short of the intersection and well clear of the lot entrance.
+  const bridge = PARKING_LAYOUT.bridgeRoad;
+  const gate = PARKING_LAYOUT.campusGate;
+  assert.ok(gate.x + 7 < bridge.x - bridge.width / 2, "campus gate stops short of the intersection");
+  assert.ok(
+    gate.x - 7 > PARKING_LAYOUT.parkingBoomEntrance.x + PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth,
+    "campus gate is clear of the lot entrance"
+  );
+
+  const spawnAisle = layout.verticalRoads[1];
+  assert.equal(layout.playerSpawn.x, spawnAisle.x);
+  assert.equal(PARKING_LAYOUT.parkingBoomEntrance.x, spawnAisle.x);
+  assert.ok(
+    PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth > PARKING_LAYOUT.parkingBoomEntrance.width,
+    "raised curb shoulders flank the asphalt entrance"
+  );
+  // The exit mirrors the entrance one aisle to the east, and the two openings
+  // must not meet, or the boundary between them disappears.
+  const exitAisle = layout.verticalRoads[2];
+  const entry = PARKING_LAYOUT.parkingBoomEntrance;
+  const exit = PARKING_LAYOUT.parkingBoomExit;
+  assert.equal(exit.x, exitAisle.x, "exit lines up with the third aisle");
+  assert.equal(exit.width, entry.width);
+  assert.equal(exit.boundaryWidth, entry.boundaryWidth);
+  assert.ok(
+    exit.x - exit.boundaryWidth / 2 - (entry.x + entry.boundaryWidth / 2) >= 1,
+    "a run of boundary survives between the entrance and the exit"
+  );
+
+  assert.equal(layout.playerSpawn.angle, 0, "player faces north into the parking lot");
+  assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
+});
+
+test("cars fit within every bay", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
   const spaces = getLevelOneParkingSpaces();
-  const lotBounds = {
-    left: lot.x - lot.width / 2,
-    right: lot.x + lot.width / 2,
-    top: lot.z - lot.depth / 2,
-    bottom: lot.z + lot.depth / 2
-  };
 
-  assert.equal(layout.playerSpawn.x, layout.verticalRoads[2].x);
-  assert.ok(layout.playerSpawn.z < lotBounds.bottom);
-  assert.equal(layout.playerSpawn.angle, 0);
-  assert.equal(PARKING_LAYOUT.mainEntrance.x, layout.verticalRoads[2].x);
+  // Every vehicle in the parking pack has to fit a square bay.
+  const widest = Math.max(...PARKING_CAR_SPECS.map((spec) => spec.collider[0]));
+  const longest = Math.max(...PARKING_CAR_SPECS.map((spec) => spec.collider[2]));
+  assert.ok(widest < PARKING_BAY_WIDTH, "the widest packed car fits a bay");
+  assert.ok(longest <= PARKING_BAY_LENGTH, "the longest packed car fits a bay");
 
+  // Perpendicular rows only need the slot pitch to beat the car width.
+  assert.ok(layout.slotSpacing > widest, "neighbouring bays clear the widest car");
+
+  // Whatever angle a row sits at, neighbouring cars only clear each other once
+  // the step measured on the car's own width axis beats the car width.
+  const east = layout.eastRow;
+  const rightX = Math.cos(east.rotation);
+  const rightZ = -Math.sin(east.rotation);
+  const eastClearance = Math.abs(east.step.x * rightX + east.step.z * rightZ);
+  assert.ok(
+    eastClearance >= widest,
+    `east bays clear the widest car (${eastClearance.toFixed(2)} m of ${widest} m)`
+  );
   for (const space of spaces) {
-    const isRotated = Math.abs(Math.sin(space.angle)) > 0.9;
-    const halfX = (isRotated ? layout.parkingSpaceDepth : layout.parkingSpaceWidth) / 2;
-    const halfZ = (isRotated ? layout.parkingSpaceWidth : layout.parkingSpaceDepth) / 2;
-
-    assert.ok(space.x - halfX >= lotBounds.left - EPSILON);
-    assert.ok(space.x + halfX <= lotBounds.right + EPSILON);
-    assert.ok(space.z - halfZ >= lotBounds.top - EPSILON);
-    assert.ok(space.z + halfZ <= lotBounds.bottom + EPSILON);
+    assert.ok(Number.isFinite(space.x));
+    assert.ok(Number.isFinite(space.z));
+    assert.ok(Number.isFinite(space.angle));
   }
+});
 
-  const verticalParkingBack = Math.min(...layout.verticalSlotZs) - layout.parkingSpaceWidth / 2;
-  const rearRoadFront = layout.rearRoad.z + layout.rearRoad.depth / 2;
-  const rearRoadBack = layout.rearRoad.z - layout.rearRoad.depth / 2;
-  const rearRowFront = layout.rearRowZ + layout.parkingSpaceDepth / 2;
+test("the parking surface keeps the irregular north, west-step, and east boundaries", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const outline = PARKING_LAYOUT.mainLot.outline;
+  assert.ok(outline.length >= 8);
 
-  assert.ok(verticalParkingBack > rearRoadFront, "vertical columns stop before the rear road");
-  assert.ok(rearRoadBack > rearRowFront, "rear road stops before the horizontal parking row");
+  const [northWest, northEast] = outline;
+  assert.ok(northWest[1] < northEast[1], "north boundary slopes south toward the east");
+  assert.ok(outline.some(([x, z]) => x === -56 && z === -33), "west service step is retained");
+  assert.ok(outline.some(([x, z]) => x === 54 && z === 34), "east boundary narrows toward the entrance road");
 
-  for (let index = 1; index < layout.verticalSlotZs.length; index++) {
+  const westOuterEdge = layout.westRow.x - PARKING_BAY_LENGTH / 2;
+  assert.ok(Math.abs(westOuterEdge - (-61)) <= 0.3, "west row reaches the curb");
+  assert.ok(layout.eastRow.start.x >= 55, "east row reaches the upper curb");
+  assert.ok(layout.topRow.start.z <= -46.5, "top row reaches the north curb");
+});
+
+// A small deterministic generator, so the draw can be replayed in a test.
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (1664525 * state + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+test("the lot fills except for a few bays, drawn at random and kept apart", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const spaces = getLevelOneParkingSpaces();
+
+  assert.equal(layout.freeBayCount, 3);
+  assert.ok(layout.freeBaySeparation > 0);
+
+  const free = pickFreeParkingBays(spaces, seededRandom(2024));
+  assert.equal(free.length, layout.freeBayCount);
+
+  // Every bay drawn is a real bay, and no bay is drawn twice.
+  const keys = new Set(free.map(parkingBayKey));
+  assert.equal(keys.size, free.length, "the free bays are distinct");
+  for (const bay of free) {
     assert.ok(
-      layout.verticalSlotZs[index] - layout.verticalSlotZs[index - 1] >= layout.parkingSpaceWidth,
-      "vertical spaces do not overlap"
+      spaces.some((space) => parkingBayKey(space) === parkingBayKey(bay)),
+      "a free bay comes from the generated grid"
     );
   }
 
-  for (let index = 1; index < layout.rearRowXs.length; index++) {
-    assert.ok(
-      layout.rearRowXs[index] - layout.rearRowXs[index - 1] + EPSILON >= layout.parkingSpaceWidth,
-      "rear-row spaces do not overlap"
-    );
+  // They are spread out, so the player has somewhere to choose between.
+  for (let a = 0; a < free.length; a++) {
+    for (let b = a + 1; b < free.length; b++) {
+      const distance = Math.hypot(free[a].x - free[b].x, free[a].z - free[b].z);
+      assert.ok(
+        distance >= layout.freeBaySeparation,
+        `free bays stay ${layout.freeBaySeparation} m apart (got ${distance.toFixed(1)} m)`
+      );
+    }
   }
+
+  // Same generator, same draw: the run is reproducible when it needs to be.
+  const repeat = pickFreeParkingBays(spaces, seededRandom(2024));
+  assert.deepEqual(repeat.map(parkingBayKey), free.map(parkingBayKey));
+
+  // A different generator picks somewhere else, so runs are not identical.
+  const other = pickFreeParkingBays(spaces, seededRandom(7));
+  assert.notDeepEqual(other.map(parkingBayKey), free.map(parkingBayKey));
+
+  // The draw still fills its quota when the separation cannot be honoured.
+  const crowded = pickFreeParkingBays(spaces.slice(0, 4), seededRandom(11), { separation: 500 });
+  assert.equal(crowded.length, layout.freeBayCount);
+  assert.equal(new Set(crowded.map(parkingBayKey)).size, layout.freeBayCount);
 });
