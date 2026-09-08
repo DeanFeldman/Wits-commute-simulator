@@ -135,6 +135,8 @@ Reach the far pavement / level exit.
 
 # Level 3 — Don't Get Caught
 
+The detailed implementation contract for this level is in `docs/LEVEL_3_CHEATING_MECHANICS.md`.
+
 ## Purpose
 
 End with a distinct stealth challenge.
@@ -143,42 +145,42 @@ The player is seated and cannot walk around the room.
 
 ## Objective
 
-Complete the answer bar without reaching maximum suspicion.
+Reveal nearby students' words, type them at the player's desk, and complete the answer bar without reaching maximum suspicion or running out of time.
 
 ## Core Loop
 
 ```text
-copy
+look for a nearby tablet
   ↓
-watch tutor
+hold left click to zoom and reveal its word
   ↓
-stop copying
+release and look down at the player's paper
   ↓
-suspicion falls
+type the word and press Enter
   ↓
-copy again
+repeat while monitoring the tutor
 ```
 
 ## Tutor
 
 The tutor follows a patrol route.
 
-Detection should eventually consider:
+Detection considers:
 
 - view angle
 - distance
-- whether the player is copying
+- whether the player is peeking at a functional tablet
 - line-of-sight occlusion
 
 ## Suspicion
 
-While seen copying:
+While seen peeking at a functional tablet:
 
 ```text
 suspicion increases
 ```
 
-While safely facing forward:
+While not peeking:
 
 ```text
 suspicion decreases
@@ -186,7 +188,7 @@ suspicion decreases
 
 ## Failure
 
-Suspicion reaches 100%.
+Suspicion reaches 100% or the timer expires.
 
 ## Success
 

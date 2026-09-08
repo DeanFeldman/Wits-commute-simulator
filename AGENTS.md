@@ -82,27 +82,29 @@ Graphics focus:
 
 ## Level 3 — Don't Get Caught
 
+Before changing Level 3 cameras, desks, tablets, holograms, answer entry, tutor detection, or the hand-zoom overlay, read `docs/LEVEL_3_CHEATING_MECHANICS.md`. It records the approved interaction loop, target layout, balance values, assets, and invariants that must be preserved.
+
 **Player role:** Seated student  
-**Core mechanic:** Copy answers while avoiding tutor detection  
+**Core mechanic:** Peek at answer tablets, then look down and type while avoiding tutor detection<br>
 **Movement:** No locomotion  
 **Camera:** Near-first-person seated perspective  
 **Threat:** Tutor attention  
-**Failure:** Suspicion reaches 100%  
+**Failure:** Suspicion reaches 100% or the timer expires<br>
 **Success:** Fill the answer progress bar
 
 Core loop:
 
-1. copy
-2. monitor tutor
-3. stop copying
-4. suspicion decreases
-5. copy again
+1. look around and choose a nearby answer tablet
+2. hold left click to zoom and reveal its hologram word
+3. release zoom and look down at the player's paper
+4. type the word and press Enter
+5. repeat while suspicion falls between peeks
 
-Tutor detection should eventually use:
+Tutor detection uses:
 
 - angle
 - distance
-- player copying state
+- player peeking state
 - raycast visibility / occlusion
 
 Graphics focus:

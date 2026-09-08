@@ -400,7 +400,7 @@ export class Game {
     const briefs = {
       1: "Drive with W/S and steer with A/D. Avoid potholes, then stop straight inside the cyan bay.",
       2: "Use arrow keys or WASD: each press hops one grid cell. Reach the far pavement and wait for traffic gaps.",
-      3: "Click for mouse-look. Hold Space to copy, then release when the tutor can see you. P opens settings."
+      3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's word. Release, look down at your own desk, type the answer, and press Enter. P opens settings."
     };
     this.instructionTitle.textContent = level.name;
     this.instructionCopy.textContent = briefs[this.currentLevelNumber] ?? "Complete the objective to continue.";

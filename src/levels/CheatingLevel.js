@@ -6,12 +6,30 @@ import { WaypointMover } from "../shared/WaypointMover.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 
 export const LEVEL_THREE_BALANCE = Object.freeze({
-  answerGainPerSecond: 5,
+  answerGainPerCorrectWord: 20,
   suspicionGainPerSecond: 30,
   suspicionDecayPerSecond: 6,
   tutorPauseSeconds: 2.0,
   tutorTurnSpeed: 2.4
 });
+
+export const ANSWER_WORDS = Object.freeze([
+  "algorithm",
+  "binary",
+  "compiler",
+  "database",
+  "function",
+  "graphics",
+  "network",
+  "pointer",
+  "recursion",
+  "runtime",
+  "search",
+  "sorting",
+  "stack",
+  "thread",
+  "variable"
+]);
 
 const CLASSROOM_WIDTH = 22;
 const CLASSROOM_HALF_WIDTH = CLASSROOM_WIDTH / 2;
@@ -31,33 +49,43 @@ const TUTOR_CENTER_AISLE_X = DESK_COLUMN_SPACING / 2;
 const WINDOW_WIDTH = 3.6;
 const WINDOW_BOTTOM_Y = 1.4;
 const WINDOW_TOP_Y = 4.8;
+const NORMAL_CAMERA_FOV = 62;
+const PEEK_CAMERA_FOV = 30;
+const DESK_INTERACTION_DISTANCE = 5.25;
+const PAPER_HEIGHT = 0.795;
+const PLAYER_EYE_HEIGHT = 1.09;
+const PLAYER_SEAT_Z = 4;
+const PLAYER_FORWARD_OFFSET = 0.25;
+const HOLOGRAM_HEIGHT = 0.94;
+const HOLOGRAM_WIDTH = 0.58;
+const HOLOGRAM_DISPLAY_HEIGHT = 0.22;
+const MAX_TYPED_ANSWER_LENGTH = 24;
 
-export function updateStealthMeters({
-  answerProgress,
+export function updateSuspicionMeter({
   suspicion,
-  copying,
+  peeking,
   seen,
   dt
 }) {
-  let nextAnswer = answerProgress;
   let nextSuspicion = suspicion;
 
-  if (copying) {
-    nextAnswer += LEVEL_THREE_BALANCE.answerGainPerSecond * dt;
-
-    if (seen) {
-      nextSuspicion +=
-        LEVEL_THREE_BALANCE.suspicionGainPerSecond * dt;
-    }
-  } else {
+  if (peeking && seen) {
+    nextSuspicion +=
+      LEVEL_THREE_BALANCE.suspicionGainPerSecond * dt;
+  } else if (!peeking) {
     nextSuspicion -=
       LEVEL_THREE_BALANCE.suspicionDecayPerSecond * dt;
   }
 
-  return {
-    answerProgress: clamp(nextAnswer, 0, 100),
-    suspicion: clamp(nextSuspicion, 0, 100)
-  };
+  return clamp(nextSuspicion, 0, 100);
+}
+
+export function isCopiedAnswerCorrect(typedAnswer, copiedWord) {
+  if (!copiedWord) {
+    return false;
+  }
+
+  return typedAnswer.trim().toLowerCase() === copiedWord.toLowerCase();
 }
 
 export class CheatingLevel {
@@ -68,10 +96,13 @@ export class CheatingLevel {
     this.root = new THREE.Group();
 
     this.camera = null;
-    this.controls = null;
     this.backgroundTexture = null;
 
-    this.playerPosition = new THREE.Vector3(0, 0.95, 4);
+    this.playerPosition = new THREE.Vector3(
+      0,
+      PLAYER_EYE_HEIGHT,
+      PLAYER_SEAT_Z - PLAYER_FORWARD_OFFSET
+    );
 
     this.tutor = null;
     this.spotlight = null;
@@ -120,6 +151,7 @@ this.patrolPoints = [
     this.stateTimer = 0;
     this.occluders = [];
     this.raycaster = new THREE.Raycaster();
+    this.interactionRaycaster = new THREE.Raycaster();
     this.playerSeen = false;
     this.tutorMover = null;
     this.tutorLegs = [];
@@ -128,13 +160,32 @@ this.patrolPoints = [
     this.answerProgress = 0;
     this.suspicion = 0;
     this.timeRemaining = 75;
-    this.copyLean = 0;
     this.audio = new LevelAudio();
+
+    this.cheatDesks = [];
+    this.decorativeTablets = [];
+    this.playerDesk = null;
+    this.targetCheatDesk = null;
+    this.isLookingAtPlayerDesk = false;
+    this.zoomActive = false;
+    this.peekActive = false;
+    this.leftMouseDown = false;
+    this.zoomOverlay = null;
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.typedAnswer = "";
+    this.feedbackMessage = "";
+    this.feedbackTime = 0;
 
     this.yaw = 0;
     this.pitch = -0.05;
 
     this.completed = false;
+
+    this.onMouseDown = this.onMouseDown.bind(this);
+    this.onMouseUp = this.onMouseUp.bind(this);
+    this.onPointerLockChange = this.onPointerLockChange.bind(this);
+    this.onTypingKeyDown = this.onTypingKeyDown.bind(this);
   }
 
   async load() {
@@ -164,16 +215,22 @@ this.patrolPoints = [
     });
     this.collisionWorld.rebuild();
 
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(NORMAL_CAMERA_FOV, 1, 0.1, 100);
     this.camera.position.copy(this.playerPosition);
 
     this.game.setCamera(this.camera);
+    this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
+    if (this.zoomOverlay) {
+      this.zoomOverlay.classList.remove("visible");
+      this.zoomOverlay.hidden = false;
+    }
 
-    this.controls = this.game.input.registerBindings({
-      copy: "Space"
-    });
+    window.addEventListener("mousedown", this.onMouseDown);
+    window.addEventListener("mouseup", this.onMouseUp);
+    window.addEventListener("keydown", this.onTypingKeyDown, true);
+    document.addEventListener("pointerlockchange", this.onPointerLockChange);
     this.game.setMessage(
-      "Click the game for mouse-look. Hold SPACE to copy. Release when the tutor watches you."
+      "Hold LEFT CLICK to zoom and reveal a tablet's word. Then look down at your own desk to type the answer."
     );
   }
 
@@ -202,14 +259,24 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       { length: DESK_ROWS },
       (_, row) => FRONT_DESK_ROW_Z + row * DESK_ROW_SPACING
     );
+    const shuffledWords = [...ANSWER_WORDS];
+
+    for (let index = shuffledWords.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffledWords[index], shuffledWords[swapIndex]] = [
+        shuffledWords[swapIndex],
+        shuffledWords[index]
+      ];
+    }
 
     const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
     const loader = new GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
-    const [deskModel, chairModel, whiteboardModel, floorTexture, brickTexture] = await Promise.all([
+    const [deskModel, chairModel, whiteboardModel, tabletModel, floorTexture, brickTexture] = await Promise.all([
       loader.loadAsync("./assets/models/props/cartoon-desk.glb"),
       loader.loadAsync("./assets/models/props/plastic-chair.glb"),
       loader.loadAsync("./assets/models/props/whiteboard.glb"),
+      loader.loadAsync("./assets/models/props/paper-tablet.glb"),
       textureLoader.loadAsync("./assets/textures/classroom-terrazzo-floor.jpg"),
       textureLoader.loadAsync("./assets/textures/classroom-brick-wall.jpg")
     ]);
@@ -258,16 +325,67 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         });
         this.root.add(desk);
 
-const isPlayerDesk =
-  Math.abs(x - this.playerPosition.x) < 0.01 &&
-  Math.abs(rowZ + 0.8 - this.playerPosition.z) < 0.01;
+        const isPlayerDesk =
+          Math.abs(x - this.playerPosition.x) < 0.01 &&
+          Math.abs(rowZ + 0.8 - PLAYER_SEAT_Z) < 0.01;
 
-if (!isPlayerDesk) {
-  desk.userData.blocksTutorVision = true;
-  this.occluders.push(desk);
-}
+        if (isPlayerDesk) {
+          this.playerDesk = {
+            object: desk,
+            paper: this.createDeskPaper("YOUR ANSWER", x, rowZ, 0xeef7ff)
+          };
+          desk.userData.playerDesk = true;
+          this.playerDesk.paper.userData.playerDesk = true;
+        } else {
+          desk.userData.blocksTutorVision = true;
+          this.occluders.push(desk);
+          const tablet = this.createDeskTablet(tabletModel.scene, x, rowZ);
+
+          const rowDistanceFromPlayer = Math.abs(
+            rowZ + 0.8 - PLAYER_SEAT_Z
+          );
+          const isNeighbourRow =
+            rowDistanceFromPlayer <= DESK_ROW_SPACING + 0.01;
+          const isImmediateSideNeighbour =
+            Math.abs(Math.abs(x - this.playerPosition.x) - DESK_COLUMN_SPACING) < 0.01;
+          const isDirectlyBehindPlayer =
+            Math.abs(x - this.playerPosition.x) < 0.01 &&
+            rowZ + 0.8 > PLAYER_SEAT_Z &&
+            rowDistanceFromPlayer <= DESK_ROW_SPACING + 0.01;
+
+          if (
+            (isNeighbourRow && isImmediateSideNeighbour) ||
+            isDirectlyBehindPlayer
+          ) {
+            const word = shuffledWords[this.cheatDesks.length % shuffledWords.length];
+            const entry = {
+              object: desk,
+              word,
+              tablet,
+              hologram: this.createWordHologram(word, x, rowZ)
+            };
+            entry.tablet.userData.cheatDesk = entry;
+            this.cheatDesks.push(entry);
+          } else {
+            this.decorativeTablets.push(tablet);
+          }
+        }
         this.collisionWorld.add({ object: desk, size: [0.7, 0.7, 0.5], color: 0x785f48, tag: "desk" });
       }
+    }
+
+    if (this.cheatDesks.length !== 7) {
+      throw new Error(
+        `Level 3 needs seven answer tablets around the player; found ${this.cheatDesks.length}.`
+      );
+    }
+
+    const expectedDecorativeTablets = DESKS_PER_ROW * DESK_ROWS - 8;
+
+    if (this.decorativeTablets.length !== expectedDecorativeTablets) {
+      throw new Error(
+        `Level 3 needs ${expectedDecorativeTablets} decorative tablets; found ${this.decorativeTablets.length}.`
+      );
     }
 
     const chairBounds = new THREE.Box3().setFromObject(chairModel.scene);
@@ -291,10 +409,13 @@ if (!isPlayerDesk) {
           object.receiveShadow = true;
         });
         chair.add(chairVisual);
+        const isPlayerChair =
+          Math.abs(x - this.playerPosition.x) < 0.01 &&
+          Math.abs(rowZ + 0.8 - PLAYER_SEAT_Z) < 0.01;
         chair.position.set(
           x,
           0.1,
-          rowZ + 0.8
+          rowZ + 0.8 - (isPlayerChair ? PLAYER_FORWARD_OFFSET : 0)
         );
         chair.rotation.y = -Math.PI / 2;
         this.root.add(chair);
@@ -324,7 +445,7 @@ if (!isPlayerDesk) {
         const x = columnXPositions[column];
         const isPlayerSeat =
           Math.abs(x - this.playerPosition.x) < 0.01 &&
-          Math.abs(seatZ - this.playerPosition.z) < 0.01;
+          Math.abs(seatZ - PLAYER_SEAT_Z) < 0.01;
 
         if (!isPlayerSeat) {
           studentSeats.push({
@@ -446,6 +567,121 @@ if (!isPlayerDesk) {
     this.root.add(aisle);
 
     return { whiteboard: whiteboardModel.scene, brickTexture };
+  }
+
+  createDeskPaper(text, x, z, color = 0xfff7d6) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 256;
+    const context = canvas.getContext("2d");
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(
+      8,
+      this.game.renderer.capabilities.getMaxAnisotropy()
+    );
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+    const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.4), material);
+    paper.position.set(x, PAPER_HEIGHT, z);
+    paper.rotation.x = -Math.PI / 2;
+    paper.userData.paperCanvas = canvas;
+    paper.userData.paperContext = context;
+    paper.userData.paperTexture = texture;
+    paper.userData.paperColor = color;
+    this.root.add(paper);
+    this.drawPaperText(paper, text);
+    return paper;
+  }
+
+  drawPaperText(paper, text) {
+    const context = paper.userData.paperContext;
+    const { width, height } = paper.userData.paperCanvas;
+
+    context.fillStyle = `#${paper.userData.paperColor.toString(16).padStart(6, "0")}`;
+    context.fillRect(0, 0, width, height);
+    context.strokeStyle = "#26313d";
+    context.lineWidth = 8;
+    context.strokeRect(8, 8, width - 16, height - 16);
+    context.fillStyle = "#17202a";
+    context.font = "bold 54px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(text || "_", width / 2, height / 2, width - 42);
+    paper.userData.paperTexture.needsUpdate = true;
+  }
+
+  createDeskTablet(tabletTemplate, x, z) {
+    const tablet = new THREE.Group();
+    const visual = tabletTemplate.clone(true);
+    const bounds = new THREE.Box3().setFromObject(visual);
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    visual.position.sub(center);
+    visual.traverse((object) => {
+      if (!object.isMesh) return;
+      object.castShadow = true;
+      object.receiveShadow = true;
+    });
+
+    tablet.add(visual);
+    tablet.position.set(x, PAPER_HEIGHT + 0.012, z);
+    tablet.rotation.x = -Math.PI / 2;
+    tablet.rotation.z = 0;
+    tablet.scale.setScalar(1.08);
+    this.root.add(tablet);
+    return tablet;
+  }
+
+  createWordHologram(word, x, z) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 192;
+    const context = canvas.getContext("2d");
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: true,
+      depthWrite: false,
+      toneMapped: false
+    });
+    const hologram = new THREE.Sprite(material);
+    hologram.position.set(x, HOLOGRAM_HEIGHT, z);
+    hologram.scale.set(HOLOGRAM_WIDTH, HOLOGRAM_DISPLAY_HEIGHT, 1);
+    hologram.visible = false;
+    hologram.userData.wordCanvas = canvas;
+    hologram.userData.wordContext = context;
+    hologram.userData.wordTexture = texture;
+    this.root.add(hologram);
+    this.drawHologramText(hologram, word);
+    return hologram;
+  }
+
+  drawHologramText(hologram, word) {
+    const context = hologram.userData.wordContext;
+    const { width, height } = hologram.userData.wordCanvas;
+
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = "rgba(5, 30, 42, 0.82)";
+    context.fillRect(8, 8, width - 16, height - 16);
+    context.strokeStyle = "#53e4ff";
+    context.lineWidth = 8;
+    context.strokeRect(8, 8, width - 16, height - 16);
+    context.shadowColor = "#53e4ff";
+    context.shadowBlur = 18;
+    context.fillStyle = "#d9fbff";
+    context.font = "bold 58px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(word.toUpperCase(), width / 2, height / 2, width - 48);
+    hologram.userData.wordTexture.needsUpdate = true;
   }
 
   createLightingIdentity({ whiteboard, brickTexture }) {
@@ -689,15 +925,27 @@ if (!isPlayerDesk) {
     this.updateTutor(dt);
     this.audio.updateClock(dt);
     this.updateMouseLook();
-    this.updateCheating(dt);
+    this.updateDeskTargeting();
+    this.updatePeek(dt);
+    this.updateSuspicion(dt);
     this.timeRemaining = Math.max(0, this.timeRemaining - dt);
+    this.feedbackTime = Math.max(0, this.feedbackTime - dt);
+
+    if (this.feedbackTime === 0) {
+      this.feedbackMessage = "";
+    }
+
+    const instruction = this.getContextInstruction();
+    const typedLine = this.isLookingAtPlayerDesk
+      ? `<br><span class="gap-hint">&gt; ${this.typedAnswer}_</span>`
+      : "";
 
     this.game.setHUD(`
       <strong>Don't Get Caught</strong><br>
       <span class="hud-label">ANSWERS</span><div class="meter progress"><i style="width: ${this.answerProgress}%"></i></div>${Math.round(this.answerProgress)}%<br>
       <span class="hud-label">SUSPICION</span><div class="meter suspicion"><i style="width: ${this.suspicion}%"></i></div>${Math.round(this.suspicion)}%<br>
       Time remaining: ${Math.ceil(this.timeRemaining)}s<br>
-      ${this.controls.isDown("copy") ? "COPYING — lean exposed" : "Facing forward — safe posture"}
+      ${instruction}${typedLine}
     `);
 
     if (this.answerProgress >= 100) {
@@ -834,39 +1082,222 @@ if (!isPlayerDesk) {
     this.camera.rotation.x = this.pitch;
   }
 
-  updateCheating(dt) {
-    const copying = this.controls.isDown("copy");
-    const targetLean = copying ? 1 : 0;
+  updateDeskTargeting() {
+    this.targetCheatDesk = null;
+    this.isLookingAtPlayerDesk = false;
+    this.root.updateMatrixWorld(true);
+    this.camera.updateMatrixWorld(true);
+    this.interactionRaycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    this.interactionRaycaster.far = DESK_INTERACTION_DISTANCE;
 
-    this.copyLean +=
-      (targetLean - this.copyLean) *
-      Math.min(1, dt * 12);
+    const targets = [];
 
-    this.camera.rotation.z = -this.copyLean * 0.12;
+    if (this.playerDesk) {
+      targets.push(this.playerDesk.object, this.playerDesk.paper);
+    }
 
+    for (const desk of this.cheatDesks) {
+      targets.push(desk.tablet);
+    }
+
+    const hit = this.interactionRaycaster.intersectObjects(targets, true)[0];
+    let object = hit?.object ?? null;
+
+    while (object) {
+      if (object.userData.playerDesk) {
+        this.isLookingAtPlayerDesk = true;
+        return;
+      }
+
+      if (object.userData.cheatDesk) {
+        this.targetCheatDesk = object.userData.cheatDesk;
+        return;
+      }
+
+      object = object.parent;
+    }
+  }
+
+  updatePeek(dt) {
+    this.zoomActive = Boolean(
+      this.leftMouseDown &&
+      this.game.input.isPointerLocked()
+    );
+    this.peekActive = Boolean(this.zoomActive && this.targetCheatDesk);
+    this.zoomOverlay?.classList.toggle("visible", this.zoomActive);
+
+    for (const desk of this.cheatDesks) {
+      desk.hologram.visible = this.peekActive && desk === this.targetCheatDesk;
+    }
+
+    if (this.peekActive) {
+      this.currentCopiedDesk = this.targetCheatDesk;
+      this.currentCopiedWord = this.targetCheatDesk.word;
+    }
+
+    const targetFov = this.zoomActive ? PEEK_CAMERA_FOV : NORMAL_CAMERA_FOV;
+    const nextFov = THREE.MathUtils.lerp(
+      this.camera.fov,
+      targetFov,
+      Math.min(1, dt * 10)
+    );
+
+    if (Math.abs(nextFov - this.camera.fov) > 0.001) {
+      this.camera.fov = nextFov;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  updateSuspicion(dt) {
     const seen = this.canTutorSeePlayer();
     this.playerSeen = seen;
-
-    const previousAnswer = this.answerProgress;
-
-    const meters = updateStealthMeters({
-      answerProgress: this.answerProgress,
+    this.suspicion = updateSuspicionMeter({
       suspicion: this.suspicion,
-      copying,
+      peeking: this.peekActive,
       seen,
       dt
     });
+  }
 
-    this.answerProgress = meters.answerProgress;
-    this.suspicion = meters.suspicion;
+  getContextInstruction() {
+    if (this.feedbackMessage) {
+      return this.feedbackMessage;
+    }
 
-    // Cue once when crossing each 12% answer milestone.
+    if (this.peekActive) {
+      return "PEEKING — don't get caught!";
+    }
+
+    if (this.isLookingAtPlayerDesk) {
+      return this.currentCopiedWord
+        ? "Type the answer and press ENTER."
+        : "Peek at another student's answer first.";
+    }
+
+    if (this.targetCheatDesk) {
+      return "Hold LEFT CLICK to inspect the tablet.";
+    }
+
+    if (this.currentCopiedWord) {
+      return "Look down at your own desk to type the answer.";
+    }
+
+    if (this.zoomActive) {
+      return "ZOOMING — aim directly at a tablet.";
+    }
+
+    return "Look for one of the seven answer tablets around you.";
+  }
+
+  onMouseDown(event) {
     if (
-      copying &&
-      Math.floor(previousAnswer / 12) <
-        Math.floor(this.answerProgress / 12)
+      event.button === 0 &&
+      this.game.input.isPointerLocked() &&
+      !this.completed
     ) {
-      this.audio.cue(680, 0.04, 0.025);
+      this.leftMouseDown = true;
+    }
+  }
+
+  onMouseUp(event) {
+    if (event.button === 0) {
+      this.leftMouseDown = false;
+    }
+  }
+
+  onPointerLockChange() {
+    if (!this.game.input.isPointerLocked()) {
+      this.leftMouseDown = false;
+    }
+  }
+
+  onTypingKeyDown(event) {
+    if (this.completed || !this.isLookingAtPlayerDesk) {
+      return;
+    }
+
+    const isLetter = /^[a-z]$/i.test(event.key);
+    const isTypingControl = ["Backspace", "Enter", "Escape"].includes(event.key);
+
+    if (!isLetter && !isTypingControl) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (event.key === "Enter") {
+      if (!event.repeat) {
+        this.submitTypedAnswer();
+      }
+      return;
+    }
+
+    if (event.key === "Backspace") {
+      this.typedAnswer = this.typedAnswer.slice(0, -1);
+    } else if (event.key === "Escape") {
+      this.typedAnswer = "";
+    } else if (this.typedAnswer.length < MAX_TYPED_ANSWER_LENGTH) {
+      this.typedAnswer += event.key.toLowerCase();
+    }
+
+    this.updatePlayerPaper();
+  }
+
+  submitTypedAnswer() {
+    if (
+      this.completed ||
+      !this.isLookingAtPlayerDesk ||
+      !this.currentCopiedWord ||
+      !this.currentCopiedDesk
+    ) {
+      this.feedbackMessage = "Peek at another student's answer first.";
+      this.feedbackTime = 1.8;
+      return false;
+    }
+
+    if (!isCopiedAnswerCorrect(this.typedAnswer, this.currentCopiedWord)) {
+      this.typedAnswer = "";
+      this.feedbackMessage = "Incorrect.";
+      this.feedbackTime = 1.8;
+      this.updatePlayerPaper();
+      return false;
+    }
+
+    const answeredDesk = this.currentCopiedDesk;
+    this.answerProgress = clamp(
+      this.answerProgress + LEVEL_THREE_BALANCE.answerGainPerCorrectWord,
+      0,
+      100
+    );
+    this.audio.cue(680, 0.08, 0.035);
+    this.assignNewWord(answeredDesk);
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.typedAnswer = "";
+    this.feedbackMessage = "Correct! A new word is waiting.";
+    this.feedbackTime = 2.2;
+    this.updatePlayerPaper();
+    return true;
+  }
+
+  assignNewWord(desk) {
+    const wordsInUse = new Set(this.cheatDesks.map((entry) => entry.word));
+    const candidates = ANSWER_WORDS.filter(
+      (word) => word !== desk.word && !wordsInUse.has(word)
+    );
+    const nextWord = candidates[Math.floor(Math.random() * candidates.length)];
+
+    desk.word = nextWord;
+    this.drawHologramText(desk.hologram, nextWord);
+  }
+
+  updatePlayerPaper() {
+    if (this.playerDesk?.paper) {
+      this.drawPaperText(
+        this.playerDesk.paper,
+        this.typedAnswer ? this.typedAnswer.toUpperCase() : "YOUR ANSWER"
+      );
     }
   }
 
@@ -924,8 +1355,16 @@ canTutorSeePlayer() {
 
   dispose() {
     this.audio.dispose();
-    this.controls?.dispose();
     this.backgroundTexture?.dispose();
+    this.zoomOverlay?.classList.remove("visible");
+    if (this.zoomOverlay) {
+      this.zoomOverlay.hidden = true;
+    }
+    this.zoomOverlay = null;
+    window.removeEventListener("mousedown", this.onMouseDown);
+    window.removeEventListener("mouseup", this.onMouseUp);
+    window.removeEventListener("keydown", this.onTypingKeyDown, true);
+    document.removeEventListener("pointerlockchange", this.onPointerLockChange);
 
     if (document.pointerLockElement === this.game.renderer.domElement) {
       document.exitPointerLock?.();
