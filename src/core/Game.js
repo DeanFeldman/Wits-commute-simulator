@@ -18,7 +18,7 @@ const LEVEL_STATES = new Map([
 
 const LEVEL_ONE_STORY = [
   "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBrendan is going to have a go at me!",
-  "If I miss this exam, I’m cooked...\nI need to get to Wits—NOW!"
+  "If I miss this exam, I’m cooked...\nAlan Turing, if you can hear me… findParking() better return true."
 ];
 
 export class Game {
