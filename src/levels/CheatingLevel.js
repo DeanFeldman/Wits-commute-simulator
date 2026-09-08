@@ -59,6 +59,9 @@ const PLAYER_FORWARD_OFFSET = 0.25;
 const HOLOGRAM_HEIGHT = 0.94;
 const HOLOGRAM_WIDTH = 0.58;
 const HOLOGRAM_DISPLAY_HEIGHT = 0.22;
+const TABLET_TARGET_WIDTH = 1.25;
+const TABLET_TARGET_HEIGHT = 0.7;
+const TABLET_TARGET_DEPTH = 0.75;
 const MAX_TYPED_ANSWER_LENGTH = 24;
 
 export function updateSuspicionMeter({
@@ -176,6 +179,12 @@ this.patrolPoints = [
     this.typedAnswer = "";
     this.feedbackMessage = "";
     this.feedbackTime = 0;
+    this.tabletTargetGeometry = new THREE.BoxGeometry(
+      TABLET_TARGET_WIDTH,
+      TABLET_TARGET_HEIGHT,
+      TABLET_TARGET_DEPTH
+    );
+    this.tabletTargetMaterial = new THREE.MeshBasicMaterial();
 
     this.yaw = 0;
     this.pitch = -0.05;
@@ -358,13 +367,16 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
             isDirectlyBehindPlayer
           ) {
             const word = shuffledWords[this.cheatDesks.length % shuffledWords.length];
+            const interactionTarget = this.createTabletInteractionTarget(x, rowZ);
             const entry = {
               object: desk,
               word,
               tablet,
+              interactionTarget,
               hologram: this.createWordHologram(word, x, rowZ)
             };
             entry.tablet.userData.cheatDesk = entry;
+            entry.interactionTarget.userData.cheatDesk = entry;
             this.cheatDesks.push(entry);
           } else {
             this.decorativeTablets.push(tablet);
@@ -635,6 +647,21 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     tablet.scale.setScalar(1.08);
     this.root.add(tablet);
     return tablet;
+  }
+
+  createTabletInteractionTarget(x, z) {
+    const target = new THREE.Mesh(
+      this.tabletTargetGeometry,
+      this.tabletTargetMaterial
+    );
+    target.position.set(
+      x,
+      PAPER_HEIGHT + TABLET_TARGET_HEIGHT / 2,
+      z
+    );
+    target.visible = false;
+    this.root.add(target);
+    return target;
   }
 
   createWordHologram(word, x, z) {
@@ -1097,7 +1124,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     for (const desk of this.cheatDesks) {
-      targets.push(desk.tablet);
+      targets.push(desk.interactionTarget ?? desk.tablet);
     }
 
     const hit = this.interactionRaycaster.intersectObjects(targets, true)[0];
