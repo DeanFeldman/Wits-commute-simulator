@@ -4,6 +4,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
+import { applyRendererBaseline } from "./renderSettings.js";
 
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
@@ -25,10 +26,16 @@ export class Game {
   constructor(container) {
     this.container = container;
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    // Tone mapping, output colour space, shadow filtering and the pixel
+    // ratio cap all live in renderSettings.js, which documents why each
+    // one changes the image. They are set here, once, because the renderer
+    // outlives every level. The pixel ratio cap and the two shadow-map
+    // settings were previously written inline here and keep the same
+    // values; tone mapping and output colour space are new.
+    applyRendererBaseline(this.renderer);
+
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
