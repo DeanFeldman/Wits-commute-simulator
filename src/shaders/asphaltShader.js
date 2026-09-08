@@ -96,7 +96,7 @@ void main() {
   float chop = sin(groundPosition.x * 2.4 + uTime * 0.8) * sin(groundPosition.y * 2.9 - uTime * 0.6);
   float reflection = fresnel * (0.88 + 0.12 * chop) * (1.0 - roughness * 0.25);
 
-  vec3 skyColour = vec3(0.16, 0.34, 0.52);
+  vec3 skyColour = vec3(0.557, 0.788, 0.933);
   vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection;
 
   // Headlights glint off standing water instead of glowing through it.
