@@ -286,7 +286,7 @@ export class ParkingLevel {
     this.completed = false;
   }
 
-load() {
+async load() {
   const scene = this.game.scene;
 
   const skyColor = new THREE.Color(0x8ec9ee);
@@ -324,10 +324,10 @@ load() {
 
   this.createParkingSurface();
   this.createRoadMarkings();
-  this.createParkedCars();
+  const parkedCarsReady = this.createParkedCars();
   this.createPotholes();
   this.createParkingWaypoints();
-  this.createPlayerCar();
+  const playerCarReady = this.createPlayerCar();
 
   this.environment = createParkingEnvironment({
     collisionWorld: this.collisionWorld,
@@ -380,6 +380,12 @@ load() {
   this.viewToggle = document.querySelector("#level1-view-toggle");
   this.viewToggle.hidden = false;
   this.viewToggle.addEventListener("click", this.onViewToggle);
+
+  await Promise.all([
+    parkedCarsReady,
+    playerCarReady,
+    this.roadTextures.ready
+  ]);
 }
 
   updateSkyCameraFrustum() {
@@ -510,7 +516,7 @@ createParkingSurface() {
       });
     }
 
-    createInstancedCarField(placements, { variant: "lite" })
+    return createInstancedCarField(placements, { variant: "lite" })
       .then((field) => {
         field.name = "level-one-parked-cars";
         this.root.add(field);
@@ -615,7 +621,7 @@ createParkingSurface() {
     carRoot.add(suspension);
     this.suspension = suspension;
 
-    attachPlayerCarModel(suspension).catch((error) => {
+    const modelReady = attachPlayerCarModel(suspension).catch((error) => {
       console.warn("Player car model could not be loaded.", error);
     });
 
@@ -637,6 +643,7 @@ createParkingSurface() {
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
+    return modelReady;
   }
 
 

@@ -16,6 +16,11 @@ const LEVEL_STATES = new Map([
   [3, "level3"]
 ]);
 
+const LEVEL_ONE_STORY = [
+  "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBrendan is going to have a go at me!",
+  "If I miss this exam, I’m cooked...\nI need to get to Wits—NOW!"
+];
+
 export class Game {
   constructor(container) {
     this.container = container;
@@ -65,6 +70,9 @@ export class Game {
     this.isPaused = false;
     this.isLoading = false;
     this.isTransitioning = false;
+    this.isLevelOneIntroActive = false;
+    this.isLevelOneIntroReady = false;
+    this.levelOneStoryIndex = 0;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -89,6 +97,10 @@ export class Game {
     this.instructionElement = document.querySelector("#instruction-card");
     this.instructionTitle = document.querySelector("#instruction-title");
     this.instructionCopy = document.querySelector("#instruction-copy");
+    this.levelOneIntroElement = document.querySelector("#level1-intro");
+    this.levelOneIntroStatus = document.querySelector("#level1-intro-status-copy");
+    this.levelOneDialogueCopy = document.querySelector("#level1-dialogue-copy");
+    this.levelOneDialogueContinue = document.querySelector("#level1-dialogue-continue");
     this.currentMessage = "";
 
     this.animate = this.animate.bind(this);
@@ -97,12 +109,14 @@ export class Game {
     this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
     this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
     this.onInstructionClick = this.onInstructionClick.bind(this);
+    this.onLevelOneIntroClick = this.onLevelOneIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
     this.menuElement.addEventListener("click", this.onMenuClick);
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
+    this.levelOneIntroElement.addEventListener("click", this.onLevelOneIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
   }
 
@@ -113,6 +127,7 @@ export class Game {
 
   showMenu() {
     this.cancelTransition();
+    this.hideLevelOneIntro();
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
@@ -157,7 +172,7 @@ export class Game {
     this.menuElement.hidden = false;
   }
 
-  async startLevel(levelNumber, checkpoint = "start", keepFade = false) {
+  async startLevel(levelNumber, checkpoint = "start", keepFade = false, showIntro = false) {
     const Level = this.levelFactories.get(levelNumber);
 
     if (!Level) {
@@ -174,6 +189,7 @@ export class Game {
     this.isPaused = false;
     this.isLoading = true;
     this.isTransitioning = false;
+    if (!showIntro) this.hideLevelOneIntro();
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -200,6 +216,7 @@ export class Game {
       }
 
       console.error(`Unable to load Level ${levelNumber}`, error);
+      if (showIntro) this.setLevelOneIntroLoadState("error");
       return;
     }
 
@@ -210,11 +227,70 @@ export class Game {
 
     this.levelNameElement.textContent = level.name;
     this.isLoading = false;
+    if (showIntro) this.setLevelOneIntroLoadState("ready");
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
 
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
+  }
+
+  startJourney() {
+    this.journeyScore = 0;
+    this.journeyTime = 0;
+    this.showLevelOneIntro();
+    this.startLevel(1, "start", false, true);
+  }
+
+  showLevelOneIntro() {
+    this.isLevelOneIntroActive = true;
+    this.isLevelOneIntroReady = false;
+    this.levelOneStoryIndex = 0;
+    this.levelOneIntroElement.hidden = false;
+    this.levelOneIntroElement.dataset.loadState = "loading";
+    this.levelOneIntroStatus.textContent = "Loading Level 1...";
+    this.renderLevelOneStory();
+  }
+
+  hideLevelOneIntro() {
+    this.isLevelOneIntroActive = false;
+    this.isLevelOneIntroReady = false;
+    this.levelOneIntroElement.hidden = true;
+  }
+
+  setLevelOneIntroLoadState(state) {
+    this.levelOneIntroElement.dataset.loadState = state;
+    this.isLevelOneIntroReady = state === "ready";
+    this.levelOneIntroStatus.textContent = state === "ready"
+      ? "Level 1 ready"
+      : "Level 1 could not be loaded";
+    this.renderLevelOneStory();
+  }
+
+  renderLevelOneStory() {
+    this.levelOneDialogueCopy.textContent = LEVEL_ONE_STORY[this.levelOneStoryIndex];
+    const isFinalBox = this.levelOneStoryIndex === LEVEL_ONE_STORY.length - 1;
+    const waitingForLevel = isFinalBox && !this.isLevelOneIntroReady;
+
+    this.levelOneDialogueContinue.disabled = waitingForLevel;
+    this.levelOneDialogueContinue.firstChild.textContent = waitingForLevel
+      ? "Loading... "
+      : "Continue ";
+  }
+
+  onLevelOneIntroClick(event) {
+    if (!event.target.closest("#level1-dialogue-continue")) return;
+
+    if (this.levelOneStoryIndex < LEVEL_ONE_STORY.length - 1) {
+      this.levelOneStoryIndex += 1;
+      this.renderLevelOneStory();
+      return;
+    }
+
+    if (!this.isLevelOneIntroReady) return;
+
+    this.hideLevelOneIntro();
+    this.clock.getDelta();
   }
 
   setCheckpoint(checkpoint) {
@@ -335,6 +411,8 @@ export class Game {
   }
 
   updateGlobalControls() {
+    if (this.isLevelOneIntroActive) return;
+
     if (this.globalControls.wasPressed("pause")) {
       this.togglePause();
       return;
@@ -369,7 +447,7 @@ export class Game {
     const action = event.target.closest("[data-game-action]")?.dataset.gameAction;
 
     if (action === "start") {
-      this.startLevel(1);
+      this.startJourney();
       return;
     }
 
@@ -441,6 +519,7 @@ export class Game {
       !this.isPaused &&
       !this.isLoading &&
       !this.isTransitioning &&
+      !this.isLevelOneIntroActive &&
       this.currentLevel
     ) {
       this.journeyTime += dt;
