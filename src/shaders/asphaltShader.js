@@ -86,6 +86,16 @@ void main() {
   // about half a metre across instead of a gradient metres wide.
   float water = smoothstep(0.65, 0.672, lowGround);
 
+  // The rim needs a band with real width on the ground, and the mask value
+  // saturates within a single edge-width, so the distance inside the threshold
+  // is taken from lowGround directly and measured in edge-widths. Same mask,
+  // same 0.65/0.672 bounds, same outline: this shades a band reaching inwards
+  // from the edge rather than widening the edge. The two constants are the ones
+  // on the line above, restated rather than hoisted so that the coverage
+  // expression stays untouched.
+  float edgesInside = (lowGround - 0.65) / 0.022;
+  float rim = 1.0 - smoothstep(0.0, 2.5, edgesInside);
+
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
 
   // Most of the lot is dry and none of it needs a wave, so the whole block is
@@ -116,7 +126,7 @@ void main() {
 
     // Ripple also dies through the rim of a pool, where the film is too thin to
     // move. The default slope puts the steepest wave at about six degrees.
-    float ripple = uRippleSlope * water;
+    float ripple = uRippleSlope * (1.0 - rim);
     waterNormal = normalize(vec3(-slopeX * ripple, 1.0, -slopeZ * ripple));
   }
 
@@ -135,7 +145,12 @@ void main() {
   float reflection = fresnel * 0.88 * (1.0 - roughness * 0.25);
 
   vec3 skyColour = vec3(0.557, 0.788, 0.933);
-  vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection;
+  // A puddle is shallowest where it meets the tarmac, and shallow water shows
+  // the dark wet ground through it instead of the sky. Suppressing the
+  // reflection over the rim band leaves the damagedAsphalt * 0.42 term standing
+  // on its own there, which is a darker ring than either the dry lot outside or
+  // the reflecting middle inside — the contrast that reads as depth.
+  vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection * (1.0 - 0.8 * rim);
 
   // Headlights glint off standing water instead of glowing through it.
   waterColour += vec3(1.0, 0.9, 0.72) * pow(headlight, 2.5) * (0.3 + 0.7 * grazing) * 0.8;
