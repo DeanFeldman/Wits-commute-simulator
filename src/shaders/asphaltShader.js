@@ -8,6 +8,17 @@ const ROAD_TEXTURE_PATH = "./assets/textures/road/";
 export const ROAD_TILE_METRES = 8;
 export const SHADER_UV_TILING = Object.freeze({ x: 12, y: 10 });
 
+// Pool coverage bounds. The mask is smoothstep(START, END, lowGround), where
+// lowGround is a noise field over the lot plus a damage term, so START is the
+// height of the noise tail that holds water: raise it and the lot dries out,
+// lower it and it floods, at roughly 1.8 points of coverage per 0.01. The gap
+// between the two is the width of a pool's edge, about half a metre on the
+// ground, and it is also the unit the rim band is measured in. At these values
+// a quarter of the lot holds water; test/parking-water-coverage.test.js
+// measures that on every run and fails if a change here floods or empties it.
+export const POOL_EDGE_START = 0.65;
+export const POOL_EDGE_END = 0.672;
+
 const vertexShader = `
 uniform float uTime;
 uniform sampler2D uDisplacementTexture;
@@ -49,6 +60,8 @@ uniform float uTime;
 uniform vec3 uHeadlightPosition;
 uniform float uHeadlightDistance;
 uniform float uRippleSlope;
+uniform float uPoolEdgeStart;
+uniform float uPoolEdgeEnd;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying float vDamage;
@@ -84,16 +97,24 @@ void main() {
   // Only the low tail of that noise holds water, so pools stay occasional
   // rather than flooding the lot, and the narrow band gives each one an edge
   // about half a metre across instead of a gradient metres wide.
-  float water = smoothstep(0.65, 0.672, lowGround);
+  float water = smoothstep(uPoolEdgeStart, uPoolEdgeEnd, lowGround);
+
+#ifdef POOL_COVERAGE_PROBE
+  // The coverage probe reads the mask straight out of the shader that draws it,
+  // so what is measured is what is drawn. Red carries the mask value, green
+  // marks the pixel as lot rather than background.
+  gl_FragColor = vec4(water, 1.0, 0.0, 1.0);
+  return;
+#endif
 
   // The rim needs a band with real width on the ground, and the mask value
   // saturates within a single edge-width, so the distance inside the threshold
   // is taken from lowGround directly and measured in edge-widths. Same mask,
-  // same 0.65/0.672 bounds, same outline: this shades a band reaching inwards
-  // from the edge rather than widening the edge. The two constants are the ones
-  // on the line above, restated rather than hoisted so that the coverage
-  // expression stays untouched.
-  float edgesInside = (lowGround - 0.65) / 0.022;
+  // same bounds, same outline: this shades a band reaching inwards from the
+  // edge rather than widening the edge. It reads the bounds off the same two
+  // uniforms as the mask, so tuning coverage carries the rim with it instead of
+  // leaving it measuring from a threshold that has moved.
+  float edgesInside = (lowGround - uPoolEdgeStart) / (uPoolEdgeEnd - uPoolEdgeStart);
   float rim = 1.0 - smoothstep(0.0, 2.5, edgesInside);
 
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
@@ -229,13 +250,25 @@ export function createAsphaltMaterial(textures = createRoadTextures()) {
       // Steepest wave slope on a pool surface. Raising it deepens the ripple's
       // effect on the Fresnel; past about 0.06 the far end of the lot starts to
       // shimmer even with the distance fades in place.
-      uRippleSlope: { value: 0.03 }
+      uRippleSlope: { value: 0.03 },
+      uPoolEdgeStart: { value: POOL_EDGE_START },
+      uPoolEdgeEnd: { value: POOL_EDGE_END }
     },
     vertexShader,
     fragmentShader
   });
 }
 
+// The same material with the fragment shader cut short at the mask, for
+// measuring how much of the lot holds water. It shares every uniform default
+// and every line of the mask with the material that ships, which is the only
+// way the number means anything: a second implementation of the noise would be
+// measuring itself. See src/levels/parking/poolCoverage.js.
+export function createPoolCoverageMaterial(textures = createRoadTextures()) {
+  const material = createAsphaltMaterial(textures);
+  material.defines = { POOL_COVERAGE_PROBE: "" };
+  return material;
+}
 // Lit surface for the streets around the lot. It reuses the parking textures so
 // the campus roads and the M1 read as the same asphalt as the parking floor,
 // without paying for a second set of 2K maps.

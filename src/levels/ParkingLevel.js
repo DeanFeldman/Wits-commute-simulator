@@ -21,6 +21,7 @@ import {
   createParkingEnvironment,
   PARKING_LAYOUT
 } from "./parking/ParkingEnvironment.js";
+import { measurePoolCoverage } from "./parking/poolCoverage.js";
 
 
 export const PARKING_BAY_WIDTH = 2.5;
@@ -141,7 +142,7 @@ export function getLevelOneParkingSpaces() {
 // piece is therefore built here as a subdivided quad carrying world-scaled uvs.
 // The pieces stay convex and visually continuous, as the layout contract
 // requires.
-function createAsphaltQuadGeometry(corners, lot) {
+export function createAsphaltQuadGeometry(corners, lot) {
   const local = corners.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)));
   const [p0, p1, p2, p3] = local;
 
@@ -198,6 +199,25 @@ function createAsphaltQuadGeometry(corners, lot) {
 }
 
 
+// The lot floor, as convex pieces. Convex avoids the concave polygon
+// triangulation artefacts that let the grass ground show through the parking
+// floor. Corners are in world x/z; createAsphaltQuadGeometry converts them.
+// Exported because the water-coverage test integrates the pool mask over this
+// exact footprint, and a second copy of it would drift.
+export const LEVEL_ONE_ASPHALT_PIECES = Object.freeze([
+  {
+    name: "level-one-parking-asphalt-main",
+    corners: [[-56, -50], [59, -38], [54, 34], [-56, 34]]
+  },
+  {
+    name: "level-one-parking-asphalt-west-main",
+    corners: [[-61, -33], [-56, -33], [-56, 34], [-61, 34]]
+  },
+  {
+    name: "level-one-parking-asphalt-west-upper",
+    corners: [[-61, -50], [-56, -50], [-56, -42], [-61, -42]]
+  }
+]);
 // Chooses the bays left empty. Shuffling first and then filtering keeps the
 // draw uniform, and the separation check stops the three landing on top of
 // each other. If the separation cannot be satisfied the quota is topped up
@@ -438,35 +458,22 @@ createParkingSurface() {
   const asphaltMaterial = createAsphaltMaterial(this.roadTextures);
   this.asphaltUniforms = asphaltMaterial.uniforms;
 
-  const addAsphaltPiece = (points, name) => {
-    const road = new THREE.Mesh(createAsphaltQuadGeometry(points, lot), asphaltMaterial);
+  this.asphaltMeshes = LEVEL_ONE_ASPHALT_PIECES.map((piece) => {
+    const road = new THREE.Mesh(createAsphaltQuadGeometry(piece.corners, lot), asphaltMaterial);
     road.rotation.x = -Math.PI / 2;
     road.position.set(lot.x, 0.035, lot.z);
     road.receiveShadow = true;
-    road.name = name;
+    road.name = piece.name;
     this.root.add(road);
-  };
+    return road;
+  });
 
-  // Convex pieces avoid the concave polygon triangulation artefacts that let
-  // the grass ground show through the parking floor.
-  addAsphaltPiece([
-    [-56, -50],
-    [59, -38],
-    [54, 34],
-    [-56, 34]
-  ], "level-one-parking-asphalt-main");
-  addAsphaltPiece([
-    [-61, -33],
-    [-56, -33],
-    [-56, 34],
-    [-61, 34]
-  ], "level-one-parking-asphalt-west-main");
-  addAsphaltPiece([
-    [-61, -50],
-    [-56, -50],
-    [-56, -42],
-    [-61, -42]
-  ], "level-one-parking-asphalt-west-upper");
+  // Opt-in pool coverage probe, for the coverage guard and for tuning
+  // uPoolEdgeStart / uPoolEdgeEnd. A normal session never renders it.
+  if (new URLSearchParams(window.location.search).has("waterCoverage")) {
+    window.__poolCoverage = () =>
+      measurePoolCoverage(this.game.renderer, this.asphaltMeshes, this.roadTextures);
+  }
 }
 
   // Bay outlines are the only paint in Level 1. The lot floor and the streets
