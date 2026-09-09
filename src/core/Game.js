@@ -5,6 +5,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
+import { createGpuTimer } from "./gpuTimer.js";
 
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
@@ -34,6 +35,14 @@ export class Game {
     // settings were previously written inline here and keep the same
     // values; tone mapping and output colour space are new.
     applyRendererBaseline(this.renderer);
+
+    // Opt-in GPU frame timer, for deciding whether a shader change costs
+    // anything. A normal session never issues a query: without ?gpuTimer=1
+    // this is null and every call site below is a no-op.
+    this.gpuTimer = new URLSearchParams(window.location.search).has("gpuTimer")
+      ? createGpuTimer(this.renderer)
+      : null;
+    if (this.gpuTimer) window.__gpuTimer = this.gpuTimer;
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild(this.renderer.domElement);
@@ -515,7 +524,12 @@ export class Game {
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
     this.update(dt);
+    // Wrapped around render() rather than inside it, so the level 3 composer
+    // path is timed on the same terms as the direct one.
+    this.gpuTimer?.begin();
     this.render();
+    this.gpuTimer?.end();
+    this.gpuTimer?.poll();
     this.input.endFrame();
   }
 

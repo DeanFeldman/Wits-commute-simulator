@@ -48,6 +48,7 @@ uniform sampler2D uNormalTexture;
 uniform float uTime;
 uniform vec3 uHeadlightPosition;
 uniform float uHeadlightDistance;
+uniform float uRippleSlope;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying float vDamage;
@@ -87,29 +88,37 @@ void main() {
 
   vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
 
-  // Two crossing wave trains stand in for the chop on the surface. Only their
-  // slope is wanted, never the height itself, so the pools stay geometrically
-  // flat and the ripple lives entirely in the normal. Differentiating the sines
-  // by hand costs a few cosines and avoids sampling the field three times to
-  // difference it.
-  float slowX = groundPosition.x * 2.4 + uTime * 0.8;
-  float slowZ = groundPosition.y * 2.9 - uTime * 0.6;
-  float fastX = groundPosition.x * 5.1 - uTime * 1.3;
-  float fastZ = groundPosition.y * 4.3 + uTime * 1.1;
-  // A wave narrower than the pixel it lands in is shimmer rather than water,
-  // and the lot is seen almost edge on, so ground distance per pixel grows with
-  // the square of the range. Each train is therefore faded at its own
-  // wavelength: the 1.2-1.5 m train is gone by 50 m, the 2.2-2.6 m one at 95 m.
-  float viewDistance = distance(cameraPosition, vWorldPosition);
-  float broad = 1.0 - smoothstep(55.0, 95.0, viewDistance);
-  float fine = 1.0 - smoothstep(25.0, 50.0, viewDistance);
-  float slopeX = 2.4 * cos(slowX) * sin(slowZ) * 0.62 * broad + 5.1 * cos(fastX) * sin(fastZ) * 0.38 * fine;
-  float slopeZ = 2.9 * sin(slowX) * cos(slowZ) * 0.62 * broad + 4.3 * sin(fastX) * cos(fastZ) * 0.38 * fine;
+  // Most of the lot is dry and none of it needs a wave, so the whole block is
+  // skipped there rather than computed and multiplied away. Pools are large
+  // coherent blobs rather than speckle, so neighbouring fragments almost always
+  // agree on the branch and it is not paid for twice. Nothing inside samples a
+  // texture, so there are no derivatives to go wrong in the non-uniform path.
+  vec3 waterNormal = vec3(0.0, 1.0, 0.0);
+  if (water > 0.0) {
+    // Two crossing wave trains stand in for the chop on the surface. Only their
+    // slope is wanted, never the height itself, so the pools stay geometrically
+    // flat and the ripple lives entirely in the normal. Differentiating the sines
+    // by hand costs a few cosines and avoids sampling the field three times to
+    // difference it.
+    float slowX = groundPosition.x * 2.4 + uTime * 0.8;
+    float slowZ = groundPosition.y * 2.9 - uTime * 0.6;
+    float fastX = groundPosition.x * 5.1 - uTime * 1.3;
+    float fastZ = groundPosition.y * 4.3 + uTime * 1.1;
+    // A wave narrower than the pixel it lands in is shimmer rather than water,
+    // and the lot is seen almost edge on, so ground distance per pixel grows with
+    // the square of the range. Each train is therefore faded at its own
+    // wavelength: the 1.2-1.5 m train is gone by 50 m, the 2.2-2.6 m one at 95 m.
+    float viewDistance = distance(cameraPosition, vWorldPosition);
+    float broad = 1.0 - smoothstep(55.0, 95.0, viewDistance);
+    float fine = 1.0 - smoothstep(25.0, 50.0, viewDistance);
+    float slopeX = 2.4 * cos(slowX) * sin(slowZ) * 0.62 * broad + 5.1 * cos(fastX) * sin(fastZ) * 0.38 * fine;
+    float slopeZ = 2.9 * sin(slowX) * cos(slowZ) * 0.62 * broad + 4.3 * sin(fastX) * cos(fastZ) * 0.38 * fine;
 
-  // Ripple also dies through the rim of a pool, where the film is too thin to
-  // move. 0.03 puts the steepest part of a wave at about six degrees.
-  float ripple = 0.03 * water;
-  vec3 waterNormal = normalize(vec3(-slopeX * ripple, 1.0, -slopeZ * ripple));
+    // Ripple also dies through the rim of a pool, where the film is too thin to
+    // move. The default slope puts the steepest wave at about six degrees.
+    float ripple = uRippleSlope * water;
+    waterNormal = normalize(vec3(-slopeX * ripple, 1.0, -slopeZ * ripple));
+  }
 
   // Wet tarmac is darker than dry tarmac. What lifts a puddle is not the
   // asphalt underneath but the sky reflected off the surface of the water, and
@@ -201,7 +210,11 @@ export function createAsphaltMaterial(textures = createRoadTextures()) {
       uNormalTexture: { value: textures.normal },
       uTime: { value: 0 },
       uHeadlightPosition: { value: new THREE.Vector3() },
-      uHeadlightDistance: { value: 13 }
+      uHeadlightDistance: { value: 13 },
+      // Steepest wave slope on a pool surface. Raising it deepens the ripple's
+      // effect on the Fresnel; past about 0.06 the far end of the lot starts to
+      // shimmer even with the distance fades in place.
+      uRippleSlope: { value: 0.03 }
     },
     vertexShader,
     fragmentShader
