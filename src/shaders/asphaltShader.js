@@ -8,6 +8,17 @@ const ROAD_TEXTURE_PATH = "./assets/textures/road/";
 export const ROAD_TILE_METRES = 8;
 export const SHADER_UV_TILING = Object.freeze({ x: 12, y: 10 });
 
+// Pool coverage bounds. The mask is smoothstep(START, END, lowGround), where
+// lowGround is a noise field over the lot plus a damage term, so START is the
+// height of the noise tail that holds water: raise it and the lot dries out,
+// lower it and it floods, at roughly 1.8 points of coverage per 0.01. The gap
+// between the two is the width of a pool's edge, about half a metre on the
+// ground, and it is also the unit the rim band is measured in. At these values
+// a quarter of the lot holds water; test/parking-water-coverage.test.js
+// measures that on every run and fails if a change here floods or empties it.
+export const POOL_EDGE_START = 0.65;
+export const POOL_EDGE_END = 0.672;
+
 const vertexShader = `
 uniform float uTime;
 uniform sampler2D uDisplacementTexture;
@@ -48,6 +59,9 @@ uniform sampler2D uNormalTexture;
 uniform float uTime;
 uniform vec3 uHeadlightPosition;
 uniform float uHeadlightDistance;
+uniform float uRippleSlope;
+uniform float uPoolEdgeStart;
+uniform float uPoolEdgeEnd;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying float vDamage;
@@ -83,21 +97,81 @@ void main() {
   // Only the low tail of that noise holds water, so pools stay occasional
   // rather than flooding the lot, and the narrow band gives each one an edge
   // about half a metre across instead of a gradient metres wide.
-  float water = smoothstep(0.65, 0.672, lowGround);
+  float water = smoothstep(uPoolEdgeStart, uPoolEdgeEnd, lowGround);
+
+#ifdef POOL_COVERAGE_PROBE
+  // The coverage probe reads the mask straight out of the shader that draws it,
+  // so what is measured is what is drawn. Red carries the mask value, green
+  // marks the pixel as lot rather than background.
+  gl_FragColor = vec4(water, 1.0, 0.0, 1.0);
+  return;
+#endif
+
+  // The rim needs a band with real width on the ground, and the mask value
+  // saturates within a single edge-width, so the distance inside the threshold
+  // is taken from lowGround directly and measured in edge-widths. Same mask,
+  // same bounds, same outline: this shades a band reaching inwards from the
+  // edge rather than widening the edge. It reads the bounds off the same two
+  // uniforms as the mask, so tuning coverage carries the rim with it instead of
+  // leaving it measuring from a threshold that has moved.
+  float edgesInside = (lowGround - uPoolEdgeStart) / (uPoolEdgeEnd - uPoolEdgeStart);
+  float rim = 1.0 - smoothstep(0.0, 2.5, edgesInside);
+
+  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+
+  // Most of the lot is dry and none of it needs a wave, so the whole block is
+  // skipped there rather than computed and multiplied away. Pools are large
+  // coherent blobs rather than speckle, so neighbouring fragments almost always
+  // agree on the branch and it is not paid for twice. Nothing inside samples a
+  // texture, so there are no derivatives to go wrong in the non-uniform path.
+  vec3 waterNormal = vec3(0.0, 1.0, 0.0);
+  if (water > 0.0) {
+    // Two crossing wave trains stand in for the chop on the surface. Only their
+    // slope is wanted, never the height itself, so the pools stay geometrically
+    // flat and the ripple lives entirely in the normal. Differentiating the sines
+    // by hand costs a few cosines and avoids sampling the field three times to
+    // difference it.
+    float slowX = groundPosition.x * 2.4 + uTime * 0.8;
+    float slowZ = groundPosition.y * 2.9 - uTime * 0.6;
+    float fastX = groundPosition.x * 5.1 - uTime * 1.3;
+    float fastZ = groundPosition.y * 4.3 + uTime * 1.1;
+    // A wave narrower than the pixel it lands in is shimmer rather than water,
+    // and the lot is seen almost edge on, so ground distance per pixel grows with
+    // the square of the range. Each train is therefore faded at its own
+    // wavelength: the 1.2-1.5 m train is gone by 50 m, the 2.2-2.6 m one at 95 m.
+    float viewDistance = distance(cameraPosition, vWorldPosition);
+    float broad = 1.0 - smoothstep(55.0, 95.0, viewDistance);
+    float fine = 1.0 - smoothstep(25.0, 50.0, viewDistance);
+    float slopeX = 2.4 * cos(slowX) * sin(slowZ) * 0.62 * broad + 5.1 * cos(fastX) * sin(fastZ) * 0.38 * fine;
+    float slopeZ = 2.9 * sin(slowX) * cos(slowZ) * 0.62 * broad + 4.3 * sin(fastX) * cos(fastZ) * 0.38 * fine;
+
+    // Ripple also dies through the rim of a pool, where the film is too thin to
+    // move. The default slope puts the steepest wave at about six degrees.
+    float ripple = uRippleSlope * (1.0 - rim);
+    waterNormal = normalize(vec3(-slopeX * ripple, 1.0, -slopeZ * ripple));
+  }
 
   // Wet tarmac is darker than dry tarmac. What lifts a puddle is not the
   // asphalt underneath but the sky reflected off the surface of the water, and
-  // that reflection grows sharply as the view flattens out.
-  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-  float grazing = pow(1.0 - clamp(viewDirection.y, 0.0, 1.0), 4.0);
+  // that reflection grows sharply as the view flattens out. Taking the angle
+  // against the rippled normal rather than against world up is what lets the
+  // waves reach the reflection at all.
+  float grazing = pow(1.0 - clamp(dot(viewDirection, waterNormal), 0.0, 1.0), 4.0);
   float fresnel = mix(0.12, 0.95, grazing);
 
-  // Slight chop, so the reflection is not a dead flat mirror.
-  float chop = sin(groundPosition.x * 2.4 + uTime * 0.8) * sin(groundPosition.y * 2.9 - uTime * 0.6);
-  float reflection = fresnel * (0.88 + 0.12 * chop) * (1.0 - roughness * 0.25);
+  // The chop used to arrive as a brightness scale of 0.88 + 0.12 * wave, which
+  // averages 0.88 across a pool. It arrives through the normal now, so that
+  // average is carried across on its own to keep this change to the structure
+  // of the reflection rather than its level.
+  float reflection = fresnel * 0.88 * (1.0 - roughness * 0.25);
 
-  vec3 skyColour = vec3(0.16, 0.34, 0.52);
-  vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection;
+  vec3 skyColour = vec3(0.557, 0.788, 0.933);
+  // A puddle is shallowest where it meets the tarmac, and shallow water shows
+  // the dark wet ground through it instead of the sky. Suppressing the
+  // reflection over the rim band leaves the damagedAsphalt * 0.42 term standing
+  // on its own there, which is a darker ring than either the dry lot outside or
+  // the reflecting middle inside — the contrast that reads as depth.
+  vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection * (1.0 - 0.8 * rim);
 
   // Headlights glint off standing water instead of glowing through it.
   waterColour += vec3(1.0, 0.9, 0.72) * pow(headlight, 2.5) * (0.3 + 0.7 * grazing) * 0.8;
@@ -172,13 +246,29 @@ export function createAsphaltMaterial(textures = createRoadTextures()) {
       uNormalTexture: { value: textures.normal },
       uTime: { value: 0 },
       uHeadlightPosition: { value: new THREE.Vector3() },
-      uHeadlightDistance: { value: 13 }
+      uHeadlightDistance: { value: 13 },
+      // Steepest wave slope on a pool surface. Raising it deepens the ripple's
+      // effect on the Fresnel; past about 0.06 the far end of the lot starts to
+      // shimmer even with the distance fades in place.
+      uRippleSlope: { value: 0.03 },
+      uPoolEdgeStart: { value: POOL_EDGE_START },
+      uPoolEdgeEnd: { value: POOL_EDGE_END }
     },
     vertexShader,
     fragmentShader
   });
 }
 
+// The same material with the fragment shader cut short at the mask, for
+// measuring how much of the lot holds water. It shares every uniform default
+// and every line of the mask with the material that ships, which is the only
+// way the number means anything: a second implementation of the noise would be
+// measuring itself. See src/levels/parking/poolCoverage.js.
+export function createPoolCoverageMaterial(textures = createRoadTextures()) {
+  const material = createAsphaltMaterial(textures);
+  material.defines = { POOL_COVERAGE_PROBE: "" };
+  return material;
+}
 // Lit surface for the streets around the lot. It reuses the parking textures so
 // the campus roads and the M1 read as the same asphalt as the parking floor,
 // without paying for a second set of 2K maps.
