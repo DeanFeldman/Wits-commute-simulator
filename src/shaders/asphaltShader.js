@@ -85,16 +85,45 @@ void main() {
   // about half a metre across instead of a gradient metres wide.
   float water = smoothstep(0.65, 0.672, lowGround);
 
+  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+
+  // Two crossing wave trains stand in for the chop on the surface. Only their
+  // slope is wanted, never the height itself, so the pools stay geometrically
+  // flat and the ripple lives entirely in the normal. Differentiating the sines
+  // by hand costs a few cosines and avoids sampling the field three times to
+  // difference it.
+  float slowX = groundPosition.x * 2.4 + uTime * 0.8;
+  float slowZ = groundPosition.y * 2.9 - uTime * 0.6;
+  float fastX = groundPosition.x * 5.1 - uTime * 1.3;
+  float fastZ = groundPosition.y * 4.3 + uTime * 1.1;
+  // A wave narrower than the pixel it lands in is shimmer rather than water,
+  // and the lot is seen almost edge on, so ground distance per pixel grows with
+  // the square of the range. Each train is therefore faded at its own
+  // wavelength: the 1.2-1.5 m train is gone by 50 m, the 2.2-2.6 m one at 95 m.
+  float viewDistance = distance(cameraPosition, vWorldPosition);
+  float broad = 1.0 - smoothstep(55.0, 95.0, viewDistance);
+  float fine = 1.0 - smoothstep(25.0, 50.0, viewDistance);
+  float slopeX = 2.4 * cos(slowX) * sin(slowZ) * 0.62 * broad + 5.1 * cos(fastX) * sin(fastZ) * 0.38 * fine;
+  float slopeZ = 2.9 * sin(slowX) * cos(slowZ) * 0.62 * broad + 4.3 * sin(fastX) * cos(fastZ) * 0.38 * fine;
+
+  // Ripple also dies through the rim of a pool, where the film is too thin to
+  // move. 0.03 puts the steepest part of a wave at about six degrees.
+  float ripple = 0.03 * water;
+  vec3 waterNormal = normalize(vec3(-slopeX * ripple, 1.0, -slopeZ * ripple));
+
   // Wet tarmac is darker than dry tarmac. What lifts a puddle is not the
   // asphalt underneath but the sky reflected off the surface of the water, and
-  // that reflection grows sharply as the view flattens out.
-  vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-  float grazing = pow(1.0 - clamp(viewDirection.y, 0.0, 1.0), 4.0);
+  // that reflection grows sharply as the view flattens out. Taking the angle
+  // against the rippled normal rather than against world up is what lets the
+  // waves reach the reflection at all.
+  float grazing = pow(1.0 - clamp(dot(viewDirection, waterNormal), 0.0, 1.0), 4.0);
   float fresnel = mix(0.12, 0.95, grazing);
 
-  // Slight chop, so the reflection is not a dead flat mirror.
-  float chop = sin(groundPosition.x * 2.4 + uTime * 0.8) * sin(groundPosition.y * 2.9 - uTime * 0.6);
-  float reflection = fresnel * (0.88 + 0.12 * chop) * (1.0 - roughness * 0.25);
+  // The chop used to arrive as a brightness scale of 0.88 + 0.12 * wave, which
+  // averages 0.88 across a pool. It arrives through the normal now, so that
+  // average is carried across on its own to keep this change to the structure
+  // of the reflection rather than its level.
+  float reflection = fresnel * 0.88 * (1.0 - roughness * 0.25);
 
   vec3 skyColour = vec3(0.557, 0.788, 0.933);
   vec3 waterColour = damagedAsphalt * 0.42 + skyColour * reflection;
