@@ -22,6 +22,7 @@ import {
   PARKING_LAYOUT
 } from "./parking/ParkingEnvironment.js";
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
+import { bakePoolEnvProbe } from "./parking/poolEnvProbe.js";
 
 
 export const PARKING_BAY_WIDTH = 2.5;
@@ -421,6 +422,33 @@ async load() {
     playerCarReady,
     this.roadTextures.ready
   ]);
+
+  // SPIKE (#87 point 2): bake the pool reflection probe once everything it
+  // should reflect exists and its textures have arrived. The lot samples the
+  // target's texture during the bake as well, so the first face renders see
+  // black water; the pools are a quarter of a floor that is itself mostly below
+  // the probe's horizon, so that is not worth a second pass to avoid.
+  // The middle of the central driving aisle: open tarmac with parked cars three
+  // metres away on both sides and nothing overhead, which is the geometry of the
+  // puddles the issue is actually about. Two positions were tried and discarded
+  // first -- the geometric centre of the lot is inside a parked car, and an empty
+  // bay looks straight up into its own cyan marker.
+  const aisle = LEVEL_ONE_PARKING_LAYOUT.verticalRoads[3];
+  this.envProbe = bakePoolEnvProbe(this.game.renderer, this.game.scene, {
+    x: aisle.x,
+    z: 0
+  });
+  this.asphaltUniforms.uEnvMap.value = this.envProbe.texture;
+  // SPIKE control: lets the capture harness read a texel out of the probe and
+  // check it against the background colour it should contain.
+  window.__envProbeTexel = (face = 2) => {
+    const pixel = new Uint8Array(4);
+    const size = this.envProbe.width;
+    this.game.renderer.readRenderTargetPixels(
+      this.envProbe, size >> 1, size >> 1, 1, 1, pixel, face
+    );
+    return Array.from(pixel);
+  };
 }
 
   updateSkyCameraFrustum() {

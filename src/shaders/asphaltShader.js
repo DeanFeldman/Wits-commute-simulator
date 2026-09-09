@@ -62,6 +62,7 @@ uniform float uHeadlightDistance;
 uniform float uRippleSlope;
 uniform float uPoolEdgeStart;
 uniform float uPoolEdgeEnd;
+uniform samplerCube uEnvMap;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying float vDamage;
@@ -165,7 +166,14 @@ void main() {
   // of the reflection rather than its level.
   float reflection = fresnel * 0.88 * (1.0 - roughness * 0.25);
 
-  vec3 skyColour = vec3(0.557, 0.788, 0.933);
+  // SPIKE: sample a static environment probe where the constant used to be.
+  // The probe is baked once at level load and stored sRGB-encoded, so what
+  // comes back is display-referred like the rest of this shader's output. In
+  // sky view the reflected ray points straight up into the flat background
+  // colour, so that capture doubles as a check that the colour handling is
+  // right: if sky view moves much, this line is wrong rather than interesting.
+  vec3 reflectDirection = reflect(-viewDirection, waterNormal);
+  vec3 skyColour = textureCube(uEnvMap, reflectDirection).rgb;
   // A puddle is shallowest where it meets the tarmac, and shallow water shows
   // the dark wet ground through it instead of the sky. Suppressing the
   // reflection over the rim band leaves the damagedAsphalt * 0.42 term standing
@@ -252,7 +260,8 @@ export function createAsphaltMaterial(textures = createRoadTextures()) {
       // shimmer even with the distance fades in place.
       uRippleSlope: { value: 0.03 },
       uPoolEdgeStart: { value: POOL_EDGE_START },
-      uPoolEdgeEnd: { value: POOL_EDGE_END }
+      uPoolEdgeEnd: { value: POOL_EDGE_END },
+      uEnvMap: { value: null }
     },
     vertexShader,
     fragmentShader
