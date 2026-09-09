@@ -297,3 +297,83 @@ through the same pipeline on both sides, with Level 2's layout seed pinned via
 `?level2Seed=` — but the absolute values are not hardware-representative.
 Treat the numbers as calibration for a first pass on real hardware, not as
 final values.
+
+---
+
+## 2026-09-09 — Level 1 Pools Keep a Constant Sky Colour; the Cube Map Is Rejected
+
+**Decision**
+
+The standing water in Level 1 reflects one constant colour,
+`vec3(0.557, 0.788, 0.933)`, matched to the level's `0x8ec9ee` sky. An
+environment cube map was built, measured and rejected. #87 is closed at four of
+its five points: the reflection colour, the rippled surface normal, the rim
+band and the coverage guard all landed; the cube map did not.
+
+The spike is preserved rather than deleted, on `gfx/87-cube-probe-spike`
+(`811ed29`), because a negative result nobody can re-read is a result that gets
+proposed again.
+
+**Reason**
+
+Cost was not the objection, and this is worth saying first because it is the
+objection everyone expects. Measured with the GPU timer added in `645685a`
+(`?gpuTimer=1`), whole-frame GPU time with the probe was 13.77 and 12.45 ms
+against the constant's 13.45 and 13.76 ms — fully overlapping. One `textureCube`
+fetch per water fragment is below the instrument's resolution, as was every
+other shader change made on this branch.
+
+Three things decided it, all measured on a seeded lot with `uTime` pinned.
+
+**It darkens the pools by a third.** Over the pool pixels the change touches in
+chase view, mean luma went from 0.2734 to 0.1887, a 31 % loss, with the median
+tracking it at −30 % and the standard deviation down 10 %. `1e15697` had
+deliberately lifted those same pixels about 24 % by matching the reflection to
+the sky. The probe takes more than that back off, and removes a tenth of the
+contrast the ripple and rim were added to create.
+
+**The reflection carries no image.** The prediction under test was that the
+rippled normal swings the reflected ray about ±12°, so wave troughs dip below
+horizontal and catch the bodies of parked cars — the case #87 calls out as most
+noticeable. Captured against a pool sitting directly against a cyan hatchback,
+there is no cyan in the water. What the troughs catch is darkness. The surface
+goes from gentle wave bands to a stipple of dark dimples that reads as pocked,
+dirty tarmac rather than as water.
+
+**A single probe structurally cannot do it.** A cube map is a direction-only
+lookup from one fixed point, so a pool 30 m away reflects what the probe saw
+from where the probe stood, not what is standing beside that pool. No tuning
+changes that; it is what one probe is. Reflecting the adjacent car needs
+per-pool probes, box-projected parallax correction, planar reflection or
+screen-space reflection. Planar reflection is one extra full scene render, so
+against the 10.6–13.8 ms frames measured here that is roughly a doubling of
+frame cost, and the others are the same order. That is the trade the next person
+to propose this has to argue for, not the free `textureCube` fetch.
+
+**Two things the spike learned that outlive it.**
+
+Probe placement in this scene is unexpectedly hostile, and a wrong position
+looks like a result. The geometric centre of the lot is inside a parked car and
+returned black for every horizontal texel — which produced a plausible-looking
+and completely invalid first darkening figure. An empty bay looks straight up
+into its own cyan bay marker. Only the middle of the central driving aisle at
+0.5 m works. The control that caught both is cheap and worth reusing: the zenith
+texel of the probe must equal the background colour, `(142, 201, 238)`, and it
+does once the probe is placed correctly.
+
+The cube target has to be stored sRGB-encoded. `createAsphaltMaterial` is a raw
+`ShaderMaterial` that writes `gl_FragColor` with no `<tonemapping_fragment>` and
+no `<colorspace_fragment>` chunk, so its output is display-referred and it is
+outside both the ACES curve and the sRGB encode. A linear cube sample dropped
+into that shader reads as darkening that is really a colour-space bug. Three
+also disables tone mapping when rendering into a render target, so the probe
+misses the highlight rolloff the canvas gets; at dusk almost nothing in this
+scene is above 1.0, so that stayed second order.
+
+**One caveat left open.** Sky view should have been unchanged, since a reflected
+ray from directly overhead points at the zenith and the zenith texel is exact.
+It still moved, mean 0.1241 to 0.1104. That is the rippled normal spreading the
+sample direction far enough that the hardware pulls coarse mip levels which
+average sky with dark ground. Disabling mipmaps on the probe would probably fix
+it. It was not chased, because the spike was run under an instruction not to
+tune anything to compensate, and because it does not change the conclusion.
