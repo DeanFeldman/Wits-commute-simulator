@@ -29,6 +29,67 @@ export const PARKING_BAY_LENGTH = 5;
 export const PARKING_AISLE_WIDTH = 6;
 export const PARKING_LINE_WIDTH = 0.08;
 
+export const LEVEL_ONE_DAMAGE = Object.freeze({
+  small: 4,
+  medium: 10,
+  high: 20
+});
+
+export function parkingAxisAngleError(rotation, bayAngle) {
+  const delta = rotation - bayAngle;
+  const facingError = Math.abs(
+    Math.atan2(Math.sin(delta), Math.cos(delta))
+  );
+
+  // A parking bay has an axis rather than a single facing direction:
+  // nose-in and reverse-in are both valid.
+  return Math.min(
+    facingError,
+    Math.abs(Math.PI - facingError)
+  );
+}
+
+export function getLevelOneCollisionDamage(tag = "") {
+  const normalizedTag = String(tag).toLowerCase();
+
+  if (normalizedTag === "pothole") {
+    return LEVEL_ONE_DAMAGE.small;
+  }
+
+  if (normalizedTag === "parked-car") {
+    return LEVEL_ONE_DAMAGE.high;
+  }
+
+  if (
+    normalizedTag.includes("sign") ||
+    normalizedTag.includes("curb") ||
+    normalizedTag.includes("kerb")
+  ) {
+    return LEVEL_ONE_DAMAGE.medium;
+  }
+
+  if (
+    normalizedTag.includes("wall") ||
+    normalizedTag.includes("barrier") ||
+    normalizedTag.includes("fence") ||
+    normalizedTag.includes("boom") ||
+    normalizedTag.includes("booth") ||
+    normalizedTag.startsWith("wits-arm")
+  ) {
+    return LEVEL_ONE_DAMAGE.high;
+  }
+
+  // Unknown solid obstacles are still damaging, but not catastrophically so.
+  return LEVEL_ONE_DAMAGE.medium;
+}
+
+export function applyLevelOneDamage(condition, tag) {
+  return Math.max(
+    0,
+    condition - getLevelOneCollisionDamage(tag)
+  );
+}
+
 const DOUBLE_ROW_CONFIGS = Object.freeze([
   Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 32 }),
   Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 32 }),
@@ -723,10 +784,7 @@ if (hit) {
   this.vehicle.stop();
 
   if (this.impactCooldown <= 0) {
-    this.condition = Math.max(
-      0,
-      this.condition - 5
-    );
+    this.condition = applyLevelOneDamage(this.condition, hit.tag);
 
     this.cameraShake = Math.max(
       this.cameraShake,
@@ -788,7 +846,7 @@ if (hit) {
         this.audio.cue(92, 0.12, 0.14);
 
         // Light damage only
-        this.condition = Math.max(0, this.condition - 4);
+        this.condition = applyLevelOneDamage(this.condition, "pothole");
 
         // Slightly longer cooldown so one pothole doesn't shred the car
         this.potholeCooldown = 1.2;
@@ -807,12 +865,10 @@ if (hit) {
     }
 
     const containmentPercent = (best?.containment ?? 0) * 100;
-    const delta = this.car.rotation.y - (best?.bay.angle ?? 0);
-    const facingError = Math.abs(Math.atan2(Math.sin(delta), Math.cos(delta)));
-
-    // Treat both directions along the bay axis as valid, so nose-in and
-    // reverse-in parking both pass.
-    const angleError = Math.min(facingError, Math.abs(Math.PI - facingError));
+    const angleError = parkingAxisAngleError(
+      this.car.rotation.y,
+      best?.bay.angle ?? 0
+    );
 
     this.parkingStatus.containment = containmentPercent >= 80;
     this.parkingStatus.alignment = angleError <= THREE.MathUtils.degToRad(12);
