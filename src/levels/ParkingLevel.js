@@ -821,7 +821,7 @@ if (hit) {
 
     if (this.condition <= 0) {
       this.completed = true;
-      this.game.failLevel("Car condition reached 0%.");
+      this.game.failLevel("YOUR CAR BROKE DOWN — You missed your exam. Restarting Level 1…");
     }
   }
 

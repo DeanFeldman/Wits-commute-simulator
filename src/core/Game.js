@@ -337,7 +337,8 @@ export class Game {
 
     this.isTransitioning = true;
     this.setMessage(message);
-    this.fadeTransition(() => this.restartCurrentLevel(true));
+    this.fadeElement.classList.add("visible");
+    this.scheduleTransition(() => this.restartCurrentLevel(true), 1600);
   }
 
   fadeTransition(callback) {
