@@ -236,7 +236,7 @@ function kerbRunsBetweenEntrances(left, right) {
   return runs;
 }
 
-function createCampusRoad(root, roadMaterial) {
+function createCampusRoad(root, collisionWorld, roadMaterial) {
   const { campusRoad, bridgeRoad } = PARKING_LAYOUT;
   // The streets share the parking lot's asphalt maps, so the whole level reads
   // as one surface. Falls back to flat colour if no texture set was supplied.
@@ -270,7 +270,20 @@ function createCampusRoad(root, roadMaterial) {
       const length = end - start;
       if (length <= 0.2) continue;
       const centre = start + length / 2;
-      box(root, [length, 0.16, 0.42], [centre, 0.08, kerbZ], kerbMaterial);
+      box(
+        root,
+        [length, 0.16, 0.42],
+        [centre, 0.08, kerbZ],
+        kerbMaterial,
+        { name: "campus-road-kerb" }
+      );
+      addCollider(
+        collisionWorld,
+        root,
+        [centre, 0.22, kerbZ],
+        [length, 0.5, 0.6],
+        "campus-road-kerb"
+      );
       box(root, [length, 0.08, 1.7], [centre, 0.06, pavementZ], pavementMaterial);
     }
   }
@@ -768,7 +781,22 @@ function createCampusBoomGate(root, collisionWorld, playerCar) {
 
   // Kerb islands along both road edges.
   for (const x of [-6.2, 6.2]) {
-    box(gate, [0.42, 0.24, 10.5], [x, 0.12, 0], islandMat, { castShadow: true });
+    box(
+      gate,
+      [0.42, 0.24, 10.5],
+      [x, 0.12, 0],
+      islandMat,
+      { castShadow: true, name: "campus-gate-kerb" }
+    );
+
+    const [kerbX, kerbZ] = toWorld(x, 0);
+    addCollider(
+      collisionWorld,
+      root,
+      [kerbX, 0.2, kerbZ],
+      [10.5, 0.5, 0.6],
+      "campus-gate-kerb"
+    );
   }
 
   // The boom itself, hinged at the kerb and reaching across the lane.
@@ -825,7 +853,7 @@ function createSecondaryParkingLink(root) {
 }
 
 
-function createTrees(root) {
+function createTrees(root, collisionWorld) {
   const positions = [
     [-104, -35], [-104, -15], [-104, 8], [-101, 28],
     [-70, -51], [-48, -51], [-22, -51], [55, -46],
@@ -849,6 +877,14 @@ function createTrees(root) {
     trunk.setMatrixAt(index, matrix);
     matrix.makeTranslation(x, 4.2, z);
     canopy.setMatrixAt(index, matrix);
+
+    addCollider(
+      collisionWorld,
+      root,
+      [x, 1.3, z],
+      [0.65, 2.6, 0.65],
+      "tree"
+    );
   });
   trunk.instanceMatrix.needsUpdate = true;
   canopy.instanceMatrix.needsUpdate = true;
@@ -860,7 +896,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   root.name = "parking-environment";
 
   createSeparatedGround(root);
-  createCampusRoad(root, roadMaterial);
+  createCampusRoad(root, collisionWorld, roadMaterial);
   const { laneZ } = createM1(root, roadMaterial);
   const updateM1Traffic = createM1Traffic(root, laneZ);
   createArmBuilding(root, collisionWorld);
@@ -876,7 +912,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const updateLotBooms = LOT_OPENINGS.map(
     (opening) => createParkingBoomEntrance(root, collisionWorld, playerCar, opening)
   );
-  createTrees(root);
+  createTrees(root, collisionWorld);
 
 
   const update = (dt) => {

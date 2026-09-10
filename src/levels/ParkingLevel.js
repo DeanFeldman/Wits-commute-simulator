@@ -29,6 +29,68 @@ export const PARKING_BAY_LENGTH = 5;
 export const PARKING_AISLE_WIDTH = 6;
 export const PARKING_LINE_WIDTH = 0.08;
 
+export const LEVEL_ONE_DAMAGE = Object.freeze({
+  small: 4,
+  medium: 10,
+  high: 20
+});
+
+export function parkingAxisAngleError(rotation, bayAngle) {
+  const delta = rotation - bayAngle;
+  const facingError = Math.abs(
+    Math.atan2(Math.sin(delta), Math.cos(delta))
+  );
+
+  // A parking bay has an axis rather than a single facing direction:
+  // nose-in and reverse-in are both valid.
+  return Math.min(
+    facingError,
+    Math.abs(Math.PI - facingError)
+  );
+}
+
+export function getLevelOneCollisionDamage(tag = "") {
+  const normalizedTag = String(tag).toLowerCase();
+
+  if (normalizedTag === "pothole") {
+    return LEVEL_ONE_DAMAGE.small;
+  }
+
+  if (normalizedTag === "parked-car") {
+    return LEVEL_ONE_DAMAGE.high;
+  }
+
+  if (
+    normalizedTag.includes("sign") ||
+    normalizedTag.includes("curb") ||
+    normalizedTag.includes("kerb") ||
+    normalizedTag.includes("tree")
+  ) {
+    return LEVEL_ONE_DAMAGE.medium;
+  }
+
+  if (
+    normalizedTag.includes("wall") ||
+    normalizedTag.includes("barrier") ||
+    normalizedTag.includes("fence") ||
+    normalizedTag.includes("boom") ||
+    normalizedTag.includes("booth") ||
+    normalizedTag.startsWith("wits-arm")
+  ) {
+    return LEVEL_ONE_DAMAGE.high;
+  }
+
+  // Unknown solid obstacles are still damaging, but not catastrophically so.
+  return LEVEL_ONE_DAMAGE.medium;
+}
+
+export function applyLevelOneDamage(condition, tag) {
+  return Math.max(
+    0,
+    condition - getLevelOneCollisionDamage(tag)
+  );
+}
+
 const DOUBLE_ROW_CONFIGS = Object.freeze([
   Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 32 }),
   Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 32 }),
@@ -252,6 +314,58 @@ export function pickFreeParkingBays(spaces, random = Math.random, {
 
 export function parkingBayKey(space) {
   return `${space.rowName}:${space.rowIndex}`;
+}
+
+export const PLAYER_CAR_WHEEL_NAMES = Object.freeze([
+  "wheel_00",
+  "wheel_01",
+  "wheel_02",
+  "wheel_03"
+]);
+
+export const PLAYER_CAR_FRONT_WHEEL_NAMES = Object.freeze([
+  "wheel_00",
+  "wheel_03"
+]);
+
+export function rigPlayerCarWheels(model) {
+  const wheels = [];
+  const frontWheelPivots = [];
+  const frontNames = new Set(PLAYER_CAR_FRONT_WHEEL_NAMES);
+
+  for (const name of PLAYER_CAR_WHEEL_NAMES) {
+    const wheel = model.getObjectByName(name);
+
+    if (!wheel?.parent) {
+      continue;
+    }
+
+    const parent = wheel.parent;
+    const pivot = new THREE.Group();
+
+    pivot.name = `${name}-steering-pivot`;
+
+    // The GLB stores wheel placement in the wheel node transform while the
+    // wheel geometry itself is centred on the origin. Move that translation
+    // onto a wrapper so steering happens around the actual wheel centre.
+    pivot.position.copy(wheel.position);
+
+    parent.add(pivot);
+    pivot.add(wheel);
+
+    wheel.position.set(0, 0, 0);
+
+    wheels.push(wheel);
+
+    if (frontNames.has(name)) {
+      frontWheelPivots.push(pivot);
+    }
+  }
+
+  return {
+    wheels,
+    frontWheelPivots
+  };
 }
 
 export class ParkingLevel {
@@ -643,9 +757,28 @@ createParkingSurface() {
     carRoot.add(suspension);
     this.suspension = suspension;
 
-    const modelReady = attachPlayerCarModel(suspension).catch((error) => {
-      console.warn("Player car model could not be loaded.", error);
-    });
+    const modelReady = attachPlayerCarModel(suspension)
+      .then((model) => {
+        const wheelRig = rigPlayerCarWheels(model);
+
+        this.wheels = wheelRig.wheels;
+        this.frontWheelPivots = wheelRig.frontWheelPivots;
+
+        if (
+          this.wheels.length !== 4 ||
+          this.frontWheelPivots.length !== 2
+        ) {
+          console.warn(
+            `Player car wheel rig incomplete: ${this.wheels.length} wheels, ` +
+            `${this.frontWheelPivots.length} front pivots.`
+          );
+        }
+
+        return model;
+      })
+      .catch((error) => {
+        console.warn("Player car model could not be loaded.", error);
+      });
 
     for (const x of [-0.65, 0.65]) {
       const beam = new THREE.SpotLight(0xfff0bd, 16, 22, Math.PI / 7, 0.45, 1.4);
@@ -723,10 +856,7 @@ if (hit) {
   this.vehicle.stop();
 
   if (this.impactCooldown <= 0) {
-    this.condition = Math.max(
-      0,
-      this.condition - 5
-    );
+    this.condition = applyLevelOneDamage(this.condition, hit.tag);
 
     this.cameraShake = Math.max(
       this.cameraShake,
@@ -763,7 +893,7 @@ if (hit) {
 
     if (this.condition <= 0) {
       this.completed = true;
-      this.game.failLevel("Car condition reached 0%.");
+      this.game.failLevel("YOUR CAR BROKE DOWN — You missed your exam. Restarting Level 1…");
     }
   }
 
@@ -788,7 +918,7 @@ if (hit) {
         this.audio.cue(92, 0.12, 0.14);
 
         // Light damage only
-        this.condition = Math.max(0, this.condition - 4);
+        this.condition = applyLevelOneDamage(this.condition, "pothole");
 
         // Slightly longer cooldown so one pothole doesn't shred the car
         this.potholeCooldown = 1.2;
@@ -807,12 +937,10 @@ if (hit) {
     }
 
     const containmentPercent = (best?.containment ?? 0) * 100;
-    const delta = this.car.rotation.y - (best?.bay.angle ?? 0);
-    const facingError = Math.abs(Math.atan2(Math.sin(delta), Math.cos(delta)));
-
-    // Treat both directions along the bay axis as valid, so nose-in and
-    // reverse-in parking both pass.
-    const angleError = Math.min(facingError, Math.abs(Math.PI - facingError));
+    const angleError = parkingAxisAngleError(
+      this.car.rotation.y,
+      best?.bay.angle ?? 0
+    );
 
     this.parkingStatus.containment = containmentPercent >= 80;
     this.parkingStatus.alignment = angleError <= THREE.MathUtils.degToRad(12);
@@ -882,8 +1010,16 @@ if (hit) {
 
   updateVehicleVisuals(dt) {
     const wheelSpin = this.vehicle.speed / 0.38 * dt;
-    for (const wheel of this.wheels) wheel.rotation.x -= wheelSpin;
-    for (const pivot of this.frontWheelPivots) pivot.rotation.y = this.vehicle.steering;
+
+    // The imported wheel mesh is thin on local Y, so Y is its axle.
+    // rotateY preserves the wheel's authored base orientation.
+    for (const wheel of this.wheels) {
+      wheel.rotateY(-wheelSpin);
+    }
+
+    for (const pivot of this.frontWheelPivots) {
+      pivot.rotation.y = this.vehicle.steering;
+    }
     this.suspension.rotation.x = -this.vehicle.speed * 0.012 - this.cameraShake * 0.08;
   }
 
