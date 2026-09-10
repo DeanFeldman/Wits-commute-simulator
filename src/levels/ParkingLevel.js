@@ -63,7 +63,8 @@ export function getLevelOneCollisionDamage(tag = "") {
   if (
     normalizedTag.includes("sign") ||
     normalizedTag.includes("curb") ||
-    normalizedTag.includes("kerb")
+    normalizedTag.includes("kerb") ||
+    normalizedTag.includes("tree")
   ) {
     return LEVEL_ONE_DAMAGE.medium;
   }
