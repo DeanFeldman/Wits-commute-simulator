@@ -316,6 +316,58 @@ export function parkingBayKey(space) {
   return `${space.rowName}:${space.rowIndex}`;
 }
 
+export const PLAYER_CAR_WHEEL_NAMES = Object.freeze([
+  "wheel_00",
+  "wheel_01",
+  "wheel_02",
+  "wheel_03"
+]);
+
+export const PLAYER_CAR_FRONT_WHEEL_NAMES = Object.freeze([
+  "wheel_00",
+  "wheel_03"
+]);
+
+export function rigPlayerCarWheels(model) {
+  const wheels = [];
+  const frontWheelPivots = [];
+  const frontNames = new Set(PLAYER_CAR_FRONT_WHEEL_NAMES);
+
+  for (const name of PLAYER_CAR_WHEEL_NAMES) {
+    const wheel = model.getObjectByName(name);
+
+    if (!wheel?.parent) {
+      continue;
+    }
+
+    const parent = wheel.parent;
+    const pivot = new THREE.Group();
+
+    pivot.name = `${name}-steering-pivot`;
+
+    // The GLB stores wheel placement in the wheel node transform while the
+    // wheel geometry itself is centred on the origin. Move that translation
+    // onto a wrapper so steering happens around the actual wheel centre.
+    pivot.position.copy(wheel.position);
+
+    parent.add(pivot);
+    pivot.add(wheel);
+
+    wheel.position.set(0, 0, 0);
+
+    wheels.push(wheel);
+
+    if (frontNames.has(name)) {
+      frontWheelPivots.push(pivot);
+    }
+  }
+
+  return {
+    wheels,
+    frontWheelPivots
+  };
+}
+
 export class ParkingLevel {
   constructor(game) {
     this.game = game;
@@ -705,9 +757,28 @@ createParkingSurface() {
     carRoot.add(suspension);
     this.suspension = suspension;
 
-    const modelReady = attachPlayerCarModel(suspension).catch((error) => {
-      console.warn("Player car model could not be loaded.", error);
-    });
+    const modelReady = attachPlayerCarModel(suspension)
+      .then((model) => {
+        const wheelRig = rigPlayerCarWheels(model);
+
+        this.wheels = wheelRig.wheels;
+        this.frontWheelPivots = wheelRig.frontWheelPivots;
+
+        if (
+          this.wheels.length !== 4 ||
+          this.frontWheelPivots.length !== 2
+        ) {
+          console.warn(
+            `Player car wheel rig incomplete: ${this.wheels.length} wheels, ` +
+            `${this.frontWheelPivots.length} front pivots.`
+          );
+        }
+
+        return model;
+      })
+      .catch((error) => {
+        console.warn("Player car model could not be loaded.", error);
+      });
 
     for (const x of [-0.65, 0.65]) {
       const beam = new THREE.SpotLight(0xfff0bd, 16, 22, Math.PI / 7, 0.45, 1.4);
@@ -939,8 +1010,16 @@ if (hit) {
 
   updateVehicleVisuals(dt) {
     const wheelSpin = this.vehicle.speed / 0.38 * dt;
-    for (const wheel of this.wheels) wheel.rotation.x -= wheelSpin;
-    for (const pivot of this.frontWheelPivots) pivot.rotation.y = this.vehicle.steering;
+
+    // The imported wheel mesh is thin on local Y, so Y is its axle.
+    // rotateY preserves the wheel's authored base orientation.
+    for (const wheel of this.wheels) {
+      wheel.rotateY(-wheelSpin);
+    }
+
+    for (const pivot of this.frontWheelPivots) {
+      pivot.rotation.y = this.vehicle.steering;
+    }
     this.suspension.rotation.x = -this.vehicle.speed * 0.012 - this.cameraShake * 0.08;
   }
 
