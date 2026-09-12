@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
-import { CrossingStrip } from "../src/levels/crossing/CrossingStrip.js";
+import { CrossingStrip, createAmicDeckMaterial } from "../src/levels/crossing/CrossingStrip.js";
 import { GridHopController } from "../src/levels/crossing/GridHopController.js";
+import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 import {
   CUSTOM_HAZARD_STRIPS,
   CUSTOM_SAFE_STRIPS,
@@ -71,8 +72,16 @@ test("traffic strips orient, space, and recycle their fixed vehicle pools", () =
     for (const vehicle of strip.traffic) {
       assert.ok(vehicle.lane.allowedVehicleTypes.includes(vehicle.type));
       assert.equal(vehicle.root.rotation.y, vehicle.lane.direction > 0 ? -Math.PI / 2 : Math.PI / 2);
+      assert.ok(PARKING_CAR_SPECS.includes(vehicle.spec));
+      assert.equal(vehicle.root.userData.vehicleSpecId, vehicle.spec.id);
+      // In DOM-free tests the GLB is deliberately not loaded. The empty wrapper
+      // proves Level 2 no longer builds or repositions primitive child meshes.
+      assert.equal(vehicle.root.children.length, 0);
     }
   }
+
+  const usedVehicleSpecs = new Set(strips.flatMap((strip) => strip.traffic.map((vehicle) => vehicle.spec.id)));
+  assert.ok(usedVehicleSpecs.size >= 4, "seeded traffic should exercise multiple Level 1 vehicle models");
 
   for (let frame = 0; frame < 1800; frame++) {
     for (const strip of strips) {
@@ -156,4 +165,73 @@ test("a multi-row strip can load and position declared GLB scenery", async () =>
   assert.deepEqual(model.scale.toArray(), [1.5, 1.5, 1.5]);
   assert.equal(strip.containsZ(4.59), true);
   assert.equal(strip.containsZ(4.7), false);
+});
+
+test("authored walkways share the AMIC texture and both parking areas exist", () => {
+  const layout = generateLevel2Layout(3006);
+  const parent = new THREE.Group();
+  const walkwayMaterial = createAmicDeckMaterial();
+  const strips = layout.strips.map((definition) => new CrossingStrip({
+    definition,
+    z: -definition.rowStart * layout.depth,
+    parent,
+    random: createSeededRandom(layout.seed ^ definition.index),
+    audio: null,
+    walkwayMaterial
+  }));
+
+  const walkableMeshes = [];
+  parent.traverse((child) => {
+    if (child.isMesh && child.name.startsWith("amic-") && !child.name.startsWith("amic-fence-")) {
+      walkableMeshes.push(child);
+    }
+  });
+  assert.ok(walkableMeshes.length >= 10);
+  assert.ok(walkableMeshes.every((mesh) => mesh.material === walkwayMaterial));
+  assert.equal(walkwayMaterial.map.name, "amic-deck-texture");
+
+  const start = strips.find((strip) => strip.definition.type === "start");
+  const finish = strips.find((strip) => strip.definition.type === "finish");
+  const farSideLanding = strips.find((strip) => strip.definition.type === "bridge-exit");
+  assert.ok(start.root.getObjectByName("arm-side-parking"));
+  assert.ok(finish.root.getObjectByName("opposite-side-parking"));
+  assert.equal(start.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
+  assert.equal(finish.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
+
+  const armBuilding = start.root.getObjectByName("arm-building");
+  assert.equal(armBuilding.position.x, -15.2);
+  assert.ok(armBuilding.position.x + armBuilding.geometry.parameters.width / 2 < -12.3);
+  const courtyard = start.root.getObjectByName("amic-arm-courtyard");
+  assert.ok(courtyard);
+  assert.equal(courtyard.material, walkwayMaterial);
+  assert.equal(start.root.getObjectByName("vida-courtyard-container"), undefined);
+  assert.equal(finish.root.getObjectByName("vida-courtyard-container"), undefined);
+  const vidaContainer = farSideLanding.root.getObjectByName("vida-courtyard-container");
+  assert.ok(vidaContainer);
+  assert.equal(vidaContainer.position.x, -7.2);
+  assert.equal(vidaContainer.rotation.y, Math.PI / 2);
+  assert.equal(farSideLanding.root.getObjectByName("vida-container-shell").material.color.getHex(), 0xb8322d);
+  assert.ok(farSideLanding.root.getObjectByName("vida-container-label"));
+  const vidaCourtyard = farSideLanding.root.getObjectByName("amic-vida-courtyard");
+  assert.ok(vidaCourtyard);
+  assert.equal(vidaCourtyard.material, walkwayMaterial);
+  const adjacentLot = start.root.getObjectByName("arm-side-parking");
+  assert.equal(adjacentLot.geometry.parameters.width, 16);
+  assert.equal(start.root.children.filter((child) => child.name === "level-one-style-parking-kerb").length, 2);
+  const baySideLines = start.root.getObjectByName("parking-bay-side-lines");
+  assert.equal(baySideLines.geometry.parameters.width, 0.08);
+  assert.equal(baySideLines.geometry.parameters.depth, 5);
+
+  const bridge = strips.find((strip) => strip.definition.section === "m1-bridge");
+  const bridgeFences = bridge.root.children.filter((child) => child.name.startsWith("amic-fence-"));
+  assert.equal(bridgeFences.length, 2);
+  assert.equal(bridge.boundaryVolumes.length, 2);
+  assert.ok(bridgeFences.every((fence) => fence.position.y > 3.5));
+  assert.ok(bridgeFences.every((fence) => fence.children.some((child) => child.isInstancedMesh)));
+  assert.ok(bridgeFences.every((fence) => fence.children.filter((child) => child.name.endsWith("horizontal-rail")).length === 2));
+  assert.ok(bridge.boundaryVolumes.every((volume) => volume.type === "amic-fence"));
+  assert.ok(strips.filter((strip) => strip !== bridge).every((strip) =>
+    strip.root.children.every((child) => !child.name.startsWith("amic-fence-"))
+      && strip.boundaryVolumes.length === 0
+  ));
 });

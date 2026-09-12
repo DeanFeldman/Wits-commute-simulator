@@ -32,7 +32,8 @@ export class GridHopController {
 
     this.hop.elapsed += dt;
     const progress = Math.min(this.hop.elapsed / this.hopDuration, 1);
-    this.object.position.lerpVectors(this.hop.start, this.hop.end, progress);
+    const eased = progress * progress * (3 - 2 * progress);
+    this.object.position.lerpVectors(this.hop.start, this.hop.end, eased);
     this.object.position.y = this.hop.baseY + Math.sin(progress * Math.PI) * this.hopHeight;
     if (progress < 1) return null;
 

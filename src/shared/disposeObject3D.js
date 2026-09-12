@@ -11,7 +11,7 @@ export function disposeObject3D(root) {
   };
 
   const disposeMaterial = (material) => {
-    if (!material || materials.has(material)) {
+    if (!material || material.userData?.sharedAsset || materials.has(material)) {
       return;
     }
 
@@ -29,7 +29,7 @@ export function disposeObject3D(root) {
   };
 
   root.traverse((object) => {
-    if (object.geometry && !geometries.has(object.geometry)) {
+    if (object.geometry && !object.geometry.userData?.sharedAsset && !geometries.has(object.geometry)) {
       geometries.add(object.geometry);
       object.geometry.dispose();
     }

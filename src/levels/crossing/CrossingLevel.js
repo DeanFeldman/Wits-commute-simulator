@@ -5,7 +5,8 @@ import { GridHopController } from "./GridHopController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
-import { CrossingStrip } from "./CrossingStrip.js";
+import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
+import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
 import {
   createSeededRandom,
   generateLevel2Layout,
@@ -32,6 +33,7 @@ export class CrossingLevel {
     this.lanes = [];
     this.strips = [];
     this.blockedCells = [];
+    this.boundaryVolumes = [];
     this.layout = null;
     this.seed = null;
     this.invulnerabilityTimer = 0;
@@ -39,6 +41,17 @@ export class CrossingLevel {
     this.crowdContactCooldown = 0;
     this.playerRig = null;
     this.playerAnimationTime = 0;
+    this.impactTimer = 0;
+    this.cameraShakeTime = 0;
+    this.pendingRespawn = null;
+    this.level2PlayerSpawn = null;
+    this.cameraPositionTarget = new THREE.Vector3();
+    this.cameraLookTarget = new THREE.Vector3();
+    this.playerCollisionBox = new THREE.Box3();
+    this.vehicleCollisionBox = new THREE.Box3();
+    this.walkwayMaterial = createAmicDeckMaterial();
+    this.parkingRoadTextures = null;
+    this.parkingMaterial = null;
     this.audio = new LevelAudio();
 
     this.startZ = 0;
@@ -46,6 +59,7 @@ export class CrossingLevel {
     this.checkpoint = { x: 0, z: this.startZ, label: "start" };
 
     this.gridSize = STRIP_DEPTH;
+    this.routeDirection = -1;
     this.completed = false;
   }
 
@@ -56,7 +70,7 @@ export class CrossingLevel {
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
-    this.root.add(createWitsTerrain({ baseY: -2.3, nearScenery: true, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
+    this.root.add(createWitsTerrain({ baseY: -3.8, nearScenery: false, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
@@ -81,21 +95,27 @@ export class CrossingLevel {
     this.root.add(sun.target);
     sun.target.position.set(0, 0, 0);
     // Build the generated environment before placing gameplay actors into it.
+    this.parkingRoadTextures = createRoadTextures();
+    this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
     this.createPlayer();
     this.createCrowds();
     this.collisionWorld.rebuild();
     this.hopController = new GridHopController(this.player, {
-      cellSize: this.gridSize, hopDuration: 0.16, hopHeight: 0.38,
-      minX: -9.6, maxX: 9.6, minZ: this.finishZ, maxZ: this.startZ,
+      cellSize: this.gridSize, hopDuration: 0.34, hopHeight: 0.025,
+      minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ,
       canEnter: (x, z) => !this.isBlockedCell(x, z),
-      onBlocked: () => this.game.setMessage("A tree blocks that grid cell.")
+      onBlocked: () => this.game.setMessage("Stay on the marked pedestrian route.")
     });
 
-    const camera = new THREE.OrthographicCamera(-10, 10, 9, -9, 0.1, 100);
-    camera.userData.viewHeight = 18;
-    camera.position.set(11, 15, 16);
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.PerspectiveCamera(
+      58,
+      this.game.renderer.domElement.clientWidth / Math.max(1, this.game.renderer.domElement.clientHeight),
+      0.1,
+      160
+    );
+    camera.position.set(this.player.position.x + 5.2, 6.5, this.player.position.z + 7.5);
+    camera.lookAt(this.player.position.x, 0.9, this.player.position.z - 3);
 
     this.game.setCamera(camera);
 
@@ -106,7 +126,7 @@ export class CrossingLevel {
       moveRight: ["KeyD", "ArrowRight"]
     });
     this.game.setMessage(
-      "Cross the road. One key press = one grid step. Reach the finish pavement."
+      "Follow the ARM walkway, cross the bridge over the M1, then cross Yale Road to Engineering."
     );
   }
 
@@ -130,7 +150,9 @@ export class CrossingLevel {
         z,
         parent: this.root,
         random,
-        audio: this.audio
+        audio: this.audio,
+        walkwayMaterial: this.walkwayMaterial,
+        parkingMaterial: this.parkingMaterial
       });
       this.strips.push(strip);
     }
@@ -145,11 +167,15 @@ export class CrossingLevel {
 
     this.startZ = centerRow * this.layout.depth;
     this.finishZ = -centerRow * this.layout.depth;
+    this.level2PlayerSpawn = Object.freeze({ x: 0, y: 0.95, z: this.startZ, rotationY: Math.PI });
     this.checkpoint = { x: 0, z: this.startZ, label: "start" };
     // Flat collections keep the existing collision and gap-hint code simple.
     this.lanes = this.strips.flatMap((strip) => strip.lanes);
     this.traffic = this.strips.flatMap((strip) => strip.traffic);
     this.blockedCells = this.strips.flatMap((strip) => strip.blockedCells);
+    this.boundaryVolumes = this.strips.flatMap((strip) => strip.boundaryVolumes);
+    await Promise.all(this.strips.map((strip) => strip.whenReady()));
+    await this.parkingRoadTextures.ready;
   }
 
   resolveSeed() {
@@ -161,91 +187,86 @@ export class CrossingLevel {
   }
 
   createCrowds() {
-    // Crowds belong only to strips that explicitly declare a `crowd` hazard.
-    const colours = [0xb95c71, 0x506c9b, 0x7d9b61, 0xa77a4d, 0x665a91, 0x4b9c94];
-    const crowdStrips = this.strips.filter((strip) => strip.definition.crowd);
-    for (const strip of crowdStrips) {
-      const config = strip.definition.crowd;
-      const [minimumSpeed, maximumSpeed] = config.speedRange;
-      for (let index = 0; index < config.count; index++) {
-        const rowOffset = config.rowOffsets[index % config.rowOffsets.length];
-        const z = strip.z + strip.localZForRow(rowOffset);
-        const movesRight = index % 2 === 0;
-        const startX = movesRight ? -9 : 9;
-        const endX = -startX;
-        const path = [
-          new THREE.Vector3(startX, 0.75, z),
-          new THREE.Vector3(endX, 0.75, z)
-        ];
-        const pedestrian = new THREE.Mesh(
-          new THREE.BoxGeometry(0.65, 1.5, 0.65),
-          new THREE.MeshStandardMaterial({ color: colours[this.crowds.length % colours.length], roughness: 0.8 })
-        );
-        const progress = (index + 1) / (config.count + 1);
-        pedestrian.position.set(THREE.MathUtils.lerp(startX, endX, progress), 0.75, z);
-        pedestrian.castShadow = true;
-        this.root.add(pedestrian);
-        const speed = THREE.MathUtils.lerp(minimumSpeed, maximumSpeed, index / Math.max(1, config.count - 1));
-        this.crowds.push({
-          mesh: pedestrian,
-          strip,
-          mover: new WaypointMover(pedestrian, {
-            points: path,
-            speed,
-            startIndex: 1,
-            debugRoot: this.root,
-            debugColor: 0x8fd6c8
-          })
-        });
-      }
+    const colours = [0xa8464f, 0x405f8e, 0x63864f, 0x9a693f, 0x645687, 0x327a76];
+    for (let index = 0; index < 12; index++) {
+      const movingForward = index % 2 === 0;
+      const x = movingForward ? -1.15 : 1.15;
+      const fromZ = movingForward ? this.startZ - 1.6 : this.finishZ + 1.6;
+      const toZ = movingForward ? this.finishZ + 1.6 : this.startZ - 1.6;
+      const pedestrian = this.createPedestrianModel({
+        shirt: colours[index % colours.length],
+        trousers: index % 3 === 0 ? 0x31363d : 0x454b55,
+        scale: 0.92 + (index % 4) * 0.025
+      });
+      pedestrian.position.set(x, 0.95, THREE.MathUtils.lerp(fromZ, toZ, (index + 1) / 13));
+      pedestrian.rotation.y = movingForward ? Math.PI : 0;
+      this.root.add(pedestrian);
+      this.crowds.push({
+        mesh: pedestrian,
+        rig: pedestrian.userData.rig,
+        phase: index * 0.73,
+        mover: new WaypointMover(pedestrian, {
+          points: [new THREE.Vector3(x, 0.95, fromZ), new THREE.Vector3(x, 0.95, toZ)],
+          speed: 0.85 + (index % 5) * 0.09,
+          debugRoot: this.root,
+          debugColor: 0x8fd6c8
+        })
+      });
     }
   }
+
   createPlayer() {
-    // Draw the pedestrian from primitive body parts and place it on the start strip.
-    this.player = new THREE.Group();
-    const clothes = new THREE.MeshStandardMaterial({ color: 0x35e0d1, roughness: 0.72 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xd6a27c, roughness: 0.8 });
-    const trousers = new THREE.MeshStandardMaterial({ color: 0x263b54, roughness: 0.86 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.78, 0.38), clothes);
-    body.position.y = 0.1;
-    body.castShadow = true;
-    this.player.add(body);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.46), skin);
+    this.player = this.createPedestrianModel({ shirt: 0x2f8f88, trousers: 0x263b54, scale: 1.03 });
+    this.player.name = "level2-player";
+    this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
+    this.player.rotation.y = this.level2PlayerSpawn.rotationY;
+    this.root.add(this.player);
+    this.playerRig = this.player.userData.rig;
+    this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
+  }
+
+  createPedestrianModel({ shirt, trousers, scale = 1 }) {
+    const pedestrian = new THREE.Group();
+    const shirtMaterial = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.78 });
+    const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xb97857, roughness: 0.86 });
+    const trouserMaterial = new THREE.MeshStandardMaterial({ color: trousers, roughness: 0.9 });
+    const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x202328, roughness: 0.72 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.46, 5, 10), shirtMaterial);
+    body.position.y = 0.06;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 12, 10), skinMaterial);
     head.position.y = 0.72;
-    head.castShadow = true;
-    this.player.add(head);
     const arms = [];
     const legs = [];
-    for (const x of [-0.42, 0.42]) {
+    for (const side of [-1, 1]) {
       const armBone = new THREE.Group();
-      armBone.name = `arm-bone-${x < 0 ? "left" : "right"}`;
-      armBone.position.set(x, 0.32, 0);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.62, 0.2), clothes);
-      arm.position.y = -0.31;
-      arm.castShadow = true;
+      armBone.position.set(side * 0.36, 0.3, 0);
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.42, 4, 8), shirtMaterial);
+      arm.position.y = -0.23;
       armBone.add(arm);
-      this.player.add(armBone);
+      pedestrian.add(armBone);
       arms.push(armBone);
       const legBone = new THREE.Group();
-      legBone.name = `leg-bone-${x < 0 ? "left" : "right"}`;
-      legBone.position.set(x * 0.55, -0.28, 0);
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.65, 0.25), trousers);
-      leg.position.y = -0.32;
-      leg.castShadow = true;
-      legBone.add(leg);
-      this.player.add(legBone);
+      legBone.position.set(side * 0.16, -0.33, 0);
+      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.45, 4, 8), trouserMaterial);
+      leg.position.y = -0.27;
+      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.11, 0.3), shoeMaterial);
+      shoe.position.set(0, -0.55, -0.06);
+      legBone.add(leg, shoe);
+      pedestrian.add(legBone);
       legs.push(legBone);
     }
-    this.player.position.set(0, 0.9, this.startZ);
-    this.root.add(this.player);
-    this.playerRig = { body, head, arms, legs };
-    this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
+    pedestrian.add(body, head);
+    pedestrian.scale.setScalar(scale);
+    pedestrian.traverse((child) => { if (child.isMesh) child.castShadow = true; });
+    pedestrian.userData.rig = { body, head, arms, legs };
+    return pedestrian;
   }
 
   update(dt) {
     if (this.completed) return;
 
     this.updateInvulnerability(dt);
+    this.updateImpact(dt);
     this.crossingTime += dt;
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
@@ -257,15 +278,14 @@ export class CrossingLevel {
     this.updateTraffic(dt);
     this.updateCrowds(dt);
     this.checkCollisions();
-    this.checkCrowdCollisions();
-    this.updateCamera();
+    this.updateCamera(dt);
 
     this.game.setHUD(`
       <strong>Cross the Road</strong><br>
       Attempts: ${this.attempts + 1}<br>
       Cell: ${this.hopController.gridPosition.x.toFixed(1)}, ${this.hopController.gridPosition.y.toFixed(1)}<br>
       Time: ${(this.crossingTime + this.backwardPenalty).toFixed(1)}s${this.backwardPenalty > 0 ? " (backtrack penalty)" : ""}<br>
-      Goal: reach the far green pavement<br>
+      Goal: reach the Engineering entrance<br>
       Checkpoint: ${this.checkpoint.label}<br>
       Layout seed: ${this.seed}<br>
       Crowd delay: ${this.hopController.delayTimer > 0 ? "blocked" : "clear"}<br>
@@ -277,15 +297,16 @@ export class CrossingLevel {
     this.playerAnimationTime += dt;
     const rig = this.playerRig;
     if (!rig) return;
-    const hopping = this.hopController.isHopping;
-    const phase = hopping ? this.hopController.hopProgress * Math.PI * 2 : this.playerAnimationTime * 1.5;
-    const swing = Math.sin(phase) * (hopping ? 0.7 : 0.06);
+    const walking = this.hopController.isHopping;
+    const phase = walking ? this.hopController.hopProgress * Math.PI * 2 : this.playerAnimationTime * 1.5;
+    const swing = Math.sin(phase) * (walking ? 0.62 : 0.045);
     rig.legs[0].rotation.x = swing;
     rig.legs[1].rotation.x = -swing;
     rig.arms[0].rotation.x = -swing * 0.75;
     rig.arms[1].rotation.x = swing * 0.75;
-    rig.body.rotation.x = hopping ? Math.sin(this.hopController.hopProgress * Math.PI) * 0.12 : 0;
-    rig.head.position.y = 0.72 + (hopping ? Math.sin(this.hopController.hopProgress * Math.PI) * 0.06 : Math.sin(this.playerAnimationTime * 1.5) * 0.015);
+    rig.body.rotation.x = walking ? 0.04 : 0;
+    rig.body.rotation.z = this.impactTimer > 0 ? 0.28 : 0;
+    rig.head.position.y = 0.72 + (walking ? Math.sin(this.hopController.hopProgress * Math.PI * 2) * 0.018 : Math.sin(this.playerAnimationTime * 1.5) * 0.01);
   }
 
   updateTraffic(dt) {
@@ -293,16 +314,19 @@ export class CrossingLevel {
   }
 
   capturePlayerInput() {
+    if (this.impactTimer > 0) return;
     const controls = this.controls;
-    if (controls.consumeBuffered("moveUp")) this.hopController.enqueue({ x: 0, z: -1 });
-    else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue({ x: 0, z: 1 });
+    if (controls.consumeBuffered("moveUp")) this.hopController.enqueue({ x: 0, z: this.routeDirection });
+    else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue({ x: 0, z: -this.routeDirection });
     else if (controls.consumeBuffered("moveLeft")) this.hopController.enqueue({ x: -1, z: 0 });
     else if (controls.consumeBuffered("moveRight")) this.hopController.enqueue({ x: 1, z: 0 });
   }
 
   isBlockedCell(x, z) {
     const tolerance = this.gridSize * 0.1;
-    return this.blockedCells.some((cell) =>
+    return this.boundaryVolumes.some((volume) =>
+      x >= volume.minX && x <= volume.maxX && z >= volume.minZ && z <= volume.maxZ
+    ) || this.blockedCells.some((cell) =>
       Math.abs(cell.x - x) < tolerance && Math.abs(cell.z - z) < tolerance
     );
   }
@@ -315,11 +339,11 @@ export class CrossingLevel {
   }
 
   checkCollisions() {
-    const playerBox = new THREE.Box3().setFromObject(this.player);
+    const playerBox = this.playerCollisionBox.setFromObject(this.player);
 
     for (const vehicle of this.traffic) {
       if (vehicle.lane.isHighway) continue;
-      const vehicleBox = new THREE.Box3().setFromObject(vehicle.root);
+      const vehicleBox = this.vehicleCollisionBox.setFromObject(vehicle.root);
 
       if (this.invulnerabilityTimer <= 0 && playerBox.intersectsBox(vehicleBox)) {
         this.failAtCheckpoint(vehicle.isTaxi);
@@ -332,6 +356,12 @@ export class CrossingLevel {
     if (this.crowdContactCooldown > 0) this.crowdContactCooldown = Math.max(0, this.crowdContactCooldown - dt);
     for (const crowd of this.crowds) {
       crowd.mover.update(dt);
+      crowd.mesh.rotation.y = crowd.mover.index === 1 ? Math.PI : 0;
+      const swing = Math.sin(this.playerAnimationTime * 5.2 + crowd.phase) * 0.52;
+      crowd.rig.legs[0].rotation.x = swing;
+      crowd.rig.legs[1].rotation.x = -swing;
+      crowd.rig.arms[0].rotation.x = -swing * 0.72;
+      crowd.rig.arms[1].rotation.x = swing * 0.72;
     }
   }
 
@@ -365,7 +395,7 @@ export class CrossingLevel {
   }
 
   getNextGapHint() {
-    const lane = this.lanes.reduce((closest, candidate) => {
+    const lane = this.lanes.filter((candidate) => !candidate.isHighway).reduce((closest, candidate) => {
       if (!closest || Math.abs(candidate.z - this.player.position.z) < Math.abs(closest.z - this.player.position.z)) {
         return candidate;
       }
@@ -387,26 +417,40 @@ export class CrossingLevel {
     this.attempts += 1;
     this.game.flashHUD();
     this.game.playAlertTone(wasTaxi ? 110 : 165, 0.14);
-    this.hopController.reset({ x: this.checkpoint.x, y: 0.9, z: this.checkpoint.z });
-    this.invulnerabilityTimer = 0.6;
+    this.pendingRespawn = { x: this.checkpoint.x, y: 0.95, z: this.checkpoint.z };
+    this.impactTimer = 0.42;
+    this.cameraShakeTime = 0.34;
+    this.invulnerabilityTimer = 0.9;
+    this.hopController.delay(this.impactTimer);
     this.game.setMessage(wasTaxi
-      ? `Taxi pickup ambush! Teleported back to ${this.checkpoint.label}.`
-      : `Hit! Teleported back to ${this.checkpoint.label}.`);
+      ? `Taxi impact! Returning to ${this.checkpoint.label}.`
+      : `Vehicle impact! Returning to ${this.checkpoint.label}.`);
+  }
+
+  updateImpact(dt) {
+    if (this.impactTimer <= 0) return;
+    this.impactTimer = Math.max(0, this.impactTimer - dt);
+    if (this.impactTimer === 0 && this.pendingRespawn) {
+      this.hopController.reset(this.pendingRespawn);
+      this.pendingRespawn = null;
+    }
   }
 
   updateInvulnerability(dt) {
     if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer = Math.max(0, this.invulnerabilityTimer - dt);
   }
-  updateCamera() {
+  updateCamera(dt) {
     const camera = this.game.camera;
-
-    camera.position.x = this.player.position.x + 11;
-    camera.position.z = this.player.position.z + 17;
-    camera.lookAt(
-      this.player.position.x,
-      0,
-      this.player.position.z + 1.2
+    const shake = this.cameraShakeTime > 0 ? this.cameraShakeTime / 0.34 : 0;
+    this.cameraShakeTime = Math.max(0, this.cameraShakeTime - dt);
+    this.cameraPositionTarget.set(
+      this.player.position.x + 5.2 + (Math.random() - 0.5) * shake * 0.35,
+      6.5 + (Math.random() - 0.5) * shake * 0.2,
+      this.player.position.z + 7.5 + (Math.random() - 0.5) * shake * 0.35
     );
+    camera.position.lerp(this.cameraPositionTarget, 1 - Math.exp(-7 * dt));
+    this.cameraLookTarget.set(this.player.position.x, 0.9, this.player.position.z - 3);
+    camera.lookAt(this.cameraLookTarget);
   }
 
   toggleCollisionDebug(visible) {

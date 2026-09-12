@@ -13,6 +13,13 @@ import {
 import { LevelAudio } from "../shared/LevelAudio.js";
 import { createInstancedCarField } from "../shared/InstancedCarField.js";
 import {
+  PARKING_AISLE_WIDTH,
+  PARKING_BAY_LENGTH,
+  PARKING_BAY_WIDTH,
+  PARKING_LINE_WIDTH,
+  createParkingBayMarkings
+} from "../shared/parking/ParkingLotStyle.js";
+import {
   attachPlayerCarModel,
   createSeededRandom,
   pickRandomParkingCar
@@ -24,10 +31,7 @@ import {
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
 
 
-export const PARKING_BAY_WIDTH = 2.5;
-export const PARKING_BAY_LENGTH = 5;
-export const PARKING_AISLE_WIDTH = 6;
-export const PARKING_LINE_WIDTH = 0.08;
+export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
 export const LEVEL_ONE_DAMAGE = Object.freeze({
   small: 4,
@@ -593,35 +597,8 @@ createParkingSurface() {
   // Bay outlines are the only paint in Level 1. The lot floor and the streets
   // are left unmarked on purpose.
   createRoadMarkings() {
-    const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xe5ddbd });
-    const layout = LEVEL_ONE_PARKING_LAYOUT;
     const spaces = getLevelOneParkingSpaces();
-    const sideLines = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(layout.lineWidth, 0.025, layout.parkingSpaceDepth),
-      lineMaterial,
-      spaces.length * 2
-    );
-    const endLines = new THREE.InstancedMesh(
-      new THREE.BoxGeometry(layout.parkingSpaceWidth, 0.025, layout.lineWidth),
-      lineMaterial,
-      spaces.length * 2
-    );
-    const rowMatrix = new THREE.Matrix4();
-    const localMatrix = new THREE.Matrix4();
-    const instanceMatrix = new THREE.Matrix4();
-    spaces.forEach((space, index) => {
-      rowMatrix.makeRotationY(space.angle);
-      rowMatrix.setPosition(space.x, 0.035, space.z);
-      for (let side = 0; side < 2; side++) {
-        localMatrix.makeTranslation((side ? 1 : -1) * layout.parkingSpaceWidth / 2, 0, 0);
-        sideLines.setMatrixAt(index * 2 + side, instanceMatrix.multiplyMatrices(rowMatrix, localMatrix));
-        localMatrix.makeTranslation(0, 0, (side ? 1 : -1) * layout.parkingSpaceDepth / 2);
-        endLines.setMatrixAt(index * 2 + side, instanceMatrix.multiplyMatrices(rowMatrix, localMatrix));
-      }
-    });
-    sideLines.name = "parking-bay-side-lines";
-    endLines.name = "parking-bay-end-lines";
-    this.root.add(sideLines, endLines);
+    this.root.add(...createParkingBayMarkings(spaces));
 
   }
 

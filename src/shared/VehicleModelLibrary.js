@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 // Files in public/ are served from Vite's configured relative base. Keep this
 // relative so the deployed game also works from a subdirectory.
@@ -96,6 +97,24 @@ const loader = new GLTFLoader();
 const prototypeCache = new Map();
 let parkingPackPromise = null;
 let playerCarPrototypePromise = null;
+
+function preserveSharedVehicleResources(scene) {
+  scene.traverse((child) => {
+    if (!child.isMesh) return;
+    if (child.geometry) child.geometry.userData.sharedAsset = true;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+      if (material) material.userData.sharedAsset = true;
+    }
+  });
+}
+
+// SkeletonUtils is safe for rigid models too, and prevents a future animated or
+// skinned vehicle from sharing bone bindings with another instance.
+export function cloneVehicleHierarchy(prototype) {
+  return SkeletonUtils.clone(prototype);
+}
+
 function normalizeVehicleModel(scene) {
   scene.updateMatrixWorld(true);
 
@@ -176,7 +195,7 @@ async function getPrototype(spec, variant) {
       prototypeCache.set(
         key,
         parkingPackPromise.then((gltf) => {
-          const scene = gltf.scene.clone(true);
+          const scene = cloneVehicleHierarchy(gltf.scene);
           const rootNode = scene.getObjectByName("RootNode");
 
           if (!rootNode) {
@@ -221,6 +240,8 @@ async function getPrototype(spec, variant) {
             child.receiveShadow = true;
           });
 
+          preserveSharedVehicleResources(scene);
+
           return scene;
         })
       );
@@ -249,9 +270,11 @@ async function getPrototype(spec, variant) {
           if (!child.isMesh) return;
 
           child.visible = true;
-                    child.castShadow = variant === "game";
+          child.castShadow = variant === "game";
           child.receiveShadow = true;
         });
+
+        preserveSharedVehicleResources(scene);
 
         return scene;
       })
@@ -268,15 +291,16 @@ export function loadVehiclePrototype(spec, variant = "game") {
   return getPrototype(spec, variant);
 }
 
-export async function attachCarModel(
+export async function attachVehicleModel(
   holder,
   spec,
   variant = "game"
 ) {
   const prototype = await getPrototype(spec, variant);
 
-  // clone(true) reuses geometry/material resources, which is what we want.
-  const model = prototype.clone(true);
+  // Preserve every imported node transform. Only the outside holder is ever
+  // positioned or rotated by parking/gameplay/traffic code.
+  const model = cloneVehicleHierarchy(prototype);
 
   holder.add(model);
   return model;
@@ -314,11 +338,13 @@ export async function attachPlayerCarModel(holder) {
       child.receiveShadow = true;
     });
 
+    preserveSharedVehicleResources(scene);
+
     return scene;
   });
 
   const prototype = await playerCarPrototypePromise;
-  const model = prototype.clone(true);
+  const model = cloneVehicleHierarchy(prototype);
   model.name = "player-car-model";
   holder.add(model);
   return model;
@@ -336,7 +362,7 @@ export async function createCarModel(
   holder.position.set(...position);
   holder.rotation.y = rotationY;
 
-  await attachCarModel(holder, spec, variant);
+  await attachVehicleModel(holder, spec, variant);
 
   return holder;
 }

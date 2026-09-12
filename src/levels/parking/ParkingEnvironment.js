@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { applyRoadUvs } from "../../shaders/asphaltShader.js";
 import {
-  attachCarModel,
+  attachVehicleModel,
   createSeededRandom,
   pickRandomCar,
   pickRandomParkingCar
@@ -386,7 +386,7 @@ function createM1Traffic(root, laneZ) {
     );
 
     // Lite variant is intended for M1/background traffic.
-    attachCarModel(
+    attachVehicleModel(
       holder,
       spec,
       "lite"
@@ -584,7 +584,7 @@ function createOtherParking(root) {
       const spec = pickRandomParkingCar(random);
 
       // This parking lot is scenery, so use the lite meshes.
-      attachCarModel(
+      attachVehicleModel(
         holder,
         spec,
         "lite"
