@@ -18,10 +18,48 @@ const LEVEL_STATES = new Map([
   [3, "level3"]
 ]);
 
-const LEVEL_ONE_STORY = [
-  "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBrendan is going to have a go at me!",
-  "If I miss this exam, I’m cooked...\nAlan Turing, if you can hear me… findParking() better return true."
-];
+// One entry per level. `art` points at an illustrated panel like the
+// Level 1 one; leave it null to fall back to the CSS placeholder (see
+// .level-intro-placeholder in style.css) with `placeholderIcon` as the
+// stand-in graphic until dedicated art exists for that level.
+const LEVEL_INTRO_CONFIG = new Map([
+  [
+    1,
+    {
+      art: "./assets/images/ui/level1-story-loading-screen.png",
+      artAlt: "A driver checking their watch from inside a car on a winding road",
+      placeholderIcon: null,
+      story: [
+        "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBrendan is going to have a go at me!",
+        "If I miss this exam, I’m cooked...\nAlan Turing, if you can hear me… findParking() better return true."
+      ]
+    }
+  ],
+  [
+    2,
+    {
+      art: null,
+      artAlt: "The student slamming the car door and facing the road on foot",
+      placeholderIcon: "🚸",
+      story: [
+        "Parked. Barely. That’s a passing grade by Wits standards.\nNow I just need to get across the road in one piece.",
+        "Nobody around here believes in zebra crossings.\nWatch the lanes, hop the gaps, don’t become a hood ornament."
+      ]
+    }
+  ],
+  [
+    3,
+    {
+      art: null,
+      artAlt: "The student sliding into a lecture hall seat as papers are handed out",
+      placeholderIcon: "📝",
+      story: [
+        "Made it. Soaked in sweat, but I made it.\nBrendan’s already walking the rows with that look.",
+        "Everyone around me clearly studied. I clearly did not.\nTime to get creative — quietly."
+      ]
+    }
+  ]
+]);
 
 export class Game {
   constructor(container) {
@@ -86,9 +124,10 @@ export class Game {
     this.isPaused = false;
     this.isLoading = false;
     this.isTransitioning = false;
-    this.isLevelOneIntroActive = false;
-    this.isLevelOneIntroReady = false;
-    this.levelOneStoryIndex = 0;
+    this.isLevelIntroActive = false;
+    this.isLevelIntroReady = false;
+    this.levelIntroStoryIndex = 0;
+    this.levelIntroConfig = null;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -113,10 +152,13 @@ export class Game {
     this.instructionElement = document.querySelector("#instruction-card");
     this.instructionTitle = document.querySelector("#instruction-title");
     this.instructionCopy = document.querySelector("#instruction-copy");
-    this.levelOneIntroElement = document.querySelector("#level1-intro");
-    this.levelOneIntroStatus = document.querySelector("#level1-intro-status-copy");
-    this.levelOneDialogueCopy = document.querySelector("#level1-dialogue-copy");
-    this.levelOneDialogueContinue = document.querySelector("#level1-dialogue-continue");
+    this.levelIntroElement = document.querySelector("#level-intro");
+    this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
+    this.levelIntroArt = document.querySelector("#level-intro-art");
+    this.levelIntroPlaceholder = document.querySelector("#level-intro-placeholder");
+    this.levelIntroPlaceholderIcon = document.querySelector("#level-intro-placeholder-icon");
+    this.levelIntroDialogueCopy = document.querySelector("#level-intro-dialogue-copy");
+    this.levelIntroDialogueContinue = document.querySelector("#level-intro-dialogue-continue");
     this.currentMessage = "";
 
     this.animate = this.animate.bind(this);
@@ -125,14 +167,14 @@ export class Game {
     this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
     this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
     this.onInstructionClick = this.onInstructionClick.bind(this);
-    this.onLevelOneIntroClick = this.onLevelOneIntroClick.bind(this);
+    this.onLevelIntroClick = this.onLevelIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
     this.menuElement.addEventListener("click", this.onMenuClick);
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
-    this.levelOneIntroElement.addEventListener("click", this.onLevelOneIntroClick);
+    this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
   }
 
@@ -143,7 +185,7 @@ export class Game {
 
   showMenu() {
     this.cancelTransition();
-    this.hideLevelOneIntro();
+    this.hideLevelIntro();
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
@@ -205,7 +247,7 @@ export class Game {
     this.isPaused = false;
     this.isLoading = true;
     this.isTransitioning = false;
-    if (!showIntro) this.hideLevelOneIntro();
+    if (!showIntro) this.hideLevelIntro();
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -232,7 +274,7 @@ export class Game {
       }
 
       console.error(`Unable to load Level ${levelNumber}`, error);
-      if (showIntro) this.setLevelOneIntroLoadState("error");
+      if (showIntro) this.setLevelIntroLoadState("error");
       return;
     }
 
@@ -243,7 +285,7 @@ export class Game {
 
     this.levelNameElement.textContent = level.name;
     this.isLoading = false;
-    if (showIntro) this.setLevelOneIntroLoadState("ready");
+    if (showIntro) this.setLevelIntroLoadState("ready");
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
 
     if (this.currentMessage === loadingMessage) {
@@ -254,58 +296,81 @@ export class Game {
   startJourney() {
     this.journeyScore = 0;
     this.journeyTime = 0;
-    this.showLevelOneIntro();
+    this.showLevelIntro(1);
     this.startLevel(1, "start", false, true);
   }
 
-  showLevelOneIntro() {
-    this.isLevelOneIntroActive = true;
-    this.isLevelOneIntroReady = false;
-    this.levelOneStoryIndex = 0;
-    this.levelOneIntroElement.hidden = false;
-    this.levelOneIntroElement.dataset.loadState = "loading";
-    this.levelOneIntroStatus.textContent = "Loading Level 1...";
-    this.renderLevelOneStory();
+  showLevelIntro(levelNumber) {
+    const config = LEVEL_INTRO_CONFIG.get(levelNumber);
+
+    if (!config) {
+      console.warn(`No intro configured for Level ${levelNumber}; skipping straight to load.`);
+      return;
+    }
+
+    this.levelIntroConfig = config;
+    this.isLevelIntroActive = true;
+    this.isLevelIntroReady = false;
+    this.levelIntroStoryIndex = 0;
+    this.levelIntroElement.hidden = false;
+    this.levelIntroElement.dataset.level = String(levelNumber);
+    this.levelIntroElement.dataset.loadState = "loading";
+    this.levelIntroStatus.textContent = `Loading Level ${levelNumber}...`;
+
+    if (config.art) {
+      this.levelIntroArt.src = config.art;
+      this.levelIntroArt.alt = config.artAlt ?? "";
+      this.levelIntroArt.hidden = false;
+      this.levelIntroPlaceholder.hidden = true;
+    } else {
+      this.levelIntroArt.hidden = true;
+      this.levelIntroPlaceholder.hidden = false;
+      this.levelIntroPlaceholderIcon.textContent = config.placeholderIcon ?? "";
+    }
+
+    this.renderLevelIntroStory();
   }
 
-  hideLevelOneIntro() {
-    this.isLevelOneIntroActive = false;
-    this.isLevelOneIntroReady = false;
-    this.levelOneIntroElement.hidden = true;
+  hideLevelIntro() {
+    this.isLevelIntroActive = false;
+    this.isLevelIntroReady = false;
+    this.levelIntroElement.hidden = true;
   }
 
-  setLevelOneIntroLoadState(state) {
-    this.levelOneIntroElement.dataset.loadState = state;
-    this.isLevelOneIntroReady = state === "ready";
-    this.levelOneIntroStatus.textContent = state === "ready"
-      ? "Level 1 ready"
-      : "Level 1 could not be loaded";
-    this.renderLevelOneStory();
+  setLevelIntroLoadState(state) {
+    this.levelIntroElement.dataset.loadState = state;
+    this.isLevelIntroReady = state === "ready";
+    this.levelIntroStatus.textContent = state === "ready"
+      ? `Level ${this.currentLevelNumber} ready`
+      : `Level ${this.currentLevelNumber} could not be loaded`;
+    this.renderLevelIntroStory();
   }
 
-  renderLevelOneStory() {
-    this.levelOneDialogueCopy.textContent = LEVEL_ONE_STORY[this.levelOneStoryIndex];
-    const isFinalBox = this.levelOneStoryIndex === LEVEL_ONE_STORY.length - 1;
-    const waitingForLevel = isFinalBox && !this.isLevelOneIntroReady;
+  renderLevelIntroStory() {
+    const story = this.levelIntroConfig?.story ?? [];
+    this.levelIntroDialogueCopy.textContent = story[this.levelIntroStoryIndex] ?? "";
+    const isFinalBox = this.levelIntroStoryIndex === story.length - 1;
+    const waitingForLevel = isFinalBox && !this.isLevelIntroReady;
 
-    this.levelOneDialogueContinue.disabled = waitingForLevel;
-    this.levelOneDialogueContinue.firstChild.textContent = waitingForLevel
+    this.levelIntroDialogueContinue.disabled = waitingForLevel;
+    this.levelIntroDialogueContinue.firstChild.textContent = waitingForLevel
       ? "Loading... "
       : "Continue ";
   }
 
-  onLevelOneIntroClick(event) {
-    if (!event.target.closest("#level1-dialogue-continue")) return;
+  onLevelIntroClick(event) {
+    if (!event.target.closest("#level-intro-dialogue-continue")) return;
 
-    if (this.levelOneStoryIndex < LEVEL_ONE_STORY.length - 1) {
-      this.levelOneStoryIndex += 1;
-      this.renderLevelOneStory();
+    const story = this.levelIntroConfig?.story ?? [];
+    if (this.levelIntroStoryIndex < story.length - 1) {
+      this.levelIntroStoryIndex += 1;
+      this.renderLevelIntroStory();
       return;
     }
 
-    if (!this.isLevelOneIntroReady) return;
+    if (!this.isLevelIntroReady) return;
 
-    this.hideLevelOneIntro();
+    this.hideLevelIntro();
     this.clock.getDelta();
   }
 
@@ -327,8 +392,12 @@ export class Game {
     this.isTransitioning = true;
     this.setMessage(message);
     this.fadeTransition(() => {
-      if (nextLevel <= 3) this.startLevel(nextLevel, "start", true);
-      else this.showResults(true);
+      if (nextLevel <= 3) {
+        this.showLevelIntro(nextLevel);
+        this.startLevel(nextLevel, "start", true, true);
+      } else {
+        this.showResults(true);
+      }
     });
   }
 
@@ -428,7 +497,7 @@ export class Game {
   }
 
   updateGlobalControls() {
-    if (this.isLevelOneIntroActive) return;
+    if (this.isLevelIntroActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
       this.togglePause();
@@ -541,7 +610,7 @@ export class Game {
       !this.isPaused &&
       !this.isLoading &&
       !this.isTransitioning &&
-      !this.isLevelOneIntroActive &&
+      !this.isLevelIntroActive &&
       this.currentLevel
     ) {
       this.journeyTime += dt;
