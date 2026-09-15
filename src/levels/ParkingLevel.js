@@ -117,7 +117,7 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
     count: 20,
     rotation: Math.atan2(5.15, 0.542)
   }),
-  westUpperRow: Object.freeze({ name: "west-upper", x: -58.2, startZ: -45.5, endZ: -37.7 }),
+  westUpperRow: Object.freeze({ name: "west-upper", x: -58.2, startZ: -48.6, endZ: -43.4 }),
   westRow: Object.freeze({ name: "west-row", x: -58.25, startZ: -32.5, endZ: 26 }),
   doubleRows: DOUBLE_ROW_CONFIGS,
   // Square bays along the east curb, facing into the lot like every other row.
