@@ -87,7 +87,7 @@ This is parallel parking: each car's long axis runs horizontally along the north
 
 ### West edge
 
-- `west-upper`: `X = -58.2`, from `Z = -45.5` to `-37.7`
+- `west-upper`: `X = -58.2`, from `Z = -48.6` to `-43.4`
 - `west-row`: `X = -58.25`, from `Z = -32.5` to `26`
 
 These rows are intentionally close to the curb. Do not reintroduce a strip of unused asphalt between the parking and west boundary.
