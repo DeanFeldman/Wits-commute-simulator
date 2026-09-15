@@ -12,20 +12,25 @@
   <body>
     <div id="game-container"></div>
     <div id="fade-overlay" aria-hidden="true"></div>
-    <section id="level1-intro" aria-label="Journey introduction" hidden>
+    <section id="level-intro" aria-label="Journey introduction" hidden>
       <img
-        class="level1-intro-art"
-        src="./assets/images/ui/level1-story-loading-screen.png"
-        alt="A driver checking their watch from inside a car on a winding road"
+        id="level-intro-art"
+        class="level-intro-art"
+        src=""
+        alt=""
         draggable="false"
+        hidden
       />
-      <div class="level1-intro-status" aria-live="polite">
-        <span class="level1-intro-status-light" aria-hidden="true"></span>
-        <span id="level1-intro-status-copy">Loading Level 1...</span>
+      <div id="level-intro-placeholder" class="level-intro-placeholder" hidden>
+        <span id="level-intro-placeholder-icon" class="level-intro-placeholder-icon" aria-hidden="true"></span>
       </div>
-      <div class="level1-dialogue" aria-live="polite">
-        <p id="level1-dialogue-copy"></p>
-        <button id="level1-dialogue-continue" type="button">
+      <div class="level-intro-status" aria-live="polite">
+        <span class="level-intro-status-light" aria-hidden="true"></span>
+        <span id="level-intro-status-copy">Loading...</span>
+      </div>
+      <div class="level-intro-dialogue" aria-live="polite">
+        <p id="level-intro-dialogue-copy"></p>
+        <button id="level-intro-dialogue-continue" type="button">
           Continue
           <span aria-hidden="true">&#9660;</span>
         </button>

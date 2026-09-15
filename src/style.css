@@ -186,7 +186,7 @@ body {
   opacity: 1;
 }
 
-#level1-intro {
+#level-intro {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -195,11 +195,11 @@ body {
   color: #21170f;
 }
 
-#level1-intro[hidden] {
+#level-intro[hidden] {
   display: none;
 }
 
-.level1-intro-art {
+.level-intro-art {
   width: 100%;
   height: 100%;
   display: block;
@@ -209,7 +209,54 @@ body {
   user-select: none;
 }
 
-.level1-intro-status {
+.level-intro-art[hidden] {
+  display: none;
+}
+
+/* Stand-in art for levels that don't have a dedicated illustrated panel
+   yet (see README: "whole game playable before any level is beautiful").
+   Swap the <img id="level-intro-art"> src back in once real art lands and
+   this placeholder will stop being rendered automatically. */
+.level-intro-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(
+      circle at 50% 38%,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0) 60%
+    ),
+    linear-gradient(180deg, #6fc6f2 0%, #cdeeff 55%, #9aa0a6 100%);
+}
+
+.level-intro-placeholder[hidden] {
+  display: none;
+}
+
+#level-intro[data-level="3"] .level-intro-placeholder {
+  background: radial-gradient(
+      circle at 50% 32%,
+      rgba(255, 214, 140, 0.35),
+      rgba(255, 214, 140, 0) 55%
+    ),
+    linear-gradient(160deg, #1b1f2a 0%, #2a2f3d 55%, #0d0f14 100%);
+}
+
+.level-intro-placeholder-icon {
+  font-size: clamp(4rem, 14vw, 9rem);
+  filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.25));
+  animation: intro-placeholder-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes intro-placeholder-bob {
+  0%,
+  100% { transform: translateY(0); }
+  50% { transform: translateY(-0.4rem); }
+}
+
+.level-intro-status {
   position: absolute;
   bottom: clamp(1rem, 2.5vw, 2rem);
   right: clamp(1rem, 3vw, 2.5rem);
@@ -227,7 +274,7 @@ body {
   letter-spacing: 0.03em;
 }
 
-.level1-intro-status-light {
+.level-intro-status-light {
   width: 0.65rem;
   height: 0.65rem;
   border: 2px solid #201912;
@@ -236,17 +283,17 @@ body {
   animation: intro-loading-pulse 900ms steps(2, end) infinite;
 }
 
-#level1-intro[data-load-state="ready"] .level1-intro-status-light {
+#level-intro[data-load-state="ready"] .level-intro-status-light {
   background: #51984c;
   animation: none;
 }
 
-#level1-intro[data-load-state="error"] .level1-intro-status-light {
+#level-intro[data-load-state="error"] .level-intro-status-light {
   background: #b84034;
   animation: none;
 }
 
-.level1-dialogue {
+.level-intro-dialogue {
   position: absolute;
   top: clamp(1rem, 3vw, 2.5rem);
   left: 50%;
@@ -265,7 +312,7 @@ body {
   transform: translateX(-50%);
 }
 
-#level1-dialogue-copy {
+#level-intro-dialogue-copy {
   align-self: center;
   margin: 0;
   white-space: pre-line;
@@ -276,7 +323,7 @@ body {
   text-shadow: 1px 1px 0 #fff9df;
 }
 
-#level1-dialogue-continue {
+#level-intro-dialogue-continue {
   display: flex;
   gap: 0.6rem;
   align-items: center;
@@ -292,14 +339,14 @@ body {
   box-shadow: 3px 3px 0 #2a2016;
 }
 
-#level1-dialogue-continue:hover,
-#level1-dialogue-continue:focus-visible {
+#level-intro-dialogue-continue:hover,
+#level-intro-dialogue-continue:focus-visible {
   background: #d98a3b;
   transform: translate(-1px, -1px);
   box-shadow: 4px 4px 0 #2a2016;
 }
 
-#level1-dialogue-continue:disabled {
+#level-intro-dialogue-continue:disabled {
   cursor: wait;
   opacity: 0.62;
   transform: none;
@@ -310,12 +357,12 @@ body {
 }
 
 @media (max-width: 640px) {
-  .level1-dialogue {
+  .level-intro-dialogue {
     grid-template-columns: 1fr;
     gap: 0.8rem;
   }
 
-  #level1-dialogue-continue {
+  #level-intro-dialogue-continue {
     justify-self: end;
   }
 }
@@ -380,7 +427,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .level1-intro-status-light {
+  .level-intro-status-light {
     animation: none;
   }
 
