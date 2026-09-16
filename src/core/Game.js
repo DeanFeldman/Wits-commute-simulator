@@ -589,7 +589,7 @@ export class Game {
   showInstruction(level) {
     const briefs = {
       1: "Drive with W/S and steer with A/D. Avoid potholes, then stop straight inside the cyan bay.",
-      2: "Use arrow keys or WASD: each press hops one grid cell. Reach the far pavement and wait for traffic gaps.",
+      2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect Vida cups for power-ups, wait for gaps in the traffic, and reach Engineering.",
       3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's answer. Release, look down at your own desk, type your answer, and press Enter. P opens settings."
     };
     this.instructionTitle.textContent = level.name;
