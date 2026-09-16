@@ -145,18 +145,18 @@ The player is seated and cannot walk around the room.
 
 ## Objective
 
-Reveal nearby students' words, type them at the player's desk, and complete the answer bar without reaching maximum suspicion or running out of time.
+Read the question on the player's paper, inspect nearby students' possible answers, then type the answer that fits the question without reaching maximum suspicion or running out of time.
 
 ## Core Loop
 
 ```text
-look for a nearby tablet
+read the question on the player's paper
   ↓
-hold left click to zoom and reveal its word
+inspect nearby tablets and hold left click to reveal their assigned answers
   ↓
 release and look down at the player's paper
   ↓
-type the word and press Enter
+type the answer and press Enter
   ↓
 repeat while monitoring the tutor
 ```
@@ -180,15 +180,15 @@ While seen peeking at a functional tablet:
 suspicion increases
 ```
 
-While not peeking:
+While unseen or not peeking:
 
 ```text
-suspicion decreases
+suspicion holds its current value
 ```
 
 ## Failure
 
-Suspicion reaches 100% or the timer expires.
+Suspicion reaches 100% or the timer expires. Either failure shows a Game Over screen with a Retry button.
 
 ## Success
 

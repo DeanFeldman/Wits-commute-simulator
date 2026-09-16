@@ -135,7 +135,9 @@ Contact with a vehicle.
 **Main systems:**
 - seated mouse-look
 - hold-to-zoom tablet inspection
-- targeted hologram words
+- targeted hologram answers
+- 50-question bank with one correct answer and six distractors per round
+- animated player paper: flat at rest, then lifts, enlarges, and tilts while read
 - look-down desk typing and answer submission
 - tutor patrol
 - tutor vision cone
@@ -148,7 +150,7 @@ Contact with a vehicle.
 Fill the answer bar before time expires.
 
 **Failure condition:**  
-Suspicion reaches 100% or the timer expires.
+Suspicion reaches 100% or the timer expires; both show a Game Over screen with Retry.
 
 See `docs/LEVEL_3_CHEATING_MECHANICS.md` for the current Level 3 interaction, layout, balance, and overlay contract.
 

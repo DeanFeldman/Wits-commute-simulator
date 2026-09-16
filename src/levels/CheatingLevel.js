@@ -55,6 +55,18 @@ const NORMAL_CAMERA_FOV = 62;
 const PEEK_CAMERA_FOV = 30;
 const DESK_INTERACTION_DISTANCE = 5.25;
 const PAPER_HEIGHT = 0.795;
+const PLAYER_PAPER_WIDTH = 0.42;
+const PLAYER_PAPER_HEIGHT = 0.62;
+const PLAYER_DESK_SCALE = 1.15;
+const PLAYER_DESK_LOWERING = 0.1;
+const PLAYER_PAPER_TILT_CLEARANCE = 0.12;
+const PLAYER_PAPER_REST_HEIGHT = PAPER_HEIGHT - PLAYER_DESK_LOWERING + 0.012;
+const PLAYER_PAPER_READING_HEIGHT = PAPER_HEIGHT + PLAYER_PAPER_TILT_CLEARANCE;
+const PLAYER_PAPER_REST_ROTATION = -Math.PI / 2;
+const PLAYER_PAPER_READING_ROTATION = -Math.PI / 3;
+const PLAYER_PAPER_POSE_SPEED = 8;
+const PLAYER_PAPER_REST_SCALE = 0.84;
+const PLAYER_PAPER_READING_SCALE = 1;
 const PLAYER_EYE_HEIGHT = 1.09;
 const PLAYER_SEAT_Z = 4;
 const PLAYER_FORWARD_OFFSET = 0.25;
@@ -338,6 +350,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           Math.abs(rowZ + 0.8 - PLAYER_SEAT_Z) < 0.01;
 
         if (isPlayerDesk) {
+          // Give the seated player a larger, slightly lower work surface.
+          // The raised page clearance prevents its 30° tilt from intersecting it.
+          desk.scale.set(PLAYER_DESK_SCALE, 1, PLAYER_DESK_SCALE);
+          desk.position.y -= PLAYER_DESK_LOWERING;
           this.playerDesk = {
             object: desk,
             paper: this.createDeskPaper("YOUR ANSWER", x, rowZ, 0xeef7ff)
@@ -584,7 +600,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   createDeskPaper(text, x, z, color = 0xfff7d6) {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
-    canvas.height = 256;
+    canvas.height = 768;
     const context = canvas.getContext("2d");
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -598,9 +614,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       side: THREE.DoubleSide,
       toneMapped: false
     });
-    const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.4), material);
-    paper.position.set(x, PAPER_HEIGHT, z);
-    paper.rotation.x = -Math.PI / 2;
+    const paper = new THREE.Mesh(
+      new THREE.PlaneGeometry(PLAYER_PAPER_WIDTH, PLAYER_PAPER_HEIGHT),
+      material
+    );
+    paper.position.set(x, PLAYER_PAPER_REST_HEIGHT, z);
+    // Lean the page's normal 30° toward the seated player for legibility.
+    paper.rotation.x = PLAYER_PAPER_REST_ROTATION;
+    paper.scale.setScalar(PLAYER_PAPER_REST_SCALE);
     paper.userData.paperCanvas = canvas;
     paper.userData.paperContext = context;
     paper.userData.paperTexture = texture;
@@ -631,14 +652,25 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     context.textAlign = "left";
     context.textBaseline = "top";
-    context.font = "bold 25px sans-serif";
-    context.fillText("QUESTION", 32, 24);
-    context.font = "24px sans-serif";
-    this.drawWrappedPaperText(context, this.activeQuestion.prompt, 32, 62, width - 64, 30);
-    context.font = "bold 24px sans-serif";
-    context.fillText("YOUR ANSWER", 32, 176);
-    context.font = "bold 27px monospace";
-    context.fillText(`${this.typedAnswer || ""}_`, 32, 208, width - 64);
+    context.font = "bold 30px sans-serif";
+    context.fillText("QUESTION", 38, 42);
+    context.font = "29px sans-serif";
+    const questionBottom = this.drawWrappedPaperText(
+      context,
+      this.activeQuestion.prompt,
+      38,
+      98,
+      width - 76,
+      38
+    );
+    const answerLabelY = Math.max(430, questionBottom + 86);
+    context.strokeStyle = "#26313d";
+    context.lineWidth = 4;
+    context.strokeRect(32, answerLabelY - 22, width - 64, 160);
+    context.font = "bold 30px sans-serif";
+    context.fillText("YOUR ANSWER", 52, answerLabelY);
+    context.font = "bold 32px monospace";
+    context.fillText(`${this.typedAnswer || ""}_`, 52, answerLabelY + 70, width - 104);
     paper.userData.paperTexture.needsUpdate = true;
   }
 
@@ -659,6 +691,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     if (line) context.fillText(line, x, lineY, maxWidth);
+    return lineY + lineHeight;
   }
 
   createDeskTablet(tabletTemplate, x, z) {
@@ -987,6 +1020,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.audio.updateClock(dt);
     this.updateMouseLook();
     this.updateDeskTargeting();
+    this.updatePlayerPaperPose(dt);
     this.updatePeek(dt);
     this.updateSuspicion(dt);
     this.timeRemaining = Math.max(0, this.timeRemaining - dt);
@@ -1020,10 +1054,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     if (this.suspicion >= 100) {
-      this.game.flashHUD();
-      this.game.playAlertTone(120, 0.2);
       this.completed = true;
-      this.game.failLevel("Caught! Restarting from the checkpoint.");
+      this.endPeek();
+      this.game.flashHUD();
+      this.game.failLevel("Caught by the tutor. Try again?");
     }
   }
   handleTutorPatrolArrival(reachedIndex) {
@@ -1200,6 +1234,27 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
   }
 
+  updatePlayerPaperPose(dt) {
+    const paper = this.playerDesk?.paper;
+    if (!paper) return;
+
+    const reading = this.isLookingAtPlayerDesk && !this.completed;
+    const blend = Math.min(1, dt * PLAYER_PAPER_POSE_SPEED);
+    const targetHeight = reading
+      ? PLAYER_PAPER_READING_HEIGHT
+      : PLAYER_PAPER_REST_HEIGHT;
+    const targetRotation = reading
+      ? PLAYER_PAPER_READING_ROTATION
+      : PLAYER_PAPER_REST_ROTATION;
+    const targetScale = reading
+      ? PLAYER_PAPER_READING_SCALE
+      : PLAYER_PAPER_REST_SCALE;
+
+    paper.position.y = THREE.MathUtils.lerp(paper.position.y, targetHeight, blend);
+    paper.rotation.x = THREE.MathUtils.lerp(paper.rotation.x, targetRotation, blend);
+    paper.scale.setScalar(THREE.MathUtils.lerp(paper.scale.x, targetScale, blend));
+  }
+
   updatePeek(dt) {
     this.zoomActive = Boolean(
       this.leftMouseDown &&
@@ -1372,6 +1427,23 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.questionOrder = shuffle(validQuestions);
     this.questionIndex = 0;
     this.advanceQuestion();
+  }
+
+  endPeek() {
+    this.leftMouseDown = false;
+    this.zoomActive = false;
+    this.peekActive = false;
+    this.targetCheatDesk = null;
+    this.zoomOverlay?.classList.remove("visible");
+
+    for (const desk of this.cheatDesks) {
+      desk.hologram.visible = false;
+    }
+
+    if (this.camera && this.camera.fov !== NORMAL_CAMERA_FOV) {
+      this.camera.fov = NORMAL_CAMERA_FOV;
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   advanceQuestion() {

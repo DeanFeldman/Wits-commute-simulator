@@ -406,8 +406,29 @@ export class Game {
 
     this.isTransitioning = true;
     this.setMessage(message);
-    this.fadeElement.classList.add("visible");
-    this.scheduleTransition(() => this.restartCurrentLevel(true), 1600);
+    this.fadeTransition(() => this.showFailure(message));
+  }
+
+  showFailure(message) {
+    this.loadVersion += 1;
+    this.disposeCurrentLevel();
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x0d1117);
+    this.state = "failed";
+    this.isLoading = false;
+    this.isPaused = false;
+    this.isTransitioning = false;
+    this.levelNameElement.textContent = "Game Over";
+    this.setHUD("");
+    this.setMessage("");
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
+    this.menuTitleElement.textContent = "Game Over";
+    this.menuCopyElement.textContent = message;
+    this.menuPrimaryAction.textContent = "Retry";
+    this.menuPrimaryAction.dataset.gameAction = "retry";
+    this.menuElement.hidden = false;
+    requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
   }
 
   fadeTransition(callback) {
@@ -534,6 +555,11 @@ export class Game {
 
     if (action === "start") {
       this.startJourney();
+      return;
+    }
+
+    if (action === "retry") {
+      this.restartCurrentLevel();
       return;
     }
 

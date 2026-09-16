@@ -225,6 +225,57 @@ test("left mouse zooms even when no answer tablet is targeted", () => {
   assert.ok(level.camera.fov < 62);
 });
 
+test("ending a peek clears zoom, holograms, and restores the normal camera view", () => {
+  const level = new CheatingLevel({});
+  let overlayVisible = true;
+  const hologram = { visible: true };
+
+  level.camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  level.zoomOverlay = {
+    classList: {
+      remove(className) {
+        assert.equal(className, "visible");
+        overlayVisible = false;
+      }
+    }
+  };
+  level.cheatDesks = [{ hologram }];
+  level.leftMouseDown = true;
+  level.zoomActive = true;
+  level.peekActive = true;
+
+  level.endPeek();
+
+  assert.equal(level.leftMouseDown, false);
+  assert.equal(level.zoomActive, false);
+  assert.equal(level.peekActive, false);
+  assert.equal(hologram.visible, false);
+  assert.equal(overlayVisible, false);
+  assert.equal(level.camera.fov, 62);
+});
+
+test("the player paper lifts only while it is being looked at", () => {
+  const level = new CheatingLevel({});
+  const paper = new THREE.Object3D();
+
+  paper.position.y = 0.707;
+  paper.rotation.x = -Math.PI / 2;
+  paper.scale.setScalar(0.84);
+  level.playerDesk = { paper };
+
+  level.isLookingAtPlayerDesk = true;
+  level.updatePlayerPaperPose(1);
+  assert.ok(Math.abs(paper.position.y - 0.915) < 0.0001);
+  assert.equal(paper.rotation.x, -Math.PI / 3);
+  assert.equal(paper.scale.x, 1);
+
+  level.isLookingAtPlayerDesk = false;
+  level.updatePlayerPaperPose(1);
+  assert.ok(Math.abs(paper.position.y - 0.707) < 0.0001);
+  assert.equal(paper.rotation.x, -Math.PI / 2);
+  assert.equal(paper.scale.x, 0.84);
+});
+
 test("tablet targeting is forgiving near the paper but bounded vertically", () => {
   const level = new CheatingLevel({});
   const target = level.createTabletInteractionTarget(0, 0);
