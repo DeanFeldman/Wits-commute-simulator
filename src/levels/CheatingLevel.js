@@ -208,7 +208,10 @@ this.patrolPoints = [
     this.tabletTargetMaterial = new THREE.MeshBasicMaterial();
 
     this.yaw = 0;
-    this.pitch = -0.05;
+    // Three.js cameras face down -Z at zero yaw, which is the whiteboard at
+    // the front of this classroom. Keep the initial gaze level rather than
+    // starting with the player's answer desk in view.
+    this.pitch = 0;
 
     this.completed = false;
 
