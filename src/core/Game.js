@@ -108,7 +108,7 @@ export class Game {
       levelOne: "Digit1",
       levelTwo: "Digit2",
       levelThree: "Digit3",
-      restart: "KeyR",
+      restart: "KeyR", // Ctrl modifier is required in updateGlobalControls().
       debugColliders: "F3"
     });
 
@@ -524,7 +524,7 @@ export class Game {
       this.setMessage(`Collision debug ${this.collisionDebug ? "on" : "off"}.`);
     }
 
-    if (this.globalControls.wasPressed("restart")) {
+    if (this.input.isControlDown() && this.globalControls.wasPressed("restart")) {
       this.restartCurrentLevel();
     }
   }
