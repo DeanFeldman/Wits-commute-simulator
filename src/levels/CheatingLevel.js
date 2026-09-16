@@ -8,7 +8,6 @@ import { LevelAudio } from "../shared/LevelAudio.js";
 export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerCorrectWord: 20,
   suspicionGainPerSecond: 30,
-  suspicionDecayPerSecond: 6,
   tutorPauseSeconds: 2.0,
   tutorTurnSpeed: 2.4
 });
@@ -75,10 +74,10 @@ export function updateSuspicionMeter({
   if (peeking && seen) {
     nextSuspicion +=
       LEVEL_THREE_BALANCE.suspicionGainPerSecond * dt;
-  } else if (!peeking) {
+  } /*else if (!peeking) {
     nextSuspicion -=
       LEVEL_THREE_BALANCE.suspicionDecayPerSecond * dt;
-  }
+  }*/
 
   return clamp(nextSuspicion, 0, 100);
 }
