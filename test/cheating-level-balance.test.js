@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import * as CheatingLevelModule from "../src/levels/CheatingLevel.js";
+import {
+  QUESTION_BANK,
+  buildRoundAnswers,
+  validateQuestion
+} from "../src/levels/cheatingQuestions.js";
 
 import {
   CheatingLevel,
@@ -107,32 +112,43 @@ test("copied answer comparison ignores case and surrounding whitespace", () => {
   assert.equal(isCopiedAnswerCorrect("binary", null), false);
 });
 
-test("a copied challenge awards once and rerolls that neighbour's word", () => {
+test("a correct answer advances the full question round and redistributes all tablets", () => {
   const level = new CheatingLevel({});
-  const copiedDesk = {
-    word: "compiler",
-    hologram: {}
-  };
+  const desks = Array.from({ length: 7 }, () => ({ word: "", hologram: {} }));
 
   level.audio = { cue() {} };
   level.drawHologramText = () => {};
   level.updatePlayerPaper = () => {};
-  level.cheatDesks = [
-    copiedDesk,
-    { word: "binary", hologram: {} }
-  ];
+  level.cheatDesks = desks;
   level.isLookingAtPlayerDesk = true;
-  level.currentCopiedWord = "compiler";
-  level.currentCopiedDesk = copiedDesk;
-  level.typedAnswer = "compiler";
+  level.activeQuestion = QUESTION_BANK[0];
+  level.questionOrder = [QUESTION_BANK[1]];
+  level.questionIndex = 0;
+  level.typedAnswer = "stack";
 
   assert.equal(level.submitTypedAnswer(), true);
   assert.equal(level.answerProgress, LEVEL_THREE_BALANCE.answerGainPerCorrectWord);
-  assert.notEqual(copiedDesk.word, "compiler");
-  assert.notEqual(copiedDesk.word, "binary");
+  assert.equal(level.activeQuestion, QUESTION_BANK[1]);
+  assert.equal(new Set(desks.map((desk) => desk.word)).size, 7);
+  assert.ok(desks.some((desk) => desk.word === "Queue"));
 
   assert.equal(level.submitTypedAnswer(), false);
   assert.equal(level.answerProgress, LEVEL_THREE_BALANCE.answerGainPerCorrectWord);
+});
+
+test("every supplied question has one correct answer and six valid distractors", () => {
+  assert.equal(QUESTION_BANK.length, 50);
+
+  for (const question of QUESTION_BANK) {
+    assert.equal(validateQuestion(question), true, question.prompt);
+    const answers = buildRoundAnswers(question);
+    assert.equal(answers.length, 7);
+    assert.equal(new Set(answers.map((answer) => answer.toLowerCase())).size, 7);
+    assert.equal(
+      answers.filter((answer) => answer.toLowerCase() === question.correctAnswer.toLowerCase()).length,
+      1
+    );
+  }
 });
 
 test("typing is ignored away from the player desk and Space is not an answer action", () => {

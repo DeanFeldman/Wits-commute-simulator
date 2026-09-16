@@ -4,6 +4,13 @@ import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import {
+  QUESTION_BANK,
+  buildRoundAnswers,
+  normaliseAnswer,
+  shuffle,
+  validateQuestion
+} from "./cheatingQuestions.js";
 
 export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerCorrectWord: 20,
@@ -26,24 +33,6 @@ export function getExtraTutorPlayerPasses(suspicion) {
 
   return 0;
 }
-export const ANSWER_WORDS = Object.freeze([
-  "algorithm",
-  "binary",
-  "compiler",
-  "database",
-  "function",
-  "graphics",
-  "network",
-  "pointer",
-  "recursion",
-  "runtime",
-  "search",
-  "sorting",
-  "stack",
-  "thread",
-  "variable"
-]);
-
 const CLASSROOM_WIDTH = 22;
 const CLASSROOM_HALF_WIDTH = CLASSROOM_WIDTH / 2;
 const CLASSROOM_FRONT_Z = -7.8;
@@ -99,12 +88,12 @@ export function updateSuspicionMeter({
   return clamp(nextSuspicion, 0, 100);
 }
 
-export function isCopiedAnswerCorrect(typedAnswer, copiedWord) {
-  if (!copiedWord) {
+export function isCopiedAnswerCorrect(typedAnswer, correctAnswer) {
+  if (!correctAnswer) {
     return false;
   }
 
-  return typedAnswer.trim().toLowerCase() === copiedWord.toLowerCase();
+  return normaliseAnswer(typedAnswer) === normaliseAnswer(correctAnswer);
 }
 
 export class CheatingLevel {
@@ -193,6 +182,9 @@ this.patrolPoints = [
     this.zoomOverlay = null;
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
+    this.activeQuestion = null;
+    this.questionOrder = [];
+    this.questionIndex = 0;
     this.typedAnswer = "";
     this.feedbackMessage = "";
     this.feedbackTime = 0;
@@ -256,7 +248,7 @@ this.patrolPoints = [
     window.addEventListener("keydown", this.onTypingKeyDown, true);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
     this.game.setMessage(
-      "Hold LEFT CLICK to zoom and reveal a tablet's word. Then look down at your own desk to type the answer."
+      "Hold LEFT CLICK to zoom and reveal a tablet's answer. Then look down at your own desk to type your answer."
     );
   }
 
@@ -285,16 +277,6 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       { length: DESK_ROWS },
       (_, row) => FRONT_DESK_ROW_Z + row * DESK_ROW_SPACING
     );
-    const shuffledWords = [...ANSWER_WORDS];
-
-    for (let index = shuffledWords.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffledWords[index], shuffledWords[swapIndex]] = [
-        shuffledWords[swapIndex],
-        shuffledWords[index]
-      ];
-    }
-
     const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
     const loader = new GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
@@ -383,14 +365,13 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
             (isNeighbourRow && isImmediateSideNeighbour) ||
             isDirectlyBehindPlayer
           ) {
-            const word = shuffledWords[this.cheatDesks.length % shuffledWords.length];
             const interactionTarget = this.createTabletInteractionTarget(x, rowZ);
             const entry = {
               object: desk,
-              word,
+              word: "",
               tablet,
               interactionTarget,
-              hologram: this.createWordHologram(word, x, rowZ)
+              hologram: this.createWordHologram("", x, rowZ)
             };
             entry.tablet.userData.cheatDesk = entry;
             entry.interactionTarget.userData.cheatDesk = entry;
@@ -416,6 +397,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         `Level 3 needs ${expectedDecorativeTablets} decorative tablets; found ${this.decorativeTablets.length}.`
       );
     }
+
+    this.startQuestionRun();
 
     const chairBounds = new THREE.Box3().setFromObject(chairModel.scene);
     const chairCenter = chairBounds.getCenter(new THREE.Vector3());
@@ -638,10 +621,44 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     context.strokeRect(8, 8, width - 16, height - 16);
     context.fillStyle = "#17202a";
     context.font = "bold 54px sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(text || "_", width / 2, height / 2, width - 42);
+    if (!this.activeQuestion || paper !== this.playerDesk?.paper) {
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(text || "_", width / 2, height / 2, width - 42);
+      paper.userData.paperTexture.needsUpdate = true;
+      return;
+    }
+
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    context.font = "bold 25px sans-serif";
+    context.fillText("QUESTION", 32, 24);
+    context.font = "24px sans-serif";
+    this.drawWrappedPaperText(context, this.activeQuestion.prompt, 32, 62, width - 64, 30);
+    context.font = "bold 24px sans-serif";
+    context.fillText("YOUR ANSWER", 32, 176);
+    context.font = "bold 27px monospace";
+    context.fillText(`${this.typedAnswer || ""}_`, 32, 208, width - 64);
     paper.userData.paperTexture.needsUpdate = true;
+  }
+
+  drawWrappedPaperText(context, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(/\s+/);
+    let line = "";
+    let lineY = y;
+
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && context.measureText(candidate).width > maxWidth) {
+        context.fillText(line, x, lineY, maxWidth);
+        line = word;
+        lineY += lineHeight;
+      } else {
+        line = candidate;
+      }
+    }
+
+    if (line) context.fillText(line, x, lineY, maxWidth);
   }
 
   createDeskTablet(tabletTemplate, x, z) {
@@ -1313,15 +1330,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (
       this.completed ||
       !this.isLookingAtPlayerDesk ||
-      !this.currentCopiedWord ||
-      !this.currentCopiedDesk
+      !this.activeQuestion
     ) {
-      this.feedbackMessage = "Peek at another student's answer first.";
+      this.feedbackMessage = "Look down at your question paper first.";
       this.feedbackTime = 1.8;
       return false;
     }
 
-    if (!isCopiedAnswerCorrect(this.typedAnswer, this.currentCopiedWord)) {
+    if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
       this.feedbackTime = 1.8;
@@ -1329,39 +1345,65 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return false;
     }
 
-    const answeredDesk = this.currentCopiedDesk;
     this.answerProgress = clamp(
       this.answerProgress + LEVEL_THREE_BALANCE.answerGainPerCorrectWord,
       0,
       100
     );
     this.audio.cue(680, 0.08, 0.035);
-    this.assignNewWord(answeredDesk);
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
-    this.feedbackMessage = "Correct! A new word is waiting.";
+    this.hideHolograms();
+    this.advanceQuestion();
+    this.feedbackMessage = "Correct! A new question is waiting.";
     this.feedbackTime = 2.2;
     this.updatePlayerPaper();
     return true;
   }
 
-  assignNewWord(desk) {
-    const wordsInUse = new Set(this.cheatDesks.map((entry) => entry.word));
-    const candidates = ANSWER_WORDS.filter(
-      (word) => word !== desk.word && !wordsInUse.has(word)
-    );
-    const nextWord = candidates[Math.floor(Math.random() * candidates.length)];
+  startQuestionRun() {
+    const validQuestions = QUESTION_BANK.filter((questionData) => {
+      const valid = validateQuestion(questionData);
+      if (!valid) console.warn("Skipping malformed Level 3 question", questionData);
+      return valid;
+    });
 
-    desk.word = nextWord;
-    this.drawHologramText(desk.hologram, nextWord);
+    this.questionOrder = shuffle(validQuestions);
+    this.questionIndex = 0;
+    this.advanceQuestion();
+  }
+
+  advanceQuestion() {
+    this.activeQuestion = this.questionOrder[this.questionIndex] ?? null;
+    this.questionIndex += 1;
+
+    if (!this.activeQuestion) {
+      throw new Error("Level 3 needs at least five valid cheating questions.");
+    }
+
+    const answers = buildRoundAnswers(this.activeQuestion);
+    if (answers.length !== this.cheatDesks.length) {
+      throw new Error("Level 3 question rounds need exactly seven unique answers.");
+    }
+
+    this.cheatDesks.forEach((desk, index) => {
+      desk.word = answers[index];
+      this.drawHologramText(desk.hologram, desk.word);
+    });
+    this.updatePlayerPaper();
+  }
+
+  hideHolograms() {
+    this.peekActive = false;
+    for (const desk of this.cheatDesks) desk.hologram.visible = false;
   }
 
   updatePlayerPaper() {
     if (this.playerDesk?.paper) {
       this.drawPaperText(
         this.playerDesk.paper,
-        this.typedAnswer ? this.typedAnswer.toUpperCase() : "YOUR ANSWER"
+        this.typedAnswer
       );
     }
   }

@@ -11,7 +11,7 @@ The source of truth remains the code:
 
 ## Player Experience
 
-The player is a seated student. There is no locomotion. The level is an observation-and-recall challenge rather than the old continuous hold-to-copy mechanic.
+The player is a seated student. There is no locomotion. The level is an observation-and-reasoning challenge rather than the old continuous hold-to-copy mechanic.
 
 The current loop is:
 
@@ -20,11 +20,11 @@ look around
     ↓
 hold left click to zoom at an answer tablet
     ↓
-read the revealed hologram word
+read the revealed hologram answer
     ↓
 release zoom and look down at the player's paper
     ↓
-type the word and press Enter
+type the answer that fits the question and press Enter
     ↓
 repeat while managing tutor suspicion
 ```
@@ -112,9 +112,9 @@ Holograms are canvas-textured sprites. Their current placement and display size 
 
 ## Answer Lifecycle
 
-Level 3 draws from 15 programming-themed words. The initial seven words are shuffled and unique across functional tablets.
+Level 3 draws from a 50-question programming-themed question bank. Each question supplies one correct answer and six unique distractors; all seven answers are shuffled across the functional tablets.
 
-When the player successfully aims and zooms at a functional tablet, that tablet's word becomes the current copied word. The player must then release zoom, look down at their own paper, type the word, and press Enter.
+The player's paper displays the current question. When the player aims and zooms at a functional tablet, its assigned answer is revealed. The player must then release zoom, look down at their own paper, type the answer they believe fits the question, and press Enter.
 
 Submission rules:
 
@@ -123,9 +123,9 @@ Submission rules:
 - an incorrect answer clears the input and awards no progress;
 - a correct answer awards 20 percentage points;
 - five correct answers complete the level;
-- after a correct answer, that same tablet immediately receives a new word;
-- the replacement word cannot equal the tablet's previous word or duplicate a word currently assigned to another functional tablet;
-- copied state and typed input are cleared after success.
+- after a correct answer, a new question is selected and all seven tablets receive that question's reshuffled answer set;
+- exactly one functional tablet holds the correct answer and the other six hold unique distractors;
+- typed input and any visible hologram are cleared after success.
 
 The player's paper texture updates while typing so the answer appears on the desk as well as in the HUD.
 
