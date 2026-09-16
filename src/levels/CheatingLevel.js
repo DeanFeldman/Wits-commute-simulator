@@ -4,6 +4,13 @@ import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import {
+  QUESTION_BANK,
+  buildRoundAnswers,
+  normaliseAnswer,
+  shuffle,
+  validateQuestion
+} from "./cheatingQuestions.js";
 
 export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerCorrectWord: 20,
@@ -26,24 +33,6 @@ export function getExtraTutorPlayerPasses(suspicion) {
 
   return 0;
 }
-export const ANSWER_WORDS = Object.freeze([
-  "algorithm",
-  "binary",
-  "compiler",
-  "database",
-  "function",
-  "graphics",
-  "network",
-  "pointer",
-  "recursion",
-  "runtime",
-  "search",
-  "sorting",
-  "stack",
-  "thread",
-  "variable"
-]);
-
 const CLASSROOM_WIDTH = 22;
 const CLASSROOM_HALF_WIDTH = CLASSROOM_WIDTH / 2;
 const CLASSROOM_FRONT_Z = -7.8;
@@ -66,6 +55,18 @@ const NORMAL_CAMERA_FOV = 62;
 const PEEK_CAMERA_FOV = 30;
 const DESK_INTERACTION_DISTANCE = 5.25;
 const PAPER_HEIGHT = 0.795;
+const PLAYER_PAPER_WIDTH = 0.42;
+const PLAYER_PAPER_HEIGHT = 0.62;
+const PLAYER_DESK_SCALE = 1.15;
+const PLAYER_DESK_LOWERING = 0.1;
+const PLAYER_PAPER_TILT_CLEARANCE = 0.12;
+const PLAYER_PAPER_REST_HEIGHT = PAPER_HEIGHT - PLAYER_DESK_LOWERING + 0.012;
+const PLAYER_PAPER_READING_HEIGHT = PAPER_HEIGHT + PLAYER_PAPER_TILT_CLEARANCE;
+const PLAYER_PAPER_REST_ROTATION = -Math.PI / 2;
+const PLAYER_PAPER_READING_ROTATION = -Math.PI / 3;
+const PLAYER_PAPER_POSE_SPEED = 8;
+const PLAYER_PAPER_REST_SCALE = 0.84;
+const PLAYER_PAPER_READING_SCALE = 1;
 const PLAYER_EYE_HEIGHT = 1.09;
 const PLAYER_SEAT_Z = 4;
 const PLAYER_FORWARD_OFFSET = 0.25;
@@ -99,12 +100,12 @@ export function updateSuspicionMeter({
   return clamp(nextSuspicion, 0, 100);
 }
 
-export function isCopiedAnswerCorrect(typedAnswer, copiedWord) {
-  if (!copiedWord) {
+export function isCopiedAnswerCorrect(typedAnswer, correctAnswer) {
+  if (!correctAnswer) {
     return false;
   }
 
-  return typedAnswer.trim().toLowerCase() === copiedWord.toLowerCase();
+  return normaliseAnswer(typedAnswer) === normaliseAnswer(correctAnswer);
 }
 
 export class CheatingLevel {
@@ -193,6 +194,9 @@ this.patrolPoints = [
     this.zoomOverlay = null;
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
+    this.activeQuestion = null;
+    this.questionOrder = [];
+    this.questionIndex = 0;
     this.typedAnswer = "";
     this.feedbackMessage = "";
     this.feedbackTime = 0;
@@ -256,7 +260,7 @@ this.patrolPoints = [
     window.addEventListener("keydown", this.onTypingKeyDown, true);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
     this.game.setMessage(
-      "Hold LEFT CLICK to zoom and reveal a tablet's word. Then look down at your own desk to type the answer."
+      "Hold LEFT CLICK to zoom and reveal a tablet's answer. Then look down at your own desk to type your answer."
     );
   }
 
@@ -285,16 +289,6 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       { length: DESK_ROWS },
       (_, row) => FRONT_DESK_ROW_Z + row * DESK_ROW_SPACING
     );
-    const shuffledWords = [...ANSWER_WORDS];
-
-    for (let index = shuffledWords.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffledWords[index], shuffledWords[swapIndex]] = [
-        shuffledWords[swapIndex],
-        shuffledWords[index]
-      ];
-    }
-
     const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
     const loader = new GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
@@ -356,6 +350,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           Math.abs(rowZ + 0.8 - PLAYER_SEAT_Z) < 0.01;
 
         if (isPlayerDesk) {
+          // Give the seated player a larger, slightly lower work surface.
+          // The raised page clearance prevents its 30° tilt from intersecting it.
+          desk.scale.set(PLAYER_DESK_SCALE, 1, PLAYER_DESK_SCALE);
+          desk.position.y -= PLAYER_DESK_LOWERING;
           this.playerDesk = {
             object: desk,
             paper: this.createDeskPaper("YOUR ANSWER", x, rowZ, 0xeef7ff)
@@ -383,14 +381,13 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
             (isNeighbourRow && isImmediateSideNeighbour) ||
             isDirectlyBehindPlayer
           ) {
-            const word = shuffledWords[this.cheatDesks.length % shuffledWords.length];
             const interactionTarget = this.createTabletInteractionTarget(x, rowZ);
             const entry = {
               object: desk,
-              word,
+              word: "",
               tablet,
               interactionTarget,
-              hologram: this.createWordHologram(word, x, rowZ)
+              hologram: this.createWordHologram("", x, rowZ)
             };
             entry.tablet.userData.cheatDesk = entry;
             entry.interactionTarget.userData.cheatDesk = entry;
@@ -416,6 +413,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         `Level 3 needs ${expectedDecorativeTablets} decorative tablets; found ${this.decorativeTablets.length}.`
       );
     }
+
+    this.startQuestionRun();
 
     const chairBounds = new THREE.Box3().setFromObject(chairModel.scene);
     const chairCenter = chairBounds.getCenter(new THREE.Vector3());
@@ -601,7 +600,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   createDeskPaper(text, x, z, color = 0xfff7d6) {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
-    canvas.height = 256;
+    canvas.height = 768;
     const context = canvas.getContext("2d");
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -615,9 +614,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       side: THREE.DoubleSide,
       toneMapped: false
     });
-    const paper = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.4), material);
-    paper.position.set(x, PAPER_HEIGHT, z);
-    paper.rotation.x = -Math.PI / 2;
+    const paper = new THREE.Mesh(
+      new THREE.PlaneGeometry(PLAYER_PAPER_WIDTH, PLAYER_PAPER_HEIGHT),
+      material
+    );
+    paper.position.set(x, PLAYER_PAPER_REST_HEIGHT, z);
+    // Lean the page's normal 30° toward the seated player for legibility.
+    paper.rotation.x = PLAYER_PAPER_REST_ROTATION;
+    paper.scale.setScalar(PLAYER_PAPER_REST_SCALE);
     paper.userData.paperCanvas = canvas;
     paper.userData.paperContext = context;
     paper.userData.paperTexture = texture;
@@ -638,10 +642,56 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     context.strokeRect(8, 8, width - 16, height - 16);
     context.fillStyle = "#17202a";
     context.font = "bold 54px sans-serif";
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(text || "_", width / 2, height / 2, width - 42);
+    if (!this.activeQuestion || paper !== this.playerDesk?.paper) {
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(text || "_", width / 2, height / 2, width - 42);
+      paper.userData.paperTexture.needsUpdate = true;
+      return;
+    }
+
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    context.font = "bold 30px sans-serif";
+    context.fillText("QUESTION", 38, 42);
+    context.font = "29px sans-serif";
+    const questionBottom = this.drawWrappedPaperText(
+      context,
+      this.activeQuestion.prompt,
+      38,
+      98,
+      width - 76,
+      38
+    );
+    const answerLabelY = Math.max(430, questionBottom + 86);
+    context.strokeStyle = "#26313d";
+    context.lineWidth = 4;
+    context.strokeRect(32, answerLabelY - 22, width - 64, 160);
+    context.font = "bold 30px sans-serif";
+    context.fillText("YOUR ANSWER", 52, answerLabelY);
+    context.font = "bold 32px monospace";
+    context.fillText(`${this.typedAnswer || ""}_`, 52, answerLabelY + 70, width - 104);
     paper.userData.paperTexture.needsUpdate = true;
+  }
+
+  drawWrappedPaperText(context, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(/\s+/);
+    let line = "";
+    let lineY = y;
+
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && context.measureText(candidate).width > maxWidth) {
+        context.fillText(line, x, lineY, maxWidth);
+        line = word;
+        lineY += lineHeight;
+      } else {
+        line = candidate;
+      }
+    }
+
+    if (line) context.fillText(line, x, lineY, maxWidth);
+    return lineY + lineHeight;
   }
 
   createDeskTablet(tabletTemplate, x, z) {
@@ -970,6 +1020,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.audio.updateClock(dt);
     this.updateMouseLook();
     this.updateDeskTargeting();
+    this.updatePlayerPaperPose(dt);
     this.updatePeek(dt);
     this.updateSuspicion(dt);
     this.timeRemaining = Math.max(0, this.timeRemaining - dt);
@@ -1003,10 +1054,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     if (this.suspicion >= 100) {
-      this.game.flashHUD();
-      this.game.playAlertTone(120, 0.2);
       this.completed = true;
-      this.game.failLevel("Caught! Restarting from the checkpoint.");
+      this.endPeek();
+      this.game.flashHUD();
+      this.game.failLevel("Caught by the tutor. Try again?");
     }
   }
   handleTutorPatrolArrival(reachedIndex) {
@@ -1183,6 +1234,27 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
   }
 
+  updatePlayerPaperPose(dt) {
+    const paper = this.playerDesk?.paper;
+    if (!paper) return;
+
+    const reading = this.isLookingAtPlayerDesk && !this.completed;
+    const blend = Math.min(1, dt * PLAYER_PAPER_POSE_SPEED);
+    const targetHeight = reading
+      ? PLAYER_PAPER_READING_HEIGHT
+      : PLAYER_PAPER_REST_HEIGHT;
+    const targetRotation = reading
+      ? PLAYER_PAPER_READING_ROTATION
+      : PLAYER_PAPER_REST_ROTATION;
+    const targetScale = reading
+      ? PLAYER_PAPER_READING_SCALE
+      : PLAYER_PAPER_REST_SCALE;
+
+    paper.position.y = THREE.MathUtils.lerp(paper.position.y, targetHeight, blend);
+    paper.rotation.x = THREE.MathUtils.lerp(paper.rotation.x, targetRotation, blend);
+    paper.scale.setScalar(THREE.MathUtils.lerp(paper.scale.x, targetScale, blend));
+  }
+
   updatePeek(dt) {
     this.zoomActive = Boolean(
       this.leftMouseDown &&
@@ -1313,15 +1385,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (
       this.completed ||
       !this.isLookingAtPlayerDesk ||
-      !this.currentCopiedWord ||
-      !this.currentCopiedDesk
+      !this.activeQuestion
     ) {
-      this.feedbackMessage = "Peek at another student's answer first.";
+      this.feedbackMessage = "Look down at your question paper first.";
       this.feedbackTime = 1.8;
       return false;
     }
 
-    if (!isCopiedAnswerCorrect(this.typedAnswer, this.currentCopiedWord)) {
+    if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
       this.feedbackTime = 1.8;
@@ -1329,39 +1400,82 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return false;
     }
 
-    const answeredDesk = this.currentCopiedDesk;
     this.answerProgress = clamp(
       this.answerProgress + LEVEL_THREE_BALANCE.answerGainPerCorrectWord,
       0,
       100
     );
     this.audio.cue(680, 0.08, 0.035);
-    this.assignNewWord(answeredDesk);
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
-    this.feedbackMessage = "Correct! A new word is waiting.";
+    this.hideHolograms();
+    this.advanceQuestion();
+    this.feedbackMessage = "Correct! A new question is waiting.";
     this.feedbackTime = 2.2;
     this.updatePlayerPaper();
     return true;
   }
 
-  assignNewWord(desk) {
-    const wordsInUse = new Set(this.cheatDesks.map((entry) => entry.word));
-    const candidates = ANSWER_WORDS.filter(
-      (word) => word !== desk.word && !wordsInUse.has(word)
-    );
-    const nextWord = candidates[Math.floor(Math.random() * candidates.length)];
+  startQuestionRun() {
+    const validQuestions = QUESTION_BANK.filter((questionData) => {
+      const valid = validateQuestion(questionData);
+      if (!valid) console.warn("Skipping malformed Level 3 question", questionData);
+      return valid;
+    });
 
-    desk.word = nextWord;
-    this.drawHologramText(desk.hologram, nextWord);
+    this.questionOrder = shuffle(validQuestions);
+    this.questionIndex = 0;
+    this.advanceQuestion();
+  }
+
+  endPeek() {
+    this.leftMouseDown = false;
+    this.zoomActive = false;
+    this.peekActive = false;
+    this.targetCheatDesk = null;
+    this.zoomOverlay?.classList.remove("visible");
+
+    for (const desk of this.cheatDesks) {
+      desk.hologram.visible = false;
+    }
+
+    if (this.camera && this.camera.fov !== NORMAL_CAMERA_FOV) {
+      this.camera.fov = NORMAL_CAMERA_FOV;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  advanceQuestion() {
+    this.activeQuestion = this.questionOrder[this.questionIndex] ?? null;
+    this.questionIndex += 1;
+
+    if (!this.activeQuestion) {
+      throw new Error("Level 3 needs at least five valid cheating questions.");
+    }
+
+    const answers = buildRoundAnswers(this.activeQuestion);
+    if (answers.length !== this.cheatDesks.length) {
+      throw new Error("Level 3 question rounds need exactly seven unique answers.");
+    }
+
+    this.cheatDesks.forEach((desk, index) => {
+      desk.word = answers[index];
+      this.drawHologramText(desk.hologram, desk.word);
+    });
+    this.updatePlayerPaper();
+  }
+
+  hideHolograms() {
+    this.peekActive = false;
+    for (const desk of this.cheatDesks) desk.hologram.visible = false;
   }
 
   updatePlayerPaper() {
     if (this.playerDesk?.paper) {
       this.drawPaperText(
         this.playerDesk.paper,
-        this.typedAnswer ? this.typedAnswer.toUpperCase() : "YOUR ANSWER"
+        this.typedAnswer
       );
     }
   }

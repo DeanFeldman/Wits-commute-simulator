@@ -406,8 +406,29 @@ export class Game {
 
     this.isTransitioning = true;
     this.setMessage(message);
-    this.fadeElement.classList.add("visible");
-    this.scheduleTransition(() => this.restartCurrentLevel(true), 1600);
+    this.fadeTransition(() => this.showFailure(message));
+  }
+
+  showFailure(message) {
+    this.loadVersion += 1;
+    this.disposeCurrentLevel();
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x0d1117);
+    this.state = "failed";
+    this.isLoading = false;
+    this.isPaused = false;
+    this.isTransitioning = false;
+    this.levelNameElement.textContent = "Game Over";
+    this.setHUD("");
+    this.setMessage("");
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
+    this.menuTitleElement.textContent = "Game Over";
+    this.menuCopyElement.textContent = message;
+    this.menuPrimaryAction.textContent = "Retry";
+    this.menuPrimaryAction.dataset.gameAction = "retry";
+    this.menuElement.hidden = false;
+    requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
   }
 
   fadeTransition(callback) {
@@ -537,6 +558,11 @@ export class Game {
       return;
     }
 
+    if (action === "retry") {
+      this.restartCurrentLevel();
+      return;
+    }
+
     if (action === "credits") {
       this.showCredits();
       return;
@@ -564,7 +590,7 @@ export class Game {
     const briefs = {
       1: "Drive with W/S and steer with A/D. Avoid potholes, then stop straight inside the cyan bay.",
       2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect Vida cups for power-ups, wait for gaps in the traffic, and reach Engineering.",
-      3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's word. Release, look down at your own desk, type the answer, and press Enter. P opens settings."
+      3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's answer. Release, look down at your own desk, type your answer, and press Enter. P opens settings."
     };
     this.instructionTitle.textContent = level.name;
     this.instructionCopy.textContent = briefs[this.currentLevelNumber] ?? "Complete the objective to continue.";

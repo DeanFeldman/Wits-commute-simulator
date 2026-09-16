@@ -228,15 +228,15 @@ Licence:
 CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 Used for:
-Level 3 — the tablets on surrounding desks that carry the answer words the player
-peeks at, and the player's own desk tablet.
+Level 3 — the seven functional surrounding tablets carry shuffled possible answers
+for the active question; decorative tablets use the same model without interaction.
 
 File:
 `public/assets/models/props/paper-tablet.glb`
 
 Modified:
 Yes — rescaled; a dynamic canvas texture is applied at runtime to draw each
-tablet's word.
+functional tablet's assigned answer.
 
 Added by:
 Gabriel Razbornik

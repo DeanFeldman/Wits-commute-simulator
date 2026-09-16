@@ -152,6 +152,20 @@ Detailed invariants are recorded in `docs/LEVEL_3_CHEATING_MECHANICS.md`.
 
 ---
 
+## 2026-09-16 — Level 3 Uses Question Rounds and a Reading Paper
+
+**Decision**
+
+Replace tablet-by-tablet word copying with shuffled question rounds. Each question supplies one correct answer and six distractors, which are distributed randomly across the seven functional tablets. A correct submission advances the entire round and reshuffles all seven answers; an incorrect submission leaves the round in place.
+
+The player paper now rests flat and compact on the player's enlarged, lowered desk. Looking at the paper smoothly lifts it, grows it to reading size, and tilts it 30 degrees toward the player. Reaching 100% suspicion clears this reading pose before showing a Game Over screen with Retry.
+
+**Reason**
+
+The player must now gather information and reason about the question rather than merely copying one word. The animated paper makes the required reading and answer-entry state clearer without adding movement or changing the tutor risk loop.
+
+---
+
 ## 2026-09-04 — Repository and Branch Conventions
 
 **Decision**

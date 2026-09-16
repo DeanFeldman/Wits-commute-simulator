@@ -5,13 +5,14 @@ Read this document before changing Level 3 cameras, desk placement, tablet targe
 The source of truth remains the code:
 
 - `src/levels/CheatingLevel.js` owns the classroom, camera, tutor, targeting, zoom, answers, suspicion, timer, and Level 3 lifecycle.
+- `src/levels/cheatingQuestions.js` owns the question-bank data, validation, and answer-set shuffling.
 - `src/core/Game.js` owns the Level 3 briefing and shared UI shell.
 - `index.html` and `src/style.css` own the hand-zoom overlay markup and presentation.
 - `test/cheating-level-balance.test.js` protects the important answer, suspicion, zoom, and patrol rules.
 
 ## Player Experience
 
-The player is a seated student. There is no locomotion. The level is an observation-and-recall challenge rather than the old continuous hold-to-copy mechanic.
+The player is a seated student. There is no locomotion. The level is an observation-and-reasoning challenge rather than the old continuous hold-to-copy mechanic.
 
 The current loop is:
 
@@ -20,11 +21,11 @@ look around
     ↓
 hold left click to zoom at an answer tablet
     ↓
-read the revealed hologram word
+read the revealed hologram answer
     ↓
 release zoom and look down at the player's paper
     ↓
-type the word and press Enter
+type the answer that fits the question and press Enter
     ↓
 repeat while managing tutor suspicion
 ```
@@ -60,7 +61,7 @@ Keep the camera seated and near-first-person. Level 3 must not gain walking cont
 
 ## Desk and Tablet Layout
 
-The classroom contains six rows of nine desks: 54 desks total. The player occupies one desk and uses a generated `YOUR ANSWER` paper. Every other desk receives the paper-tablet model.
+The classroom contains six rows of nine desks: 54 desks total. The player occupies one enlarged, slightly lower desk and uses a generated portrait `YOUR ANSWER` paper. The paper rests flat at 84% scale, then smoothly lifts, grows to full size, and tilts 30 degrees toward the player while they look at it, keeping the question and bordered answer field visible. Every other desk receives the paper-tablet model unchanged.
 
 Current counts:
 
@@ -112,9 +113,9 @@ Holograms are canvas-textured sprites. Their current placement and display size 
 
 ## Answer Lifecycle
 
-Level 3 draws from 15 programming-themed words. The initial seven words are shuffled and unique across functional tablets.
+Level 3 draws from a 50-question programming-themed question bank. Each question supplies one correct answer and six unique distractors; all seven answers are shuffled across the functional tablets.
 
-When the player successfully aims and zooms at a functional tablet, that tablet's word becomes the current copied word. The player must then release zoom, look down at their own paper, type the word, and press Enter.
+The player's paper displays the current question. When the player aims and zooms at a functional tablet, its assigned answer is revealed. The player must then release zoom, look down at their own paper, type the answer they believe fits the question, and press Enter.
 
 Submission rules:
 
@@ -123,9 +124,9 @@ Submission rules:
 - an incorrect answer clears the input and awards no progress;
 - a correct answer awards 20 percentage points;
 - five correct answers complete the level;
-- after a correct answer, that same tablet immediately receives a new word;
-- the replacement word cannot equal the tablet's previous word or duplicate a word currently assigned to another functional tablet;
-- copied state and typed input are cleared after success.
+- after a correct answer, a new question is selected and all seven tablets receive that question's reshuffled answer set;
+- exactly one functional tablet holds the correct answer and the other six hold unique distractors;
+- typed input and any visible hologram are cleared after success.
 
 The player's paper texture updates while typing so the answer appears on the desk as well as in the HUD.
 
@@ -137,7 +138,7 @@ Suspicion is tied to exposed peeking, not typing:
 | --- | --- |
 | Zooming at a functional tablet while seen | Increases by 30 per second |
 | Zooming while unseen | Holds its current value |
-| Not peeking | Decreases by 6 per second |
+| Not peeking | Holds its current value |
 
 Reaching 100 suspicion fails the level. The timer starts at 75 seconds, and reaching zero also fails. Answer progress reaching 100 completes the level.
 
@@ -187,9 +188,9 @@ Context instructions should guide the next action: find a tablet, hold zoom, avo
 - The hidden overlay pauses its CSS animation.
 - `dispose()` must remove mouse, keyboard, and pointer-lock listeners, hide the overlay, release pointer lock, dispose audio/background resources, and dispose the Level 3 scene graph.
 
-## Known Issue
+## Failure Presentation
 
-The suspicion-failure path currently calls `game.playAlertTone`, but `Game` does not define that method. This is separate from the mechanics rework and should be fixed before relying on the caught-state browser flow.
+At 100% suspicion, Level 3 immediately clears zoom, hides holograms, and restores the normal camera field of view before displaying the shared **Game Over** screen. The screen provides a **Retry** button that restarts the current level from its checkpoint.
 
 ## Safe Editing Checklist
 
@@ -200,11 +201,12 @@ Before completing a Level 3 gameplay change:
 3. Confirm the tablet directly behind the player remains functional.
 4. Check that zoom works without a target but holograms require a targeted functional tablet.
 5. Check that only one hologram is visible at a time.
-6. Peek at a word, release zoom, look down, type it, and submit it.
-7. Confirm a correct answer rerolls only the answered tablet.
+6. Peek at an answer, release zoom, look down, type it, and submit it.
+7. Confirm a correct answer loads a new question and reshuffles all seven tablet answers.
 8. Confirm typing is ignored away from the player's paper.
-9. Confirm suspicion increases only during detected peeking and decays after peeking stops.
+9. Confirm suspicion increases only during detected peeking and otherwise holds its current value.
 10. Refresh the page and confirm the hand overlay does not flash.
 11. Check hand-overlay centring, opacity, slide, sway, and HUD stacking.
-12. Run `npm test` and `npm run build`.
-13. Load all three levels and inspect the browser console.
+12. Reach 100% suspicion while zooming and confirm Game Over is shown without a stuck overlay; use Retry to restart Level 3.
+13. Run `npm test` and `npm run build`.
+14. Load all three levels and inspect the browser console.
