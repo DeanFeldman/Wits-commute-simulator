@@ -696,7 +696,7 @@ async load() {
   });
 
   this.game.setMessage(
-    "Every bay is taken but three. Follow a cyan marker. W/S = throttle, A/D = steer, Ctrl+R = restart."
+    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, Ctrl+R = restart."
   );
 
   this.viewToggle = document.querySelector("#level1-view-toggle");
@@ -840,7 +840,7 @@ createParkingSurface() {
   // of light tall enough to clear the parked cars, and a floating pin. Without
   // the column the free bays are invisible from anywhere but right beside them.
   createParkingWaypoints() {
-    const markerColour = 0x35e0d1;
+    const markerColour = 0xa855f7;
     const outlineGeometry = new THREE.EdgesGeometry(
       new THREE.BoxGeometry(
         LEVEL_ONE_PARKING_LAYOUT.parkingSpaceWidth,
