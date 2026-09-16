@@ -9,21 +9,17 @@ import {
   updateSuspicionMeter
 } from "../src/levels/CheatingLevel.js";
 
-test("safe posture decays suspicion gradually", () => {
-  const result = updateSuspicionMeter({
+test("safe posture preserves accumulated suspicion", () => {
+  const suspicion = updateSuspicionMeter({
     suspicion: 60,
     peeking: false,
     seen: false,
     dt: 1
   });
 
-  assert.equal(
-    result,
-    60 - LEVEL_THREE_BALANCE.suspicionDecayPerSecond
-  );
-
-  assert.ok(result > 0);
+  assert.equal(suspicion, 60);
 });
+
 
 test("peeking while unseen preserves accumulated suspicion", () => {
   const result = updateSuspicionMeter({
@@ -60,6 +56,48 @@ test("continuous detected peeking reaches maximum suspicion", () => {
   }
 
   assert.equal(suspicion, 100);
+});
+
+test("suspicion never decreases during an active attempt", () => {
+  let suspicion = 40;
+
+  suspicion = updateSuspicionMeter({
+    suspicion,
+    peeking: false,
+    seen: false,
+    dt: 2
+  });
+
+  assert.equal(suspicion, 40);
+
+  suspicion = updateSuspicionMeter({
+    suspicion,
+    peeking: true,
+    seen: false,
+    dt: 2
+  });
+
+  assert.equal(suspicion, 40);
+
+  suspicion = updateSuspicionMeter({
+    suspicion,
+    peeking: true,
+    seen: true,
+    dt: 1
+  });
+
+  assert.ok(suspicion > 40);
+
+  const raisedSuspicion = suspicion;
+
+  suspicion = updateSuspicionMeter({
+    suspicion,
+    peeking: false,
+    seen: false,
+    dt: 5
+  });
+
+  assert.equal(suspicion, raisedSuspicion);
 });
 
 test("copied answer comparison ignores case and surrounding whitespace", () => {
