@@ -145,6 +145,13 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   // rather than one scripted slot.
   freeBayCount: 3,
   freeBaySeparation: 18,
+  potholeCount: 40,
+  potholeMinSeparation: 5,
+  potholeRadiusMin: 0.55,
+  potholeRadiusMax: 1.35,
+  potholeSpawnClearance: 9,
+  potholeEntranceClearance: 5.5,
+  potholeFreeBayClearance: 4.5,
   playerSpawn: Object.freeze({ x: -34.5, z: 41, angle: 0 }),
   skyViewScale: 1.65
 });
@@ -318,6 +325,168 @@ export function pickFreeParkingBays(spaces, random = Math.random, {
 
 export function parkingBayKey(space) {
   return `${space.rowName}:${space.rowIndex}`;
+}
+
+
+export function isPointInsideLevelOneLot(x, z, outline = PARKING_LAYOUT.mainLot.outline) {
+  // Standard ray-casting point-in-polygon test in the X/Z plane.
+  let inside = false;
+  for (let current = 0, previous = outline.length - 1; current < outline.length; previous = current++) {
+    const [currentX, currentZ] = outline[current];
+    const [previousX, previousZ] = outline[previous];
+    const crosses = ((currentZ > z) !== (previousZ > z)) &&
+      (x < (previousX - currentX) * (z - currentZ) / (previousZ - currentZ) + currentX);
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function levelOnePotholeRegions(layout = LEVEL_ONE_PARKING_LAYOUT) {
+  const radiusMargin = layout.potholeRadiusMax + 0.2;
+  const mouthInset = 2.25;
+  const regions = layout.verticalRoads.map((road) => ({
+    type: "vertical",
+    road,
+    area: Math.max(0, road.width - radiusMargin * 2) *
+      Math.max(0, road.endZ - road.startZ - mouthInset * 2)
+  }));
+
+  regions.push({
+    type: "rear",
+    area: Math.max(0, layout.rearRoad.width - radiusMargin * 2) *
+      Math.max(0, layout.rearRoad.depth - radiusMargin * 2)
+  });
+
+  // The small pieces of asphalt immediately inside the entry and exit are
+  // included as candidate road surface. Fairness clearances below normally
+  // reject points in the actual throat, but keeping these regions explicit
+  // means the sampler follows the real drivable geometry rather than row math.
+  for (const opening of [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit]) {
+    regions.push({
+      type: "apron",
+      opening,
+      area: Math.max(0, opening.width - radiusMargin * 2) * 5
+    });
+  }
+
+  return regions.filter((region) => region.area > 0);
+}
+
+function sampleLevelOnePotholePosition(random, layout = LEVEL_ONE_PARKING_LAYOUT) {
+  const regions = levelOnePotholeRegions(layout);
+  const totalArea = regions.reduce((sum, region) => sum + region.area, 0);
+  let draw = random() * totalArea;
+  let region = regions.at(-1);
+  for (const candidate of regions) {
+    draw -= candidate.area;
+    if (draw <= 0) {
+      region = candidate;
+      break;
+    }
+  }
+
+  const radiusMargin = layout.potholeRadiusMax + 0.2;
+  if (region.type === "vertical") {
+    const { road } = region;
+    const halfUsableWidth = road.width / 2 - radiusMargin;
+    const mouthInset = 2.25;
+    return {
+      x: road.x + (random() * 2 - 1) * halfUsableWidth,
+      z: THREE.MathUtils.lerp(road.startZ + mouthInset, road.endZ - mouthInset, random())
+    };
+  }
+
+  if (region.type === "rear") {
+    const halfWidth = layout.rearRoad.width / 2 - radiusMargin;
+    const x = (random() * 2 - 1) * halfWidth;
+    const progress = (x + layout.rearRoad.width / 2) / layout.rearRoad.width;
+    const centreZ = THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, progress);
+    const halfUsableDepth = layout.rearRoad.depth / 2 - radiusMargin;
+    return {
+      x,
+      z: centreZ + (random() * 2 - 1) * halfUsableDepth
+    };
+  }
+
+  const halfUsableWidth = region.opening.width / 2 - radiusMargin;
+  return {
+    x: region.opening.x + (random() * 2 - 1) * halfUsableWidth,
+    z: THREE.MathUtils.lerp(29, 34, random())
+  };
+}
+
+export function generateLevelOnePotholes({
+  random = Math.random,
+  freeBays = [],
+  layout = LEVEL_ONE_PARKING_LAYOUT,
+  count = layout.potholeCount,
+  minSeparation = layout.potholeMinSeparation
+} = {}) {
+  const chosen = [];
+  const fallbackCandidates = [];
+  const maxAttempts = Math.max(1200, count * 220);
+  const entrancePoints = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit];
+
+  const clearOf = (candidate, point, clearance) =>
+    Math.hypot(candidate.x - point.x, candidate.z - point.z) >= clearance + candidate.radius;
+
+  const fairCandidate = (candidate) => {
+    if (!isPointInsideLevelOneLot(candidate.x, candidate.z)) return false;
+    if (!clearOf(candidate, layout.playerSpawn, layout.potholeSpawnClearance)) return false;
+    if (entrancePoints.some((point) => !clearOf(candidate, point, layout.potholeEntranceClearance))) return false;
+    if (freeBays.some((bay) => !clearOf(candidate, bay, layout.potholeFreeBayClearance))) return false;
+    return true;
+  };
+
+  const separated = (candidate) => chosen.every((pothole) =>
+    Math.hypot(pothole.x - candidate.x, pothole.z - candidate.z) >= minSeparation
+  );
+
+  for (let attempt = 0; attempt < maxAttempts && chosen.length < count; attempt++) {
+    const point = sampleLevelOnePotholePosition(random, layout);
+    const candidate = {
+      ...point,
+      radius: THREE.MathUtils.lerp(layout.potholeRadiusMin, layout.potholeRadiusMax, random())
+    };
+    if (!fairCandidate(candidate)) continue;
+    fallbackCandidates.push(candidate);
+    if (separated(candidate)) chosen.push(candidate);
+  }
+
+  // A valid layout has ample room for 25 hazards, so the normal path above
+  // satisfies every spacing rule. Keep a best-effort top-up for deliberately
+  // hostile test/options values rather than ever returning hundreds or looping.
+  while (chosen.length < count && fallbackCandidates.length > 0) {
+    let bestIndex = 0;
+    let bestDistance = -Infinity;
+    for (let index = 0; index < fallbackCandidates.length; index++) {
+      const candidate = fallbackCandidates[index];
+      if (chosen.includes(candidate)) continue;
+      const nearest = chosen.length === 0 ? Infinity : Math.min(...chosen.map((pothole) =>
+        Math.hypot(pothole.x - candidate.x, pothole.z - candidate.z)
+      ));
+      if (nearest > bestDistance) {
+        bestDistance = nearest;
+        bestIndex = index;
+      }
+    }
+    const next = fallbackCandidates.splice(bestIndex, 1)[0];
+    if (next && !chosen.includes(next)) chosen.push(next);
+    else break;
+  }
+
+  return chosen.slice(0, count);
+}
+
+export function getPotholeImpact(radius, layout = LEVEL_ONE_PARKING_LAYOUT) {
+  const range = Math.max(0.001, layout.potholeRadiusMax - layout.potholeRadiusMin);
+  const severity = clamp((radius - layout.potholeRadiusMin) / range, 0, 1);
+  return {
+    damage: Math.round(THREE.MathUtils.lerp(2, 8, severity)),
+    speedMultiplier: THREE.MathUtils.lerp(0.9, 0.7, severity),
+    cameraShake: THREE.MathUtils.lerp(0.16, 0.34, severity),
+    cooldown: THREE.MathUtils.lerp(0.85, 1.25, severity)
+  };
 }
 
 export const PLAYER_CAR_WHEEL_NAMES = Object.freeze([
@@ -644,30 +813,26 @@ createParkingSurface() {
       color: 0x111317,
       roughness: 1
     });
+    // One shared unit geometry for every pothole; radius variation comes from
+    // mesh scale, avoiding a new CylinderGeometry allocation per hazard.
+    const geometry = new THREE.CylinderGeometry(0.72, 1, 0.07, 14);
+    const generated = generateLevelOnePotholes({ freeBays: this.freeBays });
 
-    const layout = LEVEL_ONE_PARKING_LAYOUT;
-    const positions = layout.verticalRoads.flatMap((road, roadIndex) => [
-      [road.x, 24 - (roadIndex % 2) * 5, 0.72 + (roadIndex % 3) * 0.12],
-      [road.x, 4 - (roadIndex % 3) * 3, 0.78 + (roadIndex % 2) * 0.16],
-      [road.x, -17 + (roadIndex % 2) * 4, 0.74 + (roadIndex % 4) * 0.09]
-    ]);
-    positions.push(
-      [-42, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.14), 0.78],
-      [-18, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.35), 0.9],
-      [8, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.57), 0.76],
-      [34, THREE.MathUtils.lerp(layout.rearRoad.leftZ, layout.rearRoad.rightZ, 0.79), 0.96]
-    );
-
-    for (const [x, z, scale] of positions) {
-      const pothole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.7 * scale, 1 * scale, 0.07, 12),
-        material
-      );
-
+    for (const { x, z, radius } of generated) {
+      const pothole = new THREE.Mesh(geometry, material);
+      pothole.scale.set(radius, 1, radius);
       pothole.position.set(x, 0.02, z);
+      pothole.userData.radius = radius;
+
       this.root.add(pothole);
       this.potholes.push(pothole);
-      this.collisionWorld.add({ object: pothole, size: [1.9, 0.15, 1.9], color: 0xffc857, tag: "pothole" });
+      const colliderDiameter = radius * 2;
+      this.collisionWorld.add({
+        object: pothole,
+        size: [colliderDiameter, 0.15, colliderDiameter],
+        color: 0xffc857,
+        tag: "pothole"
+      });
     }
   }
 
@@ -886,19 +1051,18 @@ if (hit) {
     }
 
     for (const pothole of this.potholes) {
+      const radius = pothole.userData.radius ?? 0.8;
       const distance = pothole.position.distanceTo(this.car.position);
 
-      if (distance < 1.35) {
-        this.vehicle.speed *= 0.82;
-        this.cameraShake = Math.max(this.cameraShake, 0.22);
+      if (distance < radius + 0.65) {
+        const impact = getPotholeImpact(radius);
+        this.vehicle.speed *= impact.speedMultiplier;
+        this.cameraShake = Math.max(this.cameraShake, impact.cameraShake);
         this.game.flashHUD();
         this.audio.cue(92, 0.12, 0.14);
 
-        // Light damage only
-        this.condition = applyLevelOneDamage(this.condition, "pothole");
-
-        // Slightly longer cooldown so one pothole doesn't shred the car
-        this.potholeCooldown = 1.2;
+        this.condition = Math.max(0, this.condition - impact.damage);
+        this.potholeCooldown = impact.cooldown;
         break;
       }
     }

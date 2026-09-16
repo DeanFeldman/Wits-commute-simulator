@@ -8,6 +8,9 @@ import {
   createDoubleParkingRow,
   createParkingRow,
   getLevelOneParkingSpaces,
+  generateLevelOnePotholes,
+  getPotholeImpact,
+  isPointInsideLevelOneLot,
   parkingBayKey,
   pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
@@ -185,6 +188,80 @@ function seededRandom(seed) {
     return state / 0x100000000;
   };
 }
+
+
+test("potholes are generated on drivable asphalt with fair spacing and clearances", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const spaces = getLevelOneParkingSpaces();
+  const freeBays = pickFreeParkingBays(spaces, seededRandom(2024));
+  const potholes = generateLevelOnePotholes({
+    random: seededRandom(404),
+    freeBays
+  });
+
+  assert.equal(potholes.length, layout.potholeCount);
+  assert.equal(layout.potholeCount, 40);
+
+  for (const pothole of potholes) {
+    assert.ok(isPointInsideLevelOneLot(pothole.x, pothole.z), "pothole centre stays inside the lot outline");
+    assert.ok(pothole.radius >= layout.potholeRadiusMin);
+    assert.ok(pothole.radius <= layout.potholeRadiusMax);
+
+    assert.ok(
+      Math.hypot(pothole.x - layout.playerSpawn.x, pothole.z - layout.playerSpawn.z) >=
+        layout.potholeSpawnClearance + pothole.radius,
+      "spawn stays clear"
+    );
+
+    for (const opening of [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit]) {
+      assert.ok(
+        Math.hypot(pothole.x - opening.x, pothole.z - opening.z) >=
+          layout.potholeEntranceClearance + pothole.radius,
+        "entrance and exit throats stay clear"
+      );
+    }
+
+    for (const bay of freeBays) {
+      assert.ok(
+        Math.hypot(pothole.x - bay.x, pothole.z - bay.z) >=
+          layout.potholeFreeBayClearance + pothole.radius,
+        "free parking bays keep a clear approach"
+      );
+    }
+  }
+
+  for (let a = 0; a < potholes.length; a++) {
+    for (let b = a + 1; b < potholes.length; b++) {
+      assert.ok(
+        Math.hypot(potholes[a].x - potholes[b].x, potholes[a].z - potholes[b].z) >=
+          layout.potholeMinSeparation,
+        "potholes do not clump"
+      );
+    }
+  }
+
+  const repeat = generateLevelOnePotholes({
+    random: seededRandom(404),
+    freeBays
+  });
+  assert.deepEqual(repeat, potholes, "seeded generation is reproducible");
+
+  const other = generateLevelOnePotholes({
+    random: seededRandom(405),
+    freeBays
+  });
+  assert.notDeepEqual(other, potholes, "a different seed produces a different hazard layout");
+});
+
+test("larger potholes hit harder and slow the car more", () => {
+  const layout = LEVEL_ONE_PARKING_LAYOUT;
+  const small = getPotholeImpact(layout.potholeRadiusMin);
+  const large = getPotholeImpact(layout.potholeRadiusMax);
+
+  assert.ok(large.damage > small.damage);
+  assert.ok(large.speedMultiplier < small.speedMultiplier);
+  assert.ok(large.cameraShake > small.cameraShake);
+});
 
 test("the lot fills except for a few bays, drawn at random and kept apart", () => {
   const layout = LEVEL_ONE_PARKING_LAYOUT;
