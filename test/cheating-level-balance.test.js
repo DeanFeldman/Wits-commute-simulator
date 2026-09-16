@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
+import * as CheatingLevelModule from "../src/levels/CheatingLevel.js";
 
 import {
   CheatingLevel,
@@ -274,4 +275,67 @@ test("tutor patrol snakes through the desk aisles without diagonal shortcuts", (
       `patrol segment ${index} must remain inside a row or side aisle`
     );
   }
+});
+
+test("tutor adds progressively more player-area passes as suspicion rises", () => {
+  const getExtraTutorPlayerPasses =
+    CheatingLevelModule.getExtraTutorPlayerPasses;
+
+  assert.equal(typeof getExtraTutorPlayerPasses, "function");
+
+  assert.equal(getExtraTutorPlayerPasses(0), 0);
+  assert.equal(getExtraTutorPlayerPasses(29), 0);
+
+  assert.equal(getExtraTutorPlayerPasses(30), 1);
+  assert.equal(getExtraTutorPlayerPasses(59), 1);
+
+  assert.equal(getExtraTutorPlayerPasses(60), 2);
+  assert.equal(getExtraTutorPlayerPasses(79), 2);
+
+  assert.equal(getExtraTutorPlayerPasses(80), 3);
+  assert.equal(getExtraTutorPlayerPasses(99), 3);
+});
+
+test("high suspicion makes the tutor recheck the player area before continuing", () => {
+  const level = new CheatingLevel({});
+
+  level.suspicion = 85;
+  level.tutorMover = {
+    index: 13
+  };
+
+  level.handleTutorPatrolArrival?.(9);
+
+  assert.equal(level.extraPlayerPassesRemaining, 3);
+
+  level.handleTutorPatrolArrival?.(12);
+
+  assert.equal(level.tutorMover.index, 11);
+  assert.equal(level.extraPlayerPassesRemaining, 2);
+
+  level.handleTutorPatrolArrival?.(12);
+
+  assert.equal(level.tutorMover.index, 11);
+  assert.equal(level.extraPlayerPassesRemaining, 1);
+
+  level.handleTutorPatrolArrival?.(12);
+
+  assert.equal(level.tutorMover.index, 11);
+  assert.equal(level.extraPlayerPassesRemaining, 0);
+});
+test("low suspicion leaves the normal tutor patrol unchanged", () => {
+  const level = new CheatingLevel({});
+
+  level.suspicion = 20;
+  level.tutorMover = {
+    index: 13
+  };
+
+  level.handleTutorPatrolArrival?.(9);
+
+  assert.equal(level.extraPlayerPassesRemaining, 0);
+
+  level.handleTutorPatrolArrival?.(12);
+
+  assert.equal(level.tutorMover.index, 13);
 });

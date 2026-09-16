@@ -11,7 +11,21 @@ export const LEVEL_THREE_BALANCE = Object.freeze({
   tutorPauseSeconds: 2.0,
   tutorTurnSpeed: 2.4
 });
+export function getExtraTutorPlayerPasses(suspicion) {
+  if (suspicion >= 80) {
+    return 3;
+  }
 
+  if (suspicion >= 60) {
+    return 2;
+  }
+
+  if (suspicion >= 30) {
+    return 1;
+  }
+
+  return 0;
+}
 export const ANSWER_WORDS = Object.freeze([
   "algorithm",
   "binary",
@@ -62,6 +76,9 @@ const TABLET_TARGET_WIDTH = 1.0;
 const TABLET_TARGET_HEIGHT = 0.28;
 const TABLET_TARGET_DEPTH = 0.65;
 const MAX_TYPED_ANSWER_LENGTH = 24;
+const TUTOR_PLAYER_APPROACH_INDEX = 9;
+const TUTOR_PLAYER_NEAR_INDEX = 12;
+const TUTOR_PLAYER_RECHECK_INDEX = 11;
 
 export function updateSuspicionMeter({
   suspicion,
@@ -156,6 +173,7 @@ this.patrolPoints = [
     this.interactionRaycaster = new THREE.Raycaster();
     this.playerSeen = false;
     this.tutorMover = null;
+    this.extraPlayerPassesRemaining = 0;
     this.tutorLegs = [];
     this.tutorWalkPhase = 0;
 
@@ -991,11 +1009,32 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.game.failLevel("Caught! Restarting from the checkpoint.");
     }
   }
+  handleTutorPatrolArrival(reachedIndex) {
+  if (reachedIndex === TUTOR_PLAYER_APPROACH_INDEX) {
+    this.extraPlayerPassesRemaining =
+      getExtraTutorPlayerPasses(this.suspicion);
+    return;
+  }
+
+  if (
+    reachedIndex === TUTOR_PLAYER_NEAR_INDEX &&
+    this.extraPlayerPassesRemaining > 0
+  ) {
+    this.extraPlayerPassesRemaining -= 1;
+
+    // Recheck the centre aisle immediately in front of the player
+    // before continuing with the wider classroom patrol.
+    this.tutorMover.index = TUTOR_PLAYER_RECHECK_INDEX;
+  }
+}
 
   updateTutor(dt) {
     const previousPosition = this.tutor.position.clone();
-    this.tutorMover.update(dt);
+    const patrolResult = this.tutorMover.update(dt);
 
+    if (patrolResult.arrived) {
+      this.handleTutorPatrolArrival(patrolResult.reached);
+    }
     const movement = this.tutor.position
       .clone()
       .sub(previousPosition)
