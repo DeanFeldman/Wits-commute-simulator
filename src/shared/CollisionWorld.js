@@ -18,14 +18,33 @@ export class CollisionWorld {
   }
 
   rebuild() {
-    this.cells.clear();
-    for (const collider of this.colliders) {
-      const key = this.cellKey(collider.object.position);
-      const cell = this.cells.get(key) ?? [];
-      cell.push(collider);
-      this.cells.set(key, cell);
+  this.cells.clear();
+
+  for (const collider of this.colliders) {
+    const [minX, maxX] = this.project(
+      collider,
+      new THREE.Vector2(1, 0)
+    );
+    const [minZ, maxZ] = this.project(
+      collider,
+      new THREE.Vector2(0, 1)
+    );
+
+    const minCellX = Math.floor(minX / this.cellSize);
+    const maxCellX = Math.floor(maxX / this.cellSize);
+    const minCellZ = Math.floor(minZ / this.cellSize);
+    const maxCellZ = Math.floor(maxZ / this.cellSize);
+
+    for (let x = minCellX; x <= maxCellX; x++) {
+      for (let z = minCellZ; z <= maxCellZ; z++) {
+        const key = `${x}:${z}`;
+        const cell = this.cells.get(key) ?? [];
+        cell.push(collider);
+        this.cells.set(key, cell);
+      }
     }
   }
+}
 
   firstHit(object, size, filter = () => true) {
     const subject = { object, size: new THREE.Vector3(...size), type: "obb" };
