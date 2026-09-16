@@ -146,6 +146,13 @@ export class InputManager {
     return delta;
   }
 
+  clearMouseDelta() {
+    this.mouseDX = 0;
+    this.mouseDY = 0;
+    this.mouseDelta.x = 0;
+    this.mouseDelta.y = 0;
+  }
+
   isPointerLocked() {
     return document.pointerLockElement === this.domElement;
   }

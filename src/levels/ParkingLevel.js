@@ -565,6 +565,7 @@ export class ParkingLevel {
     this.onViewToggle = this.toggleSkyView.bind(this);
     this.asphaltUniforms = null;
     this.audio = new LevelAudio();
+    this.carIdleAudio = null;
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -940,7 +941,26 @@ createParkingSurface() {
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
-    return modelReady;
+    return modelReady.then((model) => {
+      // Start the recorded idle loop only once the player car is visible.
+      // This level is entered from a user interaction, so playback can begin
+      // immediately in browsers that enforce an audio-gesture policy.
+      this.startCarIdleAudio();
+      return model;
+    });
+  }
+
+  startCarIdleAudio() {
+    if (this.carIdleAudio) return;
+
+    const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
+    idleAudio.loop = true;
+    idleAudio.volume = 0.5;
+    this.carIdleAudio = idleAudio;
+    idleAudio.play().catch(() => {
+      // A browser can still refuse playback if the level was not started from
+      // a trusted user gesture. Keep the level playable in that case.
+    });
   }
 
 
@@ -1199,6 +1219,8 @@ if (hit) {
   }
 
   dispose() {
+    this.carIdleAudio?.pause();
+    this.carIdleAudio = null;
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
