@@ -2,11 +2,14 @@ import * as THREE from "three";
 import { disposeObject3D } from "../../shared/disposeObject3D.js";
 import { CollisionWorld } from "../../shared/CollisionWorld.js";
 import { GridHopController } from "./GridHopController.js";
-import { WaypointMover } from "../../shared/WaypointMover.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
+import { PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
+import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
+import { SpeechBubbles } from "./SpeechBubbles.js";
+import { CUP_SCORE, CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
   generateLevel2Layout,
@@ -14,6 +17,23 @@ import {
   STRIP_DEPTH,
   validateGeneratedLayouts
 } from "./Level2StripGenerator.js";
+
+// The player walks half a strip row per grid step. Smaller steps plus a steady
+// walk speed replace the old 2.4 m lunges between rows.
+const WALK_STEP = STRIP_DEPTH / 2;
+const WALK_SPEED = 4.6;
+// Distance covered by one full left-right stride cycle.
+const STRIDE_LENGTH = 1.6;
+const PLAYER_Y = 0.95;
+
+const DIRECTIONS = Object.freeze({
+  up: Object.freeze({ x: 0, z: -1 }),
+  down: Object.freeze({ x: 0, z: 1 }),
+  left: Object.freeze({ x: -1, z: 0 }),
+  right: Object.freeze({ x: 1, z: 0 })
+});
+
+const SPEAKER_TITLES = { guard: "Campus Protection", tutor: "Tutor", jogger: "Jogger", queue: "Vida queue" };
 
 export class CrossingLevel {
   constructor(game) {
@@ -37,29 +57,42 @@ export class CrossingLevel {
     this.layout = null;
     this.seed = null;
     this.invulnerabilityTimer = 0;
-    this.crowds = [];
-    this.crowdContactCooldown = 0;
     this.playerRig = null;
     this.playerAnimationTime = 0;
+    this.walkBlend = 0;
+    this.celebrateTimer = 0;
     this.impactTimer = 0;
     this.cameraShakeTime = 0;
+    this.cameraShakeStrength = 1;
+    this.bumpCooldown = 0;
+    this.routeMessageCooldown = 0;
     this.pendingRespawn = null;
     this.level2PlayerSpawn = null;
     this.cameraPositionTarget = new THREE.Vector3();
     this.cameraLookTarget = new THREE.Vector3();
+    this.cameraLookGoal = new THREE.Vector3();
     this.playerCollisionBox = new THREE.Box3();
     this.vehicleCollisionBox = new THREE.Box3();
     this.walkwayMaterial = createAmicDeckMaterial();
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
+    this.chimes = [];
+
+    this.cupKit = null;
+    this.pedestrians = null;
+    this.crowd = null;
+    this.cups = null;
+    this.powerUps = new PowerUpState();
+    this.speech = null;
+    this.aura = null;
+    this.shieldBubble = null;
 
     this.startZ = 0;
     this.finishZ = 0;
     this.checkpoint = { x: 0, z: this.startZ, label: "start" };
 
     this.gridSize = STRIP_DEPTH;
-    this.routeDirection = -1;
     this.completed = false;
   }
 
@@ -98,14 +131,21 @@ export class CrossingLevel {
     this.parkingRoadTextures = createRoadTextures();
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
+
+    this.cupKit = new CupModelKit();
+    this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
+    this.speech = new SpeechBubbles();
     this.createPlayer();
-    this.createCrowds();
+    const crowdPlan = this.createCrowd();
+    this.createCups(crowdPlan);
+    this.createPlayerEffects();
     this.collisionWorld.rebuild();
     this.hopController = new GridHopController(this.player, {
-      cellSize: this.gridSize, hopDuration: 0.34, hopHeight: 0.025,
+      cellSize: WALK_STEP,
+      walkSpeed: WALK_SPEED,
       minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ,
-      canEnter: (x, z) => !this.isBlockedCell(x, z),
-      onBlocked: () => this.game.setMessage("Stay on the marked pedestrian route.")
+      canEnter: (x, z) => !this.isBlockedCell(x, z) && !this.crowd.personAt(x, z),
+      onBlocked: (x, z, direction) => this.onWalkBlocked(x, z, direction)
     });
 
     const camera = new THREE.PerspectiveCamera(
@@ -115,7 +155,8 @@ export class CrossingLevel {
       160
     );
     camera.position.set(this.player.position.x + 5.2, 6.5, this.player.position.z + 7.5);
-    camera.lookAt(this.player.position.x, 0.9, this.player.position.z - 3);
+    this.cameraLookTarget.set(this.player.position.x, 0.9, this.player.position.z - 3);
+    camera.lookAt(this.cameraLookTarget);
 
     this.game.setCamera(camera);
 
@@ -126,7 +167,7 @@ export class CrossingLevel {
       moveRight: ["KeyD", "ArrowRight"]
     });
     this.game.setMessage(
-      "Follow the ARM walkway, cross the bridge over the M1, then cross Yale Road to Engineering."
+      "Hold WASD to walk. Grab Vida cups for power-ups, then cross Yale Road to Engineering."
     );
   }
 
@@ -167,7 +208,7 @@ export class CrossingLevel {
 
     this.startZ = centerRow * this.layout.depth;
     this.finishZ = -centerRow * this.layout.depth;
-    this.level2PlayerSpawn = Object.freeze({ x: 0, y: 0.95, z: this.startZ, rotationY: Math.PI });
+    this.level2PlayerSpawn = Object.freeze({ x: 0, y: PLAYER_Y, z: this.startZ, rotationY: Math.PI });
     this.checkpoint = { x: 0, z: this.startZ, label: "start" };
     // Flat collections keep the existing collision and gap-hint code simple.
     this.lanes = this.strips.flatMap((strip) => strip.lanes);
@@ -186,37 +227,67 @@ export class CrossingLevel {
     return values[0];
   }
 
-  createCrowds() {
-    const colours = [0xa8464f, 0x405f8e, 0x63864f, 0x9a693f, 0x645687, 0x327a76];
-    for (let index = 0; index < 12; index++) {
-      const movingForward = index % 2 === 0;
-      const x = movingForward ? -1.15 : 1.15;
-      const fromZ = movingForward ? this.startZ - 1.6 : this.finishZ + 1.6;
-      const toZ = movingForward ? this.finishZ + 1.6 : this.startZ - 1.6;
-      const pedestrian = this.createPedestrianModel({
-        shirt: colours[index % colours.length],
-        trousers: index % 3 === 0 ? 0x31363d : 0x454b55,
-        scale: 0.92 + (index % 4) * 0.025
-      });
-      pedestrian.position.set(x, 0.95, THREE.MathUtils.lerp(fromZ, toZ, (index + 1) / 13));
-      pedestrian.rotation.y = movingForward ? Math.PI : 0;
-      this.root.add(pedestrian);
-      this.crowds.push({
-        mesh: pedestrian,
-        rig: pedestrian.userData.rig,
-        phase: index * 0.73,
-        mover: new WaypointMover(pedestrian, {
-          points: [new THREE.Vector3(x, 0.95, fromZ), new THREE.Vector3(x, 0.95, toZ)],
-          speed: 0.85 + (index % 5) * 0.09,
-          debugRoot: this.root,
-          debugColor: 0x8fd6c8
-        })
-      });
+  // Strip type -> { z, depth } for the authored crowd and cup placement.
+  get zones() {
+    return Object.fromEntries(this.strips.map((strip) => [strip.definition.type, { z: strip.z, depth: strip.definition.depth }]));
+  }
+
+  // Every cell the player can stand on, labelled with the strip it lies in.
+  reachableCells() {
+    const cells = [];
+    const rows = Math.round((this.startZ - this.finishZ) / WALK_STEP);
+    for (let row = 0; row <= rows; row++) {
+      const z = this.startZ - row * WALK_STEP;
+      // Cells on the line between two strips (e.g. the Yale Road kerb) get no zone.
+      const zone = this.stripInside(z)?.definition.type ?? "boundary";
+      for (let column = -2; column <= 2; column++) {
+        const x = column * WALK_STEP;
+        if (!this.isBlockedCell(x, z)) cells.push({ x, z, zone });
+      }
     }
+    return cells;
+  }
+
+  // The strip whose interior contains z; cells on a strip boundary have none.
+  stripInside(z) {
+    return this.strips.find((strip) => Math.abs(z - strip.z) < strip.definition.depth / 2 - 0.01) ?? null;
+  }
+
+  createCrowd() {
+    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP });
+    this.crowd = new CampusCrowd({
+      root: this.root,
+      factory: this.pedestrians,
+      random: createSeededRandom(this.seed ^ 0x51ab1e),
+      onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
+        speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
+        tone
+      })
+    });
+    this.crowd.spawn(plan);
+    return plan;
+  }
+
+  createCups(crowdPlan) {
+    this.cups = new VidaCups({ root: this.root, kit: this.cupKit, groundY: 0 });
+    const spots = planCupSpots({
+      cells: this.reachableCells(),
+      random: createSeededRandom(this.seed ^ 0xc0ffee),
+      reserved: standingCells(crowdPlan),
+      startZ: this.startZ
+    });
+    this.cups.spawn(spots);
   }
 
   createPlayer() {
-    this.player = this.createPedestrianModel({ shirt: 0x2f8f88, trousers: 0x263b54, scale: 1.03 });
+    this.player = this.pedestrians.create({
+      shirt: 0x2f8f88,
+      trousers: 0x263b54,
+      skin: 0x9a6440,
+      hair: "short",
+      backpack: 0xd6a43a,
+      scale: 1.03
+    });
     this.player.name = "level2-player";
     this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
     this.player.rotation.y = this.level2PlayerSpawn.rotationY;
@@ -225,41 +296,31 @@ export class CrossingLevel {
     this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
   }
 
-  createPedestrianModel({ shirt, trousers, scale = 1 }) {
-    const pedestrian = new THREE.Group();
-    const shirtMaterial = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.78 });
-    const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xb97857, roughness: 0.86 });
-    const trouserMaterial = new THREE.MeshStandardMaterial({ color: trousers, roughness: 0.9 });
-    const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x202328, roughness: 0.72 });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.29, 0.46, 5, 10), shirtMaterial);
-    body.position.y = 0.06;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 12, 10), skinMaterial);
-    head.position.y = 0.72;
-    const arms = [];
-    const legs = [];
-    for (const side of [-1, 1]) {
-      const armBone = new THREE.Group();
-      armBone.position.set(side * 0.36, 0.3, 0);
-      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.42, 4, 8), shirtMaterial);
-      arm.position.y = -0.23;
-      armBone.add(arm);
-      pedestrian.add(armBone);
-      arms.push(armBone);
-      const legBone = new THREE.Group();
-      legBone.position.set(side * 0.16, -0.33, 0);
-      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.45, 4, 8), trouserMaterial);
-      leg.position.y = -0.27;
-      const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.11, 0.3), shoeMaterial);
-      shoe.position.set(0, -0.55, -0.06);
-      legBone.add(leg, shoe);
-      pedestrian.add(legBone);
-      legs.push(legBone);
-    }
-    pedestrian.add(body, head);
-    pedestrian.scale.setScalar(scale);
-    pedestrian.traverse((child) => { if (child.isMesh) child.castShadow = true; });
-    pedestrian.userData.rig = { body, head, arms, legs };
-    return pedestrian;
+  // Power-up visuals live beside the player, not inside it, so they never
+  // inflate the player's collision box.
+  createPlayerEffects() {
+    this.aura = new THREE.Mesh(
+      new THREE.RingGeometry(0.55, 0.8, 40),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    this.aura.name = "level2-power-aura";
+    this.aura.rotation.x = -Math.PI / 2;
+    this.aura.visible = false;
+    this.root.add(this.aura);
+
+    this.shieldBubble = new THREE.Mesh(
+      new THREE.SphereGeometry(1.0, 28, 18),
+      new THREE.MeshBasicMaterial({
+        color: CUP_TYPES.shield.glow,
+        transparent: true,
+        opacity: 0.16,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    this.shieldBubble.name = "level2-shield-bubble";
+    this.shieldBubble.visible = false;
+    this.root.add(this.shieldBubble);
   }
 
   update(dt) {
@@ -267,29 +328,48 @@ export class CrossingLevel {
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
+    this.updateChimes(dt);
     this.crossingTime += dt;
+    this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
+    this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
+    this.powerUps.update(dt);
+    this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
+
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardPenalty += 0.5;
+    if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
     if (landedDirection) this.updateCheckpoint();
-    if (landedDirection) this.audio.cue(180, 0.05, 0.045);
+    if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
+    this.updateCups(dt);
     this.checkFinish();
-    this.updateTraffic(dt);
-    this.updateCrowds(dt);
+    this.updateTraffic(dt * this.powerUps.trafficScale);
+    this.crowd.update(dt, this.player.position);
     this.checkCollisions();
+    this.updatePlayerEffects(dt);
     this.updateCamera(dt);
+    this.updateSpeech(dt);
+    this.updateHUD();
+  }
+
+  updateHUD() {
+    const effects = this.powerUps.active.map(({ type, fraction }) => `
+      <div class="l2-effect" style="--effect-color: #${type.glow.toString(16).padStart(6, "0")}">
+        <span>${type.label}</span>
+        <span class="l2-effect-bar"><span style="width: ${(fraction * 100).toFixed(0)}%"></span></span>
+      </div>`).join("");
+    const time = Math.max(0, this.crossingTime + this.backwardPenalty - this.powerUps.timeBonus);
 
     this.game.setHUD(`
-      <strong>Cross the Road</strong><br>
-      Attempts: ${this.attempts + 1}<br>
-      Cell: ${this.hopController.gridPosition.x.toFixed(1)}, ${this.hopController.gridPosition.y.toFixed(1)}<br>
-      Time: ${(this.crossingTime + this.backwardPenalty).toFixed(1)}s${this.backwardPenalty > 0 ? " (backtrack penalty)" : ""}<br>
-      Goal: reach the Engineering entrance<br>
-      Checkpoint: ${this.checkpoint.label}<br>
-      Layout seed: ${this.seed}<br>
-      Crowd delay: ${this.hopController.delayTimer > 0 ? "blocked" : "clear"}<br>
-      <span class="gap-hint">${this.getNextGapHint()}</span>
+      <div class="l2-hud">
+        <strong class="l2-hud-title">Cross the Road</strong>
+        <div class="l2-hud-row"><span>Time</span><strong>${time.toFixed(1)}s</strong></div>
+        <div class="l2-hud-row"><span>Attempts</span><strong>${this.attempts + 1}</strong></div>
+        <div class="l2-hud-row"><span>Vida cups</span><strong class="l2-cups">${this.powerUps.collected} / ${this.cups.total}</strong></div>
+        <div class="l2-hud-row"><span>Checkpoint</span><strong>${this.checkpoint.label}</strong></div>
+        ${effects}
+        <span class="gap-hint">${this.getNextGapHint()}</span>
+      </div>
     `);
   }
 
@@ -298,15 +378,27 @@ export class CrossingLevel {
     const rig = this.playerRig;
     if (!rig) return;
     const walking = this.hopController.isHopping;
-    const phase = walking ? this.hopController.hopProgress * Math.PI * 2 : this.playerAnimationTime * 1.5;
-    const swing = Math.sin(phase) * (walking ? 0.62 : 0.045);
-    rig.legs[0].rotation.x = swing;
-    rig.legs[1].rotation.x = -swing;
-    rig.arms[0].rotation.x = -swing * 0.75;
-    rig.arms[1].rotation.x = swing * 0.75;
-    rig.body.rotation.x = walking ? 0.04 : 0;
-    rig.body.rotation.z = this.impactTimer > 0 ? 0.28 : 0;
-    rig.head.position.y = 0.72 + (walking ? Math.sin(this.hopController.hopProgress * Math.PI * 2) * 0.018 : Math.sin(this.playerAnimationTime * 1.5) * 0.01);
+    this.walkBlend = THREE.MathUtils.damp(this.walkBlend, walking ? 1 : 0, 12, dt);
+    const phase = (this.hopController.distanceWalked / STRIDE_LENGTH) * Math.PI * 2;
+    poseWalk(rig, phase, this.walkBlend);
+    rig.upper.position.y += Math.sin(this.playerAnimationTime * 1.8) * 0.01 * (1 - this.walkBlend);
+
+    // Lean into the walk, stagger on impact, lean into a bump.
+    const lean = this.hopController.isBumping ? 0.22 : 0.08 * this.walkBlend;
+    rig.upper.rotation.x = THREE.MathUtils.damp(rig.upper.rotation.x, lean, 14, dt);
+    rig.upper.rotation.z = THREE.MathUtils.damp(rig.upper.rotation.z, this.impactTimer > 0 ? 0.35 : 0, 16, dt);
+
+    // Arms up for a moment after grabbing a cup.
+    this.celebrateTimer = Math.max(0, this.celebrateTimer - dt);
+    const cheer = Math.min(1, this.celebrateTimer / 0.2);
+    rig.arms[0].rotation.x = THREE.MathUtils.lerp(rig.arms[0].rotation.x, -2.7, cheer);
+    rig.arms[1].rotation.x = THREE.MathUtils.lerp(rig.arms[1].rotation.x, -2.7, cheer);
+    rig.arms[0].rotation.z = -0.35 * cheer;
+    rig.arms[1].rotation.z = 0.35 * cheer;
+
+    // Blink while invulnerable after a shield save.
+    this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
+      || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
   }
 
   updateTraffic(dt) {
@@ -314,12 +406,23 @@ export class CrossingLevel {
   }
 
   capturePlayerInput() {
-    if (this.impactTimer > 0) return;
+    if (this.impactTimer > 0) {
+      this.hopController.setHeldDirection(null);
+      return;
+    }
     const controls = this.controls;
-    if (controls.consumeBuffered("moveUp")) this.hopController.enqueue({ x: 0, z: this.routeDirection });
-    else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue({ x: 0, z: -this.routeDirection });
-    else if (controls.consumeBuffered("moveLeft")) this.hopController.enqueue({ x: -1, z: 0 });
-    else if (controls.consumeBuffered("moveRight")) this.hopController.enqueue({ x: 1, z: 0 });
+    // A tap walks exactly one cell; holding keeps walking cell to cell.
+    if (controls.consumeBuffered("moveUp")) this.hopController.enqueue(DIRECTIONS.up);
+    else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue(DIRECTIONS.down);
+    else if (controls.consumeBuffered("moveLeft")) this.hopController.enqueue(DIRECTIONS.left);
+    else if (controls.consumeBuffered("moveRight")) this.hopController.enqueue(DIRECTIONS.right);
+
+    let held = null;
+    if (controls.isDown("moveUp")) held = DIRECTIONS.up;
+    else if (controls.isDown("moveDown")) held = DIRECTIONS.down;
+    else if (controls.isDown("moveLeft")) held = DIRECTIONS.left;
+    else if (controls.isDown("moveRight")) held = DIRECTIONS.right;
+    this.hopController.setHeldDirection(held);
   }
 
   isBlockedCell(x, z) {
@@ -331,67 +434,136 @@ export class CrossingLevel {
     );
   }
 
+  onWalkBlocked(x, z, direction) {
+    const person = this.crowd.personAt(x, z);
+    if (!person) {
+      if (this.routeMessageCooldown === 0) this.game.setMessage("Stay on the marked pedestrian route.");
+      this.routeMessageCooldown = 2;
+      return;
+    }
+    if (this.bumpCooldown > 0) return;
+    this.bumpCooldown = 0.9;
+    this.hopController.bump(direction);
+    this.cameraShakeTime = 0.18;
+    this.cameraShakeStrength = 0.35;
+    this.audio.cue(120, 0.09, 0.09);
+    const { droppedCup } = this.crowd.bump(person, this.player.position);
+    if (droppedCup) {
+      // They drop their coffee straight into your hands, after a little bounce.
+      const grid = this.hopController.gridPosition;
+      this.cups.add(grid.x, grid.y, droppedCup, { dropped: true });
+    }
+  }
+
+  updateCups(dt) {
+    this.cups.update(dt);
+    const cup = this.cups.collectNear(this.player.position);
+    if (!cup) return;
+    const type = this.powerUps.apply(cup.type.id);
+    this.celebrateTimer = 0.55;
+    const color = `#${type.glow.toString(16).padStart(6, "0")}`;
+    this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
+    this.game.setMessage(`${type.label}! ${type.blurb}.`);
+    // A rising three-note chime; faster types get a higher one.
+    const base = type.id === "doubleShot" ? 660 : type.id === "icedLatte" ? 520 : type.id === "shield" ? 440 : 590;
+    this.chimes.push({ delay: 0, frequency: base }, { delay: 0.07, frequency: base * 1.25 }, { delay: 0.14, frequency: base * 1.5 });
+  }
+
+  updateChimes(dt) {
+    for (let index = this.chimes.length - 1; index >= 0; index--) {
+      const chime = this.chimes[index];
+      chime.delay -= dt;
+      if (chime.delay > 0) continue;
+      this.audio.cue(chime.frequency, 0.12, 0.07);
+      this.chimes.splice(index, 1);
+    }
+  }
+
+  updatePlayerEffects(dt) {
+    const time = this.playerAnimationTime;
+    const timed = this.powerUps.active.filter((effect) => effect.type.duration > 0);
+    this.aura.visible = timed.length > 0;
+    if (this.aura.visible) {
+      // The most recent effect with the most time left sets the colour.
+      const effect = timed.reduce((best, candidate) => (candidate.remaining > best.remaining ? candidate : best));
+      this.aura.material.color.setHex(effect.type.glow);
+      // Fade out over the last second so the player sees it running out.
+      const fade = Math.min(1, effect.remaining);
+      const flicker = effect.remaining < 1.5 ? 0.5 + 0.5 * Math.sin(time * 30) : 1;
+      this.aura.material.opacity = 0.75 * fade * flicker;
+      this.aura.position.set(this.player.position.x, 0.24, this.player.position.z);
+      const pulse = 1 + Math.sin(time * 8) * 0.08;
+      this.aura.scale.set(pulse, pulse, pulse);
+    }
+
+    this.shieldBubble.visible = this.powerUps.shield;
+    if (this.shieldBubble.visible) {
+      this.shieldBubble.position.set(this.player.position.x, this.player.position.y + 0.05, this.player.position.z);
+      this.shieldBubble.material.opacity = 0.13 + Math.sin(time * 5) * 0.05;
+      this.shieldBubble.rotation.y += dt;
+    }
+  }
+
+  updateSpeech(dt) {
+    const canvas = this.game.renderer.domElement;
+    this.speech.update(dt, this.game.camera, canvas.clientWidth, canvas.clientHeight);
+  }
+
   checkFinish() {
     if (!this.hopController.isHopping && this.hopController.gridPosition.y <= this.finishZ) {
       this.completed = true;
-      this.game.completeLevel("You made it across. Heading to Level 3.");
+      const cups = this.powerUps.collected;
+      this.game.journeyScore += cups * CUP_SCORE;
+      this.game.completeLevel(cups > 0
+        ? `You made it across with ${cups} Vida cup${cups === 1 ? "" : "s"} (+${cups * CUP_SCORE}). Heading to Level 3.`
+        : "You made it across. Heading to Level 3.");
     }
   }
 
   checkCollisions() {
+    if (this.invulnerabilityTimer > 0) return;
     const playerBox = this.playerCollisionBox.setFromObject(this.player);
 
     for (const vehicle of this.traffic) {
       if (vehicle.lane.isHighway) continue;
       const vehicleBox = this.vehicleCollisionBox.setFromObject(vehicle.root);
-
-      if (this.invulnerabilityTimer <= 0 && playerBox.intersectsBox(vehicleBox)) {
-        this.failAtCheckpoint(vehicle.isTaxi);
-        return;
-      }
-    }
-  }
-
-  updateCrowds(dt) {
-    if (this.crowdContactCooldown > 0) this.crowdContactCooldown = Math.max(0, this.crowdContactCooldown - dt);
-    for (const crowd of this.crowds) {
-      crowd.mover.update(dt);
-      crowd.mesh.rotation.y = crowd.mover.index === 1 ? Math.PI : 0;
-      const swing = Math.sin(this.playerAnimationTime * 5.2 + crowd.phase) * 0.52;
-      crowd.rig.legs[0].rotation.x = swing;
-      crowd.rig.legs[1].rotation.x = -swing;
-      crowd.rig.arms[0].rotation.x = -swing * 0.72;
-      crowd.rig.arms[1].rotation.x = swing * 0.72;
-    }
-  }
-
-  checkCrowdCollisions() {
-    if (this.crowdContactCooldown > 0 || this.invulnerabilityTimer > 0) return;
-    const playerBox = new THREE.Box3().setFromObject(this.player);
-    for (const crowd of this.crowds) {
-      if (!playerBox.intersectsBox(new THREE.Box3().setFromObject(crowd.mesh))) continue;
-      const direction = Math.sign(this.player.position.x - crowd.mesh.position.x) || 1;
-      const x = THREE.MathUtils.clamp(this.hopController.gridPosition.x + direction * this.gridSize, -9.6, 9.6);
-      this.hopController.reset({ x, y: 0.9, z: this.hopController.gridPosition.y });
-      this.hopController.delay(0.45);
-      this.crowdContactCooldown = 0.55;
-      this.game.setMessage("Crowd bottleneck: pushed aside. Wait for the next gap.");
+      if (!playerBox.intersectsBox(vehicleBox)) continue;
+      if (this.powerUps.consumeShield()) this.saveWithShield(vehicle.isTaxi);
+      else this.failAtCheckpoint(vehicle.isTaxi);
       return;
     }
   }
+
+  saveWithShield(wasTaxi) {
+    this.game.flashHUD();
+    this.audio.cue(880, 0.18, 0.1);
+    this.audio.cue(wasTaxi ? 110 : 165, 0.12, 0.08);
+    this.impactTimer = 0.25;
+    this.cameraShakeTime = 0.3;
+    this.cameraShakeStrength = 0.8;
+    this.invulnerabilityTimer = 1.8;
+    this.speech.popup(this.player.position, "SHIELD POPPED!", "#ffd257");
+    this.game.setMessage(wasTaxi
+      ? "The Red Cappuccino saved you from that taxi! Get off the road!"
+      : "The Red Cappuccino saved you! Get off the road!");
+  }
+
   updateCheckpoint() {
     const x = this.hopController.gridPosition.x;
     const z = this.hopController.gridPosition.y;
     // Generated safe and median strips reuse the existing checkpoint/reset flow.
-    const strip = this.strips.find((candidate) => candidate.isCheckpoint && candidate.containsZ(z));
-    if (!strip) return;
+    // Boundary cells are skipped: the bridge landing's last cell is the Yale
+    // Road kerb line, which traffic in the first lane still clips.
+    const strip = this.stripInside(z);
+    if (!strip?.isCheckpoint) return;
 
     const label = strip.checkpointLabel;
-    if (this.checkpoint.x !== x || this.checkpoint.z !== z) {
-      this.checkpoint = { x, z, label };
-      this.game.setCheckpoint(`level2-${this.seed}-${strip.definition.index}-${x}`);
+    if (this.checkpoint.label !== label) {
       this.game.setMessage(`Checkpoint: ${label}.`);
+      this.game.setCheckpoint(`level2-${this.seed}-${strip.definition.index}-${x}`);
     }
+    // Respawn where the player last stood inside the checkpoint area.
+    this.checkpoint = { x, z, label };
   }
 
   getNextGapHint() {
@@ -416,10 +588,11 @@ export class CrossingLevel {
   failAtCheckpoint(wasTaxi) {
     this.attempts += 1;
     this.game.flashHUD();
-    this.game.playAlertTone(wasTaxi ? 110 : 165, 0.14);
-    this.pendingRespawn = { x: this.checkpoint.x, y: 0.95, z: this.checkpoint.z };
+    this.audio.cue(wasTaxi ? 110 : 165, 0.2, 0.12);
+    this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
     this.impactTimer = 0.42;
     this.cameraShakeTime = 0.34;
+    this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;
     this.hopController.delay(this.impactTimer);
     this.game.setMessage(wasTaxi
@@ -432,6 +605,7 @@ export class CrossingLevel {
     this.impactTimer = Math.max(0, this.impactTimer - dt);
     if (this.impactTimer === 0 && this.pendingRespawn) {
       this.hopController.reset(this.pendingRespawn);
+      this.hopController.targetYaw = Math.PI;
       this.pendingRespawn = null;
     }
   }
@@ -439,29 +613,34 @@ export class CrossingLevel {
   updateInvulnerability(dt) {
     if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer = Math.max(0, this.invulnerabilityTimer - dt);
   }
+
   updateCamera(dt) {
     const camera = this.game.camera;
-    const shake = this.cameraShakeTime > 0 ? this.cameraShakeTime / 0.34 : 0;
+    const shake = this.cameraShakeTime > 0 ? (this.cameraShakeTime / 0.34) * this.cameraShakeStrength : 0;
     this.cameraShakeTime = Math.max(0, this.cameraShakeTime - dt);
     this.cameraPositionTarget.set(
       this.player.position.x + 5.2 + (Math.random() - 0.5) * shake * 0.35,
       6.5 + (Math.random() - 0.5) * shake * 0.2,
       this.player.position.z + 7.5 + (Math.random() - 0.5) * shake * 0.35
     );
-    camera.position.lerp(this.cameraPositionTarget, 1 - Math.exp(-7 * dt));
-    this.cameraLookTarget.set(this.player.position.x, 0.9, this.player.position.z - 3);
+    const follow = 1 - Math.exp(-6 * dt);
+    camera.position.lerp(this.cameraPositionTarget, follow);
+    // The look target follows at the same rate as the camera, so walking
+    // glides instead of the view snapping to each new cell.
+    this.cameraLookGoal.set(this.player.position.x, 0.9, this.player.position.z - 3);
+    this.cameraLookTarget.lerp(this.cameraLookGoal, follow);
     camera.lookAt(this.cameraLookTarget);
   }
 
   toggleCollisionDebug(visible) {
     this.collisionWorld.setDebugVisible(visible);
     for (const strip of this.strips) strip.setDebugVisible(visible);
-    for (const crowd of this.crowds) crowd.mover.setDebugVisible(visible);
   }
 
   dispose() {
     this.audio.dispose();
     this.controls?.dispose();
+    this.speech?.dispose();
     disposeObject3D(this.root);
   }
 }
