@@ -180,7 +180,7 @@ this.patrolPoints = [
 
     this.answerProgress = 0;
     this.suspicion = 0;
-    this.timeRemaining = 75;
+    this.timeRemaining = 100;
     this.audio = new LevelAudio();
 
     this.cheatDesks = [];
