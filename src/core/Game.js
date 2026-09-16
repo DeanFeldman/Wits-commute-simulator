@@ -38,12 +38,12 @@ const LEVEL_INTRO_CONFIG = new Map([
   [
     2,
     {
-      art: null,
-      artAlt: "The student slamming the car door and facing the road on foot",
-      placeholderIcon: "🚸",
+      art: "./assets/images/ui/level2-story-loading-screen.png",
+      artAlt: "A small orange car wedged between parked vehicles",
+      placeholderIcon: null,
       story: [
-        "Parked. Barely. That’s a passing grade by Wits standards.\nNow I just need to get across the road in one piece.",
-        "Nobody around here believes in zebra crossings.\nWatch the lanes, hop the gaps, don’t become a hood ornament."
+        "Not too shabby! Still a pass in my books",
+        "Now time for the long walk to freed- RSH :("
       ]
     }
   ],
@@ -308,6 +308,12 @@ export class Game {
       return;
     }
 
+    // Story controls need an ordinary visible cursor. This also prevents a
+    // just-completed level from keeping pointer lock while its intro appears.
+    if (document.pointerLockElement === this.renderer.domElement) {
+      document.exitPointerLock?.();
+    }
+
     this.levelIntroConfig = config;
     this.isLevelIntroActive = true;
     this.isLevelIntroReady = false;
@@ -371,6 +377,9 @@ export class Game {
     if (!this.isLevelIntroReady) return;
 
     this.hideLevelIntro();
+    // The Continue click is a user gesture, so it can immediately return
+    // focus and mouse control to the loaded level without a second click.
+    this.input.requestPointerLock();
     this.clock.getDelta();
   }
 
@@ -387,10 +396,22 @@ export class Game {
   completeLevel(message) {
     if (!this.currentLevelNumber || this.isTransitioning) return;
 
-    const nextLevel = this.currentLevelNumber + 1;
+    const completedLevel = this.currentLevelNumber;
+    const nextLevel = completedLevel + 1;
     this.journeyScore += 100;
     this.isTransitioning = true;
     this.setMessage(message);
+
+    if (completedLevel === 1) {
+      // ParkingLevel is disposed before the Level 2 intro appears, so this
+      // completion cue is owned by the game rather than the parking level.
+      // It fires immediately when the parking confirmation reaches 100%.
+      this.playOneShotAudio(
+        "./assets/audio/level1/car-door-shut.mp3",
+        0.4875
+      );
+    }
+
     this.fadeTransition(() => {
       if (nextLevel <= 3) {
         this.showLevelIntro(nextLevel);
@@ -398,6 +419,15 @@ export class Game {
       } else {
         this.showResults(true);
       }
+    });
+  }
+
+  playOneShotAudio(path, volume = 1) {
+    const audio = new Audio(path);
+    audio.volume = volume;
+    audio.play().catch(() => {
+      // Browsers can block this if the game's initial click did not count as
+      // a user activation. The level transition remains usable in that case.
     });
   }
 

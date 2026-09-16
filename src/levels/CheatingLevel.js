@@ -208,7 +208,10 @@ this.patrolPoints = [
     this.tabletTargetMaterial = new THREE.MeshBasicMaterial();
 
     this.yaw = 0;
-    this.pitch = -0.05;
+    // Three.js cameras face down -Z at zero yaw, which is the whiteboard at
+    // the front of this classroom. Keep the initial gaze level rather than
+    // starting with the player's answer desk in view.
+    this.pitch = 0;
 
     this.completed = false;
 
@@ -247,6 +250,7 @@ this.patrolPoints = [
 
     this.camera = new THREE.PerspectiveCamera(NORMAL_CAMERA_FOV, 1, 0.1, 100);
     this.camera.position.copy(this.playerPosition);
+    this.resetCameraToWhiteboard();
 
     this.game.setCamera(this.camera);
     this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
@@ -1184,6 +1188,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   }
 
   updateMouseLook() {
+    if (!this.game.input.isPointerLocked()) return;
+
     const mouse = this.game.input.consumeMouseDelta();
 
     const sensitivity = this.game.levelThreeLookSensitivity ?? 1;
@@ -1196,6 +1202,17 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.camera.rotation.order = "YXZ";
     this.camera.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch;
+  }
+
+  resetCameraToWhiteboard() {
+    // A transition can leave pointer-lock mouse movement buffered while the
+    // classroom assets load. Clear it and explicitly restore the front-facing
+    // seated view so every Level 3 run begins aimed at the whiteboard.
+    this.yaw = 0;
+    this.pitch = 0;
+    this.camera.rotation.set(0, 0, 0, "YXZ");
+    this.camera.updateMatrixWorld(true);
+    this.game.input.clearMouseDelta();
   }
 
   updateDeskTargeting() {
