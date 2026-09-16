@@ -696,7 +696,7 @@ async load() {
   });
 
   this.game.setMessage(
-    "Every bay is taken but three. Follow a cyan marker. W/S = throttle, A/D = steer, R = restart."
+    "Every bay is taken but three. Follow a cyan marker. W/S = throttle, A/D = steer, Ctrl+R = restart."
   );
 
   this.viewToggle = document.querySelector("#level1-view-toggle");

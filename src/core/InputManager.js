@@ -112,6 +112,10 @@ export class InputManager {
     return this.keysDown.has(code);
   }
 
+  isControlDown() {
+    return this.keysDown.has("ControlLeft") || this.keysDown.has("ControlRight");
+  }
+
   wasPressed(code) {
     return this.keysPressed.has(code);
   }
@@ -183,7 +187,9 @@ export class InputManager {
 
     this.keysDown.add(event.code);
 
-    if (this.preventDefaultKeys.has(event.code)) {
+    const isRestartShortcut = event.code === "KeyR" && event.ctrlKey;
+
+    if (this.preventDefaultKeys.has(event.code) || isRestartShortcut) {
       event.preventDefault();
     }
   }
