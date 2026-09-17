@@ -167,7 +167,7 @@ test("a multi-row strip can load and position declared GLB scenery", async () =>
   assert.equal(strip.containsZ(4.7), false);
 });
 
-test("authored walkways share the AMIC texture and both parking areas exist", () => {
+test("authored walkways derive from the AMIC material and route landmarks stay intact", () => {
   const layout = generateLevel2Layout(3006);
   const parent = new THREE.Group();
   const walkwayMaterial = createAmicDeckMaterial();
@@ -180,6 +180,21 @@ test("authored walkways share the AMIC texture and both parking areas exist", ()
     walkwayMaterial
   }));
 
+  const assertUsesAmicDeckMaterial = (mesh) => {
+    assert.ok(mesh.material?.isMeshStandardMaterial, `${mesh.name} should use a standard AMIC deck material`);
+    assert.notEqual(mesh.material, walkwayMaterial, `${mesh.name} should keep panel-local tiling state`);
+    assert.equal(mesh.material.name, walkwayMaterial.name);
+    assert.equal(mesh.material.color.getHex(), walkwayMaterial.color.getHex());
+    assert.equal(mesh.material.roughness, walkwayMaterial.roughness);
+    assert.equal(mesh.material.metalness, walkwayMaterial.metalness);
+    assert.ok(mesh.material.map, `${mesh.name} should keep the AMIC deck texture`);
+    assert.notEqual(mesh.material.map, walkwayMaterial.map, `${mesh.name} should keep panel-local texture transforms`);
+    assert.equal(mesh.material.map.name, walkwayMaterial.map.name);
+    assert.equal(mesh.material.map.colorSpace, THREE.SRGBColorSpace);
+    assert.equal(mesh.material.map.wrapS, THREE.RepeatWrapping);
+    assert.equal(mesh.material.map.wrapT, THREE.RepeatWrapping);
+  };
+
   const walkableMeshes = [];
   parent.traverse((child) => {
     if (child.isMesh && child.name.startsWith("amic-") && !child.name.startsWith("amic-fence-")) {
@@ -187,23 +202,29 @@ test("authored walkways share the AMIC texture and both parking areas exist", ()
     }
   });
   assert.ok(walkableMeshes.length >= 10);
-  assert.ok(walkableMeshes.every((mesh) => mesh.material === walkwayMaterial));
+  walkableMeshes.forEach(assertUsesAmicDeckMaterial);
   assert.equal(walkwayMaterial.map.name, "amic-deck-texture");
+  assert.deepEqual(walkwayMaterial.map.repeat.toArray(), [1, 1]);
+  assert.ok(
+    walkableMeshes.some((mesh) => mesh.material.map.repeat.x !== 1 || mesh.material.map.repeat.y !== 1),
+    "walkway panels should scale the texture to their physical dimensions"
+  );
 
   const start = strips.find((strip) => strip.definition.type === "start");
   const finish = strips.find((strip) => strip.definition.type === "finish");
   const farSideLanding = strips.find((strip) => strip.definition.type === "bridge-exit");
   assert.ok(start.root.getObjectByName("arm-side-parking"));
-  assert.ok(finish.root.getObjectByName("opposite-side-parking"));
+  assert.equal(finish.root.getObjectByName("opposite-side-parking"), undefined);
   assert.equal(start.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
-  assert.equal(finish.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
+  assert.equal(finish.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 0);
+  assert.ok(finish.root.getObjectByName("engineering-building"));
 
   const armBuilding = start.root.getObjectByName("arm-building");
-  assert.equal(armBuilding.position.x, -15.2);
-  assert.ok(armBuilding.position.x + armBuilding.geometry.parameters.width / 2 < -12.3);
+  assert.equal(armBuilding.position.x, -8);
+  assert.ok(armBuilding.position.x + armBuilding.geometry.parameters.width / 2 < -3.6);
   const courtyard = start.root.getObjectByName("amic-arm-courtyard");
   assert.ok(courtyard);
-  assert.equal(courtyard.material, walkwayMaterial);
+  assertUsesAmicDeckMaterial(courtyard);
   assert.equal(start.root.getObjectByName("vida-courtyard-container"), undefined);
   assert.equal(finish.root.getObjectByName("vida-courtyard-container"), undefined);
   const vidaContainer = farSideLanding.root.getObjectByName("vida-courtyard-container");
@@ -214,7 +235,7 @@ test("authored walkways share the AMIC texture and both parking areas exist", ()
   assert.ok(farSideLanding.root.getObjectByName("vida-container-label"));
   const vidaCourtyard = farSideLanding.root.getObjectByName("amic-vida-courtyard");
   assert.ok(vidaCourtyard);
-  assert.equal(vidaCourtyard.material, walkwayMaterial);
+  assertUsesAmicDeckMaterial(vidaCourtyard);
   const adjacentLot = start.root.getObjectByName("arm-side-parking");
   assert.equal(adjacentLot.geometry.parameters.width, 16);
   assert.equal(start.root.children.filter((child) => child.name === "level-one-style-parking-kerb").length, 2);
