@@ -22,17 +22,9 @@ const TRAFFIC_EDGE = 18;
 // The bridge checkpoint sinks its own surface/traffic by this much so they
 // read as the highway far below the deck (see createBridgeDetails).
 const BRIDGE_SINK = 3.4;
-// Only this much of the bridge's width is walkable; the rest is side paving
-// over the sunken highway and is blocked off in createBridgeDetails.
+// Only this much of the bridge's width is walkable; the rest is grass
+// shoulder over the sunken highway and is blocked off in createBridgeDetails.
 const BRIDGE_DECK_WIDTH = 7.2;
-
-// Every normal pedestrian surface uses the same physical height and texture
-// scale so Level 2 reads as one continuous walking route.
-const WALKWAY_CENTER_Y = 0.15;
-const WALKWAY_HEIGHT = 0.08;
-const WALKWAY_TOP_Y = WALKWAY_CENTER_Y + WALKWAY_HEIGHT / 2;
-const WALKWAY_TILE_SIZE = 1.8;
-
 const AMIC_DECK_TEXTURE_PATH = "./assets/textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png";
 
 export function createAmicDeckMaterial() {
@@ -48,7 +40,7 @@ export function createAmicDeckMaterial() {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1);
+  texture.repeat.set(4, 4);
   texture.magFilter = THREE.LinearFilter;
   texture.needsUpdate = true;
   const material = new THREE.MeshStandardMaterial({ map: texture, color: 0xffffff, roughness: 0.91, metalness: 0.01 });
@@ -122,49 +114,6 @@ export class CrossingStrip {
     return ((this.definition.rowSpan - 1) / 2 - rowOffset) * rowDepth;
   }
 
-  createWalkwayPanel(width, depth, {
-    x = 0,
-    z = 0,
-    y = WALKWAY_CENTER_Y,
-    height = WALKWAY_HEIGHT,
-    name = "amic-walkway-panel",
-    castShadow = false
-  } = {}) {
-    // Clone the material/texture per panel so repeat can be based on physical
-    // size. This keeps the AMIC paving the same scale everywhere instead of
-    // stretching differently on each strip.
-    const material = this.walkwayMaterial.clone();
-
-    if (this.walkwayMaterial.map) {
-      material.map = this.walkwayMaterial.map.clone();
-      material.map.wrapS = THREE.RepeatWrapping;
-      material.map.wrapT = THREE.RepeatWrapping;
-      material.map.repeat.set(
-        Math.max(0.001, width / WALKWAY_TILE_SIZE),
-        Math.max(0.001, depth / WALKWAY_TILE_SIZE)
-      );
-
-      // Use world-relative offsets so neighbouring panels begin at a
-      // compatible point in the repeating pattern.
-      material.map.offset.set(
-        (x - width / 2) / WALKWAY_TILE_SIZE,
-        (this.z + z - depth / 2) / WALKWAY_TILE_SIZE
-      );
-      material.map.needsUpdate = true;
-    }
-
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
-      material
-    );
-    mesh.name = name;
-    mesh.position.set(x, y, z);
-    mesh.castShadow = castShadow;
-    mesh.receiveShadow = true;
-    this.root.add(mesh);
-    return mesh;
-  }
-
   async loadModels(loader, modelCache) {
     // Load optional GLB scenery declared by this strip's preset.
     await Promise.all((this.definition.models ?? []).map(async (modelDefinition) => {
@@ -190,72 +139,54 @@ export class CrossingStrip {
   }
 
   createGeometry() {
-    // Roads/medians keep their own surfaces. Every ordinary pedestrian strip
-    // gets the same 7.2 m centre walkway, at the same height and tile scale.
+    // Draw the base road, pavement, start/finish area, or traffic-island surface.
     const isRoad = this.definition.surface === "road";
     const isMedian = this.definition.surface === "median";
-
-    if (isRoad || isMedian) {
-      const colors = {
-        median: 0xd3c6ae
-      };
-      const color = this.definition.surfaceColor
-        ?? (isRoad ? ROAD_COLOR : colors.median);
-
-      const surfaceMaterial = isRoad && this.parkingMaterial
-        ? this.parkingMaterial
-        : new THREE.MeshStandardMaterial({
-          color,
-          roughness: isRoad ? 0.94 : 0.88,
-          metalness: 0.02
-        });
-
-      const surface = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          this.definition.width,
-          isRoad ? 0.12 : 0.22,
-          this.definition.depth
-        ),
-        surfaceMaterial
-      );
-
-      if (isRoad && this.parkingMaterial) {
-        applyRoadUvs(surface.geometry, this.definition.width, this.definition.depth);
-      }
-
-      surface.name = isRoad ? "road-surface" : "median-surface";
-      surface.position.y = isRoad ? -0.06 : 0;
-      surface.receiveShadow = true;
-      this.root.add(surface);
-    } else {
-      this.createWalkwayPanel(
-        BRIDGE_DECK_WIDTH,
-        this.definition.depth,
-        { name: "amic-walkable-surface" }
-      );
+    const colors = {
+      start: 0xb6afa3,
+      finish: 0xb9b2a6,
+      pavement: 0xaaa398,
+      median: 0xd3c6ae
+    };
+    const color = this.definition.surfaceColor
+      ?? (isRoad ? ROAD_COLOR : colors[this.definition.type] ?? colors[this.definition.surface]);
+    // Level 2 already receives Level 1's asphalt material. Use it for road
+    // strips so the two outdoor levels share the same road surface treatment.
+    const surfaceMaterial = isRoad && this.parkingMaterial
+      ? this.parkingMaterial
+      : (!isRoad && !isMedian
+        ? this.walkwayMaterial
+        : new THREE.MeshStandardMaterial({ color, roughness: isRoad ? 0.94 : 0.88, metalness: 0.02 }));
+    const surface = new THREE.Mesh(
+      new THREE.BoxGeometry(this.definition.width, isRoad ? 0.12 : 0.22, this.definition.depth),
+      surfaceMaterial
+    );
+    if (isRoad && this.parkingMaterial) {
+      applyRoadUvs(surface.geometry, this.definition.width, this.definition.depth);
     }
+    surface.name = isRoad ? "road-surface" : "amic-walkable-surface";
+    surface.position.y = isRoad ? -0.06 : 0;
+    surface.receiveShadow = true;
+    this.root.add(surface);
 
     if (isRoad) this.createRoadMarkings();
     if (isMedian) this.createMedianDetails();
     if (this.isBridge) this.createBridgeDetails();
     if (this.definition.section === "arm") this.createArmWalkwayDetails();
     if (this.definition.section === "yale-road") this.createYaleRoadDetails();
-    if (this.definition.section === "bridge-entry" || this.definition.section === "bridge-exit") {
-      this.createBridgeEntryDetails();
-    }
+    if (this.definition.section === "bridge-entry" || this.definition.section === "bridge-exit") this.createBridgeEntryDetails();
     if (this.definition.section === "engineering" || this.definition.section === "engineering-finish") {
       this.createEngineeringDetails();
     }
-
     if (!isRoad && !isMedian) this.blockOutsideWalkway();
-
     if (this.isCheckpoint) {
+      // The bridge's flag sits on the deck itself (much narrower than the
+      // full strip) and is lifted back above the sunken root.
       this.createCheckpointMarker(
         this.isBridge ? BRIDGE_SINK : 0,
         this.isBridge ? BRIDGE_DECK_WIDTH / 2 - 0.8 : undefined
       );
     }
-
     if (this.definition.trees) this.createTrees();
   }
 
@@ -297,42 +228,40 @@ export class CrossingStrip {
   }
 
   createArmWalkwayDetails() {
+    const concrete = this.walkwayMaterial;
     const brick = new THREE.MeshStandardMaterial({ color: 0x8f6957, roughness: 0.9 });
+    const lawn = new THREE.MeshStandardMaterial({ color: 0x4f7048, roughness: 1 });
+    const path = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.08, this.definition.depth), concrete);
+    path.name = "amic-arm-walkway";
+    path.position.y = 0.15;
+    path.receiveShadow = true;
+    this.root.add(path);
 
-    // The centre walking route is already created by createGeometry().
-    // Extend the same paving toward ARM without laying tiles over the parking.
-    const armSideWidth = (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
-    this.createWalkwayPanel(
-      armSideWidth,
-      this.definition.depth,
-      {
-        x: -(BRIDGE_DECK_WIDTH / 2 + armSideWidth / 2),
-        name: "amic-arm-courtyard"
-      }
-    );
+    const parkingVerge = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.12, this.definition.depth), lawn);
+    parkingVerge.position.set(7.25, 0.08, 0);
+    parkingVerge.receiveShadow = true;
+    this.root.add(parkingVerge);
 
-    const arm = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 6.8, this.definition.depth + 2.8),
-      brick
+    // The building is deliberately set well behind the route. AMIC paving
+    // turns the former grass slot into an open courtyard instead of a squeeze.
+    const courtyard = new THREE.Mesh(
+      new THREE.BoxGeometry(8.3, 0.08, this.definition.depth),
+      concrete
     );
+    courtyard.name = "amic-arm-courtyard";
+    courtyard.position.set(-8, 0.15, 0);
+    courtyard.receiveShadow = true;
+    this.root.add(courtyard);
+
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(5.6, 6.8, this.definition.depth + 2.8), brick);
     arm.name = "arm-building";
-    arm.position.set(-8, 3.42, 0.4);
+    arm.position.set(-15.2, 3.42, 0.4);
     arm.castShadow = true;
     arm.receiveShadow = true;
     this.root.add(arm);
-
-    const windows = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 3.8, this.definition.depth * 0.62),
-      new THREE.MeshStandardMaterial({
-        color: 0x7fa1a8,
-        roughness: 0.28,
-        metalness: 0.18
-      })
-    );
+    const windows = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.8, this.definition.depth * 0.62), new THREE.MeshStandardMaterial({ color: 0x7fa1a8, roughness: 0.28, metalness: 0.18 }));
     windows.position.set(-12.37, 3.7, 0.4);
     this.root.add(windows);
-
-    // Spawn-side parking remains on +X / the player's right.
     this.createParkingLot(1);
   }
 
@@ -452,109 +381,64 @@ export class CrossingStrip {
   }
 
   createBridgeEntryDetails() {
+    const paving = this.walkwayMaterial;
+    const lawn = new THREE.MeshStandardMaterial({ color: 0x52764a, roughness: 1 });
     const isFarSideLanding = this.definition.section === "bridge-exit";
-    const sideWidth = (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
-    const sideCenterX = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
-
-    // Fill every available metre beside the centre route so the bridge
-    // approaches read as one broad continuous campus plaza right to the
-    // strip edges instead of ending in arbitrary green gaps.
+    const apron = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.1, this.definition.depth), paving);
+    apron.name = "amic-bridge-landing";
+    apron.position.y = 0.16;
+    apron.receiveShadow = true;
+    this.root.add(apron);
     for (const side of [-1, 1]) {
-      this.createWalkwayPanel(
-        sideWidth,
-        this.definition.depth,
-        {
-          x: side * sideCenterX,
-          name: isFarSideLanding && side < 0
-            ? "amic-vida-courtyard"
-            : "amic-bridge-side-plaza"
-        }
+      const isVidaCourtyard = isFarSideLanding && side < 0;
+      const bed = new THREE.Mesh(
+        new THREE.BoxGeometry(7, 0.1, this.definition.depth),
+        isVidaCourtyard ? paving : lawn
       );
+      if (isVidaCourtyard) bed.name = "amic-vida-courtyard";
+      bed.position.set(side * 7.2, 0.08, 0);
+      bed.receiveShadow = true;
+      this.root.add(bed);
     }
-
     if (isFarSideLanding) this.createVidaContainer();
   }
 
   createEngineeringDetails() {
+    const paving = this.walkwayMaterial;
+    const lawn = new THREE.MeshStandardMaterial({ color: 0x56784e, roughness: 1 });
     const brick = new THREE.MeshStandardMaterial({ color: 0x8b6554, roughness: 0.9 });
-
-    // The centre walking route is already created by createGeometry().
-    // At the finish only the Engineering/building side (-X) is paved.
-    const pavedSides = this.definition.section === "engineering-finish"
-      ? [-1]
-      : [-1, 1];
-
-    const engineeringSideWidth = (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
-    const engineeringSideCenterX = BRIDGE_DECK_WIDTH / 2 + engineeringSideWidth / 2;
-    for (const side of pavedSides) {
-      this.createWalkwayPanel(
-        engineeringSideWidth,
-        this.definition.depth,
-        {
-          x: side * engineeringSideCenterX,
-          name: "amic-engineering-side-plaza"
-        }
-      );
+    const route = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.08, this.definition.depth), paving);
+    route.name = "amic-engineering-walkway";
+    route.position.y = 0.15;
+    route.receiveShadow = true;
+    this.root.add(route);
+    for (const side of [-1, 1]) {
+      const verge = new THREE.Mesh(new THREE.BoxGeometry(7, 0.1, this.definition.depth), lawn);
+      verge.position.set(side * 7.2, 0.08, 0);
+      this.root.add(verge);
     }
-
     if (this.definition.section === "engineering-finish") {
-      const building = new THREE.Mesh(
-        new THREE.BoxGeometry(7, 8.5, this.definition.depth + 2),
-        brick
-      );
+      const building = new THREE.Mesh(new THREE.BoxGeometry(7, 8.5, this.definition.depth + 2), brick);
       building.name = "engineering-building";
-      building.position.set(-10, 8, -0.4);
+      building.position.set(7.8, 4.27, -0.4);
       building.castShadow = true;
       this.root.add(building);
-
-      const entrance = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 3.2, 2.8),
-        new THREE.MeshStandardMaterial({
-          color: 0x78959d,
-          roughness: 0.25,
-          metalness: 0.15
-        })
-      );
-      entrance.position.set(-4.24, 1.7, -1.2);
+      const entrance = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.2, 2.8), new THREE.MeshStandardMaterial({ color: 0x78959d, roughness: 0.25, metalness: 0.15 }));
+      entrance.position.set(4.24, 1.7, -1.2);
       this.root.add(entrance);
-
-      // No duplicate finish-side parking. The parking lot is at spawn/ARM.
+      this.createParkingLot(-1);
     }
   }
 
   createParkingLot(side) {
-    // Two rows of parking with an aisle between them.
     const lotWidth = PARKING_BAY_LENGTH * 2 + PARKING_AISLE_WIDTH;
     const lotDepth = this.definition.depth + 0.8;
-
-    // Put the parking directly alongside the player's walkway.
-    const walkwayHalfWidth = BRIDGE_DECK_WIDTH / 2;
-    const parkingGap = 0.15;
-
-    const centerX = side * (
-      walkwayHalfWidth +
-      parkingGap +
-      lotWidth / 2
-    );
-
+    const centerX = side * (BRIDGE_DECK_WIDTH / 2 + 0.8 + lotWidth / 2);
     const asphalt = this.parkingMaterial
-      ?? new THREE.MeshStandardMaterial({
-        color: 0x2f343a,
-        roughness: 1,
-        metalness: 0
-      });
-
-    const lot = new THREE.Mesh(
-      new THREE.BoxGeometry(lotWidth, 0.1, lotDepth),
-      asphalt
-    );
-
+      ?? new THREE.MeshStandardMaterial({ color: 0x2f343a, roughness: 1, metalness: 0 });
+    const lot = new THREE.Mesh(new THREE.BoxGeometry(lotWidth, 0.1, lotDepth), asphalt);
     applyRoadUvs(lot.geometry, lotWidth, lotDepth);
-
-    lot.name = side > 0
-      ? "arm-side-parking"
-      : "opposite-side-parking";
-
+    lot.name = side > 0 ? "arm-side-parking" : "opposite-side-parking";
     lot.position.set(centerX, 0.08, 0);
     lot.receiveShadow = true;
     this.root.add(lot);
@@ -752,19 +636,12 @@ createBridgeDetails() {
   const concrete = new THREE.MeshStandardMaterial({ color: 0xaaa59b, roughness: 0.92 });
   const metal = new THREE.MeshStandardMaterial({ color: 0x56616a, roughness: 0.65 });
   const cream = new THREE.MeshBasicMaterial({ color: 0xf1ead4 });
+  const grass = new THREE.MeshStandardMaterial({ color: 0x587449, roughness: 0.95, flatShading: true });
 
   // World-connecting grass beyond the trench walls, clipped to this strip's
   // own depth (it can spill sideways into open space, just not lengthwise
   // into a neighbouring row).
-  const outerGroundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x587449,
-    roughness: 0.95,
-    flatShading: true
-  });
-  const outerGround = new THREE.Mesh(
-    new THREE.PlaneGeometry(width + 6, depth),
-    outerGroundMaterial
-  );
+  const outerGround = new THREE.Mesh(new THREE.PlaneGeometry(width + 6, depth), grass);
   outerGround.rotation.x = -Math.PI / 2;
   // Keep this foundation below the carriageway; a higher full-width plane
   // would hide the recessed M1 from the isometric camera.
@@ -779,56 +656,35 @@ createBridgeDetails() {
     this.root.add(trenchWall);
   }
 
-  // Keep the approaches at the same top height and texture scale as the
-  // campus walkway. The bridge deck stays structurally thicker underneath,
-  // but its top aligns with the same walking plane.
+  // AMIC-textured pedestrian approaches bridge the campus grade to the deck.
+  // Grass stays outside the railings and never becomes a fake M1 ledge path.
   for (const zSide of [-1, 1]) {
-    const approachZ = zSide * (depth / 2 - rowDepth / 2);
-
-    this.createWalkwayPanel(
-      BRIDGE_DECK_WIDTH,
-      rowDepth,
-      {
-        z: approachZ,
-        y: BRIDGE_SINK + WALKWAY_CENTER_Y,
-        name: "amic-bridge-approach"
-      }
-    );
-
+    const approach = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE_DECK_WIDTH, 0.16, rowDepth), this.walkwayMaterial);
+    approach.name = "amic-bridge-approach";
+    approach.position.set(0, BRIDGE_SINK + 0.08, zSide * (depth / 2 - rowDepth / 2));
+    approach.receiveShadow = true;
+    this.root.add(approach);
     const shoulderWidth = (width - BRIDGE_DECK_WIDTH) / 2;
     for (const xSide of [-1, 1]) {
-      this.createWalkwayPanel(
-        shoulderWidth,
-        rowDepth,
-        {
-          x: xSide * (BRIDGE_DECK_WIDTH / 2 + shoulderWidth / 2),
-          z: approachZ,
-          y: BRIDGE_SINK + WALKWAY_CENTER_Y,
-          name: "amic-bridge-side-paving"
-        }
-      );
+      const shoulder = new THREE.Mesh(new THREE.BoxGeometry(shoulderWidth, 0.16, rowDepth), grass);
+      shoulder.position.set(xSide * (BRIDGE_DECK_WIDTH / 2 + shoulderWidth / 2), BRIDGE_SINK + 0.08, approach.position.z);
+      shoulder.receiveShadow = true;
+      this.root.add(shoulder);
     }
   }
 
-  const bridgeDeckHeight = 0.34;
-  const bridgeDeckCenterY = BRIDGE_SINK + WALKWAY_TOP_Y - bridgeDeckHeight / 2;
-  this.createWalkwayPanel(
-    BRIDGE_DECK_WIDTH,
-    deckDepth,
-    {
-      y: bridgeDeckCenterY,
-      height: bridgeDeckHeight,
-      name: "amic-pedestrian-bridge-deck",
-      castShadow: true
-    }
-  );
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE_DECK_WIDTH, 0.34, deckDepth), this.walkwayMaterial);
+  deck.name = "amic-pedestrian-bridge-deck";
+  deck.position.set(0, BRIDGE_SINK + 0.14, 0);
+  deck.castShadow = true;
+  deck.receiveShadow = true;
+  this.root.add(deck);
 
   this.addRouteFences({
     length: depth,
-    baseY: BRIDGE_SINK + WALKWAY_TOP_Y,
+    baseY: BRIDGE_SINK + 0.31,
     halfWidth: BRIDGE_DECK_WIDTH / 2 - 0.2
   });
-  this.createBridgeRailingGates(deckDepth);
 
   const roadPaint = new THREE.MeshBasicMaterial({ color: 0xe9e5d8 });
   const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0xc9c5bb, roughness: 0.82 });
@@ -875,70 +731,6 @@ createBridgeDetails() {
     }
   }
 }
-
-  createBridgeRailingGates(deckDepth) {
-    const metal = new THREE.MeshStandardMaterial({
-      color: 0x4f585f,
-      roughness: 0.62,
-      metalness: 0.32
-    });
-    const inset = new THREE.MeshStandardMaterial({
-      color: 0xd8cfbb,
-      roughness: 0.84
-    });
-
-    const gateHalfWidth = BRIDGE_DECK_WIDTH / 2 - 0.18;
-    const gateZ = deckDepth / 2 - 0.12;
-    const gateHeight = 1.08;
-    const leafLength = 1.45;
-
-    // One open pair at the ARM side of the highway and one open pair at the
-    // Engineering side. The leaves fold back against the side railings, so
-    // they frame the bridge entrance without blocking the player's route.
-    for (const zSide of [-1, 1]) {
-      for (const xSide of [-1, 1]) {
-        const gate = new THREE.Group();
-        gate.name = `amic-highway-gate-${zSide < 0 ? "finish" : "start"}-${xSide < 0 ? "left" : "right"}`;
-        gate.position.set(
-          xSide * gateHalfWidth,
-          BRIDGE_SINK + WALKWAY_TOP_Y,
-          zSide * gateZ
-        );
-
-        const post = new THREE.Mesh(
-          new THREE.BoxGeometry(0.11, gateHeight, 0.11),
-          metal
-        );
-        post.position.y = gateHeight / 2;
-        post.castShadow = true;
-        gate.add(post);
-
-        // The leaf is deliberately shown open, turned parallel with the
-        // bridge railing instead of spanning across the walkable deck.
-        const leaf = new THREE.Group();
-        leaf.rotation.y = Math.PI / 2;
-        leaf.position.set(0, 0, -zSide * leafLength / 2);
-
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(leafLength, 0.82, 0.055),
-          metal
-        );
-        frame.position.y = 0.51;
-        frame.castShadow = true;
-        leaf.add(frame);
-
-        const panel = new THREE.Mesh(
-          new THREE.BoxGeometry(leafLength - 0.22, 0.26, 0.035),
-          inset
-        );
-        panel.position.y = 0.28;
-        leaf.add(panel);
-
-        gate.add(leaf);
-        this.root.add(gate);
-      }
-    }
-  }
 
   createTraffic() {
     // Each lane gets an independent fixed pool, spacing, direction and recycle tail.

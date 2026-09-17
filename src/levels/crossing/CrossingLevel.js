@@ -99,11 +99,18 @@ export class CrossingLevel {
   async load() {
     const scene = this.game.scene;
 
-    scene.background = new THREE.Color(0x72c9f3);
+    // Keep Level 2 in the same exterior visual language as Level 1 while
+    // retaining the brighter midday lighting that distinguishes the crossing.
+    const skyColor = new THREE.Color(0x8ec9ee);
+    scene.background = skyColor;
     this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
 
     scene.add(this.root);
-    this.root.add(createWitsTerrain({ baseY: -3.8, nearScenery: false, palette: { ground: 0x607a51, buildings: 0x927b65 } }));
+    this.root.add(createWitsTerrain({
+      baseY: -3.8,
+      nearScenery: false,
+      palette: { ground: 0x4f6844, buildings: 0x86513d, windows: 0xf0b56b, trees: 0x315c3a }
+    }));
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
