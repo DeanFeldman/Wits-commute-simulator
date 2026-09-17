@@ -88,6 +88,12 @@ export function getLevelOneCollisionDamage(tag = "") {
   return LEVEL_ONE_DAMAGE.medium;
 }
 
+export function revertToSafePose(car, vehicle, safePosition, safeRotationY) {
+  car.position.copy(safePosition);
+  car.rotation.y = safeRotationY;
+  vehicle.stop();
+}
+
 export function applyLevelOneDamage(condition, tag) {
   return Math.max(
     0,
@@ -1105,6 +1111,7 @@ this.impactCooldown = Math.max(
 );
 
 const previousPosition = this.car.position.clone();
+const previousRotationY = this.car.rotation.y;
 
 this.vehicle.update(dt, {
   throttle:
@@ -1141,8 +1148,7 @@ const hit = this.collisionWorld.firstHit(
 );
 
 if (hit) {
-  this.car.position.copy(previousPosition);
-  this.vehicle.stop();
+  revertToSafePose(this.car, this.vehicle, previousPosition, previousRotationY);
 
   if (this.impactCooldown <= 0) {
     this.condition = applyLevelOneDamage(this.condition, hit.tag);
