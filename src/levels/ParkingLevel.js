@@ -215,12 +215,110 @@ export function getLevelOneParkingSpaces() {
 // piece is therefore built here as a subdivided quad carrying world-scaled uvs.
 // The pieces stay convex and visually continuous, as the layout contract
 // requires.
-export function createAsphaltQuadGeometry(corners, lot) {
+export function applyPotholeDeformation(
+  geometry,
+  lot,
+  potholes,
+  {
+    maximumDepth = 0.030
+  } = {}
+) {
+  const position = geometry.getAttribute("position");
+
+  for (let index = 0; index < position.count; index++) {
+    const localX = position.getX(index);
+    const localY = position.getY(index);
+
+    const worldX = lot.x + localX;
+    const worldZ = lot.z - localY;
+
+    let deformation = 0;
+
+    for (
+      let potholeIndex = 0;
+      potholeIndex < potholes.length;
+      potholeIndex++
+    ) {
+      const pothole = potholes[potholeIndex];
+
+      const dx = worldX - pothole.x;
+      const dz = worldZ - pothole.z;
+
+      const distance = Math.hypot(dx, dz);
+      const angle = Math.atan2(dz, dx);
+
+      const seed =
+        potholeIndex * 1.731 +
+        pothole.x * 0.041 +
+        pothole.z * 0.067;
+
+      const edgeVariation =
+        1 +
+        Math.sin(angle * 3 + seed) * 0.13 +
+        Math.sin(angle * 5 + seed * 1.7) * 0.075 +
+        Math.sin(angle * 8 + seed * 2.3) * 0.035;
+
+      // Large enough to be obvious while driving,
+      // but not the huge 1.28 footprint from before.
+      const outerRadius =
+        pothole.radius *
+        1.18 *
+        edgeVariation;
+
+      const normalized =
+        distance / outerRadius;
+
+      if (normalized >= 1) {
+        continue;
+      }
+
+      const t = 1 - normalized;
+
+      const smooth =
+        t *
+        t *
+        (3 - 2 * t);
+
+      // Broad crater, not a tiny dent.
+      const bowl =
+        Math.pow(smooth, 0.90);
+
+      deformation = Math.max(
+        deformation,
+        maximumDepth * bowl
+      );
+    }
+
+    // Always downwards. Never a mound.
+    position.setZ(
+      index,
+      -deformation
+    );
+  }
+
+  position.needsUpdate = true;
+
+  geometry.deleteAttribute("normal");
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  return geometry;
+}
+export function createAsphaltQuadGeometry(
+  corners,
+  lot,
+  potholes = []
+) {
   const local = corners.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)));
   const [p0, p1, p2, p3] = local;
 
   const segmentsFor = (a, b) =>
-    THREE.MathUtils.clamp(Math.round(a.distanceTo(b) / 2.5), 2, 64);
+  THREE.MathUtils.clamp(
+    Math.ceil(a.distanceTo(b) / 0.35),
+    2,
+    320
+  );
   const segmentsU = Math.max(segmentsFor(p0, p1), segmentsFor(p3, p2));
   const segmentsV = Math.max(segmentsFor(p0, p3), segmentsFor(p1, p2));
 
@@ -267,9 +365,14 @@ export function createAsphaltQuadGeometry(corners, lot) {
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
-  geometry.computeBoundingSphere();
+  applyPotholeDeformation(
+    geometry,
+    lot,
+    potholes
+  );
+
   return geometry;
-}
+  }
 
 
 // The lot floor, as convex pieces. Convex avoids the concave polygon
@@ -326,7 +429,6 @@ export function pickFreeParkingBays(spaces, random = Math.random, {
 export function parkingBayKey(space) {
   return `${space.rowName}:${space.rowIndex}`;
 }
-
 
 export function isPointInsideLevelOneLot(x, z, outline = PARKING_LAYOUT.mainLot.outline) {
   // Standard ray-casting point-in-polygon test in the X/Z plane.
@@ -585,6 +687,11 @@ export class ParkingLevel {
       depth: LEVEL_ONE_PARKING_LAYOUT.parkingSpaceDepth,
       angle: space.angle
     }));
+
+    this.generatedPotholes = generateLevelOnePotholes({
+      freeBays: this.freeBays
+    });
+
     this.waypoints = [];
     this.waypointTime = 0;
 
@@ -645,7 +752,7 @@ async load() {
 
   this.collisionWorld = new CollisionWorld(this.root);
 
-  this.createParkingSurface();
+  this.createParkingSurface(this.generatedPotholes);
   this.createRoadMarkings();
   const parkedCarsReady = this.createParkedCars();
   this.createPotholes();
@@ -739,7 +846,7 @@ async load() {
   }
 
 
-createParkingSurface() {
+createParkingSurface(potholes = []) {
   const lot = PARKING_LAYOUT.mainLot;
 
   this.roadTextures = createRoadTextures();
@@ -747,7 +854,14 @@ createParkingSurface() {
   this.asphaltUniforms = asphaltMaterial.uniforms;
 
   this.asphaltMeshes = LEVEL_ONE_ASPHALT_PIECES.map((piece) => {
-    const road = new THREE.Mesh(createAsphaltQuadGeometry(piece.corners, lot), asphaltMaterial);
+    const road = new THREE.Mesh(
+      createAsphaltQuadGeometry(
+        piece.corners,
+        lot,
+        potholes
+      ),
+      asphaltMaterial
+      );
     road.rotation.x = -Math.PI / 2;
     road.position.set(lot.x, 0.035, lot.z);
     road.receiveShadow = true;
@@ -810,27 +924,40 @@ createParkingSurface() {
   }
 
   createPotholes() {
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x111317,
-      roughness: 1
-    });
-    // One shared unit geometry for every pothole; radius variation comes from
-    // mesh scale, avoiding a new CylinderGeometry allocation per hazard.
-    const geometry = new THREE.CylinderGeometry(0.72, 1, 0.07, 14);
-    const generated = generateLevelOnePotholes({ freeBays: this.freeBays });
+    for (
+      const {
+        x,
+        z,
+        radius
+      } of this.generatedPotholes
+    ) {
+      // Invisible gameplay anchor only.
+      // The road mesh itself is now the pothole visual.
+      const pothole =
+        new THREE.Object3D();
 
-    for (const { x, z, radius } of generated) {
-      const pothole = new THREE.Mesh(geometry, material);
-      pothole.scale.set(radius, 1, radius);
-      pothole.position.set(x, 0.02, z);
-      pothole.userData.radius = radius;
+      pothole.position.set(
+        x,
+        0.035,
+        z
+      );
+
+      pothole.userData.radius =
+        radius;
 
       this.root.add(pothole);
       this.potholes.push(pothole);
-      const colliderDiameter = radius * 2;
+
+      const colliderDiameter =
+        radius * 2;
+
       this.collisionWorld.add({
         object: pothole,
-        size: [colliderDiameter, 0.15, colliderDiameter],
+        size: [
+          colliderDiameter,
+          0.15,
+          colliderDiameter
+        ],
         color: 0xffc857,
         tag: "pothole"
       });
