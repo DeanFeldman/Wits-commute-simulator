@@ -88,6 +88,12 @@ export function getLevelOneCollisionDamage(tag = "") {
   return LEVEL_ONE_DAMAGE.medium;
 }
 
+export function revertToSafePose(car, vehicle, safePosition, safeRotationY) {
+  car.position.copy(safePosition);
+  car.rotation.y = safeRotationY;
+  vehicle.stop();
+}
+
 export function applyLevelOneDamage(condition, tag) {
   return Math.max(
     0,
@@ -580,6 +586,48 @@ export function generateLevelOnePotholes({
   return chosen.slice(0, count);
 }
 
+export function normalizeLevelOneSeed(seed) {
+  if (typeof seed === "number" && Number.isFinite(seed)) return seed >>> 0;
+  if (typeof seed === "string" && /^\d+$/.test(seed)) return Number(seed) >>> 0;
+
+  const text = String(seed ?? "level-1");
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+export function resolveLevelOneSeed(
+  search = globalThis.location?.search ?? "",
+  cryptoSource = globalThis.crypto
+) {
+  const requestedSeed = new URLSearchParams(search).get("level1Seed");
+  if (requestedSeed !== null) return normalizeLevelOneSeed(requestedSeed);
+
+  if (cryptoSource?.getRandomValues) {
+    const values = new Uint32Array(1);
+    cryptoSource.getRandomValues(values);
+    return values[0];
+  }
+
+  return Math.floor(Math.random() * 0x100000000) >>> 0;
+}
+
+export function generateLevelOneRun(seed) {
+  const normalizedSeed = normalizeLevelOneSeed(seed);
+  const random = createSeededRandom(normalizedSeed);
+  const freeBays = pickFreeParkingBays(getLevelOneParkingSpaces(), random);
+  const potholes = generateLevelOnePotholes({ random, freeBays });
+
+  return {
+    seed: normalizedSeed,
+    freeBays,
+    potholes
+  };
+}
+
 export function getPotholeImpact(radius, layout = LEVEL_ONE_PARKING_LAYOUT) {
   const range = Math.max(0.001, layout.potholeRadiusMax - layout.potholeRadiusMin);
   const severity = clamp((radius - layout.potholeRadiusMin) / range, 0, 1);
@@ -676,9 +724,12 @@ export class ParkingLevel {
     this.potholes = [];
     this.potholeCooldown = 0;
 
-    // Which bays are left open is decided per run, so the drive is different
-    // every time rather than always ending at the same slot.
-    this.freeBays = pickFreeParkingBays(getLevelOneParkingSpaces());
+    // A requested seed pins both open bays and potholes for screenshots,
+    // measurements and bug reproduction. Without one, resolveLevelOneSeed()
+    // draws a fresh seed so normal play keeps varying between runs.
+    const run = generateLevelOneRun(resolveLevelOneSeed());
+    this.seed = run.seed;
+    this.freeBays = run.freeBays;
     this.freeBayKeys = new Set(this.freeBays.map(parkingBayKey));
     this.parkingBays = this.freeBays.map((space) => ({
       x: space.x,
@@ -688,9 +739,7 @@ export class ParkingLevel {
       angle: space.angle
     }));
 
-    this.generatedPotholes = generateLevelOnePotholes({
-      freeBays: this.freeBays
-    });
+    this.generatedPotholes = run.potholes;
 
     this.waypoints = [];
     this.waypointTime = 0;
@@ -1105,6 +1154,7 @@ this.impactCooldown = Math.max(
 );
 
 const previousPosition = this.car.position.clone();
+const previousRotationY = this.car.rotation.y;
 
 this.vehicle.update(dt, {
   throttle:
@@ -1141,8 +1191,7 @@ const hit = this.collisionWorld.firstHit(
 );
 
 if (hit) {
-  this.car.position.copy(previousPosition);
-  this.vehicle.stop();
+  revertToSafePose(this.car, this.vehicle, previousPosition, previousRotationY);
 
   if (this.impactCooldown <= 0) {
     this.condition = applyLevelOneDamage(this.condition, hit.tag);
