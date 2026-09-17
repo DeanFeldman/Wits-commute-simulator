@@ -565,6 +565,46 @@ body {
 #quiz-overlay:not([hidden]) {
   display: flex;
 }
+#quiz-overlay.psychology-questionnaire-open { align-items: stretch; overflow-y: auto; padding: clamp(0.75rem, 3vw, 2.5rem); background: rgba(18, 19, 20, 0.78); }
+#quiz-overlay.psychology-questionnaire-open .menu-card { width: min(100%, 54rem); max-width: none; margin: auto; padding: clamp(1.15rem, 4vw, 3.5rem); border: 1px solid #dadce0; border-top: 9px solid #673ab7; border-radius: 8px; color: #202124; background: #fff; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22); font-family: Roboto, Arial, sans-serif; text-align: left; }
+.psychology-questionnaire-body { display: block; margin: 0; }
+.psychology-form-header { padding-bottom: 0.85rem; border-bottom: 1px solid #dadce0; text-align: center; }
+.psychology-form-header p { margin: 0; font: 700 0.72rem/1.35 Arial, sans-serif; letter-spacing: 0.09em; }
+.psychology-form-header h1 { margin: 0.4rem 0 0.2rem; font-size: clamp(1.08rem, 3vw, 1.55rem); letter-spacing: 0.035em; font-family: Georgia, "Times New Roman", serif; }
+.psychology-form-code { font-size: 0.68rem !important; }
+.psychology-admin-copy, .psychology-instruction { margin: 0.9rem 0; font-size: 0.82rem; line-height: 1.45; }
+.psychology-admin-copy { color: #514e48; font-style: italic; }
+.psychology-rule { border-top: 1px solid #dadce0; }
+.psychology-section { margin-top: 1.4rem; }
+.psychology-section h2 { margin: 0 0 0.65rem; padding-bottom: 0.55rem; border-bottom: 1px solid #dadce0; color: #5f6368; font: 700 0.78rem Arial, sans-serif; letter-spacing: 0.055em; }
+.psychology-question { margin: 0.85rem 0 1rem; padding-left: 0.15rem; }
+.psychology-question > p { margin: 0 0 0.5rem; font-size: 0.96rem; line-height: 1.35; }
+.psychology-question-number { font-weight: 700; }
+.psychology-choices { display: flex; align-items: center; gap: clamp(1.1rem, 4vw, 2.8rem); padding-left: 0.15rem; }
+/* Override the shared menu button treatment: answers are text/radio choices,
+   not coloured game-menu buttons. */
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer { position: relative; min-width: 2.2rem; margin: 0; padding: 0.28rem 0.32rem 0.28rem 1.55rem; border: 0; border-radius: 0; color: #3c4043; background: transparent; box-shadow: none; font: 500 0.8rem Arial, sans-serif; letter-spacing: 0.04em; cursor: pointer; }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer::before { position: absolute; top: 50%; left: 0.2rem; width: 0.82rem; height: 0.82rem; content: ""; border: 1.5px solid #5f6368; border-radius: 50%; background: transparent; transform: translateY(-50%); }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-yes-no-choices .psychology-answer { padding-left: 0.32rem; }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-yes-no-choices .psychology-answer:not(.pencil-circled)::before { content: none; }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer:hover { color: #3c4043; background: transparent; }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer:focus-visible { outline: 2px solid #c9b8ea; outline-offset: 3px; }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer.pencil-circled::before, #quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer.pencil-circled::after { position: absolute; content: ""; pointer-events: none; inset: -0.13rem -0.32rem; width: auto; height: auto; border: 1.5px solid rgba(70, 68, 64, 0.86); border-radius: 47% 53% 51% 45%; background: transparent; transform: rotate(-7deg); }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-answer.pencil-circled::after { inset: -0.09rem -0.39rem -0.18rem -0.25rem; border-color: rgba(90, 87, 81, 0.42); transform: rotate(6deg); }
+.psychology-scale { max-width: 31rem; }
+.psychology-scale-labels { display: flex; justify-content: space-between; margin: 0 0 0.25rem; font: 700 0.58rem Arial, sans-serif; letter-spacing: 0.035em; color: #5f6368; }
+.psychology-scale-choices { justify-content: space-between; gap: 0.15rem; padding-left: 0; }
+.psychology-scale-choices .psychology-answer { min-width: 1.35rem; }
+/* Scale answers use a rough graphite-filled radio dot rather than circling
+   the number. The layered strokes keep it intentionally hand-marked. */
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-scale-choices .psychology-answer.pencil-circled::before { inset: auto; top: 50%; right: auto; bottom: auto; left: 0.2rem; width: 0.82rem; height: 0.82rem; border: 1.5px solid #4e4b46; border-radius: 50%; background: radial-gradient(ellipse at 45% 52%, rgba(57, 55, 51, 0.98) 0 47%, rgba(57, 55, 51, 0.76) 48% 61%, transparent 62%), repeating-linear-gradient(32deg, rgba(35, 34, 31, 0.86) 0 1px, transparent 1px 2px), repeating-linear-gradient(-48deg, rgba(65, 63, 58, 0.72) 0 1px, transparent 1px 3px); transform: translateY(-50%) rotate(-5deg); }
+#quiz-overlay.psychology-questionnaire-open .menu-card .psychology-scale-choices .psychology-answer.pencil-circled::after { inset: auto; top: 50%; right: auto; bottom: auto; left: 0.31rem; width: 0.6rem; height: 0.58rem; border: 0; border-radius: 46% 54% 49% 51%; background: repeating-linear-gradient(78deg, rgba(31, 30, 28, 0.78) 0 1px, transparent 1px 2px); transform: translateY(-50%) rotate(11deg); }
+.psychology-form-footer { margin-top: 1.8rem; padding-top: 0.65rem; border-top: 1px solid #dadce0; color: #5f6368; font: 0.68rem Arial, sans-serif; text-align: center; }
+#quiz-overlay.psychology-questionnaire-open #quiz-error { color: #96362f; font: 700 0.75rem Arial, sans-serif; letter-spacing: 0.04em; }
+#quiz-overlay.psychology-questionnaire-open #quiz-submit { display: block; margin: 1.25rem auto 0; border: 1px solid #5f6368; border-radius: 4px; color: #3c4043; background: #fff; font-family: Arial, sans-serif; letter-spacing: 0.08em; }
+#quiz-overlay.psychology-questionnaire-open #quiz-submit:hover, #quiz-overlay.psychology-questionnaire-open #quiz-submit:focus-visible { color: #3c4043; background: #fff; }
+#quiz-overlay.psychology-questionnaire-open #quiz-submit:disabled { cursor: not-allowed; opacity: 0.52; }
+@media (max-width: 520px) { .psychology-choices { gap: 0.55rem; padding-left: 0.15rem; } .psychology-question > p { font-size: 0.88rem; } .psychology-scale-labels, .psychology-scale-choices { margin-left: 0; padding-left: 0; } }
 .quiz-body { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; }
 .quiz-option {
   padding: 0.6rem 0.9rem;

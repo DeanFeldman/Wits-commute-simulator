@@ -488,6 +488,15 @@ export class CrossingLevel {
   // is never stored — `person.quizDone` just stops the same person from
   // re-asking for the rest of this playthrough.
   startQuiz(person) {
+    if (person.kind === "psychQuizzer") {
+      this.quizPaused = true;
+      this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
+        person.quizDone = true;
+        this.quizPaused = false;
+        this.game.setMessage("Form received. Carry on.");
+      });
+      return;
+    }
     const quiz = pickQuiz(person.kind, this.crowd.random);
     if (!quiz) return;
     this.quizPaused = true;

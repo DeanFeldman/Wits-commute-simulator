@@ -119,6 +119,20 @@ Collision with a vehicle.
 
 Kerbs or traffic islands may act as checkpoints.
 
+## Psychology Survey NPC
+
+Walking into the Psych Elective NPC pauses Level 2 and opens a mouse-driven,
+in-game PSY-04 questionnaire. Each opening draws three distinct
+Yes/No/Undecided prompts and three distinct 1–10 agreement-scale prompts from
+`src/levels/crossing/psychologyQuestionnaire.js`.
+
+The form is deliberately bureaucratic flavour: all six responses are required,
+but they are discarded on submission. It does not create a profile, alter
+dialogue, award a reward, or affect gameplay. The questionnaire is presented
+as a Google-Forms-inspired academic sheet; Yes/No choices are marked with a
+rough pencil ring, while scale choices use a filled graphite radio dot. Normal
+movement resumes immediately after the completed form closes.
+
 ## Success
 
 Reach the far pavement / level exit.
