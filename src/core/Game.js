@@ -30,7 +30,7 @@ const LEVEL_INTRO_CONFIG = new Map([
       artAlt: "A driver checking their watch from inside a car on a winding road",
       placeholderIcon: null,
       story: [
-        "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBrendan is going to have a go at me!",
+        "It’s 7:30 AM! The exam starts in thirty minutes!!!\nBranden is going to have a go at me!",
         "If I miss this exam, I’m cooked...\nAlan Turing, if you can hear me… findParking() better return true."
       ]
     }
@@ -54,8 +54,10 @@ const LEVEL_INTRO_CONFIG = new Map([
       artAlt: "The student sliding into a lecture hall seat as papers are handed out",
       placeholderIcon: "📝",
       story: [
-        "Made it. Soaked in sweat, but I made it.\nBrendan’s already walking the rows with that look.",
-        "Everyone around me clearly studied. I clearly did not.\nTime to get creative — quietly."
+      "Made it. Soaked in sweat, but I made it.\nBranden’s already walking the rows with that look.",
+      "Everyone around me clearly studied. I clearly did not.\nSo... time to get creative.",
+      "Look around, sneak a peek at your classmates’ answers and find the right one.\nGet it right, then move on to the next question.",
+      "Only problem... the tutors are watching.\nGet caught cheating and your suspicion goes up. Hit 100% and this academic comeback is over.\n\nFinish the test before time runs out.\nEasy... probably."
       ]
     }
   ]
