@@ -51,6 +51,14 @@ export const CROWD_LINES = Object.freeze({
     "Late, are we? Brendan's already handing out papers.",
     "Walk in quietly. Very quietly."
   ],
+  psychQuizzer: [
+    "Oh — perfect, you're just the person I needed!",
+    "Got a second for my psych elective survey?"
+  ],
+  ccduAdvisor: [
+    "Hi! Got 30 seconds for a CCDU wellness question?",
+    "Quick check-in from CCDU, if you don't mind."
+  ],
   annoyed: [
     "Again?!",
     "Okay, now you're doing it on purpose.",
@@ -74,7 +82,9 @@ export const CROWD_LINES = Object.freeze({
     queue: "Tip: a Red Cappuccino gets you through one taxi. Just one.",
     tutor: "Nearly there. Engineering is right behind me.",
     phone: "Bru, the taxis on Yale Road stop randomly. Don't trust them.",
-    student: "Iced latte from Vida? Everything feels slower after one."
+    student: "Iced latte from Vida? Everything feels slower after one.",
+    psychQuizzer: "Excuse me — walk into me and I'll ask you something fun.",
+    ccduAdvisor: "Hey! CCDU is doing quick check-ins today."
   }
 });
 
@@ -321,7 +331,12 @@ export function createCrowdPlan({ zones, startZ, step }) {
     { kind: "queue", x: -step * 2, z: snap(exit.z) + step, yaw: -Math.PI / 2 },
     // A tutor waiting outside Engineering.
     { kind: "tutor", x: step * 2, z: snap(finish.z), yaw: 0 },
-    { kind: "phone", x: -step * 2, z: snap(finish.z) + step, yaw: Math.PI }
+    { kind: "phone", x: -step * 2, z: snap(finish.z) + step, yaw: Math.PI },
+
+    // Someone doing a psych-elective survey, right at the bridge entrance.
+    { kind: "psychQuizzer", x: step * 2, z: snap(entry.z), yaw: -Math.PI / 2 },
+    // A CCDU volunteer near the far landing, before the Vida queue.
+    { kind: "ccduAdvisor", x: step * 2, z: snap(exit.z) + step, yaw: -Math.PI / 2 }
   ];
 }
 

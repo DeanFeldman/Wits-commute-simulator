@@ -187,6 +187,8 @@ export class InputManager {
   }
 
   onKeyDown(event) {
+    if (this.isTypingTarget(event)) return;
+
     if (!this.keysDown.has(event.code)) {
       this.keysPressed.add(event.code);
       this.bufferedKeys.set(event.code, performance.now());
@@ -202,9 +204,19 @@ export class InputManager {
   }
 
   onKeyUp(event) {
+    if (this.isTypingTarget(event)) return;
+
     if (this.keysDown.delete(event.code)) {
       this.keysReleased.add(event.code);
     }
+  }
+
+  // While a quiz textarea (or any future text field) has focus, the game
+  // should not see those keystrokes at all: Space must type a space, and
+  // letters like W/A/S/D must not leak into keysDown as "held" movement.
+  isTypingTarget(event) {
+    const tag = event.target?.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || event.target?.isContentEditable === true;
   }
 
   onMouseMove(event) {

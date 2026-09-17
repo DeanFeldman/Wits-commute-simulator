@@ -154,6 +154,15 @@ body {
   font-weight: 700;
 }
 
+.quiz-body { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; }
+.quiz-option {
+  padding: 0.6rem 0.9rem; border-radius: 0.5rem; border: 1px solid #ffffff33;
+  background: #ffffff14; color: inherit; text-align: left; cursor: pointer;
+}
+.quiz-option.selected { border-color: #ffffffaa; background: #ffffff2a; }
+#quiz-text-answer { width: 100%; resize: vertical; padding: 0.5rem; border-radius: 0.5rem; }
+.quiz-error { min-height: 1.2em; color: #ff8a80; font-size: 0.85em; }
+
 #dev-level-select {
   margin-top: 1.25rem;
   padding-top: 1rem;
@@ -542,3 +551,42 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .speech-bubble-in, .speech-bubble[data-tone="angry"] .speech-bubble-in { animation: none; }
 }
+
+/* Level 2 quiz overlay (psych-quiz / CCDU stop-and-answer beats) */
+#quiz-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 16, 0.72);
+  z-index: 40;
+}
+#quiz-overlay:not([hidden]) {
+  display: flex;
+}
+.quiz-body { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0; }
+.quiz-option {
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ffffff33;
+  background: #ffffff14;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.quiz-option:hover { background: #ffffff22; }
+.quiz-option.selected { border-color: #ffffffaa; background: #ffffff2a; }
+#quiz-text-answer {
+  width: 100%;
+  resize: vertical;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ffffff33;
+  background: #ffffff14;
+  color: inherit;
+  font: inherit;
+}
+.quiz-error { min-height: 1.2em; color: #ff8a80; font-size: 0.85em; }

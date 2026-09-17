@@ -9,6 +9,8 @@ import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltSha
 import { PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
+import { QuizOverlay } from "./QuizOverlay.js";
+import { pickQuiz } from "./quizBank.js";
 import { CUP_SCORE, CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -33,7 +35,14 @@ const DIRECTIONS = Object.freeze({
   right: Object.freeze({ x: 1, z: 0 })
 });
 
-const SPEAKER_TITLES = { guard: "Campus Protection", tutor: "Tutor", jogger: "Jogger", queue: "Vida queue" };
+const SPEAKER_TITLES = {
+  guard: "Campus Protection",
+  tutor: "Tutor",
+  jogger: "Jogger",
+  queue: "Vida queue",
+  psychQuizzer: "Psych Elective",
+  ccduAdvisor: "CCDU"
+};
 
 export class CrossingLevel {
   constructor(game) {
@@ -85,6 +94,8 @@ export class CrossingLevel {
     this.cups = null;
     this.powerUps = new PowerUpState();
     this.speech = null;
+    this.quiz = null;
+    this.quizPaused = false;
     this.aura = null;
     this.shieldBubble = null;
 
@@ -142,6 +153,7 @@ export class CrossingLevel {
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
     this.speech = new SpeechBubbles();
+    this.quiz = new QuizOverlay();
     this.createPlayer();
     const crowdPlan = this.createCrowd();
     this.createCups(crowdPlan);
@@ -332,6 +344,7 @@ export class CrossingLevel {
 
   update(dt) {
     if (this.completed) return;
+    if (this.quizPaused) return; // quiz overlay owns input while it's open
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
@@ -442,12 +455,20 @@ export class CrossingLevel {
   }
 
   onWalkBlocked(x, z, direction) {
+    if (this.quizPaused) return;
     const person = this.crowd.personAt(x, z);
     if (!person) {
       if (this.routeMessageCooldown === 0) this.game.setMessage("Stay on the marked pedestrian route.");
       this.routeMessageCooldown = 2;
       return;
     }
+
+    const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
+    if (isQuizzer && !person.quizDone) {
+      this.startQuiz(person);
+      return;
+    }
+
     if (this.bumpCooldown > 0) return;
     this.bumpCooldown = 0.9;
     this.hopController.bump(direction);
@@ -460,6 +481,21 @@ export class CrossingLevel {
       const grid = this.hopController.gridPosition;
       this.cups.add(grid.x, grid.y, droppedCup, { dropped: true });
     }
+  }
+
+  // Stops the player and opens a quiz for a psychQuizzer/ccduAdvisor person.
+  // The answer is checked for validity only (see quizBank.isValidAnswer) and
+  // is never stored — `person.quizDone` just stops the same person from
+  // re-asking for the rest of this playthrough.
+  startQuiz(person) {
+    const quiz = pickQuiz(person.kind, this.crowd.random);
+    if (!quiz) return;
+    this.quizPaused = true;
+    this.quiz.open(quiz, () => {
+      person.quizDone = true;
+      this.quizPaused = false;
+      this.game.setMessage("Thanks! Carry on.");
+    });
   }
 
   updateCups(dt) {
@@ -648,6 +684,7 @@ export class CrossingLevel {
     this.audio.dispose();
     this.controls?.dispose();
     this.speech?.dispose();
+    this.quiz?.dispose();
     disposeObject3D(this.root);
   }
 }
