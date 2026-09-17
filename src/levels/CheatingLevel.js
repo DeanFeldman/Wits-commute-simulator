@@ -56,17 +56,16 @@ const PEEK_CAMERA_FOV = 30;
 const DESK_INTERACTION_DISTANCE = 5.25;
 const PAPER_HEIGHT = 0.795;
 const PLAYER_PAPER_WIDTH = 0.42;
-const PLAYER_PAPER_HEIGHT = 0.62;
+const PLAYER_PAPER_HEIGHT = 0.5;
 const PLAYER_DESK_SCALE = 1.15;
 const PLAYER_DESK_LOWERING = 0.1;
-const PLAYER_PAPER_TILT_CLEARANCE = 0.12;
+const PLAYER_PAPER_TILT_CLEARANCE = 0.08;
 const PLAYER_PAPER_REST_HEIGHT = PAPER_HEIGHT - PLAYER_DESK_LOWERING + 0.012;
 const PLAYER_PAPER_READING_HEIGHT = PAPER_HEIGHT + PLAYER_PAPER_TILT_CLEARANCE;
 const PLAYER_PAPER_REST_ROTATION = -Math.PI / 2;
 const PLAYER_PAPER_READING_ROTATION = -Math.PI / 3;
 const PLAYER_PAPER_POSE_SPEED = 8;
-const PLAYER_PAPER_REST_SCALE = 0.84;
-const PLAYER_PAPER_READING_SCALE = 1;
+const PLAYER_PAPER_SCALE = 0.9;
 const PLAYER_EYE_HEIGHT = 1.09;
 const PLAYER_SEAT_Z = 4;
 const PLAYER_FORWARD_OFFSET = 0.25;
@@ -604,7 +603,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   createDeskPaper(text, x, z, color = 0xfff7d6) {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
-    canvas.height = 768;
+    canvas.height = 600;
     const context = canvas.getContext("2d");
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -625,7 +624,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     paper.position.set(x, PLAYER_PAPER_REST_HEIGHT, z);
     // Lean the page's normal 30° toward the seated player for legibility.
     paper.rotation.x = PLAYER_PAPER_REST_ROTATION;
-    paper.scale.setScalar(PLAYER_PAPER_REST_SCALE);
+    paper.scale.setScalar(PLAYER_PAPER_SCALE);
     paper.userData.paperCanvas = canvas;
     paper.userData.paperContext = context;
     paper.userData.paperTexture = texture;
@@ -667,14 +666,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       width - 76,
       38
     );
-    const answerLabelY = Math.max(430, questionBottom + 86);
+    const answerLabelY = Math.max(290, questionBottom + 50);
     context.strokeStyle = "#26313d";
     context.lineWidth = 4;
-    context.strokeRect(32, answerLabelY - 22, width - 64, 160);
+    context.strokeRect(32, answerLabelY - 22, width - 64, 140);
     context.font = "bold 30px sans-serif";
     context.fillText("YOUR ANSWER", 52, answerLabelY);
     context.font = "bold 32px monospace";
-    context.fillText(`${this.typedAnswer || ""}_`, 52, answerLabelY + 70, width - 104);
+    context.fillText(
+      `${this.typedAnswer || ""}_`,
+      52,
+      answerLabelY + 62,
+      width - 104
+    );
     paper.userData.paperTexture.needsUpdate = true;
   }
 
@@ -1263,15 +1267,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     const targetRotation = reading
       ? PLAYER_PAPER_READING_ROTATION
       : PLAYER_PAPER_REST_ROTATION;
-    const targetScale = reading
-      ? PLAYER_PAPER_READING_SCALE
-      : PLAYER_PAPER_REST_SCALE;
 
-    paper.position.y = THREE.MathUtils.lerp(paper.position.y, targetHeight, blend);
-    paper.rotation.x = THREE.MathUtils.lerp(paper.rotation.x, targetRotation, blend);
-    paper.scale.setScalar(THREE.MathUtils.lerp(paper.scale.x, targetScale, blend));
+    paper.position.y = THREE.MathUtils.lerp(
+      paper.position.y,
+      targetHeight,
+      blend
+    );
+
+    paper.rotation.x = THREE.MathUtils.lerp(
+      paper.rotation.x,
+      targetRotation,
+      blend
+    );
   }
-
   updatePeek(dt) {
     this.zoomActive = Boolean(
       this.leftMouseDown &&
