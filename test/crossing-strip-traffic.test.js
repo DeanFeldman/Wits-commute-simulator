@@ -167,7 +167,7 @@ test("a multi-row strip can load and position declared GLB scenery", async () =>
   assert.equal(strip.containsZ(4.7), false);
 });
 
-test("authored walkways derive from the AMIC material and both parking areas exist", () => {
+test("authored walkways derive from the AMIC material and route landmarks stay intact", () => {
   const layout = generateLevel2Layout(3006);
   const parent = new THREE.Group();
   const walkwayMaterial = createAmicDeckMaterial();
@@ -214,13 +214,14 @@ test("authored walkways derive from the AMIC material and both parking areas exi
   const finish = strips.find((strip) => strip.definition.type === "finish");
   const farSideLanding = strips.find((strip) => strip.definition.type === "bridge-exit");
   assert.ok(start.root.getObjectByName("arm-side-parking"));
-  assert.ok(finish.root.getObjectByName("opposite-side-parking"));
+  assert.equal(finish.root.getObjectByName("opposite-side-parking"), undefined);
   assert.equal(start.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
-  assert.equal(finish.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 7);
+  assert.equal(finish.root.children.filter((child) => child.name.startsWith("level-two-parked-car-")).length, 0);
+  assert.ok(finish.root.getObjectByName("engineering-building"));
 
   const armBuilding = start.root.getObjectByName("arm-building");
-  assert.equal(armBuilding.position.x, -15.2);
-  assert.ok(armBuilding.position.x + armBuilding.geometry.parameters.width / 2 < -12.3);
+  assert.equal(armBuilding.position.x, -8);
+  assert.ok(armBuilding.position.x + armBuilding.geometry.parameters.width / 2 < -3.6);
   const courtyard = start.root.getObjectByName("amic-arm-courtyard");
   assert.ok(courtyard);
   assertUsesAmicDeckMaterial(courtyard);
