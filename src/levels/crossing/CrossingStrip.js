@@ -1279,16 +1279,7 @@ for (const x of [-4.4, 4.4]) {
     if (this.definition.section === "engineering-finish") {
      
 
-      const entrance = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 3.2, 2.8),
-        new THREE.MeshStandardMaterial({
-          color: 0x78959d,
-          roughness: 0.25,
-          metalness: 0.15
-        })
-      );
-      entrance.position.set(-4.24, 1.7, -1.2);
-      this.root.add(entrance);
+      
 
       // --------------------------------------------------
       // FAR-SIDE YALE ROAD WALKWAY / PAVEMENT
@@ -1314,6 +1305,7 @@ for (const x of [-4.4, 4.4]) {
           name: "yale-road-far-side-walkway"
         }
       );
+      this.createYaleEntranceScenery();
       // No duplicate finish-side parking. The parking lot is at spawn/ARM.
    
       // --------------------------------------------------
@@ -2299,6 +2291,214 @@ createBridgeFenceReturns({
       nextStopX: null
     };
   }
+createYaleEntranceScenery() {
+  const hedgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x426a36,
+    roughness: 0.95,
+    flatShading: true
+  });
+
+  const darkHedgeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x2f5229,
+    roughness: 0.95,
+    flatShading: true
+  });
+
+  const trunkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x72533a,
+    roughness: 0.92
+  });
+
+  const leafMaterial = new THREE.MeshStandardMaterial({
+    color: 0x4a7a3e,
+    roughness: 0.9,
+    flatShading: true
+  });
+
+  const gatePostMaterial = new THREE.MeshStandardMaterial({
+    color: 0xc8c0ac,
+    roughness: 0.88
+  });
+
+  const gateCapMaterial = new THREE.MeshStandardMaterial({
+    color: 0xe0d8c5,
+    roughness: 0.82
+  });
+
+  const metalMaterial = new THREE.MeshStandardMaterial({
+    color: 0x353b40,
+    roughness: 0.66,
+    metalness: 0.28
+  });
+
+  const addHedge = (x, z, width, depth, height = 0.8, dark = false) => {
+    const hedge = new THREE.Mesh(
+      new THREE.BoxGeometry(width, height, depth),
+      dark ? darkHedgeMaterial : hedgeMaterial
+    );
+
+    hedge.position.set(
+      x,
+      WALKWAY_TOP_Y + height / 2,
+      z
+    );
+
+    hedge.castShadow = true;
+    hedge.receiveShadow = true;
+    hedge.name = "yale-entrance-hedge";
+
+    this.root.add(hedge);
+    return hedge;
+  };
+
+  const addTree = (x, z, scale = 1) => {
+    const tree = new THREE.Group();
+    tree.name = "yale-entrance-tree";
+
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7),
+      trunkMaterial
+    );
+    trunk.position.y = 0.68;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    const canopy = new THREE.Mesh(
+      new THREE.ConeGeometry(0.8, 1.6, 7),
+      leafMaterial
+    );
+    canopy.position.y = 1.8;
+    canopy.castShadow = true;
+    tree.add(canopy);
+
+    tree.position.set(x, 0.11, z);
+    tree.scale.setScalar(scale);
+
+    this.root.add(tree);
+    return tree;
+  };
+
+  const addFence = (x, z, length, rotationY = 0, name = "yale-entrance-fence") => {
+    const fence = createAmicFenceSection({
+      length,
+      name
+    });
+
+    fence.position.set(
+      x,
+      WALKWAY_TOP_Y,
+      z
+    );
+
+    fence.rotation.y = rotationY;
+    this.root.add(fence);
+    return fence;
+  };
+
+  const addGateLeaf = (x, z, rotationY) => {
+    const gate = new THREE.Group();
+    gate.name = "yale-entrance-gate-leaf";
+
+    gate.position.set(
+      x,
+      WALKWAY_TOP_Y,
+      z
+    );
+
+    gate.rotation.y = rotationY;
+
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(2.1, 1.15, 0.08),
+      metalMaterial
+    );
+    frame.position.y = 0.68;
+    frame.castShadow = true;
+    gate.add(frame);
+
+    const lowerPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(1.85, 0.22, 0.04),
+      gatePostMaterial
+    );
+    lowerPanel.position.y = 0.3;
+    gate.add(lowerPanel);
+
+    this.root.add(gate);
+    return gate;
+  };
+
+  // --------------------------------------------------
+  // LAYOUT
+  // --------------------------------------------------
+
+  const gateZ = -2.2;
+  const pillarX = 3.1;
+
+  // Gate posts
+  for (const x of [-pillarX, pillarX]) {
+    const pillar = new THREE.Mesh(
+      new THREE.BoxGeometry(0.85, 3.2, 0.85),
+      gatePostMaterial
+    );
+
+    pillar.position.set(
+      x,
+      1.6,
+      gateZ
+    );
+
+    pillar.castShadow = true;
+    pillar.name = "yale-entrance-pillar";
+    this.root.add(pillar);
+
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(1.02, 0.2, 1.02),
+      gateCapMaterial
+    );
+
+    cap.position.set(
+      x,
+      3.3,
+      gateZ
+    );
+
+    cap.castShadow = true;
+    cap.name = "yale-entrance-pillar-cap";
+    this.root.add(cap);
+  }
+
+  // Open gate leaves
+  addGateLeaf(-2.35, gateZ + 0.22, Math.PI / 2);
+  addGateLeaf( 2.35, gateZ + 0.22, -Math.PI / 2);
+
+  // Fence runs extending outward from the gate
+  addFence(-7.7, gateZ, 8.2, Math.PI / 2, "yale-entrance-fence-left");
+  addFence( 7.7, gateZ, 8.2, Math.PI / 2, "yale-entrance-fence-right");
+
+  // Small fence returns to suggest enclosed landscaping
+  addFence(-11.6, -0.2, 4.2, 0, "yale-entrance-fence-left-return");
+  addFence( 11.6, -0.2, 4.2, 0, "yale-entrance-fence-right-return");
+
+  // --------------------------------------------------
+  // GREENERY
+  // --------------------------------------------------
+
+  // Left side hedge grouping
+  addHedge(-8.2, -0.2, 4.4, 1.4, 0.85);
+  addHedge(-6.3,  1.2, 3.0, 1.2, 0.75, true);
+  addHedge(-9.8,  1.2, 2.4, 1.2, 0.75, true);
+
+  // Right side hedge grouping
+  addHedge( 8.2, -0.2, 4.4, 1.4, 0.85);
+  addHedge( 6.3,  1.2, 3.0, 1.2, 0.75, true);
+  addHedge( 9.8,  1.2, 2.4, 1.2, 0.75, true);
+
+  // Trees framing the entrance
+  addTree(-10.4, 2.3, 1.15);
+  addTree(-6.4,  2.0, 1.0);
+  addTree( 10.4, 2.3, 1.15);
+  addTree( 6.4,  2.0, 1.0);
+}
+
 
   createTaxiPassenger(lane) {
     // Hidden passenger shown beside a taxi only while it performs a random stop.
