@@ -1289,6 +1289,7 @@ for (const x of [-4.4, 4.4]) {
         }
       );
       this.createYaleEntranceScenery();
+      this.createYaleBackdropBuildings();
       // No duplicate finish-side parking. The parking lot is at spawn/ARM.
    
       // --------------------------------------------------
@@ -2346,13 +2347,15 @@ createYaleEntranceScenery() {
     trunk.castShadow = true;
     tree.add(trunk);
 
-    const canopy = new THREE.Mesh(
-      new THREE.ConeGeometry(0.8, 1.6, 7),
-      leafMaterial
-    );
-    canopy.position.y = 1.8;
-    canopy.castShadow = true;
-    tree.add(canopy);
+   const canopy = new THREE.Mesh(
+  new THREE.SphereGeometry(0.78, 8, 7),
+  leafMaterial
+);
+canopy.position.y = 1.82;
+canopy.scale.set(1.15, 0.95, 1.05);
+canopy.castShadow = true;
+tree.add(canopy);
+
 
     tree.position.set(x, 0.11, z);
     tree.scale.setScalar(scale);
@@ -2475,13 +2478,287 @@ createYaleEntranceScenery() {
   addHedge( 6.3,  1.2, 3.0, 1.2, 0.75, true);
   addHedge( 9.8,  1.2, 2.4, 1.2, 0.75, true);
 
-  // Trees framing the entrance
-  addTree(-10.4, 2.3, 1.15);
-  addTree(-6.4,  2.0, 1.0);
-  addTree( 10.4, 2.3, 1.15);
-  addTree( 6.4,  2.0, 1.0);
+// Trees moved backward in -Z so they stop crowding the crossing
+addTree(-13.0, -2.2, 1.05);
+addTree(-9.8,  -2.8, 0.95);
+addTree(-6.8,   1.4, 0.9);
+
+addTree( 13.0, -2.2, 1.05);
+addTree( 9.8,  -2.8, 0.95);
+addTree( 6.8,   1.4, 0.9);
+
+// Rear trees further back toward the buildings
+addTree(-8.2, 5.0, 0.95);
+addTree(-3.8, 6.2, 1.0);
+addTree( 3.8, 6.4, 1.0);
+addTree( 8.2, 5.0, 0.95);
+
 }
 
+
+createYaleBackdropBuildings() {
+
+   this.createWalkwayPanel(
+    52,
+    32,
+    {
+      x: 0,
+      z: -10.0,
+      name: "yale-campus-backdrop-ground"
+    }
+  );
+
+
+
+  const stone = new THREE.MeshStandardMaterial({
+    color: 0x80735f,
+    roughness: 0.92
+  });
+
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x6d604f,
+    roughness: 0.93
+  });
+
+  const lightBuilding = new THREE.MeshStandardMaterial({
+    color: 0xd7d8d4,
+    roughness: 0.9
+  });
+
+  const roofRed = new THREE.MeshStandardMaterial({
+    color: 0x8d4337,
+    roughness: 0.88
+  });
+
+  const roofGrey = new THREE.MeshStandardMaterial({
+    color: 0xaaa79e,
+    roughness: 0.9
+  });
+
+  const windowMat = new THREE.MeshBasicMaterial({
+    color: 0x5e6970
+  });
+
+  const addBox = (
+    size,
+    position,
+    material,
+    name = "yale-backdrop-mass"
+  ) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(...size),
+      material
+    );
+
+    mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.name = name;
+
+    this.root.add(mesh);
+    return mesh;
+  };
+
+    const addGroundPad = (
+    width,
+    depth,
+    x,
+    z,
+    name = "yale-backdrop-ground-pad"
+  ) => {
+    const padMaterial = this.walkwayMaterial.clone();
+
+    if (this.walkwayMaterial.map) {
+      padMaterial.map = this.walkwayMaterial.map.clone();
+      padMaterial.map.wrapS = THREE.RepeatWrapping;
+      padMaterial.map.wrapT = THREE.RepeatWrapping;
+      padMaterial.map.repeat.set(
+        width / WALKWAY_TILE_SIZE,
+        depth / WALKWAY_TILE_SIZE
+      );
+      padMaterial.map.needsUpdate = true;
+    }
+
+    const pad = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, depth),
+      padMaterial
+    );
+
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(
+      x,
+      WALKWAY_TOP_Y + 0.006,
+      z
+    );
+
+    pad.receiveShadow = true;
+    pad.name = name;
+    this.root.add(pad);
+
+    return pad;
+  };
+
+  const addWindowGrid = ({
+    centerX,
+    baseY,
+    centerZ,
+    width,
+    height,
+    depth,
+    columns,
+    rows,
+    face = "front"
+  }) => {
+    const usableWidth = width - 1.4;
+    const usableHeight = height - 2.2;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < columns; col++) {
+        const x =
+          centerX -
+          usableWidth / 2 +
+          (col / Math.max(1, columns - 1)) * usableWidth;
+
+        const y =
+          baseY +
+          1.3 +
+          (row / Math.max(1, rows - 1)) * usableHeight;
+
+        const z =
+          face === "front"
+            ? centerZ + depth / 2 + 0.04
+            : centerZ - depth / 2 - 0.04;
+
+        const pane = new THREE.Mesh(
+          new THREE.BoxGeometry(0.7, 1.05, 0.08),
+          windowMat
+        );
+
+        pane.position.set(x, y, z);
+        pane.castShadow = false;
+        pane.receiveShadow = false;
+        pane.name = "yale-backdrop-window";
+
+        this.root.add(pane);
+      }
+    }
+  };
+
+
+  
+  // --------------------------------------------------
+  // LEFT / NORTH-WEST ENGINEERING BUILDING MASS
+  // --------------------------------------------------
+
+  const leftX = -16.5;
+  const leftZ = -11.5;
+  const leftW = 15.5;
+  const leftH = 9.5;
+  const leftD = 7.0;
+
+  addBox(
+    [leftW, leftH, leftD],
+    [leftX, leftH / 2, leftZ],
+    stone,
+    "north-west-engineering-building"
+  );
+
+  addBox(
+    [leftW + 0.5, 1.0, leftD + 0.5],
+    [leftX, leftH + 0.45, leftZ],
+    roofRed,
+    "north-west-engineering-roof"
+  );
+
+  addWindowGrid({
+    centerX: leftX,
+    baseY: 0,
+    centerZ: leftZ,
+    width: leftW,
+    height: leftH,
+    depth: leftD,
+    columns: 5,
+    rows: 4
+  });
+
+  // Front entry feature
+  addBox(
+    [2.1, 4.2, 1.4],
+    [leftX - 5.2, 2.1, leftZ + leftD / 2 + 0.75],
+    darkStone,
+    "north-west-engineering-entry"
+  );
+
+  // --------------------------------------------------
+  // MIDDLE REAR BUILDING MASS
+  // --------------------------------------------------
+
+  const midX = -1.8;
+  const midZ = -15.0;
+  const midW = 16.0;
+  const midH = 7.5;
+  const midD = 6.0;
+
+  addBox(
+    [midW, midH, midD],
+    [midX, midH / 2, midZ],
+    darkStone,
+    "yale-backdrop-middle-building"
+  );
+
+  addBox(
+    [midW + 0.6, 0.8, midD + 0.6],
+    [midX, midH + 0.35, midZ],
+    roofRed,
+    "yale-backdrop-middle-roof"
+  );
+
+  addWindowGrid({
+    centerX: midX,
+    baseY: 0,
+    centerZ: midZ,
+    width: midW,
+    height: midH,
+    depth: midD,
+    columns: 6,
+    rows: 3
+  });
+
+  // --------------------------------------------------
+  // RIGHT / LIGHT BUILDING MASS
+  // --------------------------------------------------
+
+  const rightX = 15.0;
+  const rightZ = -11.8;
+  const rightW = 10.0;
+  const rightH = 6.5;
+  const rightD = 6.8;
+
+  addBox(
+    [rightW, rightH, rightD],
+    [rightX, rightH / 2, rightZ],
+    lightBuilding,
+    "yale-backdrop-right-building"
+  );
+
+  addBox(
+    [rightW + 0.35, 0.5, rightD + 0.35],
+    [rightX, rightH + 0.22, rightZ],
+    roofGrey,
+    "yale-backdrop-right-roof"
+  );
+
+  addWindowGrid({
+    centerX: rightX,
+    baseY: 0,
+    centerZ: rightZ,
+    width: rightW,
+    height: rightH,
+    depth: rightD,
+    columns: 4,
+    rows: 3
+  });
+}
 
   createTaxiPassenger(lane) {
     // Hidden passenger shown beside a taxi only while it performs a random stop.
