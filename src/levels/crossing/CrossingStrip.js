@@ -18,6 +18,7 @@ import {
   LEVEL_2_STRIPS,
   STRIP_DEPTH
 } from "./Level2StripGenerator.js";
+import { createWitsBusStop } from "./WitsBusStop.js";
 
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
@@ -1053,7 +1054,7 @@ createYaleRoadDetails() {
   //
   // On the far side (bridge-exit), keep both side plazas.
   const pavedSides = isFarSideLanding
-    ? [-1, 1]
+    ? [-1]
     : [-1];
 
   for (const side of pavedSides) {
@@ -1071,8 +1072,66 @@ createYaleRoadDetails() {
   }
 
   if (isFarSideLanding) {
-    this.createVidaContainer();
-  }
+  this.createVidaContainer();
+
+  // --------------------------------------------------
+  // WITS BUS STOP — NEAR SIDE OF YALE ROAD / BY VIDA
+  // --------------------------------------------------
+
+  const nearBusStop =
+    createWitsBusStop();
+
+  const nearBusStopX =
+    sideCenterX - 30;
+
+  const nearBusStopDepth =
+    6.0;
+
+  const yaleEdgeInset =
+    0.2;
+
+  // IMPORTANT:
+  // Calculate this BEFORE using it for the floor.
+  const nearBusStopZ =
+    -this.definition.depth / 2 +
+    nearBusStopDepth / 2 +
+    yaleEdgeInset;
+
+  // --------------------------------------------------
+  // WALKWAY MATERIAL UNDER THE BUS STOP
+  // --------------------------------------------------
+
+  const nearBusStopFloorWidth =
+    15.0;
+
+  this.createWalkwayPanel(
+    nearBusStopFloorWidth,
+    nearBusStopDepth,
+    {
+      x: nearBusStopX,
+      z: nearBusStopZ,
+      name: "wits-near-bus-stop-plaza"
+    }
+  );
+
+  // --------------------------------------------------
+  // BUS STOP
+  // --------------------------------------------------
+
+  nearBusStop.position.set(
+    nearBusStopX,
+    WALKWAY_TOP_Y,
+    nearBusStopZ
+  );
+
+  // 180-degree rotation.
+  nearBusStop.rotation.y =
+    Math.PI;
+
+  this.root.add(nearBusStop);
+  this.createMiniBridgeExitParkingLot(1);
+} 
+
 }
 
   createEngineeringDetails() {
@@ -1098,14 +1157,7 @@ createYaleRoadDetails() {
     }
 
     if (this.definition.section === "engineering-finish") {
-      const building = new THREE.Mesh(
-        new THREE.BoxGeometry(7, 8.5, this.definition.depth + 2),
-        brick
-      );
-      building.name = "engineering-building";
-      building.position.set(-10, 8, -0.4);
-      building.castShadow = true;
-      this.root.add(building);
+     
 
       const entrance = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 3.2, 2.8),
@@ -1118,9 +1170,270 @@ createYaleRoadDetails() {
       entrance.position.set(-4.24, 1.7, -1.2);
       this.root.add(entrance);
 
+      // --------------------------------------------------
+      // FAR-SIDE YALE ROAD WALKWAY / PAVEMENT
+      // --------------------------------------------------
+
+      // Create a wider tiled area on the far side of Yale Road
+      // so the crossing connects into a proper pedestrian space.
+      const yaleFarWalkwayWidth = 18;
+      const yaleFarWalkwayDepth = 6.5;
+
+      // Keep it close to the Yale Road edge.
+      const yaleFarWalkwayZ =
+        this.definition.depth / 2 -
+        yaleFarWalkwayDepth / 2 -
+        0.05;
+
+      this.createWalkwayPanel(
+        yaleFarWalkwayWidth,
+        yaleFarWalkwayDepth,
+        {
+          x: 0,
+          z: yaleFarWalkwayZ,
+          name: "yale-road-far-side-walkway"
+        }
+      );
       // No duplicate finish-side parking. The parking lot is at spawn/ARM.
+   
+      // --------------------------------------------------
+      // WITS BUS STOP — FAR SIDE OF YALE ROAD
+      // --------------------------------------------------
+
+      // +X is free here because the Engineering building
+      // occupies the -X side of the finish strip.
+      const busStopSideWidth =
+        engineeringSideWidth;
+
+      const busStopX =
+        -engineeringSideCenterX -6 ;
+
+      // Yale Road is on the +Z edge of this strip.
+      // Put the shelter just inside that edge.
+      const busStopPadDepth = 4.4;
+
+      const busStopZ =
+        this.definition.depth / 2 -
+        busStopPadDepth / 2 -
+        0.25;
+
+      // Give the shelter its own section of AMIC paving.
+      this.createWalkwayPanel(
+        busStopSideWidth,
+        busStopPadDepth,
+        {
+          x: busStopX,
+          z: busStopZ,
+          name: "wits-bus-stop-plaza"
+        }
+      );
+
+      const busStop =
+        createWitsBusStop();
+
+      // Sit it exactly on the normal walkway height.
+      busStop.position.set(
+        busStopX,
+        WALKWAY_TOP_Y,
+        busStopZ
+      );
+
+      // IMPORTANT:
+      // Rotate the shelter 180 degrees as requested.
+      //
+      // The flat rear wall now faces back toward Yale Road.
+      // The open stepped side faces deeper into campus.
+     // busStop.rotation.y =0;
+
+      this.root.add(busStop);
+
+
+     
     }
   }
+
+  createMiniBridgeExitParkingLot(side = -1) {
+  // side = -1 -> left side of the main path
+  // side =  1 -> right side of the main path
+
+  const edgeInset = 0.02;
+  const innerGap = 0.08;
+
+  const innerEdge =
+    side * (BRIDGE_DECK_WIDTH / 2 + innerGap);
+
+  const outerEdge =
+    side * (this.definition.width / 2 - edgeInset);
+
+  const minX = Math.min(innerEdge, outerEdge);
+  const maxX = Math.max(innerEdge, outerEdge);
+
+  // Fill the whole side area so no tiled walkway shows through.
+  const lotWidth = maxX - minX;
+  const centerX = (minX + maxX) / 2;
+
+  // Push the lot a bit closer to the road-side edge.
+  // Start just inside the Yale Road kerb.
+const roadClearance = 0.12;
+
+const roadSideEdgeZ =
+  -this.definition.depth / 2 +
+  roadClearance;
+
+// Extend through the bridge approach until just before
+// the black highway fence.
+const bridgeApproachDepth =
+  STRIP_DEPTH;
+
+const fenceGap = 0.02;
+
+const fenceSideEdgeZ =
+  this.definition.depth / 2 +
+  bridgeApproachDepth -
+  fenceGap;
+
+const lotDepth =
+  fenceSideEdgeZ -
+  roadSideEdgeZ;
+
+const lotZ =
+  (roadSideEdgeZ + fenceSideEdgeZ) / 2;
+
+  const lotHeight = 0.1;
+  const lotTopY = WALKWAY_TOP_Y;
+  const lotCenterY =
+    lotTopY - lotHeight / 2;
+
+  const asphalt =
+    this.parkingMaterial ??
+    new THREE.MeshStandardMaterial({
+      color: 0x2f343a,
+      roughness: 1,
+      metalness: 0
+    });
+
+  const lot = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      lotWidth,
+      lotHeight,
+      lotDepth
+    ),
+    asphalt
+  );
+
+  applyRoadUvs(
+    lot.geometry,
+    lotWidth,
+    lotDepth
+  );
+
+  lot.name = "bridge-exit-mini-parking";
+  lot.position.set(
+    centerX,
+    lotCenterY,
+    lotZ
+  );
+
+  lot.receiveShadow = true;
+  this.root.add(lot);
+
+  // ---------------------------------------------
+  // Parking bay markings
+  // ---------------------------------------------
+
+  const bayOffsetFromCenter =
+    Math.min(1.7, lotWidth * 0.22);
+
+const spaces = [
+  {
+    x: centerX - side * bayOffsetFromCenter,
+    z: lotZ - 2.0,
+    angle: side > 0 ? Math.PI / 2 : -Math.PI / 2
+  },
+  {
+    x: centerX - side * bayOffsetFromCenter,
+    z: lotZ,
+    angle: side > 0 ? Math.PI / 2 : -Math.PI / 2
+  },
+  {
+    x: centerX - side * bayOffsetFromCenter,
+    z: lotZ + 2.0,
+    angle: side > 0 ? Math.PI / 2 : -Math.PI / 2
+  }
+];
+
+  this.root.add(
+    ...createParkingBayMarkings(
+      spaces,
+      { y: lotTopY + 0.015 }
+    )
+  );
+
+  // ---------------------------------------------
+  // Kerbs
+  // ---------------------------------------------
+
+  for (const x of [minX, maxX]) {
+    const kerb = createParkingKerb(lotDepth);
+
+    kerb.position.set(
+      x,
+      lotTopY,
+      lotZ
+    );
+
+    kerb.name =
+      "bridge-exit-mini-parking-kerb";
+
+    this.root.add(kerb);
+  }
+
+  // ---------------------------------------------
+  // Parked cars
+  // ---------------------------------------------
+
+  const parkedSpaces = [spaces[0], spaces[1]];
+
+  let index = 0;
+
+  for (const space of parkedSpaces) {
+    const holder = new THREE.Group();
+
+    holder.name =
+      `bridge-exit-mini-parked-car-${index++}`;
+
+    holder.position.set(
+      space.x,
+      lotTopY + 0.01,
+      space.z
+    );
+
+    holder.rotation.y = space.angle;
+
+    this.root.add(holder);
+
+    const spec = pickRandomParkingCar(this.random);
+    holder.userData.vehicleSpecId = spec.id;
+
+    if (typeof window !== "undefined") {
+      this.modelPromises.push(
+        attachVehicleModel(
+          holder,
+          spec,
+          "lite"
+        ).catch((error) => {
+          console.warn(
+            `Mini parking car ${spec.id} could not load.`,
+            error
+          );
+          return null;
+        })
+      );
+    }
+  }
+}
+
+
 
 createParkingLot(side) {
   const minimumLotWidth =
@@ -1510,27 +1823,27 @@ const fenceBorderCenterZ =
 
 createCheckpointMarker(yOffset = 0, x = this.definition.width / 2 - 0.8) {
   // Small checkpoint flag placed near the edge of the safe strip.
-  const flag = new THREE.Group();
+  // const flag = new THREE.Group();
 
-  // Pole
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.035, 0.035, 1.2, 8),
-    new THREE.MeshStandardMaterial({ color: 0xdddddd })
-  );
-  pole.position.y = 0.6;
-  flag.add(pole);
+  // // Pole
+  // const pole = new THREE.Mesh(
+  //   new THREE.CylinderGeometry(0.035, 0.035, 1.2, 8),
+  //   new THREE.MeshStandardMaterial({ color: 0xdddddd })
+  // );
+  // pole.position.y = 0.6;
+  // flag.add(pole);
 
-  // Flag cloth
-  const cloth = new THREE.Mesh(
-    new THREE.BoxGeometry(0.55, 0.32, 0.04),
-    new THREE.MeshStandardMaterial({ color: 0xffffff })
-  );
-  cloth.position.set(0.275, 1.02, 0);
-  flag.add(cloth);
+  // // Flag cloth
+  // const cloth = new THREE.Mesh(
+  //   new THREE.BoxGeometry(0.55, 0.32, 0.04),
+  //   new THREE.MeshStandardMaterial({ color: 0xffffff })
+  // );
+  // cloth.position.set(0.275, 1.02, 0);
+  // flag.add(cloth);
 
-  flag.position.set(x, yOffset + (this.definition.surface === "median" ? 0.21 : 0.13), 0);
+  // flag.position.set(x, yOffset + (this.definition.surface === "median" ? 0.21 : 0.13), 0);
 
-  this.root.add(flag);
+  // this.root.add(flag);
 }
 
 createBridgeDetails() {
@@ -1599,9 +1912,7 @@ createBridgeDetails() {
       // ARM / parking side:
       // parking now extends right up to the highway fence,
       // so do NOT put walkway tiles over it.
-      const isParkingSide =
-        zSide === 1 &&
-        xSide === 1;
+      const isParkingSide = xSide === 1;
 
       if (isParkingSide) {
         continue;
@@ -1951,12 +2262,21 @@ createBridgeFenceReturns({
   }
 
   stopTaxi(vehicle) {
-    vehicle.stopTimer = 1.1 + this.random() * 0.7;
-    vehicle.controller.stop();
-    vehicle.passenger.position.x = vehicle.root.position.x;
-    vehicle.passenger.visible = true;
-    this.audio?.cue(520, 0.13, 0.1, vehicle.root.position.x / 12);
+  vehicle.stopTimer = 1.1 + this.random() * 0.7;
+  vehicle.controller.stop();
+
+  // Do not display the old blue placeholder passenger.
+  if (vehicle.passenger) {
+    vehicle.passenger.visible = false;
   }
+
+  this.audio?.cue(
+    520,
+    0.13,
+    0.1,
+    vehicle.root.position.x / 12
+  );
+}
 
   scheduleTaxiStop(vehicle) {
     const distance = 4.5 + this.random() * 4.5;
