@@ -14,6 +14,10 @@ import {
   createParkingBayMarkings,
   createParkingKerb
 } from "../../shared/parking/ParkingLotStyle.js";
+import {
+  LEVEL_2_STRIPS,
+  STRIP_DEPTH
+} from "./Level2StripGenerator.js";
 
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
@@ -559,29 +563,42 @@ createYaleRoadDetails() {
     this.root.add(pole, head, light);
   }
 
-  createBridgeEntryDetails() {
-    const isFarSideLanding = this.definition.section === "bridge-exit";
-    const sideWidth = (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
-    const sideCenterX = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
+ createBridgeEntryDetails() {
+  const isFarSideLanding =
+    this.definition.section === "bridge-exit";
 
-    // Fill every available metre beside the centre route so the bridge
-    // approaches read as one broad continuous campus plaza right to the
-    // strip edges instead of ending in arbitrary green gaps.
-    for (const side of [-1, 1]) {
-      this.createWalkwayPanel(
-        sideWidth,
-        this.definition.depth,
-        {
-          x: side * sideCenterX,
-          name: isFarSideLanding && side < 0
+  const sideWidth =
+    (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
+
+  const sideCenterX =
+    BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
+
+  // On the spawn side (bridge-entry), keep only the left plaza.
+  // The right side is now taken by the parking extension.
+  //
+  // On the far side (bridge-exit), keep both side plazas.
+  const pavedSides = isFarSideLanding
+    ? [-1, 1]
+    : [-1];
+
+  for (const side of pavedSides) {
+    this.createWalkwayPanel(
+      sideWidth,
+      this.definition.depth,
+      {
+        x: side * sideCenterX,
+        name:
+          isFarSideLanding && side < 0
             ? "amic-vida-courtyard"
             : "amic-bridge-side-plaza"
-        }
-      );
-    }
-
-    if (isFarSideLanding) this.createVidaContainer();
+      }
+    );
   }
+
+  if (isFarSideLanding) {
+    this.createVidaContainer();
+  }
+}
 
   createEngineeringDetails() {
     const brick = new THREE.MeshStandardMaterial({ color: 0x8b6554, roughness: 0.9 });
@@ -630,85 +647,277 @@ createYaleRoadDetails() {
     }
   }
 
-  createParkingLot(side) {
-    // Two rows of parking with an aisle between them.
-    const lotWidth = PARKING_BAY_LENGTH * 2 + PARKING_AISLE_WIDTH;
-    const lotDepth = this.definition.depth + 0.8;
+createParkingLot(side) {
+  const minimumLotWidth =
+    PARKING_BAY_LENGTH * 2 +
+    PARKING_AISLE_WIDTH;
 
-    // Put the parking directly alongside the player's walkway.
-    const walkwayHalfWidth = BRIDGE_DECK_WIDTH / 2;
-    const parkingGap = 0.15;
+  // --------------------------------------------------
+  // X: walkway -> outer edge
+  // --------------------------------------------------
 
-    const centerX = side * (
-      walkwayHalfWidth +
-      parkingGap +
-      lotWidth / 2
-    );
+  const walkwayHalfWidth =
+    BRIDGE_DECK_WIDTH / 2;
 
-    const asphalt = this.parkingMaterial
-      ?? new THREE.MeshStandardMaterial({
-        color: 0x2f343a,
-        roughness: 1,
-        metalness: 0
-      });
+  const parkingGap = 0.15;
+  const outerInset = 0.02;
 
-    const lot = new THREE.Mesh(
-      new THREE.BoxGeometry(lotWidth, 0.1, lotDepth),
-      asphalt
-    );
+  const innerEdge =
+    walkwayHalfWidth + parkingGap;
 
-    applyRoadUvs(lot.geometry, lotWidth, lotDepth);
+  const outerEdge =
+    this.definition.width / 2 - outerInset;
 
-    lot.name = side > 0
-      ? "arm-side-parking"
-      : "opposite-side-parking";
+  const lotWidth = Math.max(
+    minimumLotWidth,
+    outerEdge - innerEdge
+  );
 
-    lot.position.set(centerX, 0.08, 0);
-    lot.receiveShadow = true;
-    this.root.add(lot);
+  const centerX = side * (
+    innerEdge + lotWidth / 2
+  );
 
-    const rowOffset = (PARKING_AISLE_WIDTH + PARKING_BAY_LENGTH) / 2;
-    const usableHalfDepth = lotDepth / 2 - PARKING_SLOT_PITCH / 2;
-    const slotCount = Math.max(2, Math.floor((usableHalfDepth * 2) / PARKING_SLOT_PITCH) + 1);
-    const zPositions = Array.from({ length: slotCount }, (_, index) =>
-      -usableHalfDepth + index * (usableHalfDepth * 2 / Math.max(1, slotCount - 1))
-    );
-    const spaces = zPositions.flatMap((z) => [
-      { x: centerX - side * rowOffset, z, angle: side * Math.PI / 2 },
-      { x: centerX + side * rowOffset, z, angle: -side * Math.PI / 2 }
-    ]);
-    this.root.add(...createParkingBayMarkings(spaces, { y: 0.145 }));
+  // --------------------------------------------------
+  // Z: extend exactly toward the highway fence
+  // --------------------------------------------------
 
-    for (const x of [centerX - lotWidth / 2, centerX + lotWidth / 2]) {
-      const kerb = createParkingKerb(lotDepth);
-      kerb.position.set(x, 0.13, 0);
-      kerb.name = "level-one-style-parking-kerb";
-      this.root.add(kerb);
-    }
+  // There is a bridge-entry strip between the ARM area
+  // and the bridge itself.
+  const bridgeEntryDepth =
+    (LEVEL_2_STRIPS.bridgeEntry.rowSpan ?? 1) *
+    STRIP_DEPTH;
 
-    let index = 0;
-    for (const space of spaces) {
-      if (index % 7 !== 3) {
-        const holder = new THREE.Group();
-        holder.name = `level-two-parked-car-${this.definition.index}-${index++}`;
-        holder.position.set(space.x, 0.14, space.z);
-        holder.rotation.y = space.angle;
-        this.root.add(holder);
-        const spec = pickRandomParkingCar(this.random);
-        holder.userData.vehicleSpecId = spec.id;
-        if (typeof window !== "undefined") {
-          this.modelPromises.push(
-            attachVehicleModel(holder, spec, "lite").catch((error) => {
-              console.warn(`Level 2 parked car ${spec.id} could not load.`, error);
-              return null;
-            })
-          );
-        }
-      } else {
-        index++;
+  // The actual highway fence is one bridge row inside
+  // the bridge strip, not exactly on the strip boundary.
+  const bridgeApproachDepth = STRIP_DEPTH;
+
+  // Stop 0.02 before the highway fence.
+  const fenceGap = 0.02;
+
+  const frontEdgeZ =
+  -this.definition.depth / 2
+  - bridgeEntryDepth
+  - bridgeApproachDepth
+  + fenceGap;
+
+const backEdgeZ =
+  this.definition.depth / 2 + 0.4;
+
+// Small tiled border directly under the fence.
+const fenceBorderDepth = 0.38;
+
+// Asphalt starts just behind that border.
+const parkingFrontEdgeZ =
+  frontEdgeZ + fenceBorderDepth;
+
+const lotDepth =
+  backEdgeZ - parkingFrontEdgeZ;
+
+const centerZ =
+  (parkingFrontEdgeZ + backEdgeZ) / 2;
+
+const fenceBorderCenterZ =
+  frontEdgeZ + fenceBorderDepth / 2;
+  // --------------------------------------------------
+  // HEIGHT
+  // --------------------------------------------------
+
+  // Make the asphalt top exactly level with the walkway.
+  const lotHeight = 0.1;
+
+  const parkingTopY =
+    WALKWAY_TOP_Y;
+
+  const lotCenterY =
+    parkingTopY - lotHeight / 2;
+
+  const asphalt =
+    this.parkingMaterial ??
+    new THREE.MeshStandardMaterial({
+      color: 0x2f343a,
+      roughness: 1,
+      metalness: 0
+    });
+
+  const lot = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      lotWidth,
+      lotHeight,
+      lotDepth
+    ),
+    asphalt
+  );
+
+  applyRoadUvs(
+    lot.geometry,
+    lotWidth,
+    lotDepth
+  );
+
+  lot.name = side > 0
+    ? "arm-side-parking"
+    : "opposite-side-parking";
+
+  lot.position.set(
+    centerX,
+    lotCenterY,
+    centerZ
+  );
+
+  lot.receiveShadow = true;
+
+  this.root.add(lot);
+  this.createWalkwayPanel(
+  lotWidth,
+  fenceBorderDepth,
+  {
+    x: centerX,
+    z: fenceBorderCenterZ,
+    y: WALKWAY_CENTER_Y,
+    height: WALKWAY_HEIGHT,
+    name: "parking-fence-border"
+  }
+);
+
+  // --------------------------------------------------
+  // PARKING SPACES
+  // --------------------------------------------------
+
+  const rowOffset =
+    (
+      PARKING_AISLE_WIDTH +
+      PARKING_BAY_LENGTH
+    ) / 2;
+
+  const usableHalfDepth =
+    lotDepth / 2 -
+    PARKING_SLOT_PITCH / 2;
+
+  const slotCount = Math.max(
+    2,
+    Math.floor(
+      (usableHalfDepth * 2) /
+      PARKING_SLOT_PITCH
+    ) + 1
+  );
+
+  const zPositions = Array.from(
+    { length: slotCount },
+    (_, index) =>
+      centerZ -
+      usableHalfDepth +
+      index * (
+        usableHalfDepth * 2 /
+        Math.max(1, slotCount - 1)
+      )
+  );
+
+  const spaces = zPositions.flatMap(
+    (z) => [
+      {
+        x: centerX - side * rowOffset,
+        z,
+        angle: side * Math.PI / 2
+      },
+      {
+        x: centerX + side * rowOffset,
+        z,
+        angle: -side * Math.PI / 2
       }
+    ]
+  );
+
+  this.root.add(
+    ...createParkingBayMarkings(
+      spaces,
+      {
+        y: parkingTopY + 0.015
+      }
+    )
+  );
+
+  // --------------------------------------------------
+  // KERBS
+  // --------------------------------------------------
+
+  for (const x of [
+    centerX - lotWidth / 2,
+    centerX + lotWidth / 2
+  ]) {
+    const kerb =
+      createParkingKerb(lotDepth);
+
+    kerb.position.set(
+      x,
+      parkingTopY,
+      centerZ
+    );
+
+    kerb.name =
+      "level-one-style-parking-kerb";
+
+    this.root.add(kerb);
+  }
+
+  // --------------------------------------------------
+  // PARKED CARS
+  // --------------------------------------------------
+
+  let index = 0;
+
+  for (const space of spaces) {
+    if (index % 7 !== 3) {
+      const holder =
+        new THREE.Group();
+
+      holder.name =
+        `level-two-parked-car-${this.definition.index}-${index++}`;
+
+      holder.position.set(
+        space.x,
+
+        // Sit on top of the asphalt.
+        parkingTopY + 0.01,
+
+        space.z
+      );
+
+      holder.rotation.y =
+        space.angle;
+
+      this.root.add(holder);
+
+      const spec =
+        pickRandomParkingCar(
+          this.random
+        );
+
+      holder.userData.vehicleSpecId =
+        spec.id;
+
+      if (
+        typeof window !== "undefined"
+      ) {
+        this.modelPromises.push(
+          attachVehicleModel(
+            holder,
+            spec,
+            "lite"
+          ).catch((error) => {
+            console.warn(
+              `Level 2 parked car ${spec.id} could not load.`,
+              error
+            );
+
+            return null;
+          })
+        );
+      }
+    } else {
+      index++;
     }
   }
+}
 
   createTrees() {
     // Pick unique grid blocks using the strip's seeded RNG. Tree presets normally
@@ -904,12 +1113,27 @@ createBridgeDetails() {
     );
 
     const shoulderWidth = (width - BRIDGE_DECK_WIDTH) / 2;
+
     for (const xSide of [-1, 1]) {
+      // ARM / parking side:
+      // parking now extends right up to the highway fence,
+      // so do NOT put walkway tiles over it.
+      const isParkingSide =
+        zSide === 1 &&
+        xSide === 1;
+
+      if (isParkingSide) {
+        continue;
+      }
+
       this.createWalkwayPanel(
         shoulderWidth,
         rowDepth,
         {
-          x: xSide * (BRIDGE_DECK_WIDTH / 2 + shoulderWidth / 2),
+          x: xSide * (
+            BRIDGE_DECK_WIDTH / 2 +
+            shoulderWidth / 2
+          ),
           z: approachZ,
           y: BRIDGE_SINK + WALKWAY_CENTER_Y,
           name: "amic-bridge-side-paving"
@@ -932,10 +1156,19 @@ createBridgeDetails() {
   );
 
   this.addRouteFences({
-    length: depth,
-    baseY: BRIDGE_SINK + WALKWAY_TOP_Y,
-    halfWidth: BRIDGE_DECK_WIDTH / 2 - 0.2
-  });
+  // Fence only runs along the actual highway opening.
+  length: deckDepth,
+  baseY: BRIDGE_SINK + WALKWAY_TOP_Y,
+  halfWidth: BRIDGE_DECK_WIDTH / 2 - 0.2
+});
+
+this.createBridgeFenceReturns({
+  baseY: BRIDGE_SINK + WALKWAY_TOP_Y,
+  halfWidth: BRIDGE_DECK_WIDTH / 2 - 0.2,
+  deckDepth,
+  returnLength: 26
+});
+
   this.createBridgeRailingGates(deckDepth);
 
   const roadPaint = new THREE.MeshBasicMaterial({ color: 0xe9e5d8 });
@@ -980,6 +1213,44 @@ createBridgeDetails() {
     if (Math.abs(x) <= walkableHalfWidth) continue;
     for (let rowOffset = 0; rowOffset < this.definition.rowSpan; rowOffset++) {
       this.blockedCells.push({ x, z: this.z + this.localZForRow(rowOffset), type: "bridge-edge" });
+    }
+  }
+}
+
+createBridgeFenceReturns({
+  baseY = BRIDGE_SINK + WALKWAY_TOP_Y,
+  halfWidth = BRIDGE_DECK_WIDTH / 2 - 0.2,
+  deckDepth,
+  returnLength = 3.2
+} = {}) {
+  // IMPORTANT:
+  // Use the actual highway/bridge opening edge,
+  // not the full strip edge.
+  const cornerZ = deckDepth / 2;
+
+  for (const sideX of [-1, 1]) {
+    for (const sideZ of [-1, 1]) {
+      const fence = createAmicFenceSection({
+        length: returnLength,
+        name:
+          `amic-fence-return-${this.definition.index}-` +
+          `${sideX < 0 ? "left" : "right"}-` +
+          `${sideZ < 0 ? "far" : "near"}`
+      });
+
+      // Original fence sections run along Z.
+      // Rotate 90° so the return runs along X.
+      fence.rotation.y = Math.PI / 2;
+
+      // Start exactly at the existing side fence.
+      // Its centre is half the return length outward from that corner.
+      fence.position.set(
+        sideX * (halfWidth + returnLength / 2),
+        baseY,
+        sideZ * cornerZ
+      );
+
+      this.root.add(fence);
     }
   }
 }
