@@ -191,8 +191,8 @@ function createSeparatedGround(root) {
   const southDepth = 105 - southLip;
   const northDepth = northLip + 105;
 
-  box(root, [230, 0.14, southDepth], [0, -0.11, southLip + southDepth / 2], grass);
-  box(root, [230, 0.14, northDepth], [0, -0.11, northLip - northDepth / 2], grass);
+  box(root, [230, 0.14, southDepth], [0, -0.31, southLip + southDepth / 2], grass);
+  box(root, [230, 0.14, northDepth], [0, -0.31, northLip - northDepth / 2], grass);
 }
 function createBackdropWall(root) {
   const wallMat = material(0x6f766f, 0.92);
