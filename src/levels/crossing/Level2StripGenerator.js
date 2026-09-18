@@ -28,6 +28,16 @@ const ROUTE = [
   LEVEL_2_STRIPS.yaleRoad,
   LEVEL_2_STRIPS.finish
 ];
+const speedMultipliers = [
+  1.35,
+  1.5,
+  1.65,
+  1.8,
+  1.8,
+  1.65,
+  1.5,
+  1.35
+];
 
 function makeEightLaneYaleRoad(strip) {
   const originalLanes =
@@ -47,24 +57,26 @@ function makeEightLaneYaleRoad(strip) {
       const source =
         originalLanes[laneIndex % originalLanes.length];
 
-      return {
-        ...source,
+       return {
+          ...source,
 
-        // Each traffic lane occupies one strip row.
-        rowOffset: laneIndex,
+          rowOffset: laneIndex,
 
-        // First four travel one direction,
-        // second four travel the opposite direction.
-        direction:
-          laneIndex < YALE_LANE_COUNT / 2
-            ? 1
-            : -1,
+          direction:
+            laneIndex < YALE_LANE_COUNT / 2
+              ? 1
+              : -1,
 
-        gapRange: [...source.gapRange],
-        allowedVehicleTypes: [
-          ...source.allowedVehicleTypes
-        ]
-      };
+          speed:
+            source.speed *
+            speedMultipliers[laneIndex],
+
+          gapRange: [...source.gapRange],
+
+          allowedVehicleTypes: [
+            ...source.allowedVehicleTypes
+          ]
+        };
     }
   );
 
