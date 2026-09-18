@@ -8,7 +8,15 @@ export { CUSTOM_HAZARD_STRIPS, CUSTOM_SAFE_STRIPS, LEVEL_2_STRIPS };
 
 export const STRIP_WIDTH = 28;
 export const STRIP_DEPTH = 2.4;
-export const LEVEL_2_ROW_COUNT = 25;
+
+export const YALE_LANE_COUNT = 8;
+
+// Preserve the rest of the level exactly as it is, but replace the
+// existing Yale Road row count with 8 rows.
+const ORIGINAL_YALE_ROWS = LEVEL_2_STRIPS.yaleRoad.rowSpan ?? 1;
+
+export const LEVEL_2_ROW_COUNT =
+  25 - ORIGINAL_YALE_ROWS + YALE_LANE_COUNT;
 
 const VEHICLE_LENGTH = 4.5;
 const MINIMUM_OPEN_GAP = 3.2;
@@ -20,6 +28,58 @@ const ROUTE = [
   LEVEL_2_STRIPS.yaleRoad,
   LEVEL_2_STRIPS.finish
 ];
+
+function makeEightLaneYaleRoad(strip) {
+  const originalLanes =
+    strip.traffic?.lanes ??
+    (strip.traffic ? [strip.traffic] : []);
+
+  if (originalLanes.length === 0) {
+    return {
+      ...strip,
+      rowSpan: YALE_LANE_COUNT
+    };
+  }
+
+  const lanes = Array.from(
+    { length: YALE_LANE_COUNT },
+    (_, laneIndex) => {
+      const source =
+        originalLanes[laneIndex % originalLanes.length];
+
+      return {
+        ...source,
+
+        // Each traffic lane occupies one strip row.
+        rowOffset: laneIndex,
+
+        // First four travel one direction,
+        // second four travel the opposite direction.
+        direction:
+          laneIndex < YALE_LANE_COUNT / 2
+            ? 1
+            : -1,
+
+        gapRange: [...source.gapRange],
+        allowedVehicleTypes: [
+          ...source.allowedVehicleTypes
+        ]
+      };
+    }
+  );
+
+  return {
+    ...strip,
+
+    // 8 × 2.4 m = 19.2 m road
+    rowSpan: YALE_LANE_COUNT,
+
+    traffic: {
+      ...strip.traffic,
+      lanes
+    }
+  };
+}
 
 export function createSeededRandom(seed) {
   let state = normalizeSeed(seed);
@@ -49,8 +109,13 @@ export function generateLevel2Layout(seed) {
   const normalizedSeed = normalizeSeed(seed);
   let rowStart = 0;
   const strips = ROUTE.map((preset, index) => {
-    const strip = cloneStrip(preset);
-    const rowSpan = strip.rowSpan ?? 1;
+  let strip = cloneStrip(preset);
+
+  if (strip.type === "yale-road") {
+    strip = makeEightLaneYaleRoad(strip);
+  }
+
+  const rowSpan = strip.rowSpan ?? 1;
     const positioned = {
       ...strip,
       index,

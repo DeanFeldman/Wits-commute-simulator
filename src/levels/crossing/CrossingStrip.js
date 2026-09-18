@@ -411,33 +411,141 @@ export class CrossingStrip {
     return texture;
   }
 
-  createYaleRoadDetails() {
-    const paint = new THREE.MeshBasicMaterial({ color: 0xf1efe5 });
-    const yellow = new THREE.MeshBasicMaterial({ color: 0xe0bd4f });
-    const kerb = new THREE.MeshStandardMaterial({ color: 0xd7d2c7, roughness: 0.86 });
-    const roadDepth = this.definition.depth;
+createYaleRoadDetails() {
+  const paint =
+    new THREE.MeshBasicMaterial({
+      color: 0xf1efe5
+    });
 
-    for (const z of [-roadDepth / 2 + 0.08, roadDepth / 2 - 0.08]) {
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(this.definition.width, 0.28, 0.2), kerb);
-      edge.position.set(0, 0.09, z);
-      edge.castShadow = true;
-      edge.receiveShadow = true;
-      this.root.add(edge);
-    }
-    for (const z of [-2.4, 0, 2.4]) {
-      const divider = new THREE.Mesh(new THREE.BoxGeometry(this.definition.width, 0.025, z === 0 ? 0.1 : 0.06), z === 0 ? yellow : paint);
-      divider.position.set(0, 0.025, z);
-      this.root.add(divider);
-    }
-    for (let z = -roadDepth / 2 + 0.45; z < roadDepth / 2; z += 0.8) {
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.035, 0.4), paint);
-      stripe.position.set(0, 0.04, z);
-      this.root.add(stripe);
-    }
-    for (const x of [-4.3, 4.3]) {
-      for (const z of [-roadDepth / 2 - 0.35, roadDepth / 2 + 0.35]) this.createSignal(x, z);
+  const yellow =
+    new THREE.MeshBasicMaterial({
+      color: 0xe0bd4f
+    });
+
+  const kerb =
+    new THREE.MeshStandardMaterial({
+      color: 0xd7d2c7,
+      roughness: 0.86
+    });
+
+  const roadDepth = this.definition.depth;
+  const laneCount = this.definition.rowSpan;
+  const laneDepth = roadDepth / laneCount;
+
+  // --------------------------------------------------
+  // OUTER KERBS
+  // --------------------------------------------------
+
+  for (const z of [
+    -roadDepth / 2 + 0.08,
+    roadDepth / 2 - 0.08
+  ]) {
+    const edge = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        this.definition.width,
+        0.28,
+        0.2
+      ),
+      kerb
+    );
+
+    edge.position.set(
+      0,
+      0.09,
+      z
+    );
+
+    edge.castShadow = true;
+    edge.receiveShadow = true;
+
+    this.root.add(edge);
+  }
+
+  // --------------------------------------------------
+  // 8-LANE ROAD MARKINGS
+  //
+  // lanes 1-4  ->
+  // ---------------- yellow centre ----------------
+  // lanes 5-8  <-
+  // --------------------------------------------------
+
+  for (
+    let boundary = 1;
+    boundary < laneCount;
+    boundary++
+  ) {
+    const z =
+      -roadDepth / 2 +
+      boundary * laneDepth;
+
+    const isCentre =
+      boundary === laneCount / 2;
+
+    const divider =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          this.definition.width,
+          0.025,
+          isCentre ? 0.12 : 0.06
+        ),
+        isCentre ? yellow : paint
+      );
+
+    divider.position.set(
+      0,
+      0.025,
+      z
+    );
+
+    this.root.add(divider);
+  }
+
+  // --------------------------------------------------
+  // ZEBRA CROSSING
+  //
+  // Automatically spans the entire 8-lane road.
+  // --------------------------------------------------
+
+  for (
+    let z = -roadDepth / 2 + 0.45;
+    z < roadDepth / 2;
+    z += 0.8
+  ) {
+    const stripe =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          4.2,
+          0.035,
+          0.4
+        ),
+        paint
+      );
+
+    stripe.position.set(
+      0,
+      0.04,
+      z
+    );
+
+    this.root.add(stripe);
+  }
+
+  // --------------------------------------------------
+  // TRAFFIC / PEDESTRIAN SIGNALS
+  //
+  // These automatically move outward with the wider
+  // road because they use roadDepth.
+  // --------------------------------------------------
+
+  for (const x of [-4.3, 4.3]) {
+    for (const z of [
+      -roadDepth / 2 - 0.35,
+      roadDepth / 2 + 0.35
+    ]) {
+      this.createSignal(x, z);
     }
   }
+}
 
   createSignal(x, z) {
     const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x30363a, roughness: 0.58, metalness: 0.5 });
