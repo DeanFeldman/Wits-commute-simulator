@@ -27,6 +27,8 @@ const WALK_SPEED = 4.6;
 // Distance covered by one full left-right stride cycle.
 const STRIDE_LENGTH = 1.6;
 const PLAYER_Y = 0.95;
+const LEVEL_2_TIME_LIMIT = 30;
+
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
@@ -106,6 +108,14 @@ export class CrossingLevel {
     this.gridSize = STRIP_DEPTH;
     this.completed = false;
   }
+  getAdjustedTime() {
+  return Math.max(
+    0,
+    this.crossingTime +
+    this.backwardPenalty -
+    this.powerUps.timeBonus
+  );
+}
 
   async load() {
     const scene = this.game.scene;
@@ -186,7 +196,7 @@ export class CrossingLevel {
       moveRight: ["KeyD", "ArrowRight"]
     });
     this.game.setMessage(
-      "Hold WASD to walk. Grab Vida cups for power-ups, then cross Yale Road to Engineering."
+      "Collect every Vida cup and reach Engineering in under 30 seconds."
     );
   }
 
@@ -378,7 +388,8 @@ export class CrossingLevel {
         <span>${type.label}</span>
         <span class="l2-effect-bar"><span style="width: ${(fraction * 100).toFixed(0)}%"></span></span>
       </div>`).join("");
-    const time = Math.max(0, this.crossingTime + this.backwardPenalty - this.powerUps.timeBonus);
+   // const time = Math.max(0, this.crossingTime + this.backwardPenalty - this.powerUps.timeBonus);
+    const time = this.getAdjustedTime();
 
     this.game.setHUD(`
       <div class="l2-hud">
@@ -561,16 +572,67 @@ export class CrossingLevel {
     this.speech.update(dt, this.game.camera, canvas.clientWidth, canvas.clientHeight);
   }
 
-  checkFinish() {
-    if (!this.hopController.isHopping && this.hopController.gridPosition.y <= this.finishZ) {
-      this.completed = true;
-      const cups = this.powerUps.collected;
-      this.game.journeyScore += cups * CUP_SCORE;
-      this.game.completeLevel(cups > 0
-        ? `You made it across with ${cups} Vida cup${cups === 1 ? "" : "s"} (+${cups * CUP_SCORE}). Heading to Level 3.`
-        : "You made it across. Heading to Level 3.");
-    }
+checkFinish() {
+  const reachedFinish =
+    !this.hopController.isHopping &&
+    this.hopController.gridPosition.y <= this.finishZ;
+
+  if (!reachedFinish) return;
+
+  const cupsCollected =
+    this.powerUps.collected;
+
+  const totalCups =
+    this.cups.total;
+
+  const allCupsCollected =
+    cupsCollected === totalCups;
+
+  // ---------------------------------------------
+  // RULE 1: ALL VIDA CUPS REQUIRED
+  // ---------------------------------------------
+
+  if (!allCupsCollected) {
+    const remaining =
+      totalCups - cupsCollected;
+
+    this.game.setMessage(
+      `You still need ${remaining} Vida cup${remaining === 1 ? "" : "s"} before you can finish!`
+    );
+
+    return;
   }
+
+  // ---------------------------------------------
+  // RULE 2: MUST FINISH UNDER 30 SECONDS
+  // ---------------------------------------------
+
+  const finalTime =
+    this.getAdjustedTime();
+
+  if (finalTime >= LEVEL_2_TIME_LIMIT) {
+    this.completed = true;
+
+    this.game.failLevel(
+      `Too slow! You collected all ${totalCups} Vida cups, but finished in ${finalTime.toFixed(1)}s. You need to finish in under ${LEVEL_2_TIME_LIMIT} seconds.`
+    );
+
+    return;
+  }
+
+  // ---------------------------------------------
+  // PASS
+  // ---------------------------------------------
+
+  this.completed = true;
+
+  this.game.journeyScore +=
+    cupsCollected * CUP_SCORE;
+
+  this.game.completeLevel(
+    `You collected all ${totalCups} Vida cups and crossed in ${finalTime.toFixed(1)}s (+${cupsCollected * CUP_SCORE}). Heading to Level 3.`
+  );
+}
 
   checkCollisions() {
     if (this.invulnerabilityTimer > 0) return;
