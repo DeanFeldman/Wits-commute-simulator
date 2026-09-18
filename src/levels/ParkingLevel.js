@@ -10,6 +10,9 @@ import {
   createRoadMaterial,
   createRoadTextures
 } from "../shaders/asphaltShader.js";
+import {
+  createPotholeWaterMaterial
+} from "../shaders/potholeWaterShader.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import { createInstancedCarField } from "../shared/InstancedCarField.js";
 import {
@@ -30,7 +33,9 @@ import {
 } from "./parking/ParkingEnvironment.js";
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
 
-
+const LEVEL_ONE_ASPHALT_Y = 0.035;
+const WATER_FILLED_FRACTION = 0.35;
+const POTHOLE_WATER_DEPTH_RATIO = 0.42;
 export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
 export const LEVEL_ONE_DAMAGE = Object.freeze({
@@ -38,6 +43,335 @@ export const LEVEL_ONE_DAMAGE = Object.freeze({
   medium: 10,
   high: 20
 });
+function potholeWaterScore(
+  seed,
+  index
+) {
+  let value =
+    (
+      Number(seed) >>> 0
+    ) ^
+    Math.imul(
+      index + 1,
+      0x9e3779b1
+    );
+
+  value =
+    (
+      Math.imul(
+        value,
+        1664525
+      ) +
+      1013904223
+    ) >>> 0;
+
+  value ^=
+    value >>> 16;
+
+  return value >>> 0;
+}
+
+
+  export function selectWaterFilledPotholes(
+    seed,
+    count,
+    fraction = WATER_FILLED_FRACTION
+  ) {
+    if (count <= 0) {
+      return new Set();
+    }
+
+    if (count === 1) {
+      return new Set([0]);
+    }
+
+    // Pick an exact deterministic number so every normal run
+    // contains both wet and dry potholes.
+    const targetCount =
+      THREE.MathUtils.clamp(
+        Math.round(
+          count *
+          fraction
+        ),
+        1,
+        count - 1
+      );
+
+    const ranked =
+      Array.from(
+        {
+          length: count
+        },
+        (_, index) => ({
+          index,
+
+          score:
+            potholeWaterScore(
+              seed,
+              index
+            )
+        })
+      );
+
+    ranked.sort(
+      (a, b) =>
+        a.score -
+        b.score
+    );
+
+    return new Set(
+      ranked
+        .slice(
+          0,
+          targetCount
+        )
+        .map(
+          ({ index }) =>
+            index
+        )
+    );
+  }
+
+
+  function getPotholePhysicalDepth(
+    radius
+  ) {
+    // Must match applyPotholeDeformation().
+    return THREE.MathUtils.clamp(
+      0.11 +
+        radius *
+        0.05,
+      0.14,
+      0.18
+    );
+  }
+
+function inverseSmoothstep(
+  value
+) {
+  let low = 0;
+  let high = 1;
+
+  for (
+    let iteration = 0;
+    iteration < 12;
+    iteration++
+  ) {
+    const midpoint =
+      (low + high) / 2;
+
+    const smoothed =
+      midpoint *
+      midpoint *
+      (
+        3 -
+        2 * midpoint
+      );
+
+    if (smoothed < value) {
+      low = midpoint;
+    } else {
+      high = midpoint;
+    }
+  }
+
+  return (
+    low + high
+  ) / 2;
+}
+
+export function createPotholeWaterGeometry(
+  radius,
+  potholeIndex,
+  x,
+  z
+) {
+  const segments =
+    64;
+
+  const positions = [
+    0,
+    0,
+    0
+  ];
+
+  const edgeFactors = [
+    0
+  ];
+
+  const indices = [];
+
+  const seed =
+    potholeIndex * 1.731 +
+    x * 0.041 +
+    z * 0.067;
+
+
+  // The real crater wall uses:
+  //
+  // depthProfile =
+  // lerp(0.94, 0.045, smoothstep wall)
+  //
+  // Work backwards from the chosen water height to find
+  // where that horizontal plane intersects the crater wall.
+
+  const requiredSmoothstep =
+    THREE.MathUtils.clamp(
+      (
+        0.94 -
+        POTHOLE_WATER_DEPTH_RATIO
+      ) /
+      (
+        0.94 -
+        0.045
+      ),
+      0,
+      1
+    );
+
+  const wallIntersection =
+    inverseSmoothstep(
+      requiredSmoothstep
+    );
+
+
+  for (
+    let index = 0;
+    index < segments;
+    index++
+  ) {
+    const angle =
+      (
+        index /
+        segments
+      ) *
+      Math.PI *
+      2;
+
+
+    // EXACTLY the same broken-mouth variation used by
+    // applyPotholeDeformation().
+    const edgeVariation =
+      1 +
+      Math.sin(
+        angle * 3 +
+        seed
+      ) * 0.16 +
+      Math.sin(
+        angle * 5 +
+        seed * 1.7
+      ) * 0.085 +
+      Math.sin(
+        angle * 8 +
+        seed * 2.3
+      ) * 0.050 +
+      Math.sin(
+        angle * 13 +
+        seed * 3.1
+      ) * 0.025;
+
+
+    const outerRadius =
+      radius *
+      1.04 *
+      edgeVariation;
+
+
+    // These are also exactly the same wall boundaries
+    // used by the actual pothole geometry.
+    const floorEdge =
+      0.61 +
+      Math.sin(
+        angle * 4 +
+        seed * 1.4
+      ) * 0.025;
+
+    const wallOuter =
+      0.80 +
+      Math.sin(
+        angle * 7 +
+        seed * 2.2
+      ) * 0.030;
+
+
+    const normalizedWaterRadius =
+      THREE.MathUtils.lerp(
+        floorEdge,
+        wallOuter,
+        wallIntersection
+      );
+
+
+    const localRadius =
+      outerRadius *
+      normalizedWaterRadius;
+
+
+    positions.push(
+      Math.cos(angle) *
+        localRadius,
+
+      0,
+
+      Math.sin(angle) *
+        localRadius
+    );
+
+    edgeFactors.push(
+      1
+    );
+  }
+
+
+  for (
+    let index = 0;
+    index < segments;
+    index++
+  ) {
+    indices.push(
+      0,
+      index + 1,
+      (
+        (
+          index + 1
+        ) %
+        segments
+      ) +
+        1
+    );
+  }
+
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+
+  geometry.setAttribute(
+    "edgeFactor",
+    new THREE.Float32BufferAttribute(
+      edgeFactors,
+      1
+    )
+  );
+
+
+  geometry.setIndex(
+    indices
+  );
+
+  geometry.computeBoundingSphere();
+
+  return geometry;
+}
 
 export function parkingAxisAngleError(rotation, bayAngle) {
   const delta = rotation - bayAngle;
@@ -843,6 +1177,8 @@ export class ParkingLevel {
     this.chaseFog = null;
     this.onViewToggle = this.toggleSkyView.bind(this);
     this.asphaltUniforms = null;
+    this.potholeWaterUniforms = null;
+    this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
     this.carIdleAudio = null;
     this.environment = null;
@@ -1041,7 +1377,7 @@ createParkingSurface(potholes = []) {
       asphaltMaterial
       );
     road.rotation.x = -Math.PI / 2;
-    road.position.set(lot.x, 0.035, lot.z);
+    road.position.set(lot.x,LEVEL_ONE_ASPHALT_Y,lot.z);
     road.receiveShadow = true;
     road.name = piece.name;
     this.root.add(road);
@@ -1102,42 +1438,135 @@ createParkingSurface(potholes = []) {
   }
 
   createPotholes() {
+    const wetIndices =
+      selectWaterFilledPotholes(
+        this.seed,
+        this.generatedPotholes.length
+      );
+
+    const waterMaterial =
+      createPotholeWaterMaterial();
+
+    this.potholeWaterUniforms =
+      waterMaterial.uniforms;
+
     for (
+      let index = 0;
+      index <
+      this.generatedPotholes.length;
+      index++
+    ) {
       const {
         x,
         z,
         radius
-      } of this.generatedPotholes
-    ) {
-      // Invisible gameplay anchor only.
-      // The road mesh itself is now the pothole visual.
+      } =
+        this.generatedPotholes[index];
+
+      // Invisible gameplay anchor.
       const pothole =
         new THREE.Object3D();
 
       pothole.position.set(
         x,
-        0.035,
+        0,
         z
       );
 
       pothole.userData.radius =
         radius;
 
-      this.root.add(pothole);
-      this.potholes.push(pothole);
+      const isWet =
+        wetIndices.has(
+          index
+        );
+
+      // Keep this on the gameplay anchor.
+      // Later, splash effects can simply ask:
+      // contactedPothole.userData.isWet
+      pothole.userData.isWet =
+        isWet;
+
+      this.root.add(
+        pothole
+      );
+
+      this.potholes.push(
+        pothole
+      );
+
+
+      // ----------------------------------------------------
+      // OPTIONAL WATER SURFACE
+      // ----------------------------------------------------
+
+      if (isWet) {
+        const physicalDepth =
+          getPotholePhysicalDepth(
+            radius
+          );
+
+        const water =
+          new THREE.Mesh(
+            createPotholeWaterGeometry(
+              radius,
+              index,
+              x,
+              z
+            ),
+            waterMaterial
+          );
+
+        // The crater road surface starts at LEVEL_ONE_ASPHALT_Y.
+        //
+        // Put the water well below the broken lip but noticeably
+        // above the crater floor.
+        water.position.y =
+          LEVEL_ONE_ASPHALT_Y -
+          physicalDepth *
+            POTHOLE_WATER_DEPTH_RATIO +
+          0.002;
+
+        water.name =
+          `pothole-water-${index}`;
+
+        water.castShadow =
+          false;
+
+        water.receiveShadow =
+          false;
+
+        water.renderOrder =
+          3;
+
+        pothole.add(
+          water
+        );
+
+        pothole.userData.waterMesh =
+          water;
+      }
+
 
       const colliderDiameter =
-        radius * 2;
+        radius *
+        2;
 
       this.collisionWorld.add({
-        object: pothole,
+        object:
+          pothole,
+
         size: [
           colliderDiameter,
           0.15,
           colliderDiameter
         ],
-        color: 0xffc857,
-        tag: "pothole"
+
+        color:
+          0xffc857,
+
+        tag:
+          "pothole"
       });
     }
   }
@@ -1365,10 +1794,47 @@ if (hit) {
   }
 
   updateAsphalt(dt) {
-    if (!this.asphaltUniforms) return;
-    this.asphaltUniforms.uTime.value += dt;
-    const headlight = this.car.localToWorld(new THREE.Vector3(0, 0.9, -2));
-    this.asphaltUniforms.uHeadlightPosition.value.copy(headlight);
+    if (!this.car) { return;  }
+    // Reuse one vector instead of allocating a new Vector3 every frame.
+    this.headlightWorldPosition.set(
+      0,
+      0.9,
+      -2
+    );
+
+    this.car.localToWorld(
+      this.headlightWorldPosition
+    );
+
+
+    if (this.asphaltUniforms) {
+      this.asphaltUniforms
+        .uTime
+        .value +=
+        dt;
+
+      this.asphaltUniforms
+        .uHeadlightPosition
+        .value
+        .copy(
+          this.headlightWorldPosition
+        );
+    }
+
+
+    if (this.potholeWaterUniforms) {
+      this.potholeWaterUniforms
+        .uTime
+        .value +=
+        dt;
+
+      this.potholeWaterUniforms
+        .uHeadlightPosition
+        .value
+        .copy(
+          this.headlightWorldPosition
+        );
+    }
   }
   checkPotholes() {
     let contactedPothole = null;
