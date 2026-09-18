@@ -986,29 +986,71 @@ createYaleRoadDetails() {
   // Automatically spans the entire 8-lane road.
   // --------------------------------------------------
 
-  for (
-    let z = -roadDepth / 2 + 0.45;
-    z < roadDepth / 2;
-    z += 0.8
-  ) {
-    const stripe =
-      new THREE.Mesh(
-        new THREE.BoxGeometry(
-          4.2,
-          0.035,
-          0.4
-        ),
-        paint
-      );
+  const intersectionWidth = 22;
+  const intersectionDepth = roadDepth - 0.3;
 
-    stripe.position.set(
-      0,
-      0.04,
-      z
+  const intersectionMaterial = this.walkwayMaterial.clone();
+
+  if (this.walkwayMaterial.map) {
+    intersectionMaterial.map =
+      this.walkwayMaterial.map.clone();
+
+    intersectionMaterial.map.wrapS =
+      THREE.RepeatWrapping;
+
+    intersectionMaterial.map.wrapT =
+      THREE.RepeatWrapping;
+
+    intersectionMaterial.map.repeat.set(
+      intersectionWidth / WALKWAY_TILE_SIZE,
+      intersectionDepth / WALKWAY_TILE_SIZE
     );
 
-    this.root.add(stripe);
+    intersectionMaterial.map.needsUpdate = true;
   }
+
+  const intersection =
+    new THREE.Mesh(
+      new THREE.PlaneGeometry(
+        intersectionWidth,
+        intersectionDepth
+      ),
+      intersectionMaterial
+    );
+
+  intersection.name =
+    "yale-paved-intersection";
+
+  intersection.rotation.x =
+    -Math.PI / 2;
+
+  intersection.position.set(
+    0,
+    0.006,
+    0
+  );
+
+  intersection.receiveShadow = true;
+
+  this.root.add(intersection);
+
+  this.createZebraCrossing({
+  x: -3.5,
+  z: 0,
+  length: roadDepth - 0.5,
+  width: 3.4,
+  angle: 0
+});
+
+this.createZebraCrossing({
+  x: 4.1,
+  z: 0,
+  length: roadDepth + 1.5,
+  width: 3.4,
+
+  // Tune between about 0.35 and 0.5.
+  angle: -0.42
+});
 
   // --------------------------------------------------
   // TRAFFIC / PEDESTRIAN SIGNALS
@@ -1038,6 +1080,54 @@ createYaleRoadDetails() {
     light.position.set(x, 2.42, z + Math.sign(z || 1) * 0.17);
     this.root.add(pole, head, light);
   }
+
+  createZebraCrossing({ x = 0,  z = 0,  length,  width = 3.6,  angle = 0,stripeDepth = 0.38, gap = 0.34}) {
+  const group = new THREE.Group();
+
+  group.name = "yale-zebra-crossing";
+
+  group.position.set(
+    x,
+    0.025,
+    z
+  );
+
+  group.rotation.y = angle;
+
+  const paint =
+    new THREE.MeshBasicMaterial({
+      color: 0xf4f1e8
+    });
+
+  const step =
+    stripeDepth + gap;
+
+  for (
+    let offset =
+      -length / 2 + stripeDepth / 2;
+    offset <=
+      length / 2 - stripeDepth / 2;
+    offset += step
+  ) {
+    const stripe =
+      new THREE.Mesh(
+        new THREE.BoxGeometry(
+          width,
+          0.025,
+          stripeDepth
+        ),
+        paint
+      );
+
+    stripe.position.z = offset;
+
+    group.add(stripe);
+  }
+
+  this.root.add(group);
+
+  return group;
+}
 
  createBridgeEntryDetails() {
   const isFarSideLanding =
@@ -1155,6 +1245,36 @@ createYaleRoadDetails() {
         }
       );
     }
+    const gateMaterial =
+  new THREE.MeshStandardMaterial({
+    color: 0xb7aa91,
+    roughness: 0.9
+  });
+
+for (const x of [-4.4, 4.4]) {
+  const pillar =
+    new THREE.Mesh(
+      new THREE.BoxGeometry(
+        0.75,
+        3.1,
+        0.75
+      ),
+      gateMaterial
+    );
+
+  pillar.name =
+    "yale-campus-gate-pillar";
+
+  pillar.position.set(
+    x,
+    1.55,
+    2
+  );
+
+  pillar.castShadow = true;
+
+  this.root.add(pillar);
+}
 
     if (this.definition.section === "engineering-finish") {
      
@@ -1176,8 +1296,8 @@ createYaleRoadDetails() {
 
       // Create a wider tiled area on the far side of Yale Road
       // so the crossing connects into a proper pedestrian space.
-      const yaleFarWalkwayWidth = 18;
-      const yaleFarWalkwayDepth = 6.5;
+      const yaleFarWalkwayWidth = 24;
+      const yaleFarWalkwayDepth = 8;
 
       // Keep it close to the Yale Road edge.
       const yaleFarWalkwayZ =
