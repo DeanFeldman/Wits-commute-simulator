@@ -21,8 +21,12 @@ import {
 
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
-const TRAFFIC_EDGE = 18;
+
+const ROAD_VISUAL_WIDTH = 120;
+const TRAFFIC_EDGE = ROAD_VISUAL_WIDTH / 2 - 4;
+
 const ARM_BACK_EXTENSION = 20;
+
 // The bridge checkpoint sinks its own surface/traffic by this much so they
 // read as the highway far below the deck (see createBridgeDetails).
 const BRIDGE_SINK = 3.4;
@@ -214,9 +218,14 @@ export class CrossingStrip {
           metalness: 0.02
         });
 
+      const surfaceWidth =
+        isRoad
+          ? ROAD_VISUAL_WIDTH
+          : this.definition.width;
+
       const surface = new THREE.Mesh(
         new THREE.BoxGeometry(
-          this.definition.width,
+          surfaceWidth,
           isRoad ? 0.12 : 0.22,
           this.definition.depth
         ),
@@ -224,7 +233,11 @@ export class CrossingStrip {
       );
 
       if (isRoad && this.parkingMaterial) {
-        applyRoadUvs(surface.geometry, this.definition.width, this.definition.depth);
+        applyRoadUvs(
+            surface.geometry,
+            surfaceWidth,
+            this.definition.depth
+          );
       }
 
       surface.name = isRoad ? "road-surface" : "median-surface";
@@ -908,7 +921,7 @@ createYaleRoadDetails() {
   ]) {
     const edge = new THREE.Mesh(
       new THREE.BoxGeometry(
-        this.definition.width,
+        ROAD_VISUAL_WIDTH,
         0.28,
         0.2
       ),
@@ -950,7 +963,7 @@ createYaleRoadDetails() {
     const divider =
       new THREE.Mesh(
         new THREE.BoxGeometry(
-          this.definition.width,
+          ROAD_VISUAL_WIDTH,
           0.025,
           isCentre ? 0.12 : 0.06
         ),
@@ -1162,8 +1175,13 @@ createParkingLot(side) {
   - bridgeApproachDepth
   + fenceGap;
 
+const extraParkingRowDepth =
+  PARKING_SLOT_PITCH;
+
 const backEdgeZ =
-  this.definition.depth / 2 + 0.4;
+  this.definition.depth / 2 +
+  0.4 +
+  extraParkingRowDepth;
 
 // Small tiled border directly under the fence.
 const fenceBorderDepth = 0.38;
@@ -1455,7 +1473,7 @@ const fenceBorderCenterZ =
       ...this.definition.markings
     };
     const lineMaterial = new THREE.MeshBasicMaterial({ color: markings.color });
-    const halfWidth = this.definition.width / 2;
+    const halfWidth =   ROAD_VISUAL_WIDTH / 2;
     for (let x = -halfWidth + 1; x <= halfWidth - 1; x += markings.spacing) {
       const stripe = new THREE.Mesh(
         new THREE.BoxGeometry(markings.length, 0.025, markings.thickness),
@@ -1525,6 +1543,7 @@ createBridgeDetails() {
   // either side of the deck, in the direction of travel.
   const depth = this.definition.depth;
   const width = this.definition.width;
+  const highwayWidth =   ROAD_VISUAL_WIDTH;
   const rowDepth = depth / this.definition.rowSpan;
   const deckDepth = depth - 2 * rowDepth;
   const wallZ = deckDepth / 2 + 0.2;
@@ -1541,7 +1560,7 @@ createBridgeDetails() {
     flatShading: true
   });
   const outerGround = new THREE.Mesh(
-    new THREE.PlaneGeometry(width + 6, depth),
+    new THREE.PlaneGeometry(highwayWidth + 6, depth),
     outerGroundMaterial
   );
   outerGround.rotation.x = -Math.PI / 2;
@@ -1551,7 +1570,7 @@ createBridgeDetails() {
   this.root.add(outerGround);
 
   for (const side of [-1, 1]) {
-    const trenchWall = new THREE.Mesh(new THREE.BoxGeometry(width + 6, 3.5, 0.45), concrete);
+    const trenchWall = new THREE.Mesh(new THREE.BoxGeometry(highwayWidth  + 6, 3.5, 0.45), concrete);
     trenchWall.position.set(0, BRIDGE_SINK - 1.65, side * wallZ);
     trenchWall.castShadow = true;
     trenchWall.receiveShadow = true;
@@ -1637,12 +1656,12 @@ this.createBridgeFenceReturns({
   const barrierMaterial = new THREE.MeshStandardMaterial({ color: 0xc9c5bb, roughness: 0.82 });
   for (let row = 1; row < this.definition.rowSpan - 1; row++) {
     const z = this.localZForRow(row) - rowDepth / 2;
-    const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.025, 0.06), roadPaint);
+    const line = new THREE.Mesh(new THREE.BoxGeometry(highwayWidth , 0.025, 0.06), roadPaint);
     line.position.set(0, 0.03, z);
     this.root.add(line);
   }
   for (const z of [-wallZ + 0.48, wallZ - 0.48]) {
-    const barrier = new THREE.Mesh(new THREE.BoxGeometry(width + 6, 0.8, 0.24), barrierMaterial);
+    const barrier = new THREE.Mesh(new THREE.BoxGeometry(highwayWidth  + 6, 0.8, 0.24), barrierMaterial);
     barrier.position.set(0, 0.38, z);
     barrier.castShadow = true;
     this.root.add(barrier);
@@ -1788,8 +1807,8 @@ createBridgeFenceReturns({
 
   createTrafficLane(lane) {
     let previousX = lane.direction > 0
-      ? -10 + this.random() * 20
-      : 10 - this.random() * 20;
+      ? -TRAFFIC_EDGE + this.random() * 20
+      : TRAFFIC_EDGE - this.random() * 20;
     for (let index = 0; index < lane.vehicleCount; index++) {
       const type = this.vehicleTypeFor(lane, index);
       const vehicle = this.createVehicle(lane, type, index);
