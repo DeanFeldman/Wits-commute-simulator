@@ -22,7 +22,7 @@ import {
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
 const TRAFFIC_EDGE = 18;
-
+const ARM_BACK_EXTENSION = 20;
 // The bridge checkpoint sinks its own surface/traffic by this much so they
 // read as the highway far below the deck (see createBridgeDetails).
 const BRIDGE_SINK = 3.4;
@@ -300,45 +300,507 @@ export class CrossingStrip {
     }
   }
 
-  createArmWalkwayDetails() {
-    const brick = new THREE.MeshStandardMaterial({ color: 0x8f6957, roughness: 0.9 });
+  createArmBuilding() {
+  const root = new THREE.Group();
+  root.name = "wits-arm-building";
 
-    // The centre walking route is already created by createGeometry().
-    // Extend the same paving toward ARM without laying tiles over the parking.
-    const armSideWidth = (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
-    this.createWalkwayPanel(
-      armSideWidth,
-      this.definition.depth,
-      {
-        x: -(BRIDGE_DECK_WIDTH / 2 + armSideWidth / 2),
-        name: "amic-arm-courtyard"
-      }
+  // Position the building on the LEFT of the pedestrian route.
+  root.position.set(-9.5, 0, 0.4 + ARM_BACK_EXTENSION / 2);
+  this.root.add(root);
+
+  const brick = new THREE.MeshStandardMaterial({
+    color: 0x86513d,
+    roughness: 0.88
+  });
+
+  const darkBrick = new THREE.MeshStandardMaterial({
+    color: 0x704233,
+    roughness: 0.88
+  });
+
+  const concrete = new THREE.MeshStandardMaterial({
+    color: 0xb1aaa0,
+    roughness: 0.9
+  });
+
+  const roof = new THREE.MeshStandardMaterial({
+    color: 0x89979b,
+    roughness: 0.76,
+    metalness: 0.12
+  });
+
+  const windows = new THREE.MeshBasicMaterial({
+    color: 0xf0b56b
+  });
+
+  const addBox = (
+    size,
+    position,
+    mat,
+    name = ""
+  ) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(...size),
+      mat
     );
 
-    const arm = new THREE.Mesh(
-      new THREE.BoxGeometry(5.6, 6.8, this.definition.depth + 2.8),
-      brick
-    );
-    arm.name = "arm-building";
-    arm.position.set(-8, 3.42, 0.4);
-    arm.castShadow = true;
-    arm.receiveShadow = true;
-    this.root.add(arm);
+    mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.name = name;
 
-    const windows = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 3.8, this.definition.depth * 0.62),
-      new THREE.MeshStandardMaterial({
-        color: 0x7fa1a8,
-        roughness: 0.28,
-        metalness: 0.18
-      })
-    );
-    windows.position.set(-12.37, 3.7, 0.4);
-    this.root.add(windows);
+    root.add(mesh);
 
-    // Spawn-side parking remains on +X / the player's right.
-    this.createParkingLot(1);
+    return mesh;
+  };
+
+  // --------------------------------------------------
+  // MAIN ARM MASS
+  // --------------------------------------------------
+
+  const buildingWidth = 7.5;
+  const buildingDepth =
+      this.definition.depth +
+      4 +
+      ARM_BACK_EXTENSION;
+
+  const buildingHeight = 8.5;
+
+  addBox(
+    [
+      buildingWidth,
+      buildingHeight,
+      buildingDepth
+    ],
+    [
+      0,
+      buildingHeight / 2,
+      0
+    ],
+    brick,
+    "wits-arm-main"
+  );
+
+  // Roof slab.
+  addBox(
+    [
+      buildingWidth - 0.35,
+      0.35,
+      buildingDepth - 0.4
+    ],
+    [
+      0,
+      buildingHeight + 0.18,
+      0
+    ],
+    roof,
+    "wits-arm-roof"
+  );
+
+  // --------------------------------------------------
+  // INTERLOCKING REAR / SIDE MASS
+  // --------------------------------------------------
+
+  addBox(
+    [
+      buildingWidth + 2.8,
+      buildingHeight - 1.6,
+      5.5
+    ],
+    [
+      -1.0,
+      (buildingHeight - 1.6) / 2,
+      -buildingDepth / 2 + 1.5
+    ],
+    concrete,
+    "wits-arm-concrete-wing"
+  );
+
+  const tallWingX = 1.7;
+const tallWingWidth = 4.5;
+
+const tallWingZ =
+  buildingDepth / 2 - 2.1;
+
+const tallWingDepth = 6.2;
+
+const tallWingHeight =
+  buildingHeight + 2.2;
+
+addBox(
+  [
+    tallWingWidth,
+    tallWingHeight,
+    tallWingDepth
+  ],
+  [
+    tallWingX,
+    tallWingHeight / 2,
+    tallWingZ
+  ],
+  darkBrick,
+  "wits-arm-tall-wing"
+);
+
+  // --------------------------------------------------
+  // CIRCULAR / DOME SECTION
+  // --------------------------------------------------
+
+  const domeBase =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        2.7,
+        2.7,
+        2.4,
+        28
+      ),
+      concrete
+    );
+
+  domeBase.position.set(
+    0.7,
+    buildingHeight + 1.2,
+    0.5
+  );
+
+  domeBase.castShadow = true;
+  domeBase.receiveShadow = true;
+
+  root.add(domeBase);
+
+  const domeRoof =
+    new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        2.45,
+        2.65,
+        0.7,
+        28
+      ),
+      roof
+    );
+
+  domeRoof.position.set(
+    0.7,
+    buildingHeight + 2.75,
+    0.5
+  );
+
+  domeRoof.castShadow = true;
+
+  root.add(domeRoof);
+// --------------------------------------------------
+// FULL ARM WINDOW GRID
+// Main building + brown wing
+// --------------------------------------------------
+
+const windowWidth = 1.45;
+const windowHeight = 1.0;
+const windowInset = 0.055;
+
+const windowRows = [
+  1.35,
+  2.85,
+  4.35,
+  5.85,
+  7.35
+];
+
+// Helper that fills an X-facing wall almost edge-to-edge.
+const addWindowsAcrossXFace = ({
+  faceX,
+  zMin,
+  zMax,
+  rows = windowRows,
+  name = "wits-arm-window"
+}) => {
+  // Only leave a tiny border at either end.
+  const edgeMargin = 0.12;
+
+  const firstZ =
+    zMin +
+    edgeMargin +
+    windowWidth / 2;
+
+  const lastZ =
+    zMax -
+    edgeMargin -
+    windowWidth / 2;
+
+  const available =
+    Math.max(0, lastZ - firstZ);
+
+  // Fairly tight spacing so we don't leave a large blank wall.
+  const count = Math.max(
+    1,
+    Math.ceil(available / 1.7) + 1
+  );
+
+  for (let column = 0; column < count; column++) {
+    const z =
+      count === 1
+        ? (zMin + zMax) / 2
+        : THREE.MathUtils.lerp(
+            firstZ,
+            lastZ,
+            column / (count - 1)
+          );
+
+    for (const y of rows) {
+      addBox(
+        [
+          0.08,
+          windowHeight,
+          windowWidth
+        ],
+        [
+          faceX,
+          y,
+          z
+        ],
+        windows,
+        name
+      );
+    }
   }
+};
+
+// --------------------------------------------------
+// MAIN BUILDING — BOTH LONG SIDES
+// --------------------------------------------------
+
+addWindowsAcrossXFace({
+  faceX:
+    buildingWidth / 2 +
+    windowInset,
+
+  zMin:
+    -buildingDepth / 2,
+
+  zMax:
+    buildingDepth / 2,
+
+  name:
+    "wits-arm-main-window-right"
+});
+
+addWindowsAcrossXFace({
+  faceX:
+    -buildingWidth / 2 -
+    windowInset,
+
+  zMin:
+    -buildingDepth / 2,
+
+  zMax:
+    buildingDepth / 2,
+
+  name:
+    "wits-arm-main-window-left"
+});
+
+// --------------------------------------------------
+// BROWN TALL WING
+// This is the blank brown section you are seeing.
+// --------------------------------------------------
+
+// const tallWingX = 1.7;
+// const tallWingWidth = 4.5;
+
+// const tallWingZ =
+//   buildingDepth / 2 - 2.1;
+
+// const tallWingDepth = 6.2;
+
+const tallWingRows = [
+  1.35,
+  2.85,
+  4.35,
+  5.85,
+  7.35,
+  8.85
+];
+
+addWindowsAcrossXFace({
+  faceX:
+    tallWingX +
+    tallWingWidth / 2 +
+    windowInset,
+
+  zMin:
+    tallWingZ -
+    tallWingDepth / 2,
+
+  zMax:
+    tallWingZ +
+    tallWingDepth / 2,
+
+  rows:
+    tallWingRows,
+
+  name:
+    "wits-arm-tall-wing-window"
+});
+
+// Back face of the tall wing as well.
+addWindowsAcrossXFace({
+  faceX:
+    tallWingX -
+    tallWingWidth / 2 -
+    windowInset,
+
+  zMin:
+    tallWingZ -
+    tallWingDepth / 2,
+
+  zMax:
+    tallWingZ +
+    tallWingDepth / 2,
+
+  rows:
+    tallWingRows,
+
+  name:
+    "wits-arm-tall-wing-window-back"
+});
+
+// --------------------------------------------------
+// END WALLS OF MAIN BUILDING
+// --------------------------------------------------
+
+const endEdgeMargin = 0.12;
+
+const firstX =
+  -buildingWidth / 2 +
+  endEdgeMargin +
+  windowWidth / 2;
+
+const lastX =
+  buildingWidth / 2 -
+  endEdgeMargin -
+  windowWidth / 2;
+
+const endColumnCount = Math.max(
+  1,
+  Math.ceil(
+    (lastX - firstX) / 1.7
+  ) + 1
+);
+
+for (const zSide of [-1, 1]) {
+  const windowZ =
+    zSide *
+    (
+      buildingDepth / 2 +
+      windowInset
+    );
+
+  for (
+    let column = 0;
+    column < endColumnCount;
+    column++
+  ) {
+    const x =
+      endColumnCount === 1
+        ? 0
+        : THREE.MathUtils.lerp(
+            firstX,
+            lastX,
+            column /
+              (endColumnCount - 1)
+          );
+
+    for (const y of windowRows) {
+      addBox(
+        [
+          windowWidth,
+          windowHeight,
+          0.08
+        ],
+        [
+          x,
+          y,
+          windowZ
+        ],
+        windows,
+        "wits-arm-end-window"
+      );
+    }
+  }
+}
+
+
+  // Thin concrete trim along the walkway-facing wall.
+  addBox(
+    [
+      0.55,
+      1.8,
+      buildingDepth - 1
+    ],
+    [
+      buildingWidth / 2 + 0.28,
+      0.9,
+      0
+    ],
+    concrete,
+    "wits-arm-concrete-trim"
+  );
+}
+
+  createArmWalkwayDetails() {
+  const armSideWidth =
+    (this.definition.width - BRIDGE_DECK_WIDTH) / 2;
+
+  const armSideCenterX =
+    -(BRIDGE_DECK_WIDTH / 2 + armSideWidth / 2);
+
+  // Existing ARM-side courtyard.
+  this.createWalkwayPanel(
+    armSideWidth,
+    this.definition.depth,
+    {
+      x: armSideCenterX,
+      name: "amic-arm-courtyard"
+    }
+  );
+
+  // --------------------------------------------------
+  // EXTEND THE WALKWAY BACK TOWARD THE START / CAMERA
+  // --------------------------------------------------
+
+  const backExtension = ARM_BACK_EXTENSION;
+
+  // Starts exactly where the current strip ends.
+  const extensionZ =
+    this.definition.depth / 2 +
+    backExtension / 2;
+
+  // Extend the LEFT courtyard.
+  this.createWalkwayPanel(
+    armSideWidth,
+    backExtension,
+    {
+      x: armSideCenterX,
+      z: extensionZ,
+      name: "amic-arm-courtyard-back-extension"
+    }
+  );
+
+  // Extend the CENTER walking path too.
+  this.createWalkwayPanel(
+    BRIDGE_DECK_WIDTH,
+    backExtension,
+    {
+      x: 0,
+      z: extensionZ,
+      name: "amic-main-walkway-back-extension"
+    }
+  );
+
+  this.createArmBuilding();
+
+  // Parking remains on the right.
+  this.createParkingLot(1);
+}
 
   createVidaContainer() {
     const root = new THREE.Group();
