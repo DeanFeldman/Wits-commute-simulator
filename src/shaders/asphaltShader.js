@@ -63,10 +63,10 @@ void main() {
 
   // CPU pothole depth: 0 = ordinary road, 1 = deepest point.
   vPotholeDepth = clamp(
-    (-position.z) / 0.026,
-    0.0,
-    1.0
-  );
+  (-position.z) / 0.18,
+  0.0,
+  1.0
+);
 
   // Real normals generated from the CPU-deformed road mesh.
   vRoadNormal = normalize(
@@ -120,14 +120,13 @@ void main() {
     vPotholeDepth *
     0.88;
 
-  damagedPosition.z -=
-    (
-      vDamage * 0.042 +
-      (textureHeight - 0.5) *
-      0.016
-    ) *
-    generalDisplacementScale;
-
+damagedPosition.z -=
+  (
+    vDamage * 0.003 +
+    (textureHeight - 0.5) *
+    0.007
+  ) *
+  generalDisplacementScale;
   vec4 worldPosition =
     modelMatrix *
     vec4(
@@ -241,24 +240,32 @@ void main() {
     0.5 +
     0.5;
 
-  vec3 dryAsphalt =
-    textureColour *
-    mix(
-      0.42,
-      0.72,
-      microRelief
-    );
+// One consistent, lighter asphalt base.
+// Fine texture variation remains, but broad procedural damage no longer
+// turns sections of the parking lot almost black.
+// Lift the asphalt midtones while preserving the real texture detail.
+// This gives us the lighter road appearance without pretending the
+// entire parking lot is covered in reflective water.
+vec3 liftedAsphalt =
+  pow(
+    max(textureColour, vec3(0.001)),
+    vec3(0.55)
+  );
 
-  vec3 damagedAsphalt =
-    mix(
-      dryAsphalt,
-      vec3(
-        0.025,
-        0.03,
-        0.035
-      ),
-      vDamage
-    );
+vec3 dryAsphalt =
+  liftedAsphalt *
+  mix(
+    0.92,
+    1.04,
+    microRelief
+  );
+
+vec3 damagedAsphalt =
+  dryAsphalt *
+  (
+    0.98 +
+    microRelief * 0.02
+  );
 
   float headlight =
     1.0 -
@@ -314,6 +321,11 @@ void main() {
 
   return;
 
+#endif
+#ifndef POOL_COVERAGE_PROBE
+  // The parking surface is now one continuous dry asphalt material.
+  // Water will later be reintroduced only inside selected potholes.
+  water = 0.0;
 #endif
 
   // Gameplay hazards must not disappear beneath bright water.
@@ -517,77 +529,156 @@ void main() {
       water
     );
 // --------------------------------------------------------
-// EXAGGERATED REAL POTHOLE
+// PROCEDURAL PHYSICAL POTHOLE
 // --------------------------------------------------------
 //
-// The actual road geometry forms the crater.
-// These values deliberately exaggerate its readability,
-// without painting one enormous black shadow over the road.
+// Geometry provides the real depression.
+// The fragment shader separates the crater into:
+//
+//   broken asphalt lip
+//        -> steep wall
+//        -> occluded basin
+//
+// Procedural noise fractures the boundary so it does not read
+// as a smooth painted circle.
+
+float depth =
+  clamp(
+    vPotholeDepth,
+    0.0,
+    1.0
+  );
+
+// Two noise frequencies keep the edge irregular at both
+// medium and small scales.
+float fractureLarge =
+  noise(
+    vWorldPosition.xz *
+    5.5
+  );
+
+float fractureFine =
+  noise(
+    vWorldPosition.xz *
+    17.0
+  );
+
+float fracture =
+  fractureLarge * 0.62 +
+  fractureFine * 0.38;
+
+// Shift the mouth thresholds slightly around the crater.
+// This produces chipped/jagged asphalt rather than one
+// perfectly smooth contour.
+float edgeOffset =
+  (fracture - 0.5) *
+  0.045;
+
+
+// --------------------------------------------------------
+// BROKEN LIP
+// --------------------------------------------------------
+
+float brokenLip =
+  smoothstep(
+    0.025 + edgeOffset,
+    0.090 + edgeOffset,
+    depth
+  ) *
+  (
+    1.0 -
+    smoothstep(
+      0.18 + edgeOffset,
+      0.30 + edgeOffset,
+      depth
+    )
+  );
+
+
+// The underside of the lip is deliberately dark.
+// That narrow dark band is one of the strongest visual depth cues.
+float innerLip =
+  smoothstep(
+    0.14,
+    0.24,
+    depth
+  ) *
+  (
+    1.0 -
+    smoothstep(
+      0.31,
+      0.42,
+      depth
+    )
+  );
+
+
+// --------------------------------------------------------
+// STEEP CRATER WALL
+// --------------------------------------------------------
 
 float wallBand =
   smoothstep(
-    0.025,
-    0.17,
-    vPotholeDepth
+    0.12,
+    0.24,
+    depth
   ) *
   (
     1.0 -
     smoothstep(
-      0.48,
-      0.70,
-      vPotholeDepth
+      0.68,
+      0.84,
+      depth
     )
   );
+
+
+// --------------------------------------------------------
+// CRATER FLOOR
+// --------------------------------------------------------
 
 float potholeCore =
   smoothstep(
-    0.30,
-    0.68,
-    vPotholeDepth
+    0.54,
+    0.82,
+    depth
   );
 
-float brokenEdge =
-  smoothstep(
-    0.012,
-    0.085,
-    vPotholeDepth
-  ) *
-  (
-    1.0 -
-    smoothstep(
-      0.28,
-      0.42,
-      vPotholeDepth
-    )
-  );
+
+// --------------------------------------------------------
+// SURFACE NORMAL / LIGHT DIRECTION
+// --------------------------------------------------------
 
 vec3 realNormal =
   normalize(
     vRoadNormal
   );
 
-// Physical crater stays shallow enough not to expose the
-// ground below it. Only the visual normal is exaggerated.
+// Visually exaggerate the wall normal.
+// We are not quantising the lighting like cel shading;
+// the lighting remains continuous and directional.
 vec3 visualNormal =
   normalize(
     vec3(
-      realNormal.x * 16.0,
+      realNormal.x * 11.0,
       max(
         realNormal.y,
-        0.10
+        0.12
       ),
-      realNormal.z * 16.0
+      realNormal.z * 11.0
     )
   );
 
 float slopeAmount =
   clamp(
     length(
-  realNormal.xz
-    ) * 30.0,
+      realNormal.xz
+    ) *
+    38.0,
     0.0,
     1.0
   );
+
 
 vec3 duskDirection =
   normalize(
@@ -603,6 +694,7 @@ vec3 headlightDirection =
     uHeadlightPosition -
     vWorldPosition
   );
+
 
 float duskFacing =
   clamp(
@@ -624,119 +716,199 @@ float headlightFacing =
     1.0
   );
 
+
 float directionalLight =
   max(
-    duskFacing * 0.90,
+    duskFacing * 0.78,
     headlightFacing *
     mix(
-      0.60,
-      1.15,
+      0.62,
+      1.20,
       headlight
     )
   );
 
+
+// --------------------------------------------------------
+// START WITH THE REAL ROAD COLOUR
+// --------------------------------------------------------
+
 vec3 craterColour =
   colour;
-// Make the pothole mouth readable against both bright and dark asphalt.
-// This changes only the boundary contrast — not the crater centre or geometry.
-float roadLuminance =
-  dot(
-    colour,
-    vec3(0.2126, 0.7152, 0.0722)
-  );
 
-float darkRoad =
-  1.0 -
-  smoothstep(
-    0.10,
-    0.26,
-    roadLuminance
-  );
 
-vec3 edgeContrastColour =
+// --------------------------------------------------------
+// CHIPPED ASPHALT LIP
+// --------------------------------------------------------
+//
+// Aggregate fragments alternate slightly lighter/darker
+// depending on procedural fracture and illumination.
+
+vec3 darkBrokenAsphalt =
+  colour *
   mix(
-    colour * 0.58,       // darker edge on pale asphalt
-    colour * 1.42,       // lighter broken edge on dark asphalt
-    darkRoad
+    0.42,
+    0.58,
+    fracture
   );
 
-// Only affect the real wall / mouth, never the centre.
+vec3 exposedAggregate =
+  colour *
+  mix(
+    1.05,
+    1.34,
+    fracture
+  );
+
+
+vec3 lipColour =
+  mix(
+    darkBrokenAsphalt,
+    exposedAggregate,
+    clamp(
+      directionalLight * 0.72 +
+      fracture * 0.30,
+      0.0,
+      1.0
+    )
+  );
+
+
 craterColour =
   mix(
     craterColour,
-    edgeContrastColour,
-    brokenEdge * 0.42
-  );
-// Damaged asphalt around the mouth.
-// Noticeably darker, but NOT the huge dark patch from before.
-craterColour *=
-  mix(
-    1.0,
-    0.68,
-    brokenEdge * 0.78
+    lipColour,
+    brokenLip * 0.96
   );
 
-// Strong directional lighting on the actual crater wall.
-float wallLighting =
+
+// Thin shadow directly beneath the broken lip.
+// This makes the top surface appear to overhang the crater.
+craterColour *=
+  1.0 -
+  innerLip * 0.48;
+
+
+// --------------------------------------------------------
+// CRATER WALL
+// --------------------------------------------------------
+
+float wallLight =
   mix(
-    0.14,
-    1.65,
+    0.18,
+    1.12,
     directionalLight
   );
 
+
 vec3 wallColour =
   colour *
-  wallLighting;
+  wallLight;
 
-// Give the lit wall a restrained highlight.
-// This is important when the surrounding road is already dark.
+
+// Preserve rough aggregate variation down the wall.
+wallColour *=
+  mix(
+    0.78,
+    1.06,
+    fracture
+  );
+
+
+// Small headlight glint on wall facets facing the car.
 wallColour +=
   vec3(
-    0.050,
-    0.045,
-    0.038
+    0.070,
+    0.060,
+    0.045
   ) *
-  directionalLight *
+  headlightFacing *
+  headlight *
   slopeAmount;
+
 
 craterColour =
   mix(
     craterColour,
     wallColour,
-    wallBand * 0.92
+    wallBand * 0.96
   );
 
-// Clearly dark centre, while retaining a little asphalt texture.
-vec3 craterFloor =
-  mix(
-    colour * 0.11,
-    vec3(
-      0.006,
-      0.008,
-      0.010
-    ),
-    0.76
+
+// --------------------------------------------------------
+// SELF-OCCLUSION
+// --------------------------------------------------------
+//
+// Walls that face away from both the dusk light and headlights
+// become substantially darker. This gives the crater volume.
+
+float wallOcclusion =
+  wallBand *
+  (
+    1.0 -
+    directionalLight
   );
+
+
+craterColour *=
+  1.0 -
+  wallOcclusion * 0.56;
+
+
+// --------------------------------------------------------
+// CRATER FLOOR
+// --------------------------------------------------------
+//
+// Dark, but not pure black. Retaining asphalt texture is what
+// prevents it from looking like a black decal painted on the road.
+
+vec3 craterFloor =
+  colour *
+  mix(
+    0.13,
+    0.22,
+    fracture
+  );
+
+
+// Slight cool occlusion in the deepest area.
+craterFloor =
+  mix(
+    craterFloor,
+    vec3(
+      0.018,
+      0.021,
+      0.024
+    ),
+    0.44
+  );
+
 
 craterColour =
   mix(
     craterColour,
     craterFloor,
-    potholeCore * 0.93
+    potholeCore * 0.96
   );
 
-// Small contact-darkening where wall meets floor.
-float innerOcclusion =
-  wallBand *
+
+// Deepest centre receives extra ambient occlusion.
+float deepOcclusion =
   smoothstep(
-    0.20,
-    0.48,
-    vPotholeDepth
+    0.68,
+    1.0,
+    depth
   );
+
 
 craterColour *=
   1.0 -
-  innerOcclusion * 0.16;
+  deepOcclusion * 0.24;
+
+
+// --------------------------------------------------------
+// FINAL POTHOLE COMPOSITE
+// --------------------------------------------------------
 
 colour =
   mix(
@@ -947,27 +1119,16 @@ export function createPoolCoverageMaterial(
 export function createRoadMaterial(
   textures
 ) {
-  return new THREE.MeshStandardMaterial({
+  return new THREE.MeshBasicMaterial({
     map:
       textures.colour,
 
-    roughnessMap:
-      textures.roughness,
-
-    normalMap:
-      textures.normal,
-
-    roughness: 1,
-    metalness: 0,
-
+    // Neutralise the road texture slightly so these connecting
+    // road pieces match the custom-shaded parking surface.
     color:
-      0x86898e,
+      0xb4b4b4,   // slightly lighter
 
-    normalScale:
-      new THREE.Vector2(
-        0.45,
-        0.45
-      )
+    toneMapped: true
   });
 }
 

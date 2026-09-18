@@ -226,17 +226,33 @@ export function applyPotholeDeformation(
   lot,
   potholes,
   {
-    maximumDepth = 0.030
+    maximumDepth = 0.18
   } = {}
 ) {
-  const position = geometry.getAttribute("position");
+  const position =
+    geometry.getAttribute("position");
 
-  for (let index = 0; index < position.count; index++) {
-    const localX = position.getX(index);
-    const localY = position.getY(index);
+  for (
+    let index = 0;
+    index < position.count;
+    index++
+  ) {
+    const localX =
+      position.getX(index);
 
-    const worldX = lot.x + localX;
-    const worldZ = lot.z - localY;
+    const localY =
+      position.getY(index);
+
+    // createAsphaltQuadGeometry stores the road in local X/Y.
+    // After the mesh rotates -90deg around X:
+    //   local X -> world X
+    //   local Y -> -world Z
+    //   local Z -> world height
+    const worldX =
+      lot.x + localX;
+
+    const worldZ =
+      lot.z - localY;
 
     let deformation = 0;
 
@@ -245,30 +261,51 @@ export function applyPotholeDeformation(
       potholeIndex < potholes.length;
       potholeIndex++
     ) {
-      const pothole = potholes[potholeIndex];
+      const pothole =
+        potholes[potholeIndex];
 
-      const dx = worldX - pothole.x;
-      const dz = worldZ - pothole.z;
+      const dx =
+        worldX - pothole.x;
 
-      const distance = Math.hypot(dx, dz);
-      const angle = Math.atan2(dz, dx);
+      const dz =
+        worldZ - pothole.z;
+
+      const distance =
+        Math.hypot(dx, dz);
+
+      const angle =
+        Math.atan2(dz, dx);
 
       const seed =
         potholeIndex * 1.731 +
         pothole.x * 0.041 +
         pothole.z * 0.067;
 
+      // Strong multi-frequency edge variation.
+      // This deliberately creates chipped / broken mouths rather
+      // than slightly wobbly circles.
       const edgeVariation =
         1 +
-        Math.sin(angle * 3 + seed) * 0.13 +
-        Math.sin(angle * 5 + seed * 1.7) * 0.075 +
-        Math.sin(angle * 8 + seed * 2.3) * 0.035;
+        Math.sin(
+          angle * 3 +
+          seed
+        ) * 0.16 +
+        Math.sin(
+          angle * 5 +
+          seed * 1.7
+        ) * 0.085 +
+        Math.sin(
+          angle * 8 +
+          seed * 2.3
+        ) * 0.050 +
+        Math.sin(
+          angle * 13 +
+          seed * 3.1
+        ) * 0.025;
 
-      // Large enough to be obvious while driving,
-      // but not the huge 1.28 footprint from before.
       const outerRadius =
         pothole.radius *
-        1.18 *
+        1.04 *
         edgeVariation;
 
       const normalized =
@@ -278,24 +315,110 @@ export function applyPotholeDeformation(
         continue;
       }
 
-      const t = 1 - normalized;
+      // The references are NOT smooth bowls.
+      //
+      //        road
+      // ---------\_
+      //            \
+      //             |____ floor
+      //
+      // Keep a broad deep basin, then climb to road height
+      // across a narrow wall region.
+      const floorEdge =
+        0.61 +
+        Math.sin(
+          angle * 4 +
+          seed * 1.4
+        ) * 0.025;
 
-      const smooth =
-        t *
-        t *
-        (3 - 2 * t);
+      const wallOuter =
+        0.80 +
+        Math.sin(
+          angle * 7 +
+          seed * 2.2
+        ) * 0.030;
 
-      // Broad crater, not a tiny dent.
-      const bowl =
-        Math.pow(smooth, 0.90);
+      let depthProfile;
 
-      deformation = Math.max(
-        deformation,
-        maximumDepth * bowl
-      );
+      if (normalized <= floorEdge) {
+        // Broad uneven floor instead of a cone point.
+        const floorNoise =
+          Math.sin(
+            dx * 8.0 +
+            seed
+          ) *
+          Math.sin(
+            dz * 9.5 -
+            seed * 0.7
+          );
+
+        depthProfile =
+          THREE.MathUtils.clamp(
+            0.94 +
+            floorNoise * 0.055,
+            0.87,
+            1.0
+          );
+      } else if (normalized <= wallOuter) {
+        // VERY short transition = steep cliff-like wall.
+        const wallT =
+          (normalized - floorEdge) /
+          (wallOuter - floorEdge);
+
+        const eased =
+          wallT *
+          wallT *
+          (
+            3 -
+            2 * wallT
+          );
+
+        depthProfile =
+          THREE.MathUtils.lerp(
+            0.94,
+            0.045,
+            eased
+          );
+      } else {
+        // Thin broken shoulder immediately inside the intact road.
+        const lipT =
+          (normalized - wallOuter) /
+          (1 - wallOuter);
+
+        depthProfile =
+          0.045 *
+          (
+            1 -
+            THREE.MathUtils.clamp(
+              lipT,
+              0,
+              1
+            )
+          );
+      }
+
+      // Bigger potholes are physically deeper.
+      // Rough range: 14cm -> 18cm.
+      const physicalDepth =
+        THREE.MathUtils.clamp(
+          0.11 +
+          pothole.radius * 0.05,
+          0.14,
+          maximumDepth
+        );
+
+      const potholeDepth =
+        physicalDepth *
+        depthProfile;
+
+      deformation =
+        Math.max(
+          deformation,
+          potholeDepth
+        );
     }
 
-    // Always downwards. Never a mound.
+    // Negative local Z becomes DOWN once the road is laid flat.
     position.setZ(
       index,
       -deformation
@@ -304,6 +427,7 @@ export function applyPotholeDeformation(
 
   position.needsUpdate = true;
 
+  // Critical: wall normals now follow the actual cliff-like geometry.
   geometry.deleteAttribute("normal");
   geometry.computeVertexNormals();
   geometry.computeBoundingBox();
@@ -319,11 +443,11 @@ export function createAsphaltQuadGeometry(
   const local = corners.map(([x, z]) => new THREE.Vector2(x - lot.x, -(z - lot.z)));
   const [p0, p1, p2, p3] = local;
 
-  const segmentsFor = (a, b) =>
+const segmentsFor = (a, b) =>
   THREE.MathUtils.clamp(
-    Math.ceil(a.distanceTo(b) / 0.35),
+    Math.ceil(a.distanceTo(b) / 0.20),
     2,
-    320
+    560
   );
   const segmentsU = Math.max(segmentsFor(p0, p1), segmentsFor(p3, p2));
   const segmentsV = Math.max(segmentsFor(p0, p3), segmentsFor(p1, p2));
