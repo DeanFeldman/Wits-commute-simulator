@@ -10,6 +10,10 @@ import {
   createRoadMaterial,
   createRoadTextures
 } from "../shaders/asphaltShader.js";
+
+import {
+  createPotholeSplashMaterial
+} from "../shaders/potholeSplashShader.js";
 import {
   createPotholeWaterMaterial
 } from "../shaders/potholeWaterShader.js";
@@ -36,6 +40,9 @@ import { measurePoolCoverage } from "./parking/poolCoverage.js";
 const LEVEL_ONE_ASPHALT_Y = 0.035;
 const WATER_FILLED_FRACTION = 0.35;
 const POTHOLE_WATER_DEPTH_RATIO = 0.42;
+
+const POTHOLE_SPLASH_CAPACITY = 192;
+const POTHOLE_SPLASH_GRAVITY = 10.5;
 export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
 export const LEVEL_ONE_DAMAGE = Object.freeze({
@@ -1178,6 +1185,7 @@ export class ParkingLevel {
     this.onViewToggle = this.toggleSkyView.bind(this);
     this.asphaltUniforms = null;
     this.potholeWaterUniforms = null;
+    this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
     this.carIdleAudio = null;
@@ -1270,6 +1278,7 @@ async load() {
   this.createRoadMarkings();
   const parkedCarsReady = this.createParkedCars();
   this.createPotholes();
+  this.createPotholeSplashSystem();
   this.createParkingWaypoints();
   const playerCarReady = this.createPlayerCar();
 
@@ -1771,6 +1780,7 @@ if (hit) {
 
     this.potholeCooldown = Math.max(0, this.potholeCooldown - dt);
     this.checkPotholes();
+    this.updatePotholeSplashes(dt);
     this.checkParking(dt);
     this.updateParkingWaypoints(dt);
     this.updateCamera(dt);
@@ -1836,6 +1846,725 @@ if (hit) {
         );
     }
   }
+  createPotholeSplashSystem() {
+    const capacity =
+      POTHOLE_SPLASH_CAPACITY;
+
+    const positions =
+      new Float32Array(
+        capacity * 3
+      );
+
+    const velocities =
+      new Float32Array(
+        capacity * 3
+      );
+
+    const ages =
+      new Float32Array(
+        capacity
+      );
+
+    const lifetimes =
+      new Float32Array(
+        capacity
+      );
+
+    const sizes =
+      new Float32Array(
+        capacity
+      );
+
+    const alphas =
+      new Float32Array(
+        capacity
+      );
+
+    const stretches =
+      new Float32Array(
+        capacity
+      );
+
+
+    for (
+      let index = 0;
+      index < capacity;
+      index++
+    ) {
+      positions[
+        index * 3 + 1
+      ] =
+        -1000;
+
+      sizes[index] =
+        1;
+
+      alphas[index] =
+        0;
+
+      stretches[index] =
+        1;
+    }
+
+
+    const geometry =
+      new THREE.BufferGeometry();
+
+
+    const positionAttribute =
+      new THREE.BufferAttribute(
+        positions,
+        3
+      );
+
+    const sizeAttribute =
+      new THREE.BufferAttribute(
+        sizes,
+        1
+      );
+
+    const alphaAttribute =
+      new THREE.BufferAttribute(
+        alphas,
+        1
+      );
+
+    const stretchAttribute =
+      new THREE.BufferAttribute(
+        stretches,
+        1
+      );
+
+
+    positionAttribute.setUsage(
+      THREE.DynamicDrawUsage
+    );
+
+    sizeAttribute.setUsage(
+      THREE.DynamicDrawUsage
+    );
+
+    alphaAttribute.setUsage(
+      THREE.DynamicDrawUsage
+    );
+
+    stretchAttribute.setUsage(
+      THREE.DynamicDrawUsage
+    );
+
+
+    geometry.setAttribute(
+      "position",
+      positionAttribute
+    );
+
+    geometry.setAttribute(
+      "aSize",
+      sizeAttribute
+    );
+
+    geometry.setAttribute(
+      "aAlpha",
+      alphaAttribute
+    );
+
+    geometry.setAttribute(
+      "aStretch",
+      stretchAttribute
+    );
+
+
+    geometry.setDrawRange(
+      0,
+      capacity
+    );
+
+
+    const points =
+      new THREE.Points(
+        geometry,
+        createPotholeSplashMaterial()
+      );
+
+
+    points.name =
+      "level-one-pothole-splash";
+
+    points.frustumCulled =
+      false;
+
+    points.renderOrder =
+      5;
+
+
+    this.root.add(
+      points
+    );
+
+
+    this.potholeSplash = {
+      capacity,
+      points,
+
+      positions,
+      velocities,
+      ages,
+      lifetimes,
+      sizes,
+      alphas,
+      stretches,
+
+      positionAttribute,
+      sizeAttribute,
+      alphaAttribute,
+      stretchAttribute,
+
+      cursor: 0
+    };
+  }
+
+
+  triggerPotholeSplash(
+    pothole,
+    impactSpeed,
+    radius
+  ) {
+    const splash =
+      this.potholeSplash;
+
+    if (
+      !splash ||
+      !pothole.userData.isWet
+    ) {
+      return;
+    }
+
+
+    if (
+      impactSpeed < 0.18
+    ) {
+      return;
+    }
+
+
+    const radiusRange =
+      Math.max(
+        0.001,
+        LEVEL_ONE_PARKING_LAYOUT.potholeRadiusMax -
+          LEVEL_ONE_PARKING_LAYOUT.potholeRadiusMin
+      );
+
+
+    const severity =
+      THREE.MathUtils.clamp(
+        (
+          radius -
+          LEVEL_ONE_PARKING_LAYOUT.potholeRadiusMin
+        ) /
+          radiusRange,
+        0,
+        1
+      );
+
+
+    const speedFactor =
+      THREE.MathUtils.clamp(
+        impactSpeed / 6,
+        0,
+        1
+      );
+
+
+    const particleCount =
+      Math.round(
+        14 +
+        severity * 10 +
+        speedFactor * 30
+      );
+
+
+    const contactDx =
+      this.car.position.x -
+      pothole.position.x;
+
+    const contactDz =
+      this.car.position.z -
+      pothole.position.z;
+
+    const contactDistance =
+      Math.hypot(
+        contactDx,
+        contactDz
+      );
+
+    const maximumContactOffset =
+      radius * 0.48;
+
+
+    let contactScale =
+      1;
+
+
+    if (
+      contactDistance >
+        maximumContactOffset &&
+      contactDistance >
+        0.0001
+    ) {
+      contactScale =
+        maximumContactOffset /
+        contactDistance;
+    }
+
+
+    const impactX =
+      pothole.position.x +
+      contactDx *
+        contactScale;
+
+    const impactZ =
+      pothole.position.z +
+      contactDz *
+        contactScale;
+
+
+    const physicalDepth =
+      getPotholePhysicalDepth(
+        radius
+      );
+
+
+    const fallbackWaterY =
+      LEVEL_ONE_ASPHALT_Y -
+      physicalDepth *
+        POTHOLE_WATER_DEPTH_RATIO +
+      0.002;
+
+
+    const waterY =
+      pothole.userData
+        .waterMesh
+        ?.position
+        .y ??
+      fallbackWaterY;
+
+
+    const travelDirection =
+      Math.sign(
+        this.vehicle.speed
+      ) || 1;
+
+
+    const carAngle =
+      this.car.rotation.y;
+
+
+    const forwardX =
+      -Math.sin(
+        carAngle
+      ) *
+      travelDirection;
+
+    const forwardZ =
+      -Math.cos(
+        carAngle
+      ) *
+      travelDirection;
+
+
+    for (
+      let particle = 0;
+      particle <
+      particleCount;
+      particle++
+    ) {
+      const slot =
+        splash.cursor;
+
+
+      splash.cursor =
+        (
+          splash.cursor + 1
+        ) %
+        splash.capacity;
+
+
+      const offset =
+        slot * 3;
+
+
+      const spawnAngle =
+        Math.random() *
+        Math.PI *
+        2;
+
+
+      const spawnRadius =
+        Math.sqrt(
+          Math.random()
+        ) *
+        radius *
+        0.12;
+
+
+      splash.positions[
+        offset
+      ] =
+        impactX +
+        Math.cos(
+          spawnAngle
+        ) *
+        spawnRadius;
+
+
+      splash.positions[
+        offset + 1
+      ] =
+        waterY +
+        0.025 +
+        Math.random() *
+          0.035;
+
+
+      splash.positions[
+        offset + 2
+      ] =
+        impactZ +
+        Math.sin(
+          spawnAngle
+        ) *
+        spawnRadius;
+
+
+      const sprayAngle =
+        Math.random() *
+        Math.PI *
+        2;
+
+
+      const radialX =
+        Math.cos(
+          sprayAngle
+        );
+
+      const radialZ =
+        Math.sin(
+          sprayAngle
+        );
+
+
+      const radialSpeed =
+        (
+          1.1 +
+          Math.random() *
+            1.5
+        ) *
+        (
+          0.70 +
+          speedFactor
+        ) *
+        (
+          0.90 +
+          severity *
+            0.25
+        );
+
+
+      const forwardSpeed =
+        (
+          0.50 +
+          Math.random() *
+            0.80
+        ) *
+        speedFactor *
+        2.2;
+
+
+      splash.velocities[
+        offset
+      ] =
+        radialX *
+          radialSpeed +
+        forwardX *
+          forwardSpeed;
+
+
+      splash.velocities[
+        offset + 2
+      ] =
+        radialZ *
+          radialSpeed +
+        forwardZ *
+          forwardSpeed;
+
+
+      const highDroplet =
+        Math.random() <
+        0.32;
+
+
+      splash.velocities[
+        offset + 1
+      ] =
+        highDroplet
+          ? 3.2 +
+            Math.random() *
+              2.6 +
+            speedFactor *
+              0.9
+          : 1.4 +
+            Math.random() *
+              1.8 +
+            speedFactor *
+              0.7;
+
+
+      splash.ages[
+        slot
+      ] =
+        0;
+
+
+      splash.lifetimes[
+        slot
+      ] =
+        highDroplet
+          ? 0.56 +
+            Math.random() *
+              0.20
+          : 0.42 +
+            Math.random() *
+              0.20;
+
+
+      // High droplets become thin vertical streaks.
+      // Low particles become flatter sideways spray.
+      splash.stretches[
+        slot
+      ] =
+        highDroplet
+          ? THREE.MathUtils.lerp(
+              0.34,
+              0.52,
+              Math.random()
+            )
+          : THREE.MathUtils.lerp(
+              1.15,
+              1.75,
+              Math.random()
+            );
+
+
+      // Smaller than the old round "bubble" particles.
+      splash.sizes[
+        slot
+      ] =
+        highDroplet
+          ? 10 +
+            Math.random() *
+              7 +
+            speedFactor *
+              3
+          : 8 +
+            Math.random() *
+              6 +
+            speedFactor *
+              3;
+
+
+      splash.alphas[
+        slot
+      ] =
+        0.72 +
+        Math.random() *
+          0.22;
+    }
+
+
+    splash.positionAttribute.needsUpdate =
+      true;
+
+    splash.sizeAttribute.needsUpdate =
+      true;
+
+    splash.alphaAttribute.needsUpdate =
+      true;
+
+    splash.stretchAttribute.needsUpdate =
+      true;
+  }
+
+
+  updatePotholeSplashes(
+    dt
+  ) {
+    const splash =
+      this.potholeSplash;
+
+    if (!splash) {
+      return;
+    }
+
+
+    const horizontalDrag =
+      Math.exp(
+        -1.7 * dt
+      );
+
+
+    let changed =
+      false;
+
+
+    for (
+      let index = 0;
+      index <
+      splash.capacity;
+      index++
+    ) {
+      const lifetime =
+        splash.lifetimes[
+          index
+        ];
+
+
+      if (
+        lifetime <= 0
+      ) {
+        continue;
+      }
+
+
+      splash.ages[
+        index
+      ] +=
+        dt;
+
+
+      const age =
+        splash.ages[
+          index
+        ];
+
+
+      const offset =
+        index * 3;
+
+
+      if (
+        age >= lifetime
+      ) {
+        splash.lifetimes[
+          index
+        ] =
+          0;
+
+        splash.alphas[
+          index
+        ] =
+          0;
+
+        splash.positions[
+          offset + 1
+        ] =
+          -1000;
+
+        changed =
+          true;
+
+        continue;
+      }
+
+
+      splash.velocities[
+        offset
+      ] *=
+        horizontalDrag;
+
+      splash.velocities[
+        offset + 2
+      ] *=
+        horizontalDrag;
+
+
+      splash.velocities[
+        offset + 1
+      ] -=
+        POTHOLE_SPLASH_GRAVITY *
+        dt;
+
+
+      splash.positions[
+        offset
+      ] +=
+        splash.velocities[
+          offset
+        ] *
+        dt;
+
+      splash.positions[
+        offset + 1
+      ] +=
+        splash.velocities[
+          offset + 1
+        ] *
+        dt;
+
+      splash.positions[
+        offset + 2
+      ] +=
+        splash.velocities[
+          offset + 2
+        ] *
+        dt;
+
+
+      const progress =
+        THREE.MathUtils.clamp(
+          age /
+            lifetime,
+          0,
+          1
+        );
+
+
+      const fadeIn =
+        Math.min(
+          1,
+          age / 0.045
+        );
+
+      const fadeOut =
+        1 -
+        progress;
+
+
+      splash.alphas[
+        index
+      ] =
+        fadeIn *
+        fadeOut *
+        fadeOut;
+
+
+      changed =
+        true;
+    }
+
+
+    if (!changed) {
+      return;
+    }
+
+
+    splash.positionAttribute.needsUpdate =
+      true;
+
+    splash.alphaAttribute.needsUpdate =
+      true;
+  }
+
+
   checkPotholes() {
     let contactedPothole = null;
 
@@ -1911,6 +2640,16 @@ if (hit) {
         1.10,
         speedFactor
       );
+
+    if (
+      contactedPothole.userData.isWet
+    ) {
+      this.triggerPotholeSplash(
+        contactedPothole,
+        impactSpeed,
+        radius
+      );
+    }
 
     const travelDirection =
       Math.sign(
@@ -2235,5 +2974,6 @@ if (hit) {
       this.viewToggle.setAttribute("aria-pressed", "false");
     }
     disposeObject3D(this.root);
+    this.potholeSplash = null;
   }
 }
