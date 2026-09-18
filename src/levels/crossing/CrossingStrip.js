@@ -820,7 +820,7 @@ for (const zSide of [-1, 1]) {
     root.name = "vida-courtyard-container";
     // The VIDA container belongs across Yale Road on the Engineering side.
     // Rotate its 6.2 m long edge onto world X so it runs parallel to the road.
-    root.position.set(-7.2, 0.2, 0);
+    root.position.set(-7.2, 0.2, 2.5);
     root.rotation.y = Math.PI / 2;
 
     const containerMaterial = new THREE.MeshStandardMaterial({
@@ -1676,13 +1676,13 @@ this.createBridgeFenceReturns({
     }
   }
 
-  for (const x of [-width / 2 + 1.5, width / 2 - 1.5]) {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), metal);
-    pole.position.set(x, BRIDGE_SINK + 2.75, 0);
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), cream);
-    lamp.position.set(x, BRIDGE_SINK + 5.45, 0);
-    this.root.add(pole, lamp);
-  }
+  // for (const x of [-width / 2 + 1.5, width / 2 - 1.5]) {
+  //   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 5.5, 8), metal);
+  //   pole.position.set(x, BRIDGE_SINK + 2.75, 0);
+  //   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), cream);
+  //   lamp.position.set(x, BRIDGE_SINK + 5.45, 0);
+  //   this.root.add(pole, lamp);
+  // }
 
   // Block every grid cell off the deck so the player can't walk off the
   // bridge and end up floating over the sunken highway.
