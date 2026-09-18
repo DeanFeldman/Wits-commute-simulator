@@ -108,19 +108,7 @@ export class CrossingStrip {
     if (this.lanes.length > 0) this.createTraffic();
   }
 
-  get isCheckpoint() {
-    return this.definition.checkpoint === true;
-  }
 
-  get checkpointLabel() {
-    if (this.definition.type === "median") return "traffic island";
-    if (this.definition.type === "bridge") return "Amic Deck bridge";
-    if (this.definition.type === "bridge-entry") return "pedestrian bridge entrance";
-    if (this.definition.type === "bridge-exit") return "far side of the bridge";
-    if (this.definition.type === "yale-exit") return "far side of Yale Road";
-    if (this.definition.type === "start") return "start";
-    return "safe pavement";
-  }
 
   containsZ(worldZ) {
     return Math.abs(worldZ - this.z) <= this.definition.depth / 2 + 0.01;
@@ -267,12 +255,7 @@ export class CrossingStrip {
 
     if (!isRoad && !isMedian) this.blockOutsideWalkway();
 
-    if (this.isCheckpoint) {
-      this.createCheckpointMarker(
-        this.isBridge ? BRIDGE_SINK : 0,
-        this.isBridge ? BRIDGE_DECK_WIDTH / 2 - 0.8 : undefined
-      );
-    }
+   
 
     if (this.definition.trees) this.createTrees();
   }
