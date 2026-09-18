@@ -758,7 +758,8 @@ export function getPotholeImpact(radius, layout = LEVEL_ONE_PARKING_LAYOUT) {
   return {
     damage: Math.round(THREE.MathUtils.lerp(2, 8, severity)),
     speedMultiplier: THREE.MathUtils.lerp(0.9, 0.7, severity),
-    cameraShake: THREE.MathUtils.lerp(0.16, 0.34, severity),
+    cameraShake: THREE.MathUtils.lerp(0.22, 0.42, severity),
+    suspensionKick: THREE.MathUtils.lerp(0.55,1.0,severity),
     cooldown: THREE.MathUtils.lerp(0.85, 1.25, severity)
   };
 }
@@ -831,6 +832,10 @@ export class ParkingLevel {
     this.suspension = null;
     this.collisionWorld = null;
     this.cameraShake = 0;
+    // One-shot pothole feedback state.
+    this.potholePitch = 0;
+    this.potholePitchVelocity = 0;
+    this.activePothole = null;
     this.chaseCamera = null;
     this.skyCamera = null;
     this.skyViewActive = false;
@@ -1366,26 +1371,121 @@ if (hit) {
     this.asphaltUniforms.uHeadlightPosition.value.copy(headlight);
   }
   checkPotholes() {
+    let contactedPothole = null;
+
+    // Work out which pothole we are currently inside.
+    // This lets the feedback fire on ENTER rather than every frame.
+    for (const pothole of this.potholes) {
+      const radius =
+        pothole.userData.radius ??
+        0.8;
+
+      const distance =
+        pothole.position.distanceTo(
+          this.car.position
+        );
+
+      if (
+        distance <
+        radius + 0.65
+      ) {
+        contactedPothole =
+          pothole;
+
+        break;
+      }
+    }
+
+    // Leaving all potholes arms the next impact.
+    if (!contactedPothole) {
+      this.activePothole = null;
+      return;
+    }
+
+    // Remaining inside the same pothole must not continuously
+    // retrigger camera shake / suspension feedback.
+    if (
+      this.activePothole ===
+      contactedPothole
+    ) {
+      return;
+    }
+
+    this.activePothole =
+      contactedPothole;
+
     if (this.potholeCooldown > 0) {
       return;
     }
 
-    for (const pothole of this.potholes) {
-      const radius = pothole.userData.radius ?? 0.8;
-      const distance = pothole.position.distanceTo(this.car.position);
+    const radius =
+      contactedPothole.userData.radius ??
+      0.8;
 
-      if (distance < radius + 0.65) {
-        const impact = getPotholeImpact(radius);
-        this.vehicle.speed *= impact.speedMultiplier;
-        this.cameraShake = Math.max(this.cameraShake, impact.cameraShake);
-        this.game.flashHUD();
-        this.audio.cue(92, 0.12, 0.14);
+    const impact =
+      getPotholeImpact(radius);
 
-        this.condition = Math.max(0, this.condition - impact.damage);
-        this.potholeCooldown = impact.cooldown;
-        break;
-      }
-    }
+    // Radius controls the basic severity, while actual driving speed
+    // controls how violently the car experiences it.
+    const impactSpeed =
+      Math.abs(
+        this.vehicle.speed
+      );
+
+    const speedFactor =
+      THREE.MathUtils.clamp(
+        impactSpeed / 6,
+        0,
+        1
+      );
+
+    const feedbackScale =
+      THREE.MathUtils.lerp(
+        0.55,
+        1.10,
+        speedFactor
+      );
+
+    const travelDirection =
+      Math.sign(
+        this.vehicle.speed
+      ) || 1;
+
+    this.vehicle.speed *=
+      impact.speedMultiplier;
+
+    this.cameraShake =
+      Math.max(
+        this.cameraShake,
+        impact.cameraShake *
+          feedbackScale
+      );
+
+    // Give the suspension pivot an impulse.
+    // Positive forward travel produces a nose-down kick;
+    // the spring update then rebounds naturally.
+    this.potholePitchVelocity -=
+      impact.suspensionKick *
+      feedbackScale *
+      travelDirection;
+
+    this.game.flashHUD();
+
+    this.audio.cue(
+      92,
+      0.12,
+      0.14
+    );
+
+    this.condition =
+      Math.max(
+        0,
+        this.condition -
+          impact.damage
+      );
+
+    this.potholeCooldown =
+      impact.cooldown;
   }
 
   checkParking(dt) {
@@ -1470,18 +1570,75 @@ if (hit) {
   }
 
   updateVehicleVisuals(dt) {
-    const wheelSpin = this.vehicle.speed / 0.38 * dt;
+    const wheelSpin =
+      this.vehicle.speed /
+      0.38 *
+      dt;
 
     // The imported wheel mesh is thin on local Y, so Y is its axle.
     // rotateY preserves the wheel's authored base orientation.
     for (const wheel of this.wheels) {
-      wheel.rotateY(-wheelSpin);
+      wheel.rotateY(
+        -wheelSpin
+      );
     }
 
-    for (const pivot of this.frontWheelPivots) {
-      pivot.rotation.y = this.vehicle.steering;
+    for (
+      const pivot of
+      this.frontWheelPivots
+    ) {
+      pivot.rotation.y =
+        this.vehicle.steering;
     }
-    this.suspension.rotation.x = -this.vehicle.speed * 0.012 - this.cameraShake * 0.08;
+
+    // ------------------------------------------------------
+    // POTHOLE SUSPENSION SPRING
+    // ------------------------------------------------------
+    //
+    // The hit injects velocity once.
+    // A damped spring then produces:
+    //
+    //   dip -> rebound -> settle
+    //
+    // rather than holding the car at a fixed pitch angle.
+
+    const springStiffness =
+      55;
+
+    const springDamping =
+      10.5;
+
+    const pitchAcceleration =
+      -this.potholePitch *
+        springStiffness -
+      this.potholePitchVelocity *
+        springDamping;
+
+    this.potholePitchVelocity +=
+      pitchAcceleration *
+      dt;
+
+    this.potholePitch +=
+      this.potholePitchVelocity *
+      dt;
+
+    // Avoid tiny floating-point movement once the spring has settled.
+    if (
+      Math.abs(
+        this.potholePitch
+      ) < 0.0001 &&
+      Math.abs(
+        this.potholePitchVelocity
+      ) < 0.0001
+    ) {
+      this.potholePitch = 0;
+      this.potholePitchVelocity = 0;
+    }
+
+    this.suspension.rotation.x =
+      -this.vehicle.speed *
+        0.012 +
+      this.potholePitch;
   }
 
   toggleCollisionDebug(visible) {
@@ -1489,33 +1646,115 @@ if (hit) {
   }
   updateCamera(dt) {
     if (this.skyViewActive) {
-      const previousViewHeight = this.skyCamera.userData.viewHeight;
+      const previousViewHeight =
+        this.skyCamera.userData
+          .viewHeight;
+
       this.updateSkyCameraFrustum();
-      if (this.skyCamera.userData.viewHeight !== previousViewHeight) {
+
+      if (
+        this.skyCamera.userData
+          .viewHeight !==
+        previousViewHeight
+      ) {
         this.game.onResize();
       }
+
       return;
     }
 
-    const camera = this.game.camera;
+    const camera =
+      this.game.camera;
 
-    const behind = new THREE.Vector3(
-      Math.sin(this.car.rotation.y) * 8,
-      5,
-      Math.cos(this.car.rotation.y) * 8
+    const carAngle =
+      this.car.rotation.y;
+
+    const behind =
+      new THREE.Vector3(
+        Math.sin(carAngle) * 8,
+        5,
+        Math.cos(carAngle) * 8
+      );
+
+    const targetPosition =
+      this.car.position
+        .clone()
+        .add(behind);
+
+    camera.position.lerp(
+      targetPosition,
+      1 -
+        Math.exp(
+          -5 * dt
+        )
     );
 
-    const targetPosition = this.car.position.clone().add(behind);
+    let cameraRoll = 0;
 
-    camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
     if (this.cameraShake > 0) {
-      this.cameraShake = Math.max(0, this.cameraShake - dt);
-      camera.position.y += Math.sin(performance.now() * 0.07) * this.cameraShake * 0.35;
+      // A large pothole now lasts roughly half a second.
+      this.cameraShake =
+        Math.max(
+          0,
+          this.cameraShake -
+            dt * 0.78
+        );
+
+      const time =
+        performance.now() *
+        0.001;
+
+      const verticalShake =
+        Math.sin(
+          time * 52
+        ) *
+        this.cameraShake *
+        0.32;
+
+      const lateralShake =
+        Math.sin(
+          time * 67 +
+          1.1
+        ) *
+        this.cameraShake *
+        0.18;
+
+      camera.position.y +=
+        verticalShake;
+
+      // Lateral movement is relative to the car,
+      // not an arbitrary world X direction.
+      camera.position.x +=
+        Math.cos(carAngle) *
+        lateralShake;
+
+      camera.position.z -=
+        Math.sin(carAngle) *
+        lateralShake;
+
+      // Very small roll sells the impact without making the
+      // camera unpleasant to use.
+      cameraRoll =
+        Math.sin(
+          time * 61 +
+          0.4
+        ) *
+        this.cameraShake *
+        0.035;
     }
 
-    const lookTarget = this.car.position.clone();
+    const lookTarget =
+      this.car.position.clone();
+
     lookTarget.y += 1;
-    camera.lookAt(lookTarget);
+
+    camera.lookAt(
+      lookTarget
+    );
+
+    // lookAt resets orientation each frame, so this cannot drift.
+    camera.rotation.z +=
+      cameraRoll;
   }
 
   dispose() {
