@@ -150,12 +150,20 @@ export class CrossingStrip {
       material.map.needsUpdate = true;
     }
 
+    // Ordinary paving is a top surface, not a stack of touching boxes. This
+    // removes coplanar side faces at every panel seam; only the structural
+    // bridge deck keeps real thickness.
+    const solid = castShadow || Math.abs(height - WALKWAY_HEIGHT) > 1e-6;
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
+      solid ? new THREE.BoxGeometry(width, height, depth) : new THREE.PlaneGeometry(width, depth),
       material
     );
     mesh.name = name;
-    mesh.position.set(x, y, z);
+    if (solid) mesh.position.set(x, y, z);
+    else {
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(x, y + height / 2, z);
+    }
     mesh.castShadow = castShadow;
     mesh.receiveShadow = true;
     this.root.add(mesh);
