@@ -573,66 +573,15 @@ export class CrossingLevel {
   }
 
 checkFinish() {
-  const reachedFinish =
-    !this.hopController.isHopping &&
-    this.hopController.gridPosition.y <= this.finishZ;
-
-  if (!reachedFinish) return;
-
-  const cupsCollected =
-    this.powerUps.collected;
-
-  const totalCups =
-    this.cups.total;
-
-  const allCupsCollected =
-    cupsCollected === totalCups;
-
-  // ---------------------------------------------
-  // RULE 1: ALL VIDA CUPS REQUIRED
-  // ---------------------------------------------
-
-  if (!allCupsCollected) {
-    const remaining =
-      totalCups - cupsCollected;
-
-    this.game.setMessage(
-      `You still need ${remaining} Vida cup${remaining === 1 ? "" : "s"} before you can finish!`
-    );
-
-    return;
-  }
-
-  // ---------------------------------------------
-  // RULE 2: MUST FINISH UNDER 30 SECONDS
-  // ---------------------------------------------
-
-  const finalTime =
-    this.getAdjustedTime();
-
-  if (finalTime >= LEVEL_2_TIME_LIMIT) {
+    if (this.hopController.isHopping || this.hopController.gridPosition.y > this.finishZ) return;
+    const cups = this.powerUps.collected, total = this.cups.total;
+    if (cups !== total) { this.game.setMessage(`You still need ${total - cups} Vida cup${total - cups === 1 ? "" : "s"} before you can finish!`); return; }
+    const time = this.getAdjustedTime();
+    if (time >= LEVEL_2_TIME_LIMIT) { this.completed = true; this.game.failLevel(`Too slow! You collected all ${total} Vida cups, but finished in ${time.toFixed(1)}s. You need to finish in under ${LEVEL_2_TIME_LIMIT} seconds.`); return; }
     this.completed = true;
-
-    this.game.failLevel(
-      `Too slow! You collected all ${totalCups} Vida cups, but finished in ${finalTime.toFixed(1)}s. You need to finish in under ${LEVEL_2_TIME_LIMIT} seconds.`
-    );
-
-    return;
+    this.game.journeyScore += cups * CUP_SCORE;
+    this.game.completeLevel(`You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s (+${cups * CUP_SCORE}). Heading to Level 3.`);
   }
-
-  // ---------------------------------------------
-  // PASS
-  // ---------------------------------------------
-
-  this.completed = true;
-
-  this.game.journeyScore +=
-    cupsCollected * CUP_SCORE;
-
-  this.game.completeLevel(
-    `You collected all ${totalCups} Vida cups and crossed in ${finalTime.toFixed(1)}s (+${cupsCollected * CUP_SCORE}). Heading to Level 3.`
-  );
-}
 
   checkCollisions() {
     if (this.invulnerabilityTimer > 0) return;
