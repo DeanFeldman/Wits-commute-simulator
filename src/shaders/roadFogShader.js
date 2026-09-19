@@ -1,68 +1,64 @@
-export const RoadFogShader = {
-  name: "RoadFogShader",
-  uniforms: {
-    uColor: { value: null },
-    uOpacity: { value: 0.25 },
-    uTime: { value: 0 }
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    varying vec3 vWorldPosition;
+import * as THREE from "three";
 
-    void main() {
-      vUv = uv;
-      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-      vWorldPosition = worldPosition.xyz;
-      gl_Position = projectionMatrix * viewMatrix * worldPosition;
+export const RoadFogShader={
+  name:"RoadFogShader",
+  uniforms:{
+    tDiffuse:{value:null},
+    tDepth:{value:null},
+    uProjectionMatrixInverse:{value:new THREE.Matrix4()},
+    uCameraMatrixWorld:{value:new THREE.Matrix4()},
+    uFogColor:{value:new THREE.Color(0x8ec9ee)},
+    uFogCenterX:{value:0},
+    uFogStart:{value:24},
+    uFogEnd:{value:58},
+    uDensity:{value:1.5},
+    uTime:{value:0}
+  },
+  vertexShader:`
+    varying vec2 vUv;
+    void main(){
+      vUv=uv;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
     }
   `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    uniform float uOpacity;
-    uniform float uTime;
-
+  fragmentShader:`
+    uniform sampler2D tDiffuse;
+    uniform sampler2D tDepth;
+    uniform mat4 uProjectionMatrixInverse;
+    uniform mat4 uCameraMatrixWorld;
+    uniform vec3 uFogColor;
+    uniform float uFogCenterX,uFogStart,uFogEnd,uDensity,uTime;
     varying vec2 vUv;
-    varying vec3 vWorldPosition;
 
-    float hash(vec2 p) {
-      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+
+    float noise(vec2 p){
+      vec2 i=floor(p),f=fract(p);
+      f=f*f*(3.0-2.0*f);
+      return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);
     }
 
-    float noise(vec2 p) {
-      vec2 i = floor(p);
-      vec2 f = fract(p);
-      f = f * f * (3.0 - 2.0 * f);
-
-      return mix(
-        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-        f.y
-      );
+    vec3 worldPosition(float depth){
+      vec4 clip=vec4(vUv*2.0-1.0,depth*2.0-1.0,1.0);
+      vec4 view=uProjectionMatrixInverse*clip;
+      view/=view.w;
+      return (uCameraMatrixWorld*view).xyz;
     }
 
-    void main() {
-      float verticalFade=1.0-smoothstep(0.55,1.0,vUv.y);
+    void main(){
+      vec4 source=texture2D(tDiffuse,vUv);
+      float depth=texture2D(tDepth,vUv).x;
+      if(depth>=0.99999){gl_FragColor=source;return;}
 
-        float sideFade=
-        smoothstep(0.0,0.08,vUv.x)*
-        smoothstep(0.0,0.08,1.0-vUv.x);
+      vec3 world=worldPosition(depth);
 
-        float largeNoise=noise(vWorldPosition.xz*0.06+uTime*0.012);
-        float fineNoise=noise(vWorldPosition.xz*0.18-uTime*0.02);
+      float distanceFromCentre=abs(world.x-uFogCenterX);
+      float fog=smoothstep(uFogStart,uFogEnd,distanceFromCentre);
 
-        float density=0.78+(largeNoise*0.16+fineNoise*0.06);
+      float n=noise(world.xz*.075+vec2(uTime*.025,-uTime*.018));
+      fog=clamp(fog*(.82+n*.28)*uDensity,0.0,.98);
 
-        float alpha=clamp(
-        uOpacity*
-        verticalFade*
-        sideFade*
-        density*
-        1.65,
-        0.0,
-        0.92
-        );
-
-        gl_FragColor=vec4(uColor,alpha);
+      gl_FragColor=vec4(mix(source.rgb,uFogColor,fog),source.a);
     }
   `
 };

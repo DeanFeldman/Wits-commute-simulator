@@ -6,7 +6,7 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
-
+import { RoadFogShader } from "../shaders/roadFogShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
@@ -178,6 +178,20 @@ export class Game {
     this.instructionElement.addEventListener("click", this.onInstructionClick);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
+  
+  
+    
+    const roadFogTarget=new THREE.WebGLRenderTarget(window.innerWidth,window.innerHeight);
+    roadFogTarget.depthTexture=new THREE.DepthTexture(window.innerWidth,window.innerHeight,THREE.UnsignedIntType);
+
+    this.roadFogComposer=new EffectComposer(this.renderer,roadFogTarget);
+    this.roadFogRenderPass=new RenderPass(this.scene,this.camera);
+    this.roadFogPass=new ShaderPass(RoadFogShader);
+    this.roadFogOutputPass=new OutputPass();
+
+    this.roadFogComposer.addPass(this.roadFogRenderPass);
+    this.roadFogComposer.addPass(this.roadFogPass);
+    this.roadFogComposer.addPass(this.roadFogOutputPass);
   }
 
   start() {
@@ -680,21 +694,28 @@ export class Game {
     }
   }
 
-  render() {
+  render(){
+    if(this.currentLevelNumber===2&&this.currentLevel){
+      this.roadFogRenderPass.scene=this.scene;
+      this.roadFogRenderPass.camera=this.camera;
+      const u=this.roadFogPass.uniforms;
+      u.tDepth.value=this.roadFogComposer.readBuffer.depthTexture;
+      u.uProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse);
+      u.uCameraMatrixWorld.value.copy(this.camera.matrixWorld);
+      u.uTime.value=this.clock.elapsedTime;
+      this.roadFogComposer.render();
+      return;
+    }
 
-  if (this.currentLevelNumber === 3 && this.currentLevel) {
-      this.suspicionRenderPass.scene = this.scene;
-      this.suspicionRenderPass.camera = this.camera;
-      this.suspicionPass.uniforms.uSuspicion.value =
-      THREE.MathUtils.clamp(
-        (this.currentLevel.suspicion ?? 0) / 100,
-          0,
-          1
-        );
+    if(this.currentLevelNumber===3&&this.currentLevel){
+      this.suspicionRenderPass.scene=this.scene;
+      this.suspicionRenderPass.camera=this.camera;
+      this.suspicionPass.uniforms.uSuspicion.value=THREE.MathUtils.clamp((this.currentLevel.suspicion??0)/100,0,1);
       this.suspicionComposer.render();
       return;
-      }
-  this.renderer.render(this.scene, this.camera);
+    }
+
+    this.renderer.render(this.scene,this.camera);
   }
 
   onResize() {
@@ -719,7 +740,7 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
-
+this.roadFogComposer.setSize(width,height);
     this.suspicionComposer.setSize(width, height);
   }
 }
