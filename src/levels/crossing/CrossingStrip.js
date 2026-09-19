@@ -2744,6 +2744,35 @@ createYaleBackdropBuildings() {
     columns: 4,
     rows: 3
   });
+
+
+  // --------------------------------------------------
+// FAR-LEFT CAMPUS / PARKING BLOCK
+// Fills the empty top-left view and fades into side fog.
+// --------------------------------------------------
+const farX=-42,farZ=-12.5,farW=26,farD=8,floors=4,floorH=1.75;
+const openingMat=new THREE.MeshBasicMaterial({color:0x343b40});
+
+const roadEdgeZ=this.definition.depth/2;
+const farBackZ=-20;
+const farGroundDepth=roadEdgeZ-farBackZ;
+const farGroundZ=(roadEdgeZ+farBackZ)/2;
+
+addGroundPad(38,farGroundDepth,farX,farGroundZ,"yale-far-left-ground");
+
+for(let floor=0;floor<floors;floor++){
+  const y=floor*floorH;
+
+  addBox([farW,.22,farD],[farX,y+.11,farZ],roofGrey,"yale-left-garage-floor");
+
+  addBox([farW-.8,1.12,.12],[farX,y+.78,farZ+farD/2+.06],openingMat,"yale-left-garage-opening");
+
+  for(let x=-farW/2+1.4;x<farW/2;x+=3.4){
+    addBox([.28,floorH,farD],[farX+x,y+floorH/2,farZ],stone,"yale-left-garage-column");
+  }
+}
+
+addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-garage-roof");
 }
 
   createTaxiPassenger(lane) {
