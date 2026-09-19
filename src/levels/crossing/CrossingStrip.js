@@ -23,7 +23,7 @@ import { createWitsBusStop } from "./WitsBusStop.js";
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
 
-const ROAD_VISUAL_WIDTH = 120;
+const ROAD_VISUAL_WIDTH = 200;
 const TRAFFIC_EDGE = ROAD_VISUAL_WIDTH / 2 - 4;
 
 const ARM_BACK_EXTENSION = 20;

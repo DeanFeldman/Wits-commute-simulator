@@ -122,9 +122,16 @@ export class CrossingLevel {
 
     // Keep Level 2 in the same exterior visual language as Level 1 while
     // retaining the brighter midday lighting that distinguishes the crossing.
+    // const skyColor = new THREE.Color(0x8ec9ee);
+    // scene.background = skyColor;
+    // this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
+
     const skyColor = new THREE.Color(0x8ec9ee);
     scene.background = skyColor;
-    this.game.renderer.shadowMap.type = THREE.BasicShadowMap;
+    //scene.fog = new THREE.Fog(0x8ec9ee, 30, 85);
+    this.game.renderer.shadowMap.enabled = true;
+    this.game.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
 
     scene.add(this.root);
     this.root.add(createWitsTerrain({
@@ -143,15 +150,19 @@ export class CrossingLevel {
     const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.65);
     this.root.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff4d2, 3.85);
-    sun.position.set(-12, 22, 10);
+    const sun = new THREE.DirectionalLight(0xfff1cf, 3.4);
+    sun.position.set(-10, 18, 8);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -16;
-    sun.shadow.camera.right = 16;
-    sun.shadow.camera.top = 16;
-    sun.shadow.camera.bottom = -16;
-    sun.shadow.bias = -0.0005;
+    sun.shadow.camera.left = -12;
+    sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 14;
+    sun.shadow.camera.bottom = -14;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 55;
+    sun.shadow.bias = -0.0003;
+    sun.shadow.normalBias = 0.025;
+
     this.root.add(sun);
     this.root.add(sun.target);
     sun.target.position.set(0, 0, 0);
@@ -159,6 +170,8 @@ export class CrossingLevel {
     this.parkingRoadTextures = createRoadTextures();
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
+
+    this.createRoadEndFog();
 
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
@@ -200,6 +213,30 @@ export class CrossingLevel {
     );
   }
 
+  createRoadEndFog() {
+  const mat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    uniforms: { uColor: { value: new THREE.Color(0x8ec9ee) }, uOpacity: { value: 0.32 } },
+    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader: `varying vec2 vUv;uniform vec3 uColor;uniform float uOpacity;void main(){float a=smoothstep(0.,.7,vUv.y)*uOpacity;gl_FragColor=vec4(uColor,a);}`
+  });
+
+  for (const strip of this.strips) {
+    if (!strip.lanes.length) continue;
+
+    for (const side of [-1,1]) {
+      for (let i=0;i<4;i++) {
+        const fog=new THREE.Mesh(new THREE.PlaneGeometry(strip.definition.depth+0.4,7),mat.clone());
+        fog.material.uniforms.uOpacity.value=0.14+i*0.14;
+        fog.rotation.y=Math.PI/2;
+        fog.position.set(side*(44+i*4),3.1,strip.z);
+        this.root.add(fog);
+      }
+    }
+  }
+}
   async createStrips() {
     // A URL seed reproduces a layout; otherwise each new Level 2 start gets a new seed.
     this.seed = this.resolveSeed();

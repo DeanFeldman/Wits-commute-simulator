@@ -207,6 +207,7 @@ export class Game {
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
+    document.body.classList.remove("level-2");
   }
 
   showResults(keepFade = false) {
@@ -230,6 +231,7 @@ export class Game {
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
+    document.body.classList.remove("level-2");
   }
 
   async startLevel(levelNumber, checkpoint = "start", keepFade = false, showIntro = false) {
@@ -245,6 +247,7 @@ export class Game {
 
     this.state = LEVEL_STATES.get(levelNumber);
     this.currentLevelNumber = levelNumber;
+    document.body.classList.toggle("level-2",levelNumber===2);
     this.currentCheckpoint = checkpoint;
     this.isPaused = false;
     this.isLoading = true;

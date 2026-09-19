@@ -33,13 +33,6 @@ export function createWitsTerrain({ baseY = -0.04, palette = {}, nearScenery = f
       root.add(path);
     }
 
-    const nearBuildingMaterial = new THREE.MeshStandardMaterial({ color: palette.buildings ?? 0x8d765f, roughness: 0.88, flatShading: true });
-    for (const [x, z, width, height, depth] of [[-23, 23, 9, 10, 8], [23, 18, 12, 14, 9], [-24, -16, 11, 12, 8], [25, -20, 10, 16, 9]]) {
-      const building = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), nearBuildingMaterial);
-      building.position.set(x, baseY + height / 2, z);
-      building.castShadow = true;
-      root.add(building);
-    }
 
     const nearTrunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.16, 0.24, 2.2, 6), new THREE.MeshStandardMaterial({ color: 0x65462f, roughness: 0.95 }), 20);
     const nearCanopy = new THREE.InstancedMesh(new THREE.ConeGeometry(1.45, 3.5, 7), new THREE.MeshStandardMaterial({ color: palette.trees ?? 0x315c3a, roughness: 0.95, flatShading: true }), 20);
@@ -75,41 +68,8 @@ export function createWitsTerrain({ baseY = -0.04, palette = {}, nearScenery = f
     flatShading: true
   });
   const windowMaterial = new THREE.MeshBasicMaterial({ color: palette.windows ?? 0xbfd7d3 });
-  for (const [x, z, width, height, depth] of [[-52, -48, 14, 13, 10], [-30, -62, 10, 18, 8], [38, -58, 16, 15, 10], [64, -42, 12, 21, 9]]) {
-    const building = new THREE.Group();
-    const block = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), buildingMaterial);
-    block.position.y = baseY + height / 2;
-    building.add(block);
-    const windows = new THREE.Mesh(new THREE.BoxGeometry(width * 0.72, height * 0.38, 0.06), windowMaterial);
-    windows.position.set(0, baseY + height * 0.62, -depth / 2 - 0.04);
-    building.add(windows);
-    building.position.set(x, 0, z);
-    root.add(building);
-  }
+  
 
-  const trunk = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.18, 0.25, 2.5, 6),
-    new THREE.MeshStandardMaterial({ color: 0x65462f, roughness: 0.95 }),
-    24
-  );
-  const canopy = new THREE.InstancedMesh(
-    new THREE.ConeGeometry(1.8, 4.2, 7),
-    new THREE.MeshStandardMaterial({ color: palette.trees ?? 0x315c3a, roughness: 0.95, flatShading: true }),
-    24
-  );
-  const matrix = new THREE.Matrix4();
-  for (let index = 0; index < 24; index++) {
-    const side = index % 2 === 0 ? -1 : 1;
-    const x = side * (36 + (index % 4) * 7);
-    const z = -52 + Math.floor(index / 2) * 9;
-    matrix.makeTranslation(x, baseY + 1.25, z);
-    trunk.setMatrixAt(index, matrix);
-    matrix.makeTranslation(x, baseY + 4.2, z);
-    canopy.setMatrixAt(index, matrix);
-  }
-  trunk.instanceMatrix.needsUpdate = true;
-  canopy.instanceMatrix.needsUpdate = true;
-  root.add(trunk, canopy);
-
+  
   return root;
 }
