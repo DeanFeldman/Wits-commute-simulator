@@ -1,4 +1,4 @@
-import { poseWalk } from "./PedestrianFactory.js";
+import { PEDESTRIAN_SOLE_OFFSET, poseWalk } from "./PedestrianFactory.js";
 
 // The people on the Level 2 walkways. They are obstacles you can walk into,
 // not hazards: bumping someone stops you for a moment and they tell you about it.
@@ -124,6 +124,7 @@ export class CampusCrowd {
   add(entry, index = this.people.length) {
     const pick = (list, salt) => list[(index * salt + Math.floor(this.random() * list.length)) % list.length];
     const kind = entry.kind;
+    const scale = 0.92 + ((index * 7) % 5) * 0.03;
     const mesh = this.factory.create({
       shirt: kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
       trousers: pick(TROUSERS, 5),
@@ -133,12 +134,12 @@ export class CampusCrowd {
       backpack: kind === "student" || kind === "commuter" ? pick(BACKPACKS, 17) : null,
       vest: kind === "guard",
       holding: entry.holding ?? (kind === "phone" ? "phone" : null),
-      scale: 0.92 + ((index * 7) % 5) * 0.03
+      scale
     });
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
-    mesh.position.set(entry.x, entry.y ?? 1.14, z);
+    mesh.position.set(entry.x, entry.y ?? (0.19 + PEDESTRIAN_SOLE_OFFSET * scale + 0.025), z);
     const yaw = walking ? (entry.toZ < entry.fromZ ? Math.PI : 0) : (entry.yaw ?? 0);
     mesh.rotation.y = yaw;
     this.root.add(mesh);
