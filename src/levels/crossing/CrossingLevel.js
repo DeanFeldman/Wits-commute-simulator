@@ -6,6 +6,8 @@ import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
+//import { createRoadFogMaterial } from "../../shaders/roadFogShader.js";
+import { RoadFogShader } from "../../shaders/roadFogShader.js";
 import { PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
@@ -89,6 +91,7 @@ export class CrossingLevel {
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
     this.chimes = [];
+    this.roadFogMaterials = [];
 
     this.cupKit = null;
     this.pedestrians = null;
@@ -213,30 +216,22 @@ export class CrossingLevel {
     );
   }
 
-  createRoadEndFog() {
-  const mat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    uniforms: { uColor: { value: new THREE.Color(0x8ec9ee) }, uOpacity: { value: 0.32 } },
-    vertexShader: `varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader: `varying vec2 vUv;uniform vec3 uColor;uniform float uOpacity;void main(){float a=smoothstep(0.,.7,vUv.y)*uOpacity;gl_FragColor=vec4(uColor,a);}`
-  });
-
-  for (const strip of this.strips) {
-    if (!strip.lanes.length) continue;
-
-    for (const side of [-1,1]) {
-      for (let i=0;i<4;i++) {
-        const fog=new THREE.Mesh(new THREE.PlaneGeometry(strip.definition.depth+0.4,7),mat.clone());
-        fog.material.uniforms.uOpacity.value=0.14+i*0.14;
-        fog.rotation.y=Math.PI/2;
-        fog.position.set(side*(44+i*4),3.1,strip.z);
-        this.root.add(fog);
-      }
+createRoadEndFog(){
+  for(const strip of this.strips){
+    if(!strip.lanes.length)continue;
+    for(const side of [-1,1])for(let i=0;i<10;i++){
+      const material=new THREE.ShaderMaterial({...RoadFogShader,transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:THREE.UniformsUtils.clone(RoadFogShader.uniforms)});
+      material.uniforms.uColor.value=new THREE.Color(0x8ec9ee);
+      material.uniforms.uOpacity.value=.18+i*.075;
+      const fog=new THREE.Mesh(new THREE.PlaneGeometry(strip.definition.depth+2,18),material);
+      fog.rotation.y=Math.PI/2;
+      fog.position.set(side*(30+i*6),7,strip.z);
+      this.roadFogMaterials.push(material);
+      this.root.add(fog);
     }
   }
 }
+
   async createStrips() {
     // A URL seed reproduces a layout; otherwise each new Level 2 start gets a new seed.
     this.seed = this.resolveSeed();
@@ -392,6 +387,7 @@ export class CrossingLevel {
   update(dt) {
     if (this.completed) return;
     if (this.quizPaused) return; // quiz overlay owns input while it's open
+    for(const m of this.roadFogMaterials)m.uniforms.uTime.value+=dt;
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
@@ -400,6 +396,7 @@ export class CrossingLevel {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
     this.powerUps.update(dt);
+    if(this.getAdjustedTime()>=LEVEL_2_TIME_LIMIT){this.completed=true;this.game.failLevel("Snooze, you lose! You took 30 seconds or more. Retry Level 2.");return;}
     this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
@@ -534,7 +531,7 @@ export class CrossingLevel {
   // Stops the player and opens a quiz for a psychQuizzer/ccduAdvisor person.
   // The answer is checked for validity only (see quizBank.isValidAnswer) and
   // is never stored — `person.quizDone` just stops the same person from
-  // re-asking for the rest of this playthrough.
+  // re-asking for the  of this playthrough.
   startQuiz(person) {
     if (person.kind === "psychQuizzer") {
       this.quizPaused = true;

@@ -1116,20 +1116,8 @@ export function createPoolCoverageMaterial(
   return material;
 }
 
-export function createRoadMaterial(
-  textures
-) {
-  return new THREE.MeshBasicMaterial({
-    map:
-      textures.colour,
-
-    // Neutralise the road texture slightly so these connecting
-    // road pieces match the custom-shaded parking surface.
-    color:
-      0xb4b4b4,   // slightly lighter
-
-    toneMapped: true
-  });
+export function createRoadMaterial(textures) {
+  return new THREE.MeshStandardMaterial({map:textures.colour,roughnessMap:textures.roughness,normalMap:textures.normal,normalScale:new THREE.Vector2(.45,.45),color:0xb4b4b4,roughness:.88,metalness:.02});
 }
 
 export function applyRoadUvs(
