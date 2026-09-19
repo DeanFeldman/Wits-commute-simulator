@@ -224,7 +224,7 @@ this.patrolPoints = [
     const scene = this.game.scene;
 
     scene.background = new THREE.Color(0xb9d8e8);
-    const skyboxPromise = this.loadSkybox(scene);
+    void this.loadSkybox(scene);
 
     scene.add(this.root);
     this.audio.startDrone(39, 0.004);
@@ -238,7 +238,6 @@ this.patrolPoints = [
     this.root.add(ceiling);
 
     const roomAssets = await this.createRoom();
-    await skyboxPromise;
     this.createLightingIdentity(roomAssets);
     this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
@@ -273,6 +272,10 @@ this.patrolPoints = [
       const texture = await new EXRLoader().loadAsync(
         "./assets/hdri/sunset-jhbcentral-4k.exr"
       );
+      if (this.game.scene !== scene) {
+        texture.dispose();
+        return;
+      }
       texture.mapping = THREE.EquirectangularReflectionMapping;
       this.backgroundTexture = texture;
       scene.background = texture;
