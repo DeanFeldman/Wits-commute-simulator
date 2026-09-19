@@ -417,7 +417,7 @@ export class Game {
     this.fadeTransition(() => {
       if (nextLevel <= 3) {
         this.showLevelIntro(nextLevel);
-        this.startLevel(nextLevel, "start", true, true);
+        requestAnimationFrame(() => requestAnimationFrame(() => this.startLevel(nextLevel, "start", true, true)));
       } else {
         this.showResults(true);
       }
