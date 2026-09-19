@@ -26,7 +26,7 @@ const WALK_STEP = STRIP_DEPTH / 2;
 const WALK_SPEED = 4.6;
 // Distance covered by one full left-right stride cycle.
 const STRIDE_LENGTH = 1.6;
-const PLAYER_Y = 0.95;
+const PLAYER_Y = 1.14; // feet sit on the 0.19 m Level 2 walkway top
 const LEVEL_2_TIME_LIMIT = 30;
 
 
