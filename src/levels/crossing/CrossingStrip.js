@@ -973,6 +973,9 @@ createYaleRoadDetails() {
   const intersectionDepth = roadDepth - 0.3;
 
   const intersectionMaterial = this.walkwayMaterial.clone();
+  intersectionMaterial.polygonOffset = true;
+  intersectionMaterial.polygonOffsetFactor = -1;
+  intersectionMaterial.polygonOffsetUnits = -4;
 
   if (this.walkwayMaterial.map) {
     intersectionMaterial.map =
@@ -1009,7 +1012,7 @@ createYaleRoadDetails() {
 
   intersection.position.set(
     0,
-    0.006,
+    0.01,
     0
   );
 
@@ -1071,7 +1074,7 @@ this.createZebraCrossing({
 
   group.position.set(
     x,
-    0.025,
+    0.04,
     z
   );
 
@@ -1151,17 +1154,11 @@ this.createZebraCrossing({
   // WITS BUS STOP — NEAR SIDE OF YALE ROAD / BY VIDA
   // --------------------------------------------------
 
-  const nearBusStop =
-    createWitsBusStop();
-
-  const nearBusStopX =
-    sideCenterX - 30;
-
-  const nearBusStopDepth =
-    6.0;
-
-  const yaleEdgeInset =
-    0.2;
+  const nearBusStop = createWitsBusStop();
+  const nearBusStopFloorWidth = 15;
+  const nearBusStopX = -(this.definition.width / 2 + nearBusStopFloorWidth / 2 + 0.02);
+  const nearBusStopDepth = 6;
+  const yaleEdgeInset = 0.2;
 
   // IMPORTANT:
   // Calculate this BEFORE using it for the floor.
@@ -1173,9 +1170,6 @@ this.createZebraCrossing({
   // --------------------------------------------------
   // WALKWAY MATERIAL UNDER THE BUS STOP
   // --------------------------------------------------
-
-  const nearBusStopFloorWidth =
-    15.0;
 
   this.createWalkwayPanel(
     nearBusStopFloorWidth,
@@ -1272,22 +1266,15 @@ for (const x of [-4.4, 4.4]) {
       // so the crossing connects into a proper pedestrian space.
       const yaleFarWalkwayWidth = 24;
       const yaleFarWalkwayDepth = 8;
-
-      // Keep it close to the Yale Road edge.
-      const yaleFarWalkwayZ =
-        this.definition.depth / 2 -
-        yaleFarWalkwayDepth / 2 -
-        0.05;
-
-      this.createWalkwayPanel(
-        yaleFarWalkwayWidth,
-        yaleFarWalkwayDepth,
-        {
-          x: 0,
-          z: yaleFarWalkwayZ,
-          name: "yale-road-far-side-walkway"
-        }
-      );
+      const yaleFarWalkwayZ = this.definition.depth / 2 - yaleFarWalkwayDepth / 2 - 0.05;
+      const existingRightEdge = BRIDGE_DECK_WIDTH / 2;
+      const farRightEdge = yaleFarWalkwayWidth / 2;
+      const farSideExtensionWidth = farRightEdge - existingRightEdge;
+      this.createWalkwayPanel(farSideExtensionWidth, yaleFarWalkwayDepth, {
+        x: existingRightEdge + farSideExtensionWidth / 2,
+        z: yaleFarWalkwayZ,
+        name: "yale-road-far-side-walkway-extension"
+      });
       this.createYaleEntranceScenery();
       this.createYaleBackdropBuildings();
       // No duplicate finish-side parking. The parking lot is at spawn/ARM.
@@ -1314,15 +1301,14 @@ for (const x of [-4.4, 4.4]) {
         0.25;
 
       // Give the shelter its own section of AMIC paving.
-      this.createWalkwayPanel(
-        busStopSideWidth,
-        busStopPadDepth,
-        {
-          x: busStopX,
-          z: busStopZ,
-          name: "wits-bus-stop-plaza"
-        }
-      );
+      const busStopPadLeft = busStopX - busStopSideWidth / 2;
+      const existingPavingLeft = -this.definition.width / 2;
+      const busStopExtensionWidth = Math.max(0, existingPavingLeft - busStopPadLeft);
+      if (busStopExtensionWidth > 0) this.createWalkwayPanel(busStopExtensionWidth, busStopPadDepth, {
+        x: busStopPadLeft + busStopExtensionWidth / 2,
+        z: busStopZ,
+        name: "wits-bus-stop-plaza-extension"
+      });
 
       const busStop =
         createWitsBusStop();
@@ -1969,8 +1955,7 @@ createBridgeDetails() {
   // campus walkway. The bridge deck stays structurally thicker underneath,
   // but its top aligns with the same walking plane.
 const SIDE_EXTENSION=160;
-const LANDING_EXTENSION=(LEVEL_2_STRIPS.bridgeEntry.rowSpan??1)*STRIP_DEPTH;
-const SIDE_DEPTH=rowDepth+LANDING_EXTENSION;
+const SIDE_DEPTH=rowDepth;
 const parkingInnerEdge=BRIDGE_DECK_WIDTH/2+.15;
 const parkingLotWidth=Math.max(PARKING_BAY_LENGTH*2+PARKING_AISLE_WIDTH,width/2-.02-parkingInnerEdge);
 const spawnParkingOuterX=parkingInnerEdge+parkingLotWidth;
@@ -1991,7 +1976,7 @@ for(const xSide of [-1,1]){
 
   this.createWalkwayPanel(SIDE_EXTENSION,SIDE_DEPTH,{
     x:centerX,
-    z:zSide*(depth/2-rowDepth/2+LANDING_EXTENSION/2),
+    z:zSide*(depth/2-rowDepth/2),
     y:BRIDGE_SINK+WALKWAY_CENTER_Y,
     name:"amic-bridge-side-paving"
   });
@@ -2481,15 +2466,12 @@ addHedge(19,-5.9,12,1.4,.9);
 
 createYaleBackdropBuildings() {
 
-   this.createWalkwayPanel(
-    52,
-    32,
-    {
-      x: 0,
-      z: -10.0,
-      name: "yale-campus-backdrop-ground"
-    }
-  );
+  const backdropDepth = 32;
+  this.createWalkwayPanel(52, backdropDepth, {
+    x: 0,
+    z: -this.definition.depth / 2 - backdropDepth / 2,
+    name: "yale-campus-backdrop-ground"
+  });
 
 
 
@@ -2750,12 +2732,12 @@ createYaleBackdropBuildings() {
 const farX=-42,farZ=-12.5,farW=26,farD=8,floors=4,floorH=1.75;
 const openingMat=new THREE.MeshBasicMaterial({color:0x343b40});
 
-const roadEdgeZ=this.definition.depth/2;
+const campusEdgeZ=-this.definition.depth/2;
 const farBackZ=-20;
-const farGroundDepth=roadEdgeZ-farBackZ;
-const farGroundZ=(roadEdgeZ+farBackZ)/2;
+const farGroundDepth=campusEdgeZ-farBackZ;
+const farGroundZ=(campusEdgeZ+farBackZ)/2;
 
-addGroundPad(38,farGroundDepth,farX,farGroundZ,"yale-far-left-ground");
+addGroundPad(32,farGroundDepth,farX,farGroundZ,"yale-far-left-ground");
 
 for(let floor=0;floor<floors;floor++){
   const y=floor*floorH;
