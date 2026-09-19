@@ -2466,10 +2466,11 @@ addHedge(19,-5.9,12,1.4,.9);
 
 createYaleBackdropBuildings() {
 
-  const backdropDepth = 32;
+  const backdropDepth = 31.9;
   this.createWalkwayPanel(52, backdropDepth, {
     x: 0,
-    z: -this.definition.depth / 2 - backdropDepth / 2,
+    z: -10.05,
+    y: WALKWAY_CENTER_Y - 0.03,
     name: "yale-campus-backdrop-ground"
   });
 
@@ -2732,12 +2733,12 @@ createYaleBackdropBuildings() {
 const farX=-42,farZ=-12.5,farW=26,farD=8,floors=4,floorH=1.75;
 const openingMat=new THREE.MeshBasicMaterial({color:0x343b40});
 
-const campusEdgeZ=-this.definition.depth/2;
+const roadEdgeZ=this.definition.depth/2;
 const farBackZ=-20;
-const farGroundDepth=campusEdgeZ-farBackZ;
-const farGroundZ=(campusEdgeZ+farBackZ)/2;
+const farGroundDepth=roadEdgeZ-farBackZ;
+const farGroundZ=(roadEdgeZ+farBackZ)/2;
 
-addGroundPad(32,farGroundDepth,farX,farGroundZ,"yale-far-left-ground");
+addGroundPad(38,farGroundDepth,farX,farGroundZ,"yale-far-left-ground");
 
 for(let floor=0;floor<floors;floor++){
   const y=floor*floorH;
