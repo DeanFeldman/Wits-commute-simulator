@@ -1989,46 +1989,32 @@ createBridgeDetails() {
   // Keep the approaches at the same top height and texture scale as the
   // campus walkway. The bridge deck stays structurally thicker underneath,
   // but its top aligns with the same walking plane.
-  for (const zSide of [-1, 1]) {
-    const approachZ = zSide * (depth / 2 - rowDepth / 2);
+const SIDE_EXTENSION=160;
+const LANDING_EXTENSION=(LEVEL_2_STRIPS.bridgeEntry.rowSpan??1)*STRIP_DEPTH;
+const SIDE_DEPTH=rowDepth+LANDING_EXTENSION;
 
-    this.createWalkwayPanel(
-      BRIDGE_DECK_WIDTH,
-      rowDepth,
-      {
-        z: approachZ,
-        y: BRIDGE_SINK + WALKWAY_CENTER_Y,
-        name: "amic-bridge-approach"
-      }
-    );
+for(const zSide of [-1,1]){
+  const approachZ=zSide*(depth/2-rowDepth/2);
 
-    const shoulderWidth = (width - BRIDGE_DECK_WIDTH) / 2;
+  this.createWalkwayPanel(BRIDGE_DECK_WIDTH,rowDepth,{
+    z:approachZ,
+    y:BRIDGE_SINK+WALKWAY_CENTER_Y,
+    name:"amic-bridge-approach"
+  });
+for(const xSide of [-1,1]){
+  const startX=xSide<0?-BRIDGE_DECK_WIDTH/2:this.definition.width/2;
+  const centerX=startX+xSide*SIDE_EXTENSION/2;
 
-    for (const xSide of [-1, 1]) {
-      // ARM / parking side:
-      // parking now extends right up to the highway fence,
-      // so do NOT put walkway tiles over it.
-      const isParkingSide = xSide === 1;
+  this.createWalkwayPanel(SIDE_EXTENSION,SIDE_DEPTH,{
+    x:centerX,
+    z:zSide*(depth/2-rowDepth/2+LANDING_EXTENSION/2),
+    y:BRIDGE_SINK+WALKWAY_CENTER_Y,
+    name:"amic-bridge-side-paving"
+  });
+}
+  
+}
 
-      if (isParkingSide) {
-        continue;
-      }
-
-      this.createWalkwayPanel(
-        shoulderWidth,
-        rowDepth,
-        {
-          x: xSide * (
-            BRIDGE_DECK_WIDTH / 2 +
-            shoulderWidth / 2
-          ),
-          z: approachZ,
-          y: BRIDGE_SINK + WALKWAY_CENTER_Y,
-          name: "amic-bridge-side-paving"
-        }
-      );
-    }
-  }
 
   const bridgeDeckHeight = 0.34;
   const bridgeDeckCenterY = BRIDGE_SINK + WALKWAY_TOP_Y - bridgeDeckHeight / 2;
@@ -2054,7 +2040,7 @@ this.createBridgeFenceReturns({
   baseY: BRIDGE_SINK + WALKWAY_TOP_Y,
   halfWidth: BRIDGE_DECK_WIDTH / 2 - 0.2,
   deckDepth,
-  returnLength: 26
+  returnLength: 109
 });
 
   this.createBridgeRailingGates(deckDepth);

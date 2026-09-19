@@ -12,6 +12,8 @@ export const RoadFogShader={
     uFogStart:{value:24},
     uFogEnd:{value:58},
     uDensity:{value:1.5},
+    uRearFogStart:{value:38},
+    uRearFogEnd:{value:56},
     uTime:{value:0}
   },
   vertexShader:`
@@ -27,7 +29,7 @@ export const RoadFogShader={
     uniform mat4 uProjectionMatrixInverse;
     uniform mat4 uCameraMatrixWorld;
     uniform vec3 uFogColor;
-    uniform float uFogCenterX,uFogStart,uFogEnd,uDensity,uTime;
+    uniform float uFogCenterX,uFogStart,uFogEnd,uRearFogStart,uRearFogEnd,uDensity,uTime;
     varying vec2 vUv;
 
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -52,8 +54,13 @@ export const RoadFogShader={
 
       vec3 world=worldPosition(depth);
 
-      float distanceFromCentre=abs(world.x-uFogCenterX);
-      float fog=smoothstep(uFogStart,uFogEnd,distanceFromCentre);
+        float sideDistance=abs(world.x-uFogCenterX);
+        float sideFog=smoothstep(uFogStart,uFogEnd,sideDistance);
+
+        float rearDistance=-world.z;
+        float rearFog=smoothstep(uRearFogStart,uRearFogEnd,rearDistance);
+
+        float fog=max(sideFog,rearFog);
 
       float n=noise(world.xz*.075+vec2(uTime*.025,-uTime*.018));
       fog=clamp(fog*(.82+n*.28)*uDensity,0.0,.98);

@@ -190,7 +190,6 @@ export class CrossingLevel {
       canEnter: (x, z) => !this.isBlockedCell(x, z) && !this.crowd.personAt(x, z),
       onBlocked: (x, z, direction) => this.onWalkBlocked(x, z, direction)
     });
-    this.extendEdgeSceneryIntoFog();
 
     const camera = new THREE.PerspectiveCamera(
       58,
@@ -724,67 +723,6 @@ checkFinish() {
     for (const strip of this.strips) strip.setDebugVisible(visible);
   }
 
-  extendEdgeSceneryIntoFog(){
-  const EXT=42;
-
-  const tileMat=new THREE.MeshStandardMaterial({color:0xd7b08f,roughness:.98});
-  const wallMat=new THREE.MeshStandardMaterial({color:0xd7d4ca,roughness:1});
-  const fenceMat=new THREE.MeshStandardMaterial({color:0x111111,roughness:.85,metalness:.15});
-  const grassMat=new THREE.MeshStandardMaterial({color:0x86a96d,roughness:1});
-
-  const makeFence=(len,x,y,z,rot=0)=>{
-    const g=new THREE.Group();
-    const rail1=new THREE.Mesh(new THREE.BoxGeometry(len,.12,.08),fenceMat);
-    const rail2=new THREE.Mesh(new THREE.BoxGeometry(len,.12,.08),fenceMat);
-    rail1.position.y=.55;
-    rail2.position.y=1.1;
-    g.add(rail1,rail2);
-    for(let i=0;i<=Math.floor(len/.7);i++){
-      const p=new THREE.Mesh(new THREE.BoxGeometry(.08,1.45,.08),fenceMat);
-      p.position.set(-len/2+i*.7,.72,0);
-      g.add(p);
-    }
-    g.position.set(x,y,z);
-    g.rotation.y=rot;
-    this.root.add(g);
-  };
-
-  // lower-left tiled walkway extension
-  const lowerLeftWalk=new THREE.Mesh(new THREE.BoxGeometry(EXT,.08,18),tileMat);
-  lowerLeftWalk.position.set(-34,0.01,18);
-  lowerLeftWalk.receiveShadow=true;
-  this.root.add(lowerLeftWalk);
-
-  // lower-left retaining wall extension
-  const lowerLeftWall=new THREE.Mesh(new THREE.BoxGeometry(EXT,4.5,1.2),wallMat);
-  lowerLeftWall.position.set(-34,2.2,9.1);
-  lowerLeftWall.receiveShadow=true;
-  this.root.add(lowerLeftWall);
-
-  // lower-left outer grass strip
-  const lowerLeftGrass=new THREE.Mesh(new THREE.BoxGeometry(EXT,.06,6),grassMat);
-  lowerLeftGrass.position.set(-34,-.01,26.5);
-  lowerLeftGrass.receiveShadow=true;
-  this.root.add(lowerLeftGrass);
-
-  // upper-left campus-side pavement extension behind bus stop
-  const upperLeftWalk=new THREE.Mesh(new THREE.BoxGeometry(EXT,.08,14),tileMat);
-  upperLeftWalk.position.set(-34,4.02,-11.5);
-  upperLeftWalk.receiveShadow=true;
-  this.root.add(upperLeftWalk);
-
-  // upper-left retaining wall cap / surround
-  const upperLeftWall=new THREE.Mesh(new THREE.BoxGeometry(EXT,4.5,1.2),wallMat);
-  upperLeftWall.position.set(-34,1.85,-1.2);
-  upperLeftWall.receiveShadow=true;
-  this.root.add(upperLeftWall);
-
-  // fences extending into fog
-  makeFence(EXT,-34,4.05,-4.8,0);   // top-left fence
-  makeFence(EXT,-34,.02,9.9,0);     // lower-left fence
-  makeFence(22,11.2,.02,9.9,0);     // lower-right short continuation if needed
-  makeFence(22,16.5,4.05,-4.8,0);   // upper-right short continuation if needed
-}
   dispose() {
     this.audio.dispose();
     this.controls?.dispose();
