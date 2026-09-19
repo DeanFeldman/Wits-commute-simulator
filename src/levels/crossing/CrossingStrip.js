@@ -1593,20 +1593,9 @@ const backEdgeZ =
   extraParkingRowDepth;
 
 // Small tiled border directly under the fence.
-const fenceBorderDepth = 0.38;
-
-// Asphalt starts just behind that border.
-const parkingFrontEdgeZ =
-  frontEdgeZ + fenceBorderDepth;
-
-const lotDepth =
-  backEdgeZ - parkingFrontEdgeZ;
-
-const centerZ =
-  (parkingFrontEdgeZ + backEdgeZ) / 2;
-
-const fenceBorderCenterZ =
-  frontEdgeZ + fenceBorderDepth / 2;
+const parkingFrontEdgeZ=frontEdgeZ;
+const lotDepth=backEdgeZ-parkingFrontEdgeZ;
+const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
   // --------------------------------------------------
   // HEIGHT
   // --------------------------------------------------
@@ -1656,17 +1645,7 @@ const fenceBorderCenterZ =
   lot.receiveShadow = true;
 
   this.root.add(lot);
-  this.createWalkwayPanel(
-  lotWidth,
-  fenceBorderDepth,
-  {
-    x: centerX,
-    z: fenceBorderCenterZ,
-    y: WALKWAY_CENTER_Y,
-    height: WALKWAY_HEIGHT,
-    name: "parking-fence-border"
-  }
-);
+
 
   // --------------------------------------------------
   // PARKING SPACES
@@ -1992,6 +1971,9 @@ createBridgeDetails() {
 const SIDE_EXTENSION=160;
 const LANDING_EXTENSION=(LEVEL_2_STRIPS.bridgeEntry.rowSpan??1)*STRIP_DEPTH;
 const SIDE_DEPTH=rowDepth+LANDING_EXTENSION;
+const parkingInnerEdge=BRIDGE_DECK_WIDTH/2+.15;
+const parkingLotWidth=Math.max(PARKING_BAY_LENGTH*2+PARKING_AISLE_WIDTH,width/2-.02-parkingInnerEdge);
+const spawnParkingOuterX=parkingInnerEdge+parkingLotWidth;
 
 for(const zSide of [-1,1]){
   const approachZ=zSide*(depth/2-rowDepth/2);
@@ -2002,8 +1984,10 @@ for(const zSide of [-1,1]){
     name:"amic-bridge-approach"
   });
 for(const xSide of [-1,1]){
-  const startX=xSide<0?-BRIDGE_DECK_WIDTH/2:this.definition.width/2;
+  const startX=xSide<0?-BRIDGE_DECK_WIDTH/2:zSide>0?spawnParkingOuterX+.05:width/2+.05;
+  
   const centerX=startX+xSide*SIDE_EXTENSION/2;
+
 
   this.createWalkwayPanel(SIDE_EXTENSION,SIDE_DEPTH,{
     x:centerX,
@@ -2474,10 +2458,23 @@ addTree( 9.8,  -2.8, 0.95);
 addTree( 6.8,   1.4, 0.9);
 
 // Rear trees further back toward the buildings
-addTree(-8.2, 5.0, 0.95);
-addTree(-3.8, 6.2, 1.0);
-addTree( 3.8, 6.4, 1.0);
-addTree( 8.2, 5.0, 0.95);
+addTree(-8.2,-5.0,.95);
+addTree(-3.8,-6.2,1.0);
+addTree(3.8,-6.4,1.0);
+addTree(8.2,-5.0,.95);
+
+// Dense planting in front of the backdrop buildings.
+for(const [x,z,s] of [
+  [-48,-7.0,1],[-43,-6.5,1.1],[-38,-7.3,.95],[-33,-6.7,1.05],[-27,-7.2,.95],
+  [-23,-6.4,1.05],[-19,-7.1,.95],[-15,-6.5,1.1],[-11,-7.3,.9],[-7,-6.6,1],
+  [7,-6.7,.95],[11,-7.3,1],[15,-6.5,1.1],[19,-7.1,.95],[23,-6.4,1.05]
+])addTree(x,z,s);
+
+addHedge(-43,-5.9,24,1.5,.9,true);
+addHedge(-19,-5.9,12,1.4,.9);
+addHedge(-9,-6.1,6,1.25,.8,true);
+addHedge(9,-6.1,6,1.25,.8,true);
+addHedge(19,-5.9,12,1.4,.9);
 
 }
 
