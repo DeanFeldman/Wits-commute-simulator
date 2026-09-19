@@ -50,7 +50,7 @@ const LEVEL_INTRO_CONFIG = new Map([
   [
     3,
     {
-      art: null,
+      art: "./assets/images/ui/level3-story-loading-screen.png",
       artAlt: "The student sliding into a lecture hall seat as papers are handed out",
       placeholderIcon: "📝",
       story: [
