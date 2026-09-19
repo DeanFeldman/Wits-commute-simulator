@@ -6,8 +6,6 @@ import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
-//import { createRoadFogMaterial } from "../../shaders/roadFogShader.js";
-import { RoadFogShader } from "../../shaders/roadFogShader.js";
 import { PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
@@ -171,6 +169,7 @@ export class CrossingLevel {
     sun.target.position.set(0, 0, 0);
     // Build the generated environment before placing gameplay actors into it.
     this.parkingRoadTextures = createRoadTextures();
+    await this.parkingRoadTextures.ready;
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
 
@@ -262,7 +261,6 @@ export class CrossingLevel {
     this.blockedCells = this.strips.flatMap((strip) => strip.blockedCells);
     this.boundaryVolumes = this.strips.flatMap((strip) => strip.boundaryVolumes);
     await Promise.all(this.strips.map((strip) => strip.whenReady()));
-    await this.parkingRoadTextures.ready;
   }
 
   resolveSeed() {
@@ -369,6 +367,13 @@ export class CrossingLevel {
     this.root.add(this.shieldBubble);
   }
 
+  restartFromBeginning() {
+    if (this.completed) return;
+    this.completed = true;
+    this.game.setCheckpoint("start");
+    this.game.startLevel(2, "start");
+  }
+
   update(dt) {
     if (this.completed) return;
     if (this.quizPaused) return; // quiz overlay owns input while it's open
@@ -381,8 +386,7 @@ export class CrossingLevel {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
     this.powerUps.update(dt);
-   // if(this.getAdjustedTime()>=LEVEL_2_TIME_LIMIT){this.completed=true;this.game.failLevel("Snooze, you lose! You took 30 seconds or more. Retry Level 2.");return;}
-   if(this.getAdjustedTime()>=LEVEL_2_TIME_LIMIT){this.completed=true;this.game.setCheckpoint("start");this.game.startLevel(2,"start");return;} 
+    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
    this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
@@ -597,8 +601,7 @@ checkFinish() {
     const cups = this.powerUps.collected, total = this.cups.total;
     if (cups !== total) { this.game.setMessage(`You still need ${total - cups} Vida cup${total - cups === 1 ? "" : "s"} before you can finish!`); return; }
     const time = this.getAdjustedTime();
-    //if (time >= LEVEL_2_TIME_LIMIT) { this.completed = true; this.game.failLevel(`Too slow! You collected all ${total} Vida cups, but finished in ${time.toFixed(1)}s. You need to finish in under ${LEVEL_2_TIME_LIMIT} seconds.`); return; }
-    if(time>=LEVEL_2_TIME_LIMIT){this.completed=true;this.game.setCheckpoint("start");this.game.startLevel(2,"start");return;}
+    if (time >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
     this.completed = true;
     this.game.journeyScore += cups * CUP_SCORE;
     this.game.completeLevel(`You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s (+${cups * CUP_SCORE}). Heading to Level 3.`);
@@ -743,38 +746,38 @@ checkFinish() {
     }
     g.position.set(x,y,z);
     g.rotation.y=rot;
-    this.scene.add(g);
+    this.root.add(g);
   };
 
   // lower-left tiled walkway extension
   const lowerLeftWalk=new THREE.Mesh(new THREE.BoxGeometry(EXT,.08,18),tileMat);
   lowerLeftWalk.position.set(-34,0.01,18);
   lowerLeftWalk.receiveShadow=true;
-  this.scene.add(lowerLeftWalk);
+  this.root.add(lowerLeftWalk);
 
   // lower-left retaining wall extension
   const lowerLeftWall=new THREE.Mesh(new THREE.BoxGeometry(EXT,4.5,1.2),wallMat);
   lowerLeftWall.position.set(-34,2.2,9.1);
   lowerLeftWall.receiveShadow=true;
-  this.scene.add(lowerLeftWall);
+  this.root.add(lowerLeftWall);
 
   // lower-left outer grass strip
   const lowerLeftGrass=new THREE.Mesh(new THREE.BoxGeometry(EXT,.06,6),grassMat);
   lowerLeftGrass.position.set(-34,-.01,26.5);
   lowerLeftGrass.receiveShadow=true;
-  this.scene.add(lowerLeftGrass);
+  this.root.add(lowerLeftGrass);
 
   // upper-left campus-side pavement extension behind bus stop
   const upperLeftWalk=new THREE.Mesh(new THREE.BoxGeometry(EXT,.08,14),tileMat);
   upperLeftWalk.position.set(-34,4.02,-11.5);
   upperLeftWalk.receiveShadow=true;
-  this.scene.add(upperLeftWalk);
+  this.root.add(upperLeftWalk);
 
   // upper-left retaining wall cap / surround
   const upperLeftWall=new THREE.Mesh(new THREE.BoxGeometry(EXT,4.5,1.2),wallMat);
   upperLeftWall.position.set(-34,1.85,-1.2);
   upperLeftWall.receiveShadow=true;
-  this.scene.add(upperLeftWall);
+  this.root.add(upperLeftWall);
 
   // fences extending into fog
   makeFence(EXT,-34,4.05,-4.8,0);   // top-left fence
