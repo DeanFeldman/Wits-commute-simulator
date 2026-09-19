@@ -695,6 +695,8 @@ export class Game {
   }
 
   render(){
+    if(this.isLoading)return;
+
     if(this.currentLevelNumber===2&&this.currentLevel){
       this.roadFogRenderPass.scene=this.scene;
       this.roadFogRenderPass.camera=this.camera;
@@ -740,7 +742,7 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
-this.roadFogComposer.setSize(width,height);
+    this.roadFogComposer.setSize(width, height);
     this.suspicionComposer.setSize(width, height);
   }
 }
