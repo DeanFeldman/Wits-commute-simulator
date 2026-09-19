@@ -6,7 +6,7 @@ import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
-import { PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
+import { PEDESTRIAN_SOLE_OFFSET, PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
@@ -26,7 +26,10 @@ const WALK_STEP = STRIP_DEPTH / 2;
 const WALK_SPEED = 4.6;
 // Distance covered by one full left-right stride cycle.
 const STRIDE_LENGTH = 1.6;
-const PLAYER_Y = 0.95;
+const PLAYER_SCALE = 1.03;
+const WALKWAY_SURFACE_Y = 0.19;
+const YALE_SURFACE_Y = 0.01;
+const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
 const LEVEL_2_TIME_LIMIT = 30;
 
 
@@ -329,7 +332,7 @@ export class CrossingLevel {
       skin: 0x9a6440,
       hair: "short",
       backpack: 0xd6a43a,
-      scale: 1.03
+      scale: PLAYER_SCALE
     });
     this.player.name = "level2-player";
     this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
@@ -390,6 +393,7 @@ export class CrossingLevel {
 
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
+    this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
     if (landedDirection) this.updateCheckpoint();
@@ -425,6 +429,12 @@ export class CrossingLevel {
         <span class="gap-hint">${this.getNextGapHint()}</span>
       </div>
     `);
+  }
+
+  updatePlayerGroundHeight() {
+    const strip = this.stripInside(this.player.position.z);
+    const surfaceY = strip?.definition.type === "yale-road" ? YALE_SURFACE_Y : WALKWAY_SURFACE_Y;
+    this.player.position.y = surfaceY + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
   }
 
   updatePlayerAnimation(dt) {

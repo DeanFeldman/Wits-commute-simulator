@@ -28,6 +28,8 @@ const GEOMETRY = {
 
 export const SKIN_TONES = [0x5a3825, 0x7b4a2d, 0x9a6440, 0xb97857, 0xd29c78, 0xe7bf9d];
 export const HAIR_STYLES = ["short", "puff", "bun", "cap", "none"];
+// Distance from a pedestrian root to the bottom of the shoes before scaling.
+export const PEDESTRIAN_SOLE_OFFSET = 0.935;
 
 export class PedestrianFactory {
   // `createHeldCup(type)` returns a small cup model for people carrying coffee.
