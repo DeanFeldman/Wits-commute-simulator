@@ -138,7 +138,7 @@ export class CampusCrowd {
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
-    mesh.position.set(entry.x, entry.y ?? 0.95, z);
+    mesh.position.set(entry.x, entry.y ?? 1.14, z);
     const yaw = walking ? (entry.toZ < entry.fromZ ? Math.PI : 0) : (entry.yaw ?? 0);
     mesh.rotation.y = yaw;
     this.root.add(mesh);
