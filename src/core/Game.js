@@ -441,6 +441,18 @@ export class Game {
     });
   }
 
+  completeGameEasterEgg() {
+    if (this.currentLevelNumber === null || this.isTransitioning) return;
+    this.journeyScore = Math.max(this.journeyScore, 300);
+    this.isTransitioning = true;
+    this.setMessage("You escaped Wits!");
+    this.fadeTransition(() => {
+      this.showResults(true);
+      this.menuTitleElement.textContent = "SECRET ENDING";
+      this.menuCopyElement.textContent = `You drove straight out of Wits instead of going to class. Technically, you can't be late if you never arrive. Score: ${this.journeyScore}.`;
+    });
+  }
+
   playOneShotAudio(path, volume = 1) {
     const audio = new Audio(path);
     audio.volume = volume;

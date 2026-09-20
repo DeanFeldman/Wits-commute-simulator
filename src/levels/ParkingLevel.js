@@ -1785,6 +1785,7 @@ if (hit) {
     this.potholeCooldown = Math.max(0, this.potholeCooldown - dt);
     this.checkPotholes();
     this.updatePotholeSplashes(dt);
+    if (this.checkCampusEscapeEasterEgg()) return;
     this.checkParking(dt);
     this.updateParkingWaypoints(dt);
     this.updateCamera(dt);
@@ -2695,6 +2696,21 @@ if (hit) {
 
     this.potholeCooldown =
       impact.cooldown;
+  }
+
+  checkCampusEscapeEasterEgg() {
+    const gate=PARKING_LAYOUT.campusGate;
+    const road=PARKING_LAYOUT.campusRoad;
+    if (
+      this.car.position.x > gate.x + 0.75 &&
+      Math.abs(this.car.position.z-road.z) < road.depth/2
+    ) {
+      this.completed=true;
+      this.vehicle.stop();
+      this.game.completeGameEasterEgg();
+      return true;
+    }
+    return false;
   }
 
   checkParking(dt) {

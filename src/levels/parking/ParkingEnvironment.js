@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { createAmicDeckMaterial } from "../crossing/CrossingStrip.js";
 import { createAmicFenceSection } from "../../shared/AmicFence.js";
+import { createInstancedCarField } from "../../shared/InstancedCarField.js";
 import { applyRoadUvs } from "../../shaders/asphaltShader.js";
+import {
+  PARKING_AISLE_WIDTH,
+  PARKING_BAY_LENGTH,
+  PARKING_BAY_WIDTH,
+  PARKING_SLOT_PITCH,
+  createParkingBayMarkings
+} from "../../shared/parking/ParkingLotStyle.js";
 import {
   attachVehicleModel,
   createSeededRandom,
@@ -47,9 +55,9 @@ export const PARKING_LAYOUT = Object.freeze({
   parkingBoomExit: { x: -18.5, z: 35.5, width: 7, boundaryWidth: 12 },
 
   // Duplicate the entrance position for the opposite parking.
-  otherEntrance: { x: 0, z: 46.5, width: 9 },
+  otherEntrance: { x: 8, z: 46.5, width: 9 },
 
-  otherParking: { x: 0, z: 61, width: 28, depth: 22 },
+  otherParking: { x: 8, z: 62, width: 54, depth: 28 },
 
   armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
   armWalkway: { x: -64.5, z: -9.7, width: 7, depth: 88.4 },
@@ -579,98 +587,65 @@ function createFlowerHall(root) {
   );
 }
 
-function createOtherParking(root) {
-  const p = PARKING_LAYOUT.otherParking;
-  const asphalt = material(0x343a3f, 0.94);
+function createOtherParking(root, roadMaterial) {
+  const p=PARKING_LAYOUT.otherParking;
+  const asphalt=roadMaterial ?? material(COLORS.asphalt,0.93);
 
-  box(
+  const surface=box(
     root,
-    [p.width, 0.08, p.depth],
-    [p.x, 0.01, p.z],
-    asphalt
+    [p.width,0.1,p.depth],
+    [p.x,0.01,p.z],
+    asphalt,
+    {name:"level-one-secondary-parking"}
   );
+  applyRoadUvs(surface.geometry,p.width,p.depth);
 
-  const line = new THREE.MeshBasicMaterial({
-    color: 0xded9be
-  });
+  const usableWidth=p.width-2;
+  const count=Math.floor((usableWidth-PARKING_BAY_WIDTH)/PARKING_SLOT_PITCH)+1;
+  const usedWidth=(count-1)*PARKING_SLOT_PITCH;
+  const startX=p.x-usedWidth/2;
+  const rowOffset=PARKING_AISLE_WIDTH/2+PARKING_BAY_LENGTH/2;
 
-  const spaces = [];
-  const xs = [-2, 2, 6, 10, 14, 18, 22];
-
-  for (const z of [53.3, 64.4]) {
-    for (const x of xs) {
-      spaces.push([
-        x,
+  const spaces=[];
+  for(const [z,angle] of [
+    [p.z-rowOffset,Math.PI],
+    [p.z+rowOffset,0]
+  ]){
+    for(let i=0;i<count;i++){
+      spaces.push({
+        x:startX+i*PARKING_SLOT_PITCH,
         z,
-        z < p.z ? Math.PI : 0
-      ]);
-    }
-  }
-
-  // Parking bay markings.
-  for (const [x, z] of spaces) {
-    for (const dx of [-1.45, 1.45]) {
-      box(
-        root,
-        [0.09, 0.025, 4.5],
-        [x + dx, 0.07, z],
-        line,
-        { receiveShadow: false }
-      );
-    }
-
-    box(
-      root,
-      [2.9, 0.025, 0.09],
-      [
-        x,
-        0.07,
-        z + (z < p.z ? 2.25 : -2.25)
-      ],
-      line,
-      { receiveShadow: false }
-    );
-  }
-
-  const occupied = spaces.filter(
-    (_, index) =>
-      ![2, 8, 12].includes(index)
-  );
-
-  const random =
-    createSeededRandom(20260905);
-
-  occupied.forEach(
-    ([x, z, rotationY]) => {
-      const holder =
-        new THREE.Group();
-
-      holder.position.set(
-        x,
-        0.03,
-        z
-      );
-
-      holder.rotation.y =
-        rotationY;
-
-      root.add(holder);
-
-      const spec = pickRandomParkingCar(random);
-
-      // This parking lot is scenery, so use the lite meshes.
-      attachVehicleModel(
-        holder,
-        spec,
-        "lite"
-      ).catch((error) => {
-        console.warn(
-          `Unable to load parked car ${spec.id}`,
-          error
-        );
+        angle,
+        rowName:z<p.z?"secondary-front":"secondary-back",
+        rowIndex:i
       });
     }
-  );
+  }
+
+  root.add(...createParkingBayMarkings(spaces,{y:0.075}));
+
+  // Keep a few empty bays so it looks natural rather than perfectly packed.
+  const free=new Set([3,12,count+6,count+15].filter(i=>i<spaces.length));
+  const random=createSeededRandom(20260905);
+  const placements=[];
+
+  spaces.forEach((space,index)=>{
+    if(free.has(index)) return;
+    placements.push({
+      spec:pickRandomParkingCar(random),
+      x:space.x,
+      z:space.z,
+      angle:space.angle,
+      y:0.06
+    });
+  });
+
+  createInstancedCarField(placements,{variant:"lite"})
+    .then(field=>{
+      field.name="level-one-secondary-parked-cars";
+      root.add(field);
+    })
+    .catch(error=>console.warn("Secondary parking cars could not be loaded.",error));
 }
 
 function createMainParkingBoundary(root, collisionWorld) {
@@ -929,12 +904,24 @@ function createCampusBoomGate(root, collisionWorld, playerCar) {
 }
 
 
-function createSecondaryParkingLink(root) {
-  const e = PARKING_LAYOUT.otherEntrance;
-  const asphalt = material(COLORS.asphalt, 0.93);
+function createSecondaryParkingLink(root, roadMaterial) {
+  const e=PARKING_LAYOUT.otherEntrance;
+  const p=PARKING_LAYOUT.otherParking;
+  const road=PARKING_LAYOUT.campusRoad;
+  const asphalt=roadMaterial ?? material(COLORS.asphalt,0.93);
 
-  // Keep this connection open; Entrance 9 is now the only checkpoint here.
-  box(root, [e.width, 0.09, 6], [e.x, 0.03, e.z - 2.5], asphalt);
+  const startZ=road.z+road.depth/2-0.2;
+  const endZ=p.z-p.depth/2+0.2;
+  const depth=endZ-startZ;
+
+  const link=box(
+    root,
+    [e.width,0.1,depth],
+    [e.x,0.02,startZ+depth/2],
+    asphalt,
+    {name:"secondary-parking-entrance"}
+  );
+  applyRoadUvs(link.geometry,e.width,depth);
 }
 
 
@@ -987,8 +974,8 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   createArmBuilding(root, collisionWorld);
   createArmPedestrianLink(root, collisionWorld);
   createFlowerHall(root);
-  createOtherParking(root);
-  createSecondaryParkingLink(root);
+  createOtherParking(root, roadMaterial);
+  createSecondaryParkingLink(root, roadMaterial);
   createMainParkingBoundary(root, collisionWorld);
   for (const opening of LOT_OPENINGS) {
     createOpenParkingEntrance(root, opening, roadMaterial);
