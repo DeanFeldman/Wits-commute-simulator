@@ -29,14 +29,14 @@ const ROUTE = [
   LEVEL_2_STRIPS.finish
 ];
 const speedMultipliers = [
-  1.35,
-  1.5,
-  1.65,
   1.8,
-  1.8,
-  1.65,
-  1.5,
-  1.35
+  2.05,
+  2.3,
+  2.6,
+  2.6,
+  2.3,
+  2.05,
+  1.8
 ];
 
 function makeEightLaneYaleRoad(strip) {

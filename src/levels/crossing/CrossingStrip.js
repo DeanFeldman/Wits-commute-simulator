@@ -2183,9 +2183,10 @@ createBridgeFenceReturns({
       const type = this.vehicleTypeFor(lane, index);
       const vehicle = this.createVehicle(lane, type, index);
       if (index > 0) previousX -= lane.direction * this.randomGap(lane);
-      vehicle.root.position.x = previousX;
-      vehicle.mover.reset(vehicle.root.position, 1);
-      if (vehicle.isTaxi) this.scheduleTaxiStop(vehicle);
+        vehicle.root.position.x = previousX;
+        vehicle.mover.reset(vehicle.root.position, 1);
+        vehicle.controller.speed = lane.speed;
+        if (vehicle.isTaxi) this.scheduleTaxiStop(vehicle);
       this.traffic.push(vehicle);
     }
   }
@@ -2801,19 +2802,38 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
   }
 
   advanceVehicle(vehicle, direction, requested, dt) {
-    // Preserve a safe following distance, including behind a stopped taxi.
+    // Smoothly match traffic speed while easing down behind a vehicle ahead.
+    // Avoid repeatedly hard-resetting speed to zero, which makes traffic jerk.
     const available = this.distanceToVehicleAhead(vehicle);
-    if (available <= 0) {
-      vehicle.controller.stop();
-      return 0;
+
+    let targetSpeed = vehicle.lane.speed;
+
+    // Begin easing off before reaching the minimum following distance.
+    if (Number.isFinite(available) && available < 6) {
+      targetSpeed *= THREE.MathUtils.clamp(available / 6, 0, 1);
     }
 
-    const startX = vehicle.root.position.x;
-    const travelled = vehicle.controller.followDirection(dt, direction);
-    const allowed = Math.min(requested, travelled, available);
-    vehicle.root.position.x = startX + vehicle.lane.direction * allowed;
-    if (allowed < travelled) vehicle.controller.stop();
-    return allowed;
+    const responsiveness =
+      targetSpeed < vehicle.controller.speed ? 10 : 6;
+
+    vehicle.controller.speed = THREE.MathUtils.damp(
+      vehicle.controller.speed,
+      targetSpeed,
+      responsiveness,
+      dt
+    );
+
+    const allowed = Math.min(
+      requested,
+      vehicle.controller.speed * dt,
+      available
+    );
+
+    if (allowed > 0) {
+      vehicle.root.position.addScaledVector(direction, allowed);
+    }
+
+    return Math.max(0, allowed);
   }
 
   distanceToVehicleAhead(vehicle) {
@@ -2836,8 +2856,8 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
       ? Math.min(...otherVehicles.map((candidate) => candidate.root.position.x), -TRAFFIC_EDGE)
       : Math.max(...otherVehicles.map((candidate) => candidate.root.position.x), TRAFFIC_EDGE);
     const nextX = tailX - lane.direction * this.randomGap(lane);
-    vehicle.controller.stop();
     vehicle.mover.reset(new THREE.Vector3(nextX, 0, lane.localZ), 1);
+    vehicle.controller.speed = lane.speed;
     if (vehicle.isTaxi) {
       vehicle.passenger.visible = false;
       this.scheduleTaxiStop(vehicle);
