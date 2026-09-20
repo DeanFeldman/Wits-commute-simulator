@@ -709,7 +709,8 @@ export class Game {
   render(){
     if(this.isLoading)return;
 
-    if(this.currentLevelNumber===2&&this.currentLevel){
+    const level1Fog=this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
+    if((level1Fog||this.currentLevelNumber===2)&&this.currentLevel){
       this.roadFogRenderPass.scene=this.scene;
       this.roadFogRenderPass.camera=this.camera;
       const u=this.roadFogPass.uniforms;
@@ -717,6 +718,22 @@ export class Game {
       u.uProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse);
       u.uCameraMatrixWorld.value.copy(this.camera.matrixWorld);
       u.uTime.value=this.clock.elapsedTime;
+      if(level1Fog){
+        u.uRadialMode.value=1;
+        u.uFogCenterX.value=0;
+        u.uFogCenterZ.value=-8;
+        u.uFogStart.value=82;
+        u.uFogEnd.value=130;
+        u.uDensity.value=0.9;
+      }else{
+        u.uRadialMode.value=0;
+        u.uFogCenterX.value=0;
+        u.uFogStart.value=24;
+        u.uFogEnd.value=58;
+        u.uRearFogStart.value=38;
+        u.uRearFogEnd.value=56;
+        u.uDensity.value=1.5;
+      }
       this.roadFogComposer.render();
       return;
     }

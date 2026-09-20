@@ -1232,8 +1232,8 @@ async load() {
 
   const skyColor = new THREE.Color(0x8ec9ee);
   scene.background = skyColor;
-  scene.fog = new THREE.Fog(skyColor, 23, 58);
-  this.chaseFog = scene.fog;
+  scene.fog = null;
+  this.chaseFog = null;
 
   scene.add(this.root);
   this.audio.startDrone(74, 0.012);
@@ -1361,10 +1361,8 @@ async load() {
 
     if (this.skyViewActive) {
       this.updateSkyCameraFrustum();
-      this.game.scene.fog = null;
       this.game.setCamera(this.skyCamera);
     } else {
-      this.game.scene.fog = this.chaseFog;
       this.game.setCamera(this.chaseCamera);
     }
 
