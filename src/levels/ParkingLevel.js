@@ -863,6 +863,10 @@ export const LEVEL_ONE_ASPHALT_PIECES = Object.freeze([
   {
     name: "level-one-parking-asphalt-west-upper",
     corners: [[-61, -50], [-56, -50], [-56, -42], [-61, -42]]
+  },
+  {
+    name: "level-one-parking-asphalt-west-notch",
+    corners: [[-61, -42], [-56, -42], [-56, -33], [-61, -33]]
   }
 ]);
 // Chooses the bays left empty. Shuffling first and then filtering keeps the
@@ -1228,7 +1232,7 @@ async load() {
 
   const skyColor = new THREE.Color(0x8ec9ee);
   scene.background = skyColor;
-  scene.fog = new THREE.Fog(skyColor, 36, 96);
+  scene.fog = new THREE.Fog(skyColor, 23, 58);
   this.chaseFog = scene.fog;
 
   scene.add(this.root);

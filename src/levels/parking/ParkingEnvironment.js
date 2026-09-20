@@ -5,7 +5,6 @@ import { applyRoadUvs } from "../../shaders/asphaltShader.js";
 import {
   attachVehicleModel,
   createSeededRandom,
-  pickRandomCar,
   pickRandomParkingCar
 } from "../../shared/VehicleModelLibrary.js";
 
@@ -53,7 +52,8 @@ export const PARKING_LAYOUT = Object.freeze({
   otherParking: { x: 0, z: 61, width: 28, depth: 22 },
 
   armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
-  armWalkway: { x: -64.8, z: -9.7, width: 6.4, depth: 88.4 },
+  armWalkway: { x: -64.5, z: -9.7, width: 7, depth: 88.4 },
+  armWalkwayEntrance: { x: -58.5, z: -37.95, width: 5, depth: 8.0 },
   pedestrianBridge: { x: -64.8, z: -62, width: 6.4, depth: 16.4 },
 
   // Bigger Flower Hall so it fills the left/background scene more strongly.
@@ -387,10 +387,7 @@ function createM1Traffic(root, laneZ) {
 
     root.add(holder);
 
-    const spec = pickRandomCar(
-      random,
-      { allowThomas: true }
-    );
+    const spec = pickRandomParkingCar(random);
 
     // Lite variant is intended for M1/background traffic.
     attachVehicleModel(
@@ -468,9 +465,10 @@ function createArmBuilding(root, collisionWorld) {
   addCollider(collisionWorld, root, [a.x + 3, 4, a.z + 2], [24, 8, 24], "wits-arm-dome");
 }
 
-function createArmPedestrianLink(root) {
-  const { armWalkway:w, pedestrianBridge:b }=PARKING_LAYOUT;
+function createArmPedestrianLink(root, collisionWorld) {
+  const { armWalkway:w, armWalkwayEntrance:e, pedestrianBridge:b }=PARKING_LAYOUT;
   const base=createAmicDeckMaterial();
+
   const addPanel=(width,depth,x,z,y=0.09,height=0.08,name="amic-level1-walkway")=>{
     const mat=base.clone();
     if(base.map){mat.map=base.map.clone();mat.map.wrapS=THREE.RepeatWrapping;mat.map.wrapT=THREE.RepeatWrapping;mat.map.repeat.set(width/1.8,depth/1.8);mat.map.offset.set((x-width/2)/1.8,(z-depth/2)/1.8);mat.map.needsUpdate=true;}
@@ -478,11 +476,63 @@ function createArmPedestrianLink(root) {
     mesh.position.set(x,y-height/2,z);mesh.receiveShadow=true;mesh.name=name;root.add(mesh);return mesh;
   };
 
+  // Main ARM walkway.
   addPanel(w.width,w.depth,w.x,w.z,0.09,0.08,"amic-level1-walkway");
+
+  // Fill the open grass apron between the north end of ARM and the bridge.
+  const arm=PARKING_LAYOUT.armBuilding;
+  const parkingEdge=-61;
+  const armWest=arm.x-arm.width/2;
+  const armNorth=arm.z-arm.depth/2;
+  const walkwayNorth=w.z-w.depth/2;
+  const apronWidth=parkingEdge-armWest;
+  const apronDepth=armNorth-walkwayNorth;
+
+  addPanel(
+    apronWidth,
+    apronDepth,
+    armWest+apronWidth/2,
+    walkwayNorth+apronDepth/2,
+    0.09,
+    0.08,
+    "amic-level1-north-apron"
+  );
+
+  // Clearly defined pedestrian entrance from the parking asphalt onto the walkway.
+  addPanel(e.width,e.depth,e.x,e.z,0.095,0.07,"amic-level1-walkway-entrance");
+
+  // White entrance edge markings.
+  const mark=new THREE.MeshBasicMaterial({color:0xe9e7dc});
+  for(const side of [-1,1]){
+    box(
+      root,
+      [e.width,0.025,0.09],
+      [e.x,0.105,e.z+side*(e.depth/2-0.045)],
+      mark,
+      {receiveShadow:false,name:"amic-level1-entrance-marking"}
+    );
+  }
+
+  // Pedestrian-only entrance: cars stop at the asphalt/brick boundary.
+  const entranceBlocker=new THREE.Object3D();
+  entranceBlocker.name="amic-level1-entrance-blocker";
+  entranceBlocker.position.set(e.x+e.width/2-0.05,0.55,e.z);
+  root.add(entranceBlocker);
+  collisionWorld.add({
+    object:entranceBlocker,
+    size:[0.35,1.1,e.depth],
+    tag:"walkway-kerb",
+    color:0xffaa00
+  });
+
+  // Bridge.
   addPanel(b.width,b.depth,b.x,b.z,0.17,0.34,"amic-level1-bridge-deck");
 
   for(const side of [-1,1]){
-    const fence=createAmicFenceSection({length:b.depth,name:`amic-level1-bridge-${side<0?"left":"right"}-rail`});
+    const fence=createAmicFenceSection({
+      length:b.depth,
+      name:`amic-level1-bridge-${side<0?"left":"right"}-rail`
+    });
     fence.position.set(b.x+side*(b.width/2-0.2),0.17,b.z);
     root.add(fence);
   }
@@ -654,11 +704,21 @@ function createMainParkingBoundary(root, collisionWorld) {
 
   // Follow every non-southern segment of the irregular aerial footprint.
   const outline = lot.outline;
+  const skipWalkwayFence=(startX,startZ,endX,endZ)=>{
+    const eq=(a,b)=>Math.abs(a-b)<0.01;
+    return (
+      (eq(startX,-61)&&eq(startZ,-33)&&eq(endX,-56)&&eq(endZ,-33)) ||
+      (eq(startX,-56)&&eq(startZ,-33)&&eq(endX,-56)&&eq(endZ,-42)) ||
+      (eq(startX,-56)&&eq(startZ,-42)&&eq(endX,-61)&&eq(endZ,-42))
+    );
+  };
+
   for (let index = 0; index < outline.length; index++) {
     const [startX, startZ] = outline[index];
     const [endX, endZ] = outline[(index + 1) % outline.length];
     if (Math.abs(startZ - front) < 0.01 && Math.abs(endZ - front) < 0.01) continue;
     if (startX === endX && startZ === endZ) continue;
+    if (skipWalkwayFence(startX,startZ,endX,endZ)) continue;
     createAngledFenceRun(root, collisionWorld, {
       startX,
       startZ,
@@ -925,7 +985,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const { laneZ } = createM1(root, roadMaterial);
   const updateM1Traffic = createM1Traffic(root, laneZ);
   createArmBuilding(root, collisionWorld);
-  createArmPedestrianLink(root);
+  createArmPedestrianLink(root, collisionWorld);
   createFlowerHall(root);
   createOtherParking(root);
   createSecondaryParkingLink(root);

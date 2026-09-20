@@ -60,7 +60,9 @@ export async function createInstancedCarField(placements, { variant = "lite" } =
         });
 
         mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingBox();
         mesh.computeBoundingSphere();
+        mesh.frustumCulled = false;
         root.add(mesh);
       }
     })
