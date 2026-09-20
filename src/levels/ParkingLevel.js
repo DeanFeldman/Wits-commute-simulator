@@ -500,7 +500,7 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   potholeEntranceClearance: 5.5,
   potholeFreeBayClearance: 4.5,
   playerSpawn: Object.freeze({ x: -34.5, z: 41, angle: 0 }),
-  skyViewScale: 1.65
+  skyViewScale: 1.05
 });
 
 export function createParkingRow({ name, start, count, step, rotation }) {
