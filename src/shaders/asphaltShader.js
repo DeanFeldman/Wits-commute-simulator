@@ -249,14 +249,14 @@ void main() {
 vec3 liftedAsphalt =
   pow(
     max(textureColour, vec3(0.001)),
-    vec3(0.55)
-  );
+    vec3(0.90)
+  ) * 0.48;
 
 vec3 dryAsphalt =
   liftedAsphalt *
   mix(
-    0.92,
-    1.04,
+    0.88,
+    0.98,
     microRelief
   );
 
@@ -1117,7 +1117,7 @@ export function createPoolCoverageMaterial(
 }
 
 export function createRoadMaterial(textures) {
-  return new THREE.MeshStandardMaterial({map:textures.colour,roughnessMap:textures.roughness,normalMap:textures.normal,normalScale:new THREE.Vector2(.45,.45),color:0xb4b4b4,roughness:.88,metalness:.02});
+  return new THREE.MeshStandardMaterial({map:textures.colour,roughnessMap:textures.roughness,normalMap:textures.normal,normalScale:new THREE.Vector2(.45,.45),color:0x9a9a9a,roughness:.9,metalness:.01});
 }
 
 export function applyRoadUvs(
