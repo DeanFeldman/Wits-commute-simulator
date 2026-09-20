@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { createAmicDeckMaterial } from "../crossing/CrossingStrip.js";
+import { createAmicFenceSection } from "../../shared/AmicFence.js";
 import { applyRoadUvs } from "../../shaders/asphaltShader.js";
 import {
   attachVehicleModel,
@@ -50,7 +52,9 @@ export const PARKING_LAYOUT = Object.freeze({
 
   otherParking: { x: 0, z: 61, width: 28, depth: 22 },
 
-  armBuilding: { x: -80, z: -7, width: 36, depth: 62, height: 10 },
+  armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
+  armWalkway: { x: -64.8, z: -9.7, width: 6.4, depth: 88.4 },
+  pedestrianBridge: { x: -64.8, z: -62, width: 6.4, depth: 16.4 },
 
   // Bigger Flower Hall so it fills the left/background scene more strongly.
   flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
@@ -308,7 +312,7 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
 }
 
 function createM1(root, roadMaterial) {
-  const { m1, bridgeRoad } = PARKING_LAYOUT;
+  const { m1, bridgeRoad, pedestrianBridge } = PARKING_LAYOUT;
   const highwayMat = roadMaterial ?? material(COLORS.m1, 0.88);
   const highway = box(root, [m1.width, 0.14, m1.depth], [m1.x, m1.y, m1.z], highwayMat);
   applyRoadUvs(highway.geometry, m1.width, m1.depth);
@@ -331,10 +335,13 @@ function createM1(root, roadMaterial) {
     box(root, [m1.width, wallHeight, wallThickness], [m1.x, m1.y + wallHeight / 2, lip.z], wallMat, {
       castShadow: true
     });
-    // Low parapet along the top edge, so the drop reads from ground level.
-    box(root, [m1.width, 0.8, wallThickness + 0.25], [m1.x, 0.4, lip.z], parapetMat, {
-      castShadow: true
-    });
+    // Leave an opening where the Level 1 pedestrian bridge crosses.
+    const openingLeft = pedestrianBridge.x - pedestrianBridge.width / 2 - 0.3;
+    const openingRight = pedestrianBridge.x + pedestrianBridge.width / 2 + 0.3;
+    for (const [start, end] of [[m1.x - m1.width / 2, openingLeft], [openingRight, m1.x + m1.width / 2]]) {
+      const length = end - start;
+      box(root, [length, 0.8, wallThickness + 0.25], [start + length / 2, 0.4, lip.z], parapetMat, { castShadow: true });
+    }
   }
 
   // The right-hand road crosses the cutting, so it needs a deck under it and
@@ -457,10 +464,28 @@ function createArmBuilding(root, collisionWorld) {
       box(root, [0.08, 1.15, 2.4], [a.x + a.width / 2 + 0.045, y, z], windows, { receiveShadow: false });
     }
   }
-  // Parking-facing walkway.
-  box(root, [2.1, 0.08, a.depth + 4], [a.x + a.width / 2 + 1.5, 0.05, a.z], material(COLORS.concrete, 0.9));
   addCollider(collisionWorld, root, [a.x, a.height / 2, a.z], [a.width, a.height, a.depth], "wits-arm");
   addCollider(collisionWorld, root, [a.x + 3, 4, a.z + 2], [24, 8, 24], "wits-arm-dome");
+}
+
+function createArmPedestrianLink(root) {
+  const { armWalkway:w, pedestrianBridge:b }=PARKING_LAYOUT;
+  const base=createAmicDeckMaterial();
+  const addPanel=(width,depth,x,z,y=0.09,height=0.08,name="amic-level1-walkway")=>{
+    const mat=base.clone();
+    if(base.map){mat.map=base.map.clone();mat.map.wrapS=THREE.RepeatWrapping;mat.map.wrapT=THREE.RepeatWrapping;mat.map.repeat.set(width/1.8,depth/1.8);mat.map.offset.set((x-width/2)/1.8,(z-depth/2)/1.8);mat.map.needsUpdate=true;}
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,height,depth),mat);
+    mesh.position.set(x,y-height/2,z);mesh.receiveShadow=true;mesh.name=name;root.add(mesh);return mesh;
+  };
+
+  addPanel(w.width,w.depth,w.x,w.z,0.09,0.08,"amic-level1-walkway");
+  addPanel(b.width,b.depth,b.x,b.z,0.17,0.34,"amic-level1-bridge-deck");
+
+  for(const side of [-1,1]){
+    const fence=createAmicFenceSection({length:b.depth,name:`amic-level1-bridge-${side<0?"left":"right"}-rail`});
+    fence.position.set(b.x+side*(b.width/2-0.2),0.17,b.z);
+    root.add(fence);
+  }
 }
 
 function createFlowerHall(root) {
@@ -900,6 +925,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const { laneZ } = createM1(root, roadMaterial);
   const updateM1Traffic = createM1Traffic(root, laneZ);
   createArmBuilding(root, collisionWorld);
+  createArmPedestrianLink(root);
   createFlowerHall(root);
   createOtherParking(root);
   createSecondaryParkingLink(root);
