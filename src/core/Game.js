@@ -215,8 +215,18 @@ export class Game {
     this.setHUD("");
     this.setMessage("");
     this.menuTitleElement.textContent = "Wits Commute Simulator";
+
+    const menu = this.menuTitleElement.closest(".menu, .main-menu, body");
+    if (menu) {
+      menu.style.backgroundImage =
+        'url("/assets/images/ui/main-menu-background.png")';
+      menu.style.backgroundSize = "cover";
+      menu.style.backgroundPosition = "center";
+      menu.style.minHeight = "100vh";
+    }
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
+    this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
