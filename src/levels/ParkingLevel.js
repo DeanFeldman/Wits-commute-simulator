@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clamp } from "../shared/math.js";
 import { VehicleController } from "../shared/VehicleController.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
@@ -40,9 +41,17 @@ import { measurePoolCoverage } from "./parking/poolCoverage.js";
 const LEVEL_ONE_ASPHALT_Y = 0.035;
 const WATER_FILLED_FRACTION = 0.35;
 const POTHOLE_WATER_DEPTH_RATIO = 0.42;
+const sharkTexture = new THREE.TextureLoader().load(
+  "/assets/models/characters/wits-shark.png"
+);
 
 const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
+const potholeSharkLoader = new GLTFLoader();
+let potholeSharkModel = null;
+potholeSharkLoader.load("/assets/models/wits-shark.glb", g => {
+  potholeSharkModel = g.scene;
+});
 export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
 export const LEVEL_ONE_DAMAGE = Object.freeze({
@@ -1163,6 +1172,8 @@ export function rigPlayerCarWheels(model) {
 
 export class ParkingLevel {
   constructor(game) {
+    this.potholeSharks = [];
+
     this.game = game;
     this.name = "Level 1 — Park at Wits";
 
@@ -1541,6 +1552,32 @@ createParkingSurface(potholes = []) {
         water.name =
           `pothole-water-${index}`;
 
+        if (Math.random() < 0.35) {
+          const shark = new THREE.Sprite(
+            new THREE.SpriteMaterial({
+              map: sharkTexture,
+              transparent: true,
+              depthWrite: false
+            })
+          );
+
+          shark.scale.set(1.5, 1.5, 1);
+          shark.position.set(
+            0,
+            -1.5,
+            0
+          );
+
+          shark.userData.isWitsShark = true;
+          shark.userData.floatOffset = Math.random() * 10;
+          shark.userData.targetY = -1.5;
+          shark.userData.visibleY = 0.25;
+          shark.userData.popDistance = 12;
+
+          water.add(shark);
+          this.potholeSharks.push(shark);
+        }
+
         water.castShadow =
           false;
 
@@ -1710,6 +1747,23 @@ createParkingSurface(potholes = []) {
 
 
   update(dt) {
+    this.potholeSharks?.forEach((shark) => {
+      const distance =
+        shark.parent?.parent?.position.distanceTo(
+          this.car.position
+        ) ?? 999;
+
+      const target =
+        distance < shark.userData.popDistance
+          ? shark.userData.visibleY
+          : shark.userData.targetY;
+
+      shark.position.y +=
+        (target - shark.position.y) * 0.08;
+
+      shark.rotation.z += dt * 2;
+    });
+
     if (this.completed) {
       return;
     }
