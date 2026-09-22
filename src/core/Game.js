@@ -228,6 +228,8 @@ export class Game {
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuPrimaryAction.dataset.gameAction = "start";
+    this.menuElement.classList.add("menu-home");
+    this.devLevelSelect.hidden = false;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
@@ -252,6 +254,8 @@ export class Game {
     this.menuCopyElement.textContent = `You reached class without getting caught. Score: ${this.journeyScore}. Time: ${this.journeyTime.toFixed(1)}s.`;
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
+    this.menuElement.classList.remove("menu-home");
+    this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
@@ -498,6 +502,8 @@ export class Game {
     this.menuCopyElement.textContent = message;
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
+    this.menuElement.classList.remove("menu-home");
+    this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
     requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
   }
@@ -654,6 +660,8 @@ export class Game {
     this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
     this.menuPrimaryAction.textContent = "Back to menu";
     this.menuPrimaryAction.dataset.gameAction = "menu";
+    this.menuElement.classList.remove("menu-home");
+    this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
   }
 
