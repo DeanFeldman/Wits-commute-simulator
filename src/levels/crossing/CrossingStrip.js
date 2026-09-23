@@ -3,6 +3,7 @@ import { VehicleController } from "../../shared/VehicleController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import {
   attachVehicleModel,
+  PARKING_CAR_SPECS,
   pickRandomParkingCar
 } from "../../shared/VehicleModelLibrary.js";
 import { createAmicFenceSection } from "../../shared/AmicFence.js";
@@ -48,6 +49,9 @@ const WALKWAY_TOP_Y = WALKWAY_CENTER_Y + WALKWAY_HEIGHT / 2;
 const WALKWAY_TILE_SIZE = 1.8;
 
 const AMIC_DECK_TEXTURE_PATH = "./assets/textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png";
+const LEVEL_TWO_TRAFFIC_CAR_SPECS = PARKING_CAR_SPECS.filter(
+  (spec) => spec.id !== "pack-coupe"
+);
 
 export function createAmicDeckMaterial() {
   // Browser builds use the supplied AMIC reference texture. The tiny data
@@ -2209,7 +2213,10 @@ createBridgeFenceReturns({
   }
 
   createVehicle(lane, type, index) {
-    const spec = pickRandomParkingCar(this.random);
+      const spec =
+        LEVEL_TWO_TRAFFIC_CAR_SPECS[
+          Math.floor(this.random() * LEVEL_TWO_TRAFFIC_CAR_SPECS.length)
+        ] ?? LEVEL_TWO_TRAFFIC_CAR_SPECS[0];
     const vehicleRoot = new THREE.Group();
     vehicleRoot.name = `${type}-${this.definition.index}-${lane.laneIndex}-${index}`;
     // The imported Level 2 vehicle models are visually authored so this
