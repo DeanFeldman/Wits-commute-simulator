@@ -71,12 +71,32 @@ test("traffic strips orient, space, and recycle their fixed vehicle pools", () =
     assert.equal(strip.traffic.length, strip.lanes.reduce((total, lane) => total + lane.vehicleCount, 0));
     for (const vehicle of strip.traffic) {
       assert.ok(vehicle.lane.allowedVehicleTypes.includes(vehicle.type));
-      assert.equal(vehicle.root.rotation.y, vehicle.lane.direction > 0 ? -Math.PI / 2 : Math.PI / 2);
+      assert.equal(vehicle.root.rotation.y, vehicle.lane.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
+      assert.ok(vehicle.cruiseSpeed >= vehicle.lane.speed * 0.88);
+      assert.ok(vehicle.cruiseSpeed <= vehicle.lane.speed * 1.12);
       assert.ok(PARKING_CAR_SPECS.includes(vehicle.spec));
       assert.equal(vehicle.root.userData.vehicleSpecId, vehicle.spec.id);
       // In DOM-free tests the GLB is deliberately not loaded. The empty wrapper
       // proves Level 2 no longer builds or repositions primitive child meshes.
       assert.equal(vehicle.root.children.length, 0);
+    }
+  }
+
+  for (const strip of strips) {
+    for (const lane of strip.lanes) {
+      const vehicles = strip.traffic
+        .filter((vehicle) => vehicle.lane === lane)
+        .sort((a, b) => a.root.position.x - b.root.position.x);
+      if (vehicles.length < 2) continue;
+
+      const gaps = [];
+      for (let index = 1; index < vehicles.length; index++) {
+        gaps.push(vehicles[index].root.position.x - vehicles[index - 1].root.position.x);
+      }
+      assert.ok(
+        Math.max(...gaps) < 45,
+        "initial traffic should be distributed instead of forming one tight convoy"
+      );
     }
   }
 
