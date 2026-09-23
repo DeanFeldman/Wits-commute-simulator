@@ -10,7 +10,7 @@ const shared = (geometry) => {
   return geometry;
 };
 
-const GEOMETRY = {
+export const PEDESTRIAN_GEOMETRY = {
   body: shared(new THREE.CapsuleGeometry(0.29, 0.46, 5, 10)),
   head: shared(new THREE.SphereGeometry(0.23, 12, 10)),
   arm: shared(new THREE.CapsuleGeometry(0.07, 0.42, 4, 8)),
@@ -68,20 +68,20 @@ export class PedestrianFactory {
     const upper = new THREE.Group();
     pedestrian.add(upper);
 
-    const body = new THREE.Mesh(GEOMETRY.body, shirtMaterial);
+    const body = new THREE.Mesh(PEDESTRIAN_GEOMETRY.body, shirtMaterial);
     body.position.y = 0.06;
-    const head = new THREE.Mesh(GEOMETRY.head, skinMaterial);
+    const head = new THREE.Mesh(PEDESTRIAN_GEOMETRY.head, skinMaterial);
     head.position.y = 0.72;
     upper.add(body, head);
     this.addHair(head, hair, hairColor);
 
     if (vest) {
-      const hiVis = new THREE.Mesh(GEOMETRY.vest, this.material(0xd7ef2a, 0.6, { emissive: 0x2c3300 }));
+      const hiVis = new THREE.Mesh(PEDESTRIAN_GEOMETRY.vest, this.material(0xd7ef2a, 0.6, { emissive: 0x2c3300 }));
       hiVis.position.y = 0.12;
       upper.add(hiVis);
     }
     if (backpack !== null) {
-      const pack = new THREE.Mesh(GEOMETRY.backpack, this.material(backpack, 0.9));
+      const pack = new THREE.Mesh(PEDESTRIAN_GEOMETRY.backpack, this.material(backpack, 0.9));
       pack.position.set(0, 0.14, -0.3);
       upper.add(pack);
     }
@@ -91,7 +91,7 @@ export class PedestrianFactory {
     for (const side of [-1, 1]) {
       const armBone = new THREE.Group();
       armBone.position.set(side * 0.36, 0.3, 0);
-      const arm = new THREE.Mesh(GEOMETRY.arm, shirtMaterial);
+      const arm = new THREE.Mesh(PEDESTRIAN_GEOMETRY.arm, shirtMaterial);
       arm.position.y = -0.23;
       armBone.add(arm);
       upper.add(armBone);
@@ -99,10 +99,10 @@ export class PedestrianFactory {
 
       const legBone = new THREE.Group();
       legBone.position.set(side * 0.16, -0.33, 0);
-      const leg = new THREE.Mesh(GEOMETRY.leg, trouserMaterial);
+      const leg = new THREE.Mesh(PEDESTRIAN_GEOMETRY.leg, trouserMaterial);
       leg.position.y = -0.27;
       // Shoes point along +Z, the direction the whole person faces.
-      const shoe = new THREE.Mesh(GEOMETRY.shoe, shoeMaterial);
+      const shoe = new THREE.Mesh(PEDESTRIAN_GEOMETRY.shoe, shoeMaterial);
       shoe.position.set(0, -0.55, 0.06);
       legBone.add(leg, shoe);
       pedestrian.add(legBone);
@@ -111,7 +111,7 @@ export class PedestrianFactory {
 
     let heldItem = null;
     if (holding === "phone") {
-      heldItem = new THREE.Mesh(GEOMETRY.phone, this.material(0x16181c, 0.35, { emissive: 0x1f3550 }));
+      heldItem = new THREE.Mesh(PEDESTRIAN_GEOMETRY.phone, this.material(0x16181c, 0.35, { emissive: 0x1f3550 }));
       heldItem.position.set(0, -0.5, 0.1);
       heldItem.rotation.x = -0.9;
       arms[1].add(heldItem);
@@ -133,24 +133,24 @@ export class PedestrianFactory {
   addHair(head, style, color) {
     const material = this.material(color, 0.95);
     if (style === "short") {
-      const hair = new THREE.Mesh(GEOMETRY.hairShort, material);
+      const hair = new THREE.Mesh(PEDESTRIAN_GEOMETRY.hairShort, material);
       hair.position.y = 0.02;
       head.add(hair);
     } else if (style === "puff") {
-      const hair = new THREE.Mesh(GEOMETRY.hairPuff, material);
+      const hair = new THREE.Mesh(PEDESTRIAN_GEOMETRY.hairPuff, material);
       hair.position.set(0, 0.1, -0.03);
       head.add(hair);
     } else if (style === "bun") {
-      const hair = new THREE.Mesh(GEOMETRY.hairShort, material);
+      const hair = new THREE.Mesh(PEDESTRIAN_GEOMETRY.hairShort, material);
       hair.position.y = 0.02;
-      const bun = new THREE.Mesh(GEOMETRY.bun, material);
+      const bun = new THREE.Mesh(PEDESTRIAN_GEOMETRY.bun, material);
       bun.position.set(0, 0.2, -0.16);
       head.add(hair, bun);
     } else if (style === "cap") {
       const capMaterial = this.material(color, 0.8);
-      const crown = new THREE.Mesh(GEOMETRY.capCrown, capMaterial);
+      const crown = new THREE.Mesh(PEDESTRIAN_GEOMETRY.capCrown, capMaterial);
       crown.position.y = 0.03;
-      const brim = new THREE.Mesh(GEOMETRY.capBrim, capMaterial);
+      const brim = new THREE.Mesh(PEDESTRIAN_GEOMETRY.capBrim, capMaterial);
       brim.position.set(0, 0.1, 0.2);
       head.add(crown, brim);
     }
