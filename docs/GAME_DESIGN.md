@@ -14,6 +14,8 @@ PARK -> CROSS -> CHEAT
 
 The story connects the levels while the gameplay deliberately changes genre.
 
+Performance across the three levels is scored through the shared commute-rating system documented in `docs/COMMUTE_SCORING.md`. Each level reports raw performance data; the central scoring module converts it into time, mistake, and quality components.
+
 ---
 
 # Level 1 — Park at Wits
