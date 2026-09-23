@@ -369,11 +369,16 @@ export class CrossingLevel {
     this.root.add(this.shieldBubble);
   }
 
-  restartFromBeginning() {
+  // Running out of time ends the run, the same as Level 1's condition meter
+  // and Level 3's clock, so it goes through the shared Game Over card. It
+  // used to call startLevel() directly, which reloaded the level with no
+  // fade and no explanation at all.
+  restartFromBeginning(failure) {
     if (this.completed) return;
     this.completed = true;
+    // Retry starts the crossing over rather than at the last checkpoint.
     this.game.setCheckpoint("start");
-    this.game.startLevel(2, "start");
+    this.game.failLevel(failure);
   }
 
   update(dt) {
@@ -388,7 +393,17 @@ export class CrossingLevel {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
     this.powerUps.update(dt);
-    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
+    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) {
+      const missing = this.cups.total - this.powerUps.collected;
+      this.restartFromBeginning({
+        title: "Out of time",
+        reason: `The ${LEVEL_2_TIME_LIMIT}-second crossing window closed${missing > 0
+          ? ` with ${missing} Vida cup${missing === 1 ? "" : "s"} still out there`
+          : " just short of Engineering"}. Walking backwards adds a time penalty, and iced lattes buy some of it back.`,
+        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
+      });
+      return;
+    }
    this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
@@ -421,7 +436,7 @@ export class CrossingLevel {
     this.game.setHUD(`
       <div class="l2-hud">
         <strong class="l2-hud-title">Cross the Road</strong>
-        <div class="l2-hud-row"><span>Time</span><strong>${time.toFixed(1)}s</strong></div>
+        <div class="l2-hud-row"><span>Time</span><strong${time >= LEVEL_2_TIME_LIMIT - 5 ? ' class="l2-time-low"' : ""}>${time.toFixed(1)} / ${LEVEL_2_TIME_LIMIT.toFixed(1)}s</strong></div>
         <div class="l2-hud-row"><span>Attempts</span><strong>${this.attempts + 1}</strong></div>
         <div class="l2-hud-row"><span>Vida cups</span><strong class="l2-cups">${this.powerUps.collected} / ${this.cups.total}</strong></div>
         <div class="l2-hud-row"><span>Checkpoint</span><strong>${this.checkpoint.label}</strong></div>
@@ -610,7 +625,14 @@ checkFinish() {
     const cups = this.powerUps.collected, total = this.cups.total;
     if (cups !== total) { this.game.setMessage(`You still need ${total - cups} Vida cup${total - cups === 1 ? "" : "s"} before you can finish!`); return; }
     const time = this.getAdjustedTime();
-    if (time >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
+    if (time >= LEVEL_2_TIME_LIMIT) {
+      this.restartFromBeginning({
+        title: "Too slow",
+        reason: `You reached Engineering with every Vida cup, but the clock read ${time.toFixed(1)}s against a ${LEVEL_2_TIME_LIMIT}-second limit.`,
+        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
+      });
+      return;
+    }
     this.completed = true;
     this.game.journeyScore += cups * CUP_SCORE;
     this.game.completeLevel(`You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s (+${cups * CUP_SCORE}). Heading to Level 3.`);
