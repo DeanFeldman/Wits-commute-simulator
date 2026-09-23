@@ -1227,7 +1227,14 @@ export class ParkingLevel {
     this.waypoints = [];
     this.waypointTime = 0;
 
-    this.parkingStatus = { containment: false, alignment: false, rest: false, containmentPercent: 0, holdTime: 0 };
+    this.parkingStatus = {
+      containment: false,
+      alignment: false,
+      rest: false,
+      containmentPercent: 0,
+      alignmentErrorDegrees: 180,
+      holdTime: 0
+    };
     this.parkingConfirmationDuration = 0.75;
 
     this.completed = false;
@@ -2809,6 +2816,7 @@ if (hit) {
     this.parkingStatus.alignment = angleError <= THREE.MathUtils.degToRad(12);
     this.parkingStatus.rest = Math.abs(this.vehicle.speed) < 0.3;
     this.parkingStatus.containmentPercent = containmentPercent;
+    this.parkingStatus.alignmentErrorDegrees = THREE.MathUtils.radToDeg(angleError);
 
     if (
       this.parkingStatus.containment &&
@@ -2822,7 +2830,12 @@ if (hit) {
 
     if (this.parkingStatus.holdTime >= this.parkingConfirmationDuration) {
       this.completed = true;
-      this.game.completeLevel("Parked! Heading to Level 2.");
+      this.game.completeLevel("Parked! Heading to Level 2.", {
+        time: this.elapsedTime,
+        condition: this.condition,
+        containmentPercent: this.parkingStatus.containmentPercent,
+        alignmentErrorDegrees: this.parkingStatus.alignmentErrorDegrees
+      });
     }
   }
 
