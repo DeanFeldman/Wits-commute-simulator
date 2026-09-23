@@ -39,7 +39,23 @@ const speedMultipliers = [
   0.92
 ];
 
-function makeEightLaneYaleRoad(strip) {
+function createYaleSpacingScales(random) {
+  const laneOrder = Array.from({ length: YALE_LANE_COUNT }, (_, index) => index);
+
+  for (let index = laneOrder.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [laneOrder[index], laneOrder[swapIndex]] = [laneOrder[swapIndex], laneOrder[index]];
+  }
+
+  const reliefLanes = new Set(laneOrder.slice(0, 3));
+  return Array.from({ length: YALE_LANE_COUNT }, (_, laneIndex) => (
+    reliefLanes.has(laneIndex)
+      ? 1.08 + random() * 0.04
+      : 1
+  ));
+}
+
+function makeEightLaneYaleRoad(strip, random) {
   const originalLanes =
     strip.traffic?.lanes ??
     (strip.traffic ? [strip.traffic] : []);
@@ -51,6 +67,7 @@ function makeEightLaneYaleRoad(strip) {
     };
   }
 
+  const spacingScales = createYaleSpacingScales(random);
   const lanes = Array.from(
     { length: YALE_LANE_COUNT },
     (_, laneIndex) => {
@@ -70,6 +87,10 @@ function makeEightLaneYaleRoad(strip) {
           speed:
             source.speed *
             speedMultipliers[laneIndex],
+
+          // Three seed-selected lanes get only a small 8-12% spacing increase.
+          // The selected lanes and exact amount remain reproducible per seed.
+          spacingScale: spacingScales[laneIndex],
 
           gapRange: [...source.gapRange],
 
@@ -128,7 +149,10 @@ export function generateLevel2Layout(seed) {
   let strip = cloneStrip(preset);
 
   if (strip.type === "yale-road") {
-    strip = makeEightLaneYaleRoad(strip);
+    strip = makeEightLaneYaleRoad(
+      strip,
+      createSeededRandom(normalizedSeed ^ 0x59a1e2)
+    );
   }
 
   const rowSpan = strip.rowSpan ?? 1;
