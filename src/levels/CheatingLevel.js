@@ -5,6 +5,13 @@ import { CollisionWorld } from "../shared/CollisionWorld.js";
 import { WaypointMover } from "../shared/WaypointMover.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import {
+  HAIR_STYLES,
+  PEDESTRIAN_GEOMETRY,
+  PedestrianFactory,
+  SKIN_TONES,
+  poseWalk
+} from "./crossing/PedestrianFactory.js";
+import {
   QUESTION_BANK,
   buildRoundAnswers,
   normaliseAnswer,
@@ -458,14 +465,23 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     const studentGeometry = {
-      torso: new THREE.BoxGeometry(0.48, 0.62, 0.3),
-      head: new THREE.SphereGeometry(0.22, 14, 10),
-      arm: new THREE.BoxGeometry(0.14, 0.5, 0.14),
-      thigh: new THREE.BoxGeometry(0.18, 0.18, 0.48),
-      shin: new THREE.BoxGeometry(0.18, 0.48, 0.18)
+      torso: PEDESTRIAN_GEOMETRY.body,
+      head: PEDESTRIAN_GEOMETRY.head,
+      arm: PEDESTRIAN_GEOMETRY.arm,
+      leg: PEDESTRIAN_GEOMETRY.leg,
+      shoe: PEDESTRIAN_GEOMETRY.shoe,
+      hairShort: PEDESTRIAN_GEOMETRY.hairShort,
+      hairPuff: PEDESTRIAN_GEOMETRY.hairPuff,
+      bun: PEDESTRIAN_GEOMETRY.bun,
+      capCrown: PEDESTRIAN_GEOMETRY.capCrown,
+      capBrim: PEDESTRIAN_GEOMETRY.capBrim
     };
-    const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xa96f4f, roughness: 0.82 });
     const trousersMaterial = new THREE.MeshStandardMaterial({ color: 0x26384c, roughness: 0.88 });
+    const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x202328, roughness: 0.72 });
+    const hairMaterial = new THREE.MeshStandardMaterial({ color: 0x1d1714, roughness: 0.95 });
+    const skinMaterials = SKIN_TONES.map(
+      (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.86 })
+    );
     const shirtColors = [0x56738f, 0xb65f6e, 0x4f8b69, 0xc18a45, 0x725f9e, 0x3f8794];
     const shirtMaterials = shirtColors.map(
       (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.78 })
@@ -482,10 +498,13 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           Math.abs(seatZ - PLAYER_SEAT_Z) < 0.01;
 
         if (!isPlayerSeat) {
+          const styleIndex = row * DESKS_PER_ROW + column;
           studentSeats.push({
             x,
             z: seatZ,
-            shirtIndex: (row * DESKS_PER_ROW + column) % shirtMaterials.length
+            shirtIndex: styleIndex % shirtMaterials.length,
+            skinIndex: (styleIndex * 5) % skinMaterials.length,
+            hair: HAIR_STYLES[(styleIndex * 3) % HAIR_STYLES.length]
           });
         }
       }
@@ -499,63 +518,79 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       instances.castShadow = true;
       instances.receiveShadow = true;
       this.root.add(instances);
-      //this.occluders.push(instances);
       return instances;
     };
-    const setStudentPart = (instances, index, x, y, z, rotationX = 0) => {
+    const setStudentPart = (
+      instances,
+      index,
+      x,
+      y,
+      z,
+      rotationX = 0,
+      rotationY = 0,
+      rotationZ = 0,
+      scale = studentScale
+    ) => {
       transform.position.set(x, y, z);
-      transform.rotation.set(rotationX, 0, 0);
-      transform.scale.setScalar(studentScale);
+      transform.rotation.set(rotationX, rotationY, rotationZ);
+      transform.scale.setScalar(scale);
       transform.updateMatrix();
       instances.setMatrixAt(index, transform.matrix);
     };
 
-    const heads = createStudentInstances(
-      studentGeometry.head,
-      skinMaterial,
-      studentSeats.length
-    );
-    const thighs = createStudentInstances(
-      studentGeometry.thigh,
+    skinMaterials.forEach((skinMaterial, skinIndex) => {
+      const matchingSeats = studentSeats.filter((seat) => seat.skinIndex === skinIndex);
+      const heads = createStudentInstances(
+        studentGeometry.head,
+        skinMaterial,
+        matchingSeats.length
+      );
+
+      matchingSeats.forEach(({ x, z }, index) => {
+        setStudentPart(
+          heads,
+          index,
+          x,
+          studentBaseY + 1.42 * studentScale,
+          z - 0.02 * studentScale
+        );
+      });
+      heads.instanceMatrix.needsUpdate = true;
+    });
+
+    const legs = createStudentInstances(
+      studentGeometry.leg,
       trousersMaterial,
       studentSeats.length * 2
     );
-    const shins = createStudentInstances(
-      studentGeometry.shin,
-      trousersMaterial,
+    const shoes = createStudentInstances(
+      studentGeometry.shoe,
+      shoeMaterial,
       studentSeats.length * 2
     );
 
     studentSeats.forEach(({ x, z }, studentIndex) => {
-      setStudentPart(
-        heads,
-        studentIndex,
-        x,
-        studentBaseY + 1.43 * studentScale,
-        z - 0.02 * studentScale
-      );
-
       for (const [sideIndex, side] of [-1, 1].entries()) {
         const legIndex = studentIndex * 2 + sideIndex;
         setStudentPart(
-          thighs,
+          legs,
           legIndex,
-          x + side * 0.14 * studentScale,
-          studentBaseY + 0.56 * studentScale,
-          z - 0.2 * studentScale
+          x + side * 0.16 * studentScale,
+          studentBaseY + 0.36 * studentScale,
+          z - 0.35 * studentScale,
+          Math.PI / 2
         );
         setStudentPart(
-          shins,
+          shoes,
           legIndex,
-          x + side * 0.14 * studentScale,
-          studentBaseY + 0.33 * studentScale,
-          z - 0.42 * studentScale
+          x + side * 0.16 * studentScale,
+          studentBaseY + 0.13 * studentScale,
+          z - 0.62 * studentScale
         );
       }
     });
-    heads.instanceMatrix.needsUpdate = true;
-    thighs.instanceMatrix.needsUpdate = true;
-    shins.instanceMatrix.needsUpdate = true;
+    legs.instanceMatrix.needsUpdate = true;
+    shoes.instanceMatrix.needsUpdate = true;
 
     shirtMaterials.forEach((shirtMaterial, shirtIndex) => {
       const matchingSeats = studentSeats.filter((seat) => seat.shirtIndex === shirtIndex);
@@ -583,9 +618,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           setStudentPart(
             arms,
             studentIndex * 2 + sideIndex,
-            x + side * 0.31 * studentScale,
-            studentBaseY + 0.9 * studentScale,
-            z - 0.15 * studentScale,
+            x + side * 0.34 * studentScale,
+            studentBaseY + 0.88 * studentScale,
+            z - 0.16 * studentScale,
             -0.72
           );
         }
@@ -593,6 +628,68 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       torsos.instanceMatrix.needsUpdate = true;
       arms.instanceMatrix.needsUpdate = true;
     });
+
+    const addHairInstances = (style, geometry, seats, yOffset = 0, zOffset = 0, scale = studentScale) => {
+      if (!geometry || seats.length === 0) return;
+      const hair = createStudentInstances(geometry, hairMaterial, seats.length);
+      seats.forEach(({ x, z }, index) => {
+        setStudentPart(
+          hair,
+          index,
+          x,
+          studentBaseY + (1.44 * studentScale) + yOffset,
+          z - 0.02 * studentScale + zOffset,
+          0,
+          0,
+          0,
+          scale
+        );
+      });
+      hair.instanceMatrix.needsUpdate = true;
+    };
+
+    addHairInstances(
+      "short",
+      studentGeometry.hairShort,
+      studentSeats.filter((seat) => seat.hair === "short"),
+      0.01
+    );
+    addHairInstances(
+      "puff",
+      studentGeometry.hairPuff,
+      studentSeats.filter((seat) => seat.hair === "puff"),
+      0.05,
+      -0.015
+    );
+    const bunSeats = studentSeats.filter((seat) => seat.hair === "bun");
+    addHairInstances("bun-base", studentGeometry.hairShort, bunSeats, 0.01);
+    addHairInstances(
+      "bun",
+      studentGeometry.bun,
+      bunSeats,
+      0.12,
+      -0.09,
+      studentScale * 0.95
+    );
+    const capSeats = studentSeats.filter((seat) => seat.hair === "cap");
+    addHairInstances("cap-crown", studentGeometry.capCrown, capSeats, 0.025);
+    if (capSeats.length > 0) {
+      const brims = createStudentInstances(
+        studentGeometry.capBrim,
+        hairMaterial,
+        capSeats.length
+      );
+      capSeats.forEach(({ x, z }, index) => {
+        setStudentPart(
+          brims,
+          index,
+          x,
+          studentBaseY + 1.5 * studentScale,
+          z + 0.11 * studentScale
+        );
+      });
+      brims.instanceMatrix.needsUpdate = true;
+    }
     const aisle = new THREE.Mesh(
       new THREE.BoxGeometry(19, 0.03, 0.55),
       new THREE.MeshBasicMaterial({ color: 0xd6b24c })
@@ -977,45 +1074,60 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.root.add(projectorGlow);
   }
   createTutor() {
-    this.tutor = new THREE.Group();
+    const factory = new PedestrianFactory();
+    this.tutor = factory.create({
+      shirt: 0xe35b66,
+      trousers: 0x273442,
+      skin: 0xd7a47e,
+      hair: "short",
+      hairColor: 0x2b211d,
+      scale: 1
+    });
     this.tutor.position.copy(this.patrolPoints[0]);
+    this.tutor.name = "level-3-tutor";
     this.root.add(this.tutor);
-    this.collisionWorld.add({ object: this.tutor, size: [0.85, 1.9, 0.85], color: 0xe35b66, tag: "tutor" });
+    this.collisionWorld.add({
+      object: this.tutor,
+      size: [0.85, 1.9, 0.85],
+      color: 0xe35b66,
+      tag: "tutor"
+    });
 
-    const clothes = new THREE.MeshStandardMaterial({ color: 0xe35b66, roughness: 0.72 });
-    const trousers = new THREE.MeshStandardMaterial({ color: 0x273442, roughness: 0.85 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xd7a47e, roughness: 0.78 });
-    this.tutorBody = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.05, 0.55), clothes);
-    this.tutorBody.castShadow = true;
-    this.tutor.add(this.tutorBody);
-    for (const x of [-0.24, 0.24]) {
-      const leg = new THREE.Group();
-      leg.position.set(x, -0.5, 0);
-      const legMesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.3), trousers);
-      legMesh.position.y = -0.45;
-      legMesh.castShadow = true;
-      leg.add(legMesh);
-      this.tutor.add(leg);
-      this.tutorLegs.push(leg);
-    }
+    this.tutorRig = this.tutor.userData.rig;
+    this.tutorBody = this.tutorRig.upper;
+    this.tutorHead = this.tutorRig.head;
+    this.tutorLegs = this.tutorRig.legs;
 
-    this.tutorHead = new THREE.Group();
-    this.tutorHead.position.y = 0.75;
-    const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.58, 0.58), skin);
-    headMesh.castShadow = true;
-    this.tutorHead.add(headMesh);
-    this.tutor.add(this.tutorHead);
     this.visionTarget = new THREE.Object3D();
     this.root.add(this.visionTarget);
-    this.spotlight = new THREE.SpotLight(0xff7f86, 1.35, 10, THREE.MathUtils.degToRad(32), 0.55, 1.5);
+    this.spotlight = new THREE.SpotLight(
+      0xff7f86,
+      1.35,
+      10,
+      THREE.MathUtils.degToRad(32),
+      0.55,
+      1.5
+    );
     this.spotlight.castShadow = true;
     this.tutorHead.add(this.spotlight);
     this.spotlight.target = this.visionTarget;
 
     const coneLength = 5.5;
     const cone = new THREE.Mesh(
-      new THREE.ConeGeometry(Math.tan(THREE.MathUtils.degToRad(32)) * coneLength, coneLength, 24, 1, true),
-      new THREE.MeshBasicMaterial({ color: 0xff8a8f, transparent: true, opacity: 0.075, depthWrite: false, side: THREE.DoubleSide })
+      new THREE.ConeGeometry(
+        Math.tan(THREE.MathUtils.degToRad(32)) * coneLength,
+        coneLength,
+        24,
+        1,
+        true
+      ),
+      new THREE.MeshBasicMaterial({
+        color: 0xff8a8f,
+        transparent: true,
+        opacity: 0.075,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
     );
     cone.rotation.x = -Math.PI / 2;
     cone.position.z = coneLength / 2;
@@ -1170,23 +1282,18 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.tutorWalkPhase += dt * 11;
     }
 
-    const stride = isWalking
-      ? Math.sin(this.tutorWalkPhase) * 0.48
-      : 0;
-
-    this.tutorLegs[0].rotation.x = stride;
-    this.tutorLegs[1].rotation.x = -stride;
-
-    this.tutorBody.position.y = isWalking
-      ? Math.abs(Math.sin(this.tutorWalkPhase)) * 0.045
-      : 0;
+    poseWalk(
+      this.tutorRig,
+      this.tutorWalkPhase,
+      isWalking ? 0.72 : 0
+    );
 
     if (this.patrolState === "scan") {
-      // Once the body has turned toward the room, sweep the vision cone
-      // slightly so the pause reads as deliberate observation.
+      // Keep the Level 3 gameplay cue: the head, spotlight and vision cone
+      // sweep together while the tutor scans the room.
       this.tutorHead.rotation.y =
-  Math.sin(this.tutorTime * 2.4) *
-  THREE.MathUtils.degToRad(18);
+        Math.sin(this.tutorTime * 2.4) *
+        THREE.MathUtils.degToRad(18);
     } else {
       this.tutorHead.rotation.y =
         Math.sin(this.tutorWalkPhase * 0.5) *
