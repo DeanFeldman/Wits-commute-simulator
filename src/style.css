@@ -906,3 +906,81 @@ body.level-2 #level2-vignette{opacity:1}
 #menu.menu-credits .credit-entry p {
   font-family: "Courier New", ui-monospace, monospace;
 }
+
+/* Checkpoint setback banner (see src/core/FailureReport.js). Shown when the
+   player respawns but the level keeps running, so it never takes input.
+   Sits clear of the top bar and the message line above it. */
+.setback-banner {
+  position: fixed;
+  top: 7.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100vw - 2rem), 26rem);
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-left: 4px solid #f06b78;
+  border-radius: 12px;
+  background: rgba(13, 17, 23, 0.94);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  z-index: 36;
+  pointer-events: none;
+  animation: setback-in 220ms ease-out;
+}
+
+.setback-banner[hidden] {
+  display: none;
+}
+
+.setback-kicker {
+  margin: 0;
+  color: #f06b78;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.setback-title {
+  margin: 0.3rem 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+.setback-reason {
+  margin: 0;
+  color: #e3e8ef;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.setback-next {
+  margin: 0.55rem 0 0;
+  color: #c7ced8;
+  font-size: 0.85rem;
+}
+
+.setback-reason:empty,
+.setback-next:empty {
+  display: none;
+}
+
+@keyframes setback-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* The Game Over card reads the same three fields as the banner. */
+.failure-reason {
+  margin: 0;
+}
+
+.failure-next {
+  margin: 0.9rem 0 0;
+  opacity: 0.75;
+  font-size: 0.9em;
+}
+
+.failure-reason:empty,
+.failure-next:empty {
+  display: none;
+}

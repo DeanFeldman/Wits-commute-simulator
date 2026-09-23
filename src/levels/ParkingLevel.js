@@ -1877,7 +1877,11 @@ if (hit) {
 
     if (this.condition <= 0) {
       this.completed = true;
-      this.game.failLevel("YOUR CAR BROKE DOWN — You missed your exam. Restarting Level 1…");
+      this.game.failLevel({
+        title: "Your car broke down",
+        reason: "The condition meter hit 0%. Potholes, kerbs and parked cars each take a bite out of it, so you never made the exam.",
+        next: "Retry restarts Level 1 with a full condition meter."
+      });
     }
   }
 

@@ -1205,14 +1205,22 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (this.timeRemaining <= 0) {
       this.completed = true;
-      this.game.failLevel("Time is up. Restarting from the checkpoint.");
+      this.game.failLevel({
+        title: "Time is up",
+        reason: `The test ended with your answer sheet ${Math.round(this.answerProgress)}% full. Peek, look down, type, repeat — every second spent waiting is one you cannot type in.`,
+        next: "Retry restarts the test with a fresh 75 seconds."
+      });
     }
 
     if (this.suspicion >= 100) {
       this.completed = true;
       this.endPeek();
       this.game.flashHUD();
-      this.game.failLevel("Caught by the tutor. Try again?");
+      this.game.failLevel({
+        title: "Caught by the tutor",
+        reason: "Suspicion reached 100%. The tutor was looking your way while you were peeking at another tablet — let it fall back down between peeks.",
+        next: "Retry restarts the test with a fresh 75 seconds."
+      });
     }
   }
   handleTutorPatrolArrival(reachedIndex) {

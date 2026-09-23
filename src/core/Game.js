@@ -6,12 +6,16 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
+import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
+
+// How long a checkpoint setback banner lingers while play continues.
+const SETBACK_DISPLAY_TIME = 2600;
 
 const LEVEL_STATES = new Map([
   [1, "level1"],
@@ -164,6 +168,7 @@ export class Game {
     this.levelIntroDialogueCopy = document.querySelector("#level-intro-dialogue-copy");
     this.levelIntroDialogueContinue = document.querySelector("#level-intro-dialogue-continue");
     this.currentMessage = "";
+    this.setbackBanner = new SetbackBanner();
 
     this.animate = this.animate.bind(this);
     this.onResize = this.onResize.bind(this);
@@ -209,6 +214,7 @@ export class Game {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "menu";
+    this.setbackBanner.hide();
     this.currentLevelNumber = null;
     this.isLoading = false;
     this.isPaused = false;
@@ -247,6 +253,7 @@ export class Game {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "results";
+    this.setbackBanner.hide();
     this.currentLevelNumber = null;
     this.isLoading = false;
     this.isPaused = false;
@@ -278,6 +285,7 @@ export class Game {
     const loadingMessage = `Loading Level ${levelNumber}…`;
 
     this.state = LEVEL_STATES.get(levelNumber);
+    this.setbackBanner.hide();
     this.currentLevelNumber = levelNumber;
     document.body.classList.toggle("level-2",levelNumber===2);
     this.currentCheckpoint = checkpoint;
@@ -480,20 +488,31 @@ export class Game {
     });
   }
 
-  failLevel(message) {
+  // `failure` is a { title, reason, next } description from the level; a
+  // plain sentence still works for older call sites.
+  failLevel(failure) {
     if (this.currentLevelNumber === null || this.isTransitioning) return;
 
     this.isTransitioning = true;
-    this.setMessage(message);
-    this.fadeTransition(() => this.showFailure(message));
+    this.setMessage(describeFailure(failure).title);
+    this.fadeTransition(() => this.showFailure(failure));
   }
 
-  showFailure(message) {
+  // A respawn that does not end the run, such as Level 2 sending the player
+  // back to a checkpoint. Play continues, so this only explains itself.
+  reportSetback(failure) {
+    if (this.currentLevelNumber === null) return;
+    this.setbackBanner.show(failure, SETBACK_DISPLAY_TIME);
+  }
+
+  showFailure(failure) {
+    const { title, reason, next } = describeFailure(failure);
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "failed";
+    this.setbackBanner.hide();
     this.isLoading = false;
     this.isPaused = false;
     this.isTransitioning = false;
@@ -502,8 +521,13 @@ export class Game {
     this.setMessage("");
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
-    this.menuTitleElement.textContent = "Game Over";
-    this.menuCopyElement.textContent = message;
+    this.menuTitleElement.textContent = title;
+    // The card says what went wrong and what Retry will do, rather than the
+    // single line the message strip used to flash before the fade covered it.
+    this.menuCopyElement.innerHTML = `
+      <p class="failure-reason">${reason}</p>
+      <p class="failure-next">${next}</p>
+    `;
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
     this.menuElement.classList.remove("menu-home");

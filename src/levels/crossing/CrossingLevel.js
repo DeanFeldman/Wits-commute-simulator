@@ -691,9 +691,13 @@ checkFinish() {
     this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;
     this.hopController.delay(this.impactTimer);
-    this.game.setMessage(wasTaxi
-      ? `Taxi impact! Returning to ${this.checkpoint.label}.`
-      : `Vehicle impact! Returning to ${this.checkpoint.label}.`);
+    this.game.reportSetback({
+      title: wasTaxi ? "Taxi impact" : "Vehicle impact",
+      reason: wasTaxi
+        ? "A taxi clipped you mid-lane. They do not brake for pedestrians — cross on a gap, not on hope."
+        : "A car clipped you mid-lane. Check the gap hint in the HUD before you step off the kerb.",
+      next: `Back to the ${this.checkpoint.label} checkpoint. Attempt ${this.attempts + 1}.`
+    });
   }
 
   updateImpact(dt) {
