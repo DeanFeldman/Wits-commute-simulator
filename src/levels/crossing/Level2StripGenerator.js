@@ -29,14 +29,14 @@ const ROUTE = [
   LEVEL_2_STRIPS.finish
 ];
 const speedMultipliers = [
-  1.8,
-  2.05,
-  2.3,
-  2.6,
-  2.6,
-  2.3,
-  2.05,
-  1.8
+  0.92,
+  1,
+  1.08,
+  1.16,
+  1.16,
+  1.08,
+  1,
+  0.92
 ];
 
 function makeEightLaneYaleRoad(strip) {
@@ -72,6 +72,10 @@ function makeEightLaneYaleRoad(strip) {
             speedMultipliers[laneIndex],
 
           gapRange: [...source.gapRange],
+
+          // Three cars per lane gives a continuous but still crossable stream
+          // within CrossingStrip's compact off-screen traffic corridor.
+          vehicleCount: Math.max(source.vehicleCount, 3),
 
           allowedVehicleTypes: [
             ...source.allowedVehicleTypes
