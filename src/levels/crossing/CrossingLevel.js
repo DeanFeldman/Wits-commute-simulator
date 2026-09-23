@@ -383,10 +383,27 @@ export class CrossingLevel {
     this.game.failLevel(failure);
   }
 
-  update(dt) {
+    update(dt) {
     if (this.completed) return;
-    if (this.quizPaused) return; // quiz overlay owns input while it's open
-   // for(const m of this.roadFogMaterials)m.uniforms.uTime.value+=dt;
+
+    if (this.quizPaused) {
+      // A quiz doesn't stop the clock — only player input, movement, and
+      // collision checks pause while the overlay is open.
+      this.crossingTime += dt;
+      if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) {
+        const missing = this.cups.total - this.powerUps.collected;
+        this.restartFromBeginning({
+          title: "Out of time",
+          reason: `The ${LEVEL_2_TIME_LIMIT}-second crossing window closed${missing > 0
+            ? ` with ${missing} Vida cup${missing === 1 ? "" : "s"} still out there`
+            : " just short of Engineering"}. Walking backwards adds a time penalty, and iced lattes buy some of it back.`,
+          next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
+        });
+        return;
+      }
+      this.updateHUD();
+      return;
+    }
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
@@ -406,22 +423,20 @@ export class CrossingLevel {
       });
       return;
     }
-   this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
+    this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) {
-      this.backwardPenalty += 0.25;
-      this.backwardSteps += 1;
-    }
+    if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
     if (landedDirection) this.updateCheckpoint();
     if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
     this.crowd.update(dt, this.player.position);
+    this.handleChaseCatches();
     this.checkCollisions();
     this.updatePlayerEffects(dt);
     this.updateCamera(dt);
@@ -551,11 +566,11 @@ export class CrossingLevel {
   // The answer is checked for validity only (see quizBank.isValidAnswer) and
   // is never stored — `person.quizDone` just stops the same person from
   // re-asking for the  of this playthrough.
-  startQuiz(person) {
+    startQuiz(person) {
     if (person.kind === "psychQuizzer") {
       this.quizPaused = true;
       this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
-        person.quizDone = true;
+        this.crowd.sendOff(person);
         this.quizPaused = false;
         this.game.setMessage("Form received. Carry on.");
       });
@@ -565,10 +580,21 @@ export class CrossingLevel {
     if (!quiz) return;
     this.quizPaused = true;
     this.quiz.open(quiz, () => {
-      person.quizDone = true;
+      this.crowd.sendOff(person);
       this.quizPaused = false;
       this.game.setMessage("Thanks! Carry on.");
     });
+  }
+
+  // NEW — a chasing quiz NPC (CampusCrowd.updateChaser) sets `caught` for
+  // one frame once it reaches the player. Catching starts the same quiz a
+  // direct bump would have, so there is still exactly one quiz-trigger path
+  // per NPC, just two ways of arriving at it.
+  handleChaseCatches() {
+    if (this.quizPaused) return;
+    const caughtBy = this.crowd.people.find((person) => person.caught && !person.quizDone);
+    if (!caughtBy) return;
+    this.startQuiz(caughtBy);
   }
 
   updateCups(dt) {

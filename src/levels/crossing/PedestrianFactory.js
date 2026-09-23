@@ -158,12 +158,40 @@ export class PedestrianFactory {
 }
 
 // Leg and arm swing for a walk cycle. `phase` is in radians; `amount` is 0..1.
+//
+// Explicitly zeroes arm rotation.z every frame (not just x). poseChase below
+// is the only thing that ever sets rotation.z away from 0 (the "hands up"
+// chase pose); zeroing it here — rather than only decaying it in the idle
+// branch of CampusCrowd.animate — means a chase NPC's arms snap back onto
+// the normal walk cycle the instant it starts walking away, instead of
+// carrying a stuck sideways offset in on top of the walk swing.
 export function poseWalk(rig, phase, amount) {
   const swing = Math.sin(phase) * 0.72 * amount;
   rig.legs[0].rotation.x = swing;
   rig.legs[1].rotation.x = -swing;
   rig.arms[0].rotation.x = -swing * 0.8;
-  if (!rig.holding) rig.arms[1].rotation.x = swing * 0.8;
+  rig.arms[0].rotation.z = 0;
+  if (!rig.holding) {
+    rig.arms[1].rotation.x = swing * 0.8;
+    rig.arms[1].rotation.z = 0;
+  }
   // Two small torso bobs per stride, well under a centimetre of hop per step.
   rig.upper.position.y = Math.abs(Math.cos(phase)) * 0.035 * amount;
+}
+
+// Sprint pose used by a chase NPC (see CampusCrowd.updateChaser). Legs pump
+// like a run; arms are thrown up into a fixed "hands up" shape rather than
+// swinging at the sides, so the pose reads as "chasing you" at a glance
+// instead of as a jogger. `amount` lets the pose ease down (e.g. once the
+// NPC has caught the player and stops moving) without a hard cut.
+export function poseChase(rig, phase, amount) {
+  const swing = Math.sin(phase) * 0.95 * amount;
+  rig.legs[0].rotation.x = swing;
+  rig.legs[1].rotation.x = -swing;
+  rig.arms[0].rotation.x = -2.6 + Math.sin(phase) * 0.2 * amount;
+  rig.arms[1].rotation.x = -2.6 - Math.sin(phase) * 0.2 * amount;
+  rig.arms[0].rotation.z = 0.32;
+  rig.arms[1].rotation.z = -0.32;
+  rig.upper.position.y = Math.abs(Math.cos(phase)) * 0.05 * amount;
+  rig.upper.rotation.x = -0.18 * amount;
 }
