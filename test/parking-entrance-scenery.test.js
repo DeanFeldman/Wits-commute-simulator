@@ -15,6 +15,7 @@ import {
   pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
 import {
+  getLevelOneM1TrafficRotation,
   LEVEL_ONE_M1_TRAFFIC_CAR_SPECS,
   PARKING_LAYOUT
 } from "../src/levels/parking/ParkingEnvironment.js";
@@ -135,6 +136,11 @@ test("driving aisles remain open and align with the lot entrance", () => {
 
   assert.equal(layout.playerSpawn.angle, 0, "player faces north into the parking lot");
   assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
+});
+
+test("Level 1 M1 traffic faces the same direction it travels", () => {
+  assert.equal(getLevelOneM1TrafficRotation(1), -Math.PI / 2);
+  assert.equal(getLevelOneM1TrafficRotation(-1), Math.PI / 2);
 });
 
 test("Level 1 M1 moving traffic excludes the backwards-facing coupe", () => {
