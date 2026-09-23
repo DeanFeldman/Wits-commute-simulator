@@ -1,9 +1,24 @@
-import { PEDESTRIAN_SOLE_OFFSET, poseWalk } from "./PedestrianFactory.js";
+import { PEDESTRIAN_SOLE_OFFSET, poseWalk, poseChase } from "./PedestrianFactory.js";
 
-// The people on the Level 2 walkways. They are obstacles you can walk into,
+// The people on the Level 2 walkways. Most are obstacles you can walk into,
 // not hazards: bumping someone stops you for a moment and they tell you about it.
 //
 // Nobody walks onto Yale Road, so the only thing that can end a run is traffic.
+
+// The two quiz-giving NPCs are the exception: once the player gets close,
+// they leave their spot and jog after the player with their hands up until
+// they either catch them (see updateChaser / CrossingLevel.handleChaseCatches)
+// or the player moves back out of range. Once caught and the quiz finishes,
+// CrossingLevel calls sendOff(), which has the NPC jog on past the player and
+// settle back into a normal walking pose (see updateLeaving) rather than
+// freezing mid-chase. Each NPC's state lives on the person object, so the
+// two run independently of one another.
+const CHASE_KINDS = new Set(["psychQuizzer", "ccduAdvisor"]);
+const CHASE_TRIGGER_DISTANCE = 5;
+const CHASE_CATCH_DISTANCE = 0.9;
+const CHASE_SPEED = 3.3;
+const LEAVE_SPEED = 1.6;
+const LEAVE_DISTANCE = 6;
 
 // What people say. `bump` lines are picked by personality; after a few bumps
 // everyone runs out of patience and uses `annoyed`.
@@ -165,7 +180,15 @@ export class CampusCrowd {
       talkCooldown: 0,
       bumps: 0,
       greeted: false,
-      facePlayer: null
+      facePlayer: null,
+      // Chase-only state; harmless on every other kind of person.
+      chasing: false,
+      caught: false,
+      quizDone: false,
+      leaving: false,
+      leaveDirection: null,
+      leaveYaw: 0,
+      leaveTraveled: 0
     };
     this.people.push(person);
     return person;
@@ -209,12 +232,44 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
+  // Called once a chase NPC's quiz completes (see CrossingLevel.startQuiz).
+  // Rather than freezing mid-chase with its hands still up, the NPC keeps
+  // moving forward in whatever direction it was last facing — it reads as
+  // jogging on past the player — while updateLeaving/animate blend its pose
+  // back down out of the chase stance via the normal walk cycle. It settles
+  // into an idle stance once it's put some distance behind it and never
+  // chases again (quizDone keeps it out of updateChaser for good).
+  sendOff(person) {
+    person.quizDone = true;
+    person.chasing = false;
+    person.caught = false;
+    const yaw = person.mesh.rotation.y;
+    person.leaveYaw = yaw;
+    person.leaveDirection = { x: Math.sin(yaw), z: Math.cos(yaw) };
+    person.leaveTraveled = 0;
+    person.leaving = true;
+  }
+
   update(dt, player) {
     this.time += dt;
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
       person.recoil = Math.max(0, person.recoil - dt * 3);
+      person.caught = false;
+
+      if (CHASE_KINDS.has(person.kind)) {
+        if (person.leaving) {
+          this.updateLeaving(person, dt);
+          this.animate(person, dt);
+          continue;
+        }
+        if (!person.quizDone) {
+          this.updateChaser(person, dt, player);
+          this.animate(person, dt);
+          continue;
+        }
+      }
 
       if (person.reactTimer > 0) {
         person.reactTimer = Math.max(0, person.reactTimer - dt);
@@ -228,6 +283,74 @@ export class CampusCrowd {
       }
       this.animate(person, dt);
     }
+  }
+
+  // IDLE -> CHASING once the player is within CHASE_TRIGGER_DISTANCE.
+  // CHASING -> IDLE if the player gets back out of that range.
+  // CHASING -> CAUGHT (person.caught = true, one frame) once the NPC closes
+  // to CHASE_CATCH_DISTANCE; CrossingLevel reads that flag to open the quiz.
+  updateChaser(person, dt, player) {
+    const position = person.mesh.position;
+
+    if (person.reactTimer > 0) {
+      person.reactTimer = Math.max(0, person.reactTimer - dt);
+      this.faceTowards(person, person.facePlayer, dt);
+      if (person.reactTimer === 0) person.facePlayer = null;
+      person.chasing = false;
+      person.moving = false;
+      return;
+    }
+
+    const dx = player.x - position.x;
+    const dz = player.z - position.z;
+    const distance = Math.hypot(dx, dz);
+
+    if (!person.chasing && distance <= CHASE_TRIGGER_DISTANCE) {
+      person.chasing = true;
+    } else if (person.chasing && distance > CHASE_TRIGGER_DISTANCE) {
+      person.chasing = false;
+    }
+
+    if (!person.chasing) {
+      this.updateGreeting(person, player);
+      this.turnTo(person, person.restYaw, dt);
+      person.moving = false;
+      return;
+    }
+
+    const yaw = Math.atan2(dx, dz);
+
+    if (distance <= CHASE_CATCH_DISTANCE) {
+      person.moving = false;
+      person.caught = true;
+      this.turnTo(person, yaw, dt);
+      return;
+    }
+
+    const step = Math.min(CHASE_SPEED * dt, distance);
+    position.x += Math.sin(yaw) * step;
+    position.z += Math.cos(yaw) * step;
+    person.stride += step;
+    person.moving = true;
+    this.turnTo(person, yaw, dt);
+  }
+
+  // Post-quiz departure: a straight walk in the direction the NPC was last
+  // facing, for LEAVE_DISTANCE, then it just stops (animate's idle branch
+  // takes over from there — no further special-casing needed).
+  updateLeaving(person, dt) {
+    const position = person.mesh.position;
+    if (person.leaveTraveled >= LEAVE_DISTANCE) {
+      person.moving = false;
+      return;
+    }
+    const step = Math.min(LEAVE_SPEED * dt, LEAVE_DISTANCE - person.leaveTraveled);
+    position.x += person.leaveDirection.x * step;
+    position.z += person.leaveDirection.z * step;
+    person.leaveTraveled += step;
+    person.stride += step;
+    person.moving = true;
+    this.turnTo(person, person.leaveYaw, dt);
   }
 
   updateWalker(person, dt, player) {
@@ -283,12 +406,40 @@ export class CampusCrowd {
 
   animate(person, dt) {
     const rig = person.rig;
+
+    if (CHASE_KINDS.has(person.kind) && person.chasing && !person.quizDone) {
+      const runAmount = person.caught ? 0.3 : 1;
+      poseChase(rig, (person.stride / 1.3) * Math.PI * 2, runAmount);
+      rig.head.rotation.x = 0;
+      rig.head.rotation.y = 0;
+      return;
+    }
+
+    if (CHASE_KINDS.has(person.kind) && person.leaving) {
+      if (person.moving) {
+        // Reuses the ordinary walk cycle, which also zeroes arm rotation.z
+        // every frame — that's what clears the chase pose's raised arms.
+        poseWalk(rig, (person.stride / 1.5) * Math.PI * 2, 0.85);
+      } else {
+        for (const limb of [rig.legs[0], rig.legs[1], rig.arms[0], rig.arms[1]]) {
+          limb.rotation.x *= Math.exp(-10 * dt);
+          limb.rotation.z *= Math.exp(-10 * dt);
+        }
+      }
+      rig.head.rotation.x = 0;
+      rig.head.rotation.y = 0;
+      rig.upper.rotation.x *= Math.exp(-10 * dt);
+      return;
+    }
+
     if (person.walking && person.moving && person.reactTimer === 0) {
       poseWalk(rig, (person.stride / 1.5) * Math.PI * 2, 0.85);
     } else {
       // Settle the legs and idle: breathing, chatting gestures, or staring at a phone.
       for (const limb of [rig.legs[0], rig.legs[1], rig.arms[0]]) limb.rotation.x *= Math.exp(-10 * dt);
       if (!rig.holding) rig.arms[1].rotation.x *= Math.exp(-10 * dt);
+      rig.arms[0].rotation.z *= Math.exp(-10 * dt);
+      rig.arms[1].rotation.z *= Math.exp(-10 * dt);
       rig.upper.position.y = Math.sin(this.time * 1.8 + person.phase) * 0.012;
       if (person.kind === "student" && !person.walking) {
         rig.arms[0].rotation.x = Math.sin(this.time * 2.3 + person.phase) * 0.35 - 0.2;
