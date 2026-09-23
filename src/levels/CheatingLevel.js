@@ -512,6 +512,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     const studentScale = 0.58;
     const studentBaseY = 0.26;
+    // The shared Level 2 capsule torso is taller than the old Level 3 box
+    // torso. Keep the seated torso where it is, but raise the head enough for
+    // the sphere to clear the shoulders instead of intersecting the body.
+    const studentHeadY = studentBaseY + 1.7 * studentScale;
     const transform = new THREE.Object3D();
     const createStudentInstances = (geometry, material, count) => {
       const instances = new THREE.InstancedMesh(geometry, material, count);
@@ -551,7 +555,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           heads,
           index,
           x,
-          studentBaseY + 1.42 * studentScale,
+          studentHeadY,
           z - 0.02 * studentScale
         );
       });
@@ -637,7 +641,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           hair,
           index,
           x,
-          studentBaseY + (1.44 * studentScale) + yOffset,
+          studentHeadY + 0.02 * studentScale + yOffset,
           z - 0.02 * studentScale + zOffset,
           0,
           0,
@@ -684,7 +688,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           brims,
           index,
           x,
-          studentBaseY + 1.5 * studentScale,
+          studentHeadY + 0.08 * studentScale,
           z + 0.11 * studentScale
         );
       });
