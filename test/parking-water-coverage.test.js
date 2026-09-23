@@ -174,7 +174,14 @@ test("the shader still computes the mask this test mirrors", () => {
   // matching the shader. These are the exact lines it reproduces: if one of
   // them changes, the coverage number becomes fiction and this fails first,
   // pointing at the line that moved.
-  const source = readFileSync(new URL("../src/shaders/asphaltShader.js", import.meta.url), "utf8");
+  // Compared with whitespace removed, so reformatting the shader (wrapping an
+  // expression over several lines, or closing up a space after a comma) does
+  // not read as a maths change. Anything that alters an operator, constant or
+  // operand still fails, which is what this guard is actually for.
+  const collapse = (text) => text.replace(/\s+/g, "");
+  const source = collapse(
+    readFileSync(new URL("../src/shaders/asphaltShader.js", import.meta.url), "utf8")
+  );
   const mirrored = [
     "return fract(sin(dot(point, vec2(127.1, 311.7))) * 43758.5453123);",
     "float broadDamage = noise(position.xy * 0.27);",
@@ -187,7 +194,7 @@ test("the shader still computes the mask this test mirrors", () => {
 
   for (const line of mirrored) {
     assert.ok(
-      source.includes(line),
+      source.includes(collapse(line)),
       `asphaltShader.js no longer contains "${line}", which test/parking-water-coverage.test.js ` +
         `mirrors in JavaScript. Update the mirror, then re-calibrate it against the GPU probe in ` +
         `src/levels/parking/poolCoverage.js before trusting the coverage figure again.`

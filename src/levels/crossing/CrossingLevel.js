@@ -11,7 +11,7 @@ import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
-import { CUP_SCORE, CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
+import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
   generateLevel2Layout,
@@ -62,7 +62,9 @@ export class CrossingLevel {
     this.hopController = null;
     this.crossingTime = 0;
     this.backwardPenalty = 0;
+    this.backwardSteps = 0;
     this.attempts = 0;
+    this.impactCount = 0;
     this.traffic = [];
     this.lanes = [];
     this.strips = [];
@@ -369,11 +371,16 @@ export class CrossingLevel {
     this.root.add(this.shieldBubble);
   }
 
-  restartFromBeginning() {
+  // Running out of time ends the run, the same as Level 1's condition meter
+  // and Level 3's clock, so it goes through the shared Game Over card. It
+  // used to call startLevel() directly, which reloaded the level with no
+  // fade and no explanation at all.
+  restartFromBeginning(failure) {
     if (this.completed) return;
     this.completed = true;
+    // Retry starts the crossing over rather than at the last checkpoint.
     this.game.setCheckpoint("start");
-    this.game.startLevel(2, "start");
+    this.game.failLevel(failure);
   }
 
   update(dt) {
@@ -388,14 +395,27 @@ export class CrossingLevel {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
     this.powerUps.update(dt);
-    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
+    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) {
+      const missing = this.cups.total - this.powerUps.collected;
+      this.restartFromBeginning({
+        title: "Out of time",
+        reason: `The ${LEVEL_2_TIME_LIMIT}-second crossing window closed${missing > 0
+          ? ` with ${missing} Vida cup${missing === 1 ? "" : "s"} still out there`
+          : " just short of Engineering"}. Walking backwards adds a time penalty, and iced lattes buy some of it back.`,
+        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
+      });
+      return;
+    }
    this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
+    if (landedDirection?.z > 0) {
+      this.backwardPenalty += 0.25;
+      this.backwardSteps += 1;
+    }
     if (landedDirection) this.updateCheckpoint();
     if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
     this.updateCups(dt);
@@ -421,7 +441,7 @@ export class CrossingLevel {
     this.game.setHUD(`
       <div class="l2-hud">
         <strong class="l2-hud-title">Cross the Road</strong>
-        <div class="l2-hud-row"><span>Time</span><strong>${time.toFixed(1)}s</strong></div>
+        <div class="l2-hud-row"><span>Time</span><strong${time >= LEVEL_2_TIME_LIMIT - 5 ? ' class="l2-time-low"' : ""}>${time.toFixed(1)} / ${LEVEL_2_TIME_LIMIT.toFixed(1)}s</strong></div>
         <div class="l2-hud-row"><span>Attempts</span><strong>${this.attempts + 1}</strong></div>
         <div class="l2-hud-row"><span>Vida cups</span><strong class="l2-cups">${this.powerUps.collected} / ${this.cups.total}</strong></div>
         <div class="l2-hud-row"><span>Checkpoint</span><strong>${this.checkpoint.label}</strong></div>
@@ -610,10 +630,23 @@ checkFinish() {
     const cups = this.powerUps.collected, total = this.cups.total;
     if (cups !== total) { this.game.setMessage(`You still need ${total - cups} Vida cup${total - cups === 1 ? "" : "s"} before you can finish!`); return; }
     const time = this.getAdjustedTime();
-    if (time >= LEVEL_2_TIME_LIMIT) { this.restartFromBeginning(); return; }
+    if (time >= LEVEL_2_TIME_LIMIT) {
+      this.restartFromBeginning({
+        title: "Too slow",
+        reason: `You reached Engineering with every Vida cup, but the clock read ${time.toFixed(1)}s against a ${LEVEL_2_TIME_LIMIT}-second limit.`,
+        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
+      });
+      return;
+    }
     this.completed = true;
-    this.game.journeyScore += cups * CUP_SCORE;
-    this.game.completeLevel(`You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s (+${cups * CUP_SCORE}). Heading to Level 3.`);
+    this.game.completeLevel(
+      `You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s. Heading to Level 3.`,
+      {
+        time,
+        impacts: this.impactCount,
+        backwardSteps: this.backwardSteps
+      }
+    );
   }
 
   checkCollisions() {
@@ -624,6 +657,7 @@ checkFinish() {
       if (vehicle.lane.isHighway) continue;
       const vehicleBox = this.vehicleCollisionBox.setFromObject(vehicle.root);
       if (!playerBox.intersectsBox(vehicleBox)) continue;
+      this.impactCount += 1;
       if (this.powerUps.consumeShield()) this.saveWithShield(vehicle.isTaxi);
       else this.failAtCheckpoint(vehicle.isTaxi);
       return;
@@ -691,9 +725,13 @@ checkFinish() {
     this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;
     this.hopController.delay(this.impactTimer);
-    this.game.setMessage(wasTaxi
-      ? `Taxi impact! Returning to ${this.checkpoint.label}.`
-      : `Vehicle impact! Returning to ${this.checkpoint.label}.`);
+    this.game.reportSetback({
+      title: wasTaxi ? "Taxi impact" : "Vehicle impact",
+      reason: wasTaxi
+        ? "A taxi clipped you mid-lane. They do not brake for pedestrians — cross on a gap, not on hope."
+        : "A car clipped you mid-lane. Check the gap hint in the HUD before you step off the kerb.",
+      next: `Back to the ${this.checkpoint.label} checkpoint. Attempt ${this.attempts + 1}.`
+    });
   }
 
   updateImpact(dt) {

@@ -19,6 +19,8 @@ import {
   validateQuestion
 } from "./cheatingQuestions.js";
 
+export const LEVEL_THREE_TIME_LIMIT = 100;
+
 export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerCorrectWord: 20,
   suspicionGainPerSecond: 30,
@@ -186,7 +188,8 @@ this.patrolPoints = [
 
     this.answerProgress = 0;
     this.suspicion = 0;
-    this.timeRemaining = 100;
+    this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
+    this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
 
     this.cheatDesks = [];
@@ -1200,19 +1203,31 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (this.answerProgress >= 100) {
       this.completed = true;
-      this.game.completeLevel("Test completed. Calculating results…");
+      this.game.completeLevel("Test completed. Calculating results…", {
+        time: LEVEL_THREE_TIME_LIMIT - this.timeRemaining,
+        incorrectAnswers: this.incorrectAnswers,
+        suspicion: this.suspicion
+      });
     }
 
     if (this.timeRemaining <= 0) {
       this.completed = true;
-      this.game.failLevel("Time is up. Restarting from the checkpoint.");
+      this.game.failLevel({
+        title: "Time is up",
+        reason: `The test ended with your answer sheet ${Math.round(this.answerProgress)}% full. Peek, look down, type, repeat — every second spent waiting is one you cannot type in.`,
+        next: `Retry restarts the test with a fresh ${LEVEL_THREE_TIME_LIMIT} seconds.`
+      });
     }
 
     if (this.suspicion >= 100) {
       this.completed = true;
       this.endPeek();
       this.game.flashHUD();
-      this.game.failLevel("Caught by the tutor. Try again?");
+      this.game.failLevel({
+        title: "Caught by the tutor",
+        reason: "Suspicion reached 100%. The tutor was looking your way while you were peeking at another tablet — let it fall back down between peeks.",
+        next: `Retry restarts the test with a fresh ${LEVEL_THREE_TIME_LIMIT} seconds.`
+      });
     }
   }
   handleTutorPatrolArrival(reachedIndex) {
@@ -1560,6 +1575,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
+      this.incorrectAnswers += 1;
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
       this.feedbackTime = 1.8;

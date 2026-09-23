@@ -6,12 +6,23 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
+import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
+import {
+  loadPersonalBests,
+  savePersonalBests,
+  scoreLevel,
+  summariseJourney,
+  updatePersonalBests
+} from "./commuteScoring.js";
+
+// How long a checkpoint setback banner lingers while play continues.
+const SETBACK_DISPLAY_TIME = 2600;
 
 const LEVEL_STATES = new Map([
   [1, "level1"],
@@ -137,6 +148,10 @@ export class Game {
     this.collisionDebug = false;
     this.journeyScore = 0;
     this.journeyTime = 0;
+    this.journeyLevelResults = new Map();
+    this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
+    this.isScoredJourney = false;
+    this.personalBests = loadPersonalBests();
     this.levelThreeLookSensitivity = 1;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
@@ -167,6 +182,7 @@ export class Game {
     this.levelIntroDialogueCopy = document.querySelector("#level-intro-dialogue-copy");
     this.levelIntroDialogueContinue = document.querySelector("#level-intro-dialogue-continue");
     this.currentMessage = "";
+    this.setbackBanner = new SetbackBanner();
 
     this.animate = this.animate.bind(this);
     this.onResize = this.onResize.bind(this);
@@ -212,6 +228,8 @@ export class Game {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "menu";
+    this.isScoredJourney = false;
+    this.setbackBanner.hide();
     this.currentLevelNumber = null;
     this.isLoading = false;
     this.isPaused = false;
@@ -245,11 +263,24 @@ export class Game {
 
   showResults(keepFade = false) {
     if (!keepFade) this.cancelTransition();
+
+    const summary = summariseJourney(
+      [...this.journeyLevelResults.values()],
+      this.journeyTime
+    );
+    this.journeyScore = summary.totalScore;
+
+    if (this.isScoredJourney && summary.isFullJourney) {
+      this.personalBests = updatePersonalBests(this.personalBests, summary);
+      savePersonalBests(this.personalBests);
+    }
+
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "results";
+    this.setbackBanner.hide();
     this.currentLevelNumber = null;
     this.isLoading = false;
     this.isPaused = false;
@@ -257,16 +288,81 @@ export class Game {
     this.levelNameElement.textContent = "Results";
     this.setHUD("");
     this.setMessage("");
-    this.menuTitleElement.textContent = "Journey complete";
-    this.menuCopyElement.textContent = `You reached class without getting caught. Score: ${this.journeyScore}. Time: ${this.journeyTime.toFixed(1)}s.`;
+    this.menuTitleElement.textContent = summary.isFullJourney
+      ? `${summary.rating.grade} — ${summary.rating.label}`
+      : "Practice results";
+    this.menuCopyElement.innerHTML = this.renderResults(summary);
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
+    this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
     document.body.classList.remove("level-2");
+  }
+
+  renderResults(summary) {
+    const levelNames = {
+      1: "Park at Wits",
+      2: "Cross the Road",
+      3: "Don't Get Caught"
+    };
+
+    const rawDetail = (result) => {
+      const p = result.performance;
+      if (result.levelNumber === 1) {
+        return `${p.condition.toFixed(0)}% condition · ${p.containmentPercent.toFixed(0)}% contained · ${p.alignmentErrorDegrees.toFixed(1)}° alignment error`;
+      }
+      if (result.levelNumber === 2) {
+        return `${p.impacts} impact${p.impacts === 1 ? "" : "s"} · ${p.backwardSteps} backward step${p.backwardSteps === 1 ? "" : "s"}`;
+      }
+      return `${p.incorrectAnswers} wrong answer${p.incorrectAnswers === 1 ? "" : "s"} · ${p.suspicion.toFixed(0)}% suspicion`;
+    };
+
+    const levelCards = summary.levels.map((result) => `
+      <article class="result-level-card">
+        <div class="result-level-heading">
+          <strong>Level ${result.levelNumber} — ${levelNames[result.levelNumber]}</strong>
+          <strong>${result.total}/100</strong>
+        </div>
+        <div class="result-components">
+          <span>Time <strong>${result.components.time}/40</strong></span>
+          <span>Mistakes <strong>${result.components.mistakes}/30</strong></span>
+          <span>Quality <strong>${result.components.quality}/30</strong></span>
+        </div>
+        <p>${result.time.toFixed(1)}s · ${rawDetail(result)}</p>
+        ${result.failedAttempts > 0 ? `<p class="result-attempts">${result.failedAttempts} prior failed/restarted attempt${result.failedAttempts === 1 ? "" : "s"}</p>` : ""}
+      </article>
+    `).join("");
+
+    const bests = this.personalBests ?? {};
+    const bestLevelTimes = [1, 2, 3]
+      .map((levelNumber) => {
+        const time = bests.levelTimes?.[String(levelNumber)];
+        return Number.isFinite(time) ? `L${levelNumber} ${time.toFixed(1)}s` : null;
+      })
+      .filter(Boolean)
+      .join(" · ");
+
+    const records = this.isScoredJourney && summary.isFullJourney
+      ? `
+        <section class="result-records">
+          <strong>Personal bests</strong>
+          <p>${bestLevelTimes || "First recorded commute"}</p>
+          <p>Journey: ${Number.isFinite(bests.journeyTime) ? `${bests.journeyTime.toFixed(1)}s` : "—"} · Score: ${Number.isFinite(bests.journeyScore) ? `${bests.journeyScore}/300` : "—"}</p>
+        </section>
+      `
+      : `<p class="result-practice-note">Practice/dev runs do not update personal bests.</p>`;
+
+    return `
+      <section class="results-summary">
+        <p class="result-total"><strong>${summary.totalScore}/${summary.isFullJourney ? 300 : Math.max(100, summary.levels.length * 100)}</strong> · ${summary.totalTime.toFixed(1)}s total commute time</p>
+        <div class="result-levels">${levelCards}</div>
+        ${records}
+      </section>
+    `;
   }
 
   async startLevel(levelNumber, checkpoint = "start", keepFade = false, showIntro = false) {
@@ -281,6 +377,7 @@ export class Game {
     const loadingMessage = `Loading Level ${levelNumber}…`;
 
     this.state = LEVEL_STATES.get(levelNumber);
+    this.setbackBanner.hide();
     this.currentLevelNumber = levelNumber;
     document.body.classList.toggle("level-2",levelNumber===2);
     this.currentCheckpoint = checkpoint;
@@ -289,6 +386,7 @@ export class Game {
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.menuElement.hidden = true;
+    this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
     this.disposeCurrentLevel();
@@ -296,6 +394,9 @@ export class Game {
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
+    // Nothing to undo here: this load has not built anything yet, and every
+    // field it set above has already been overwritten by the load that
+    // superseded it.
     if (loadVersion !== this.loadVersion) {
       return;
     }
@@ -320,6 +421,16 @@ export class Game {
 
     if (loadVersion !== this.loadVersion) {
       level.dispose();
+      // level.load() sets its own instruction message and HUD, and it did so
+      // while the winning load was still in flight, so that text is now
+      // sitting on screen for a level that no longer exists. Put the winner's
+      // loading state back. `isLoading` still belongs to the winner, so it is
+      // deliberately not reset here; whichever load finishes last clears it.
+      if (this.isLoading) {
+        this.setHUD("");
+        this.setMessage(`Loading Level ${this.currentLevelNumber}…`);
+        this.levelNameElement.textContent = `Loading Level ${this.currentLevelNumber}…`;
+      }
       return;
     }
 
@@ -336,8 +447,20 @@ export class Game {
   startJourney() {
     this.journeyScore = 0;
     this.journeyTime = 0;
+    this.journeyLevelResults.clear();
+    this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
+    this.isScoredJourney = true;
     this.showLevelIntro(1);
     this.startLevel(1, "start", false, true);
+  }
+
+  startPracticeLevel(levelNumber) {
+    this.journeyScore = 0;
+    this.journeyTime = 0;
+    this.journeyLevelResults.clear();
+    this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
+    this.isScoredJourney = false;
+    this.startLevel(levelNumber);
   }
 
   showLevelIntro(levelNumber) {
@@ -427,18 +550,42 @@ export class Game {
     this.currentCheckpoint = checkpoint;
   }
 
-  restartCurrentLevel(keepFade = false) {
+  restartCurrentLevel(keepFade = false, countAttempt = false) {
     if (this.currentLevelNumber !== null) {
+      if (countAttempt && this.isScoredJourney) {
+        this.recordFailedAttempt(this.currentLevelNumber);
+      }
       this.startLevel(this.currentLevelNumber, this.currentCheckpoint, keepFade);
     }
   }
 
-  completeLevel(message) {
+  recordFailedAttempt(levelNumber) {
+    const previous = this.journeyFailureCounts.get(levelNumber) ?? 0;
+    this.journeyFailureCounts.set(levelNumber, previous + 1);
+  }
+
+  completeLevel(message, performance = {}) {
     if (!this.currentLevelNumber || this.isTransitioning) return;
 
     const completedLevel = this.currentLevelNumber;
     const nextLevel = completedLevel + 1;
-    this.journeyScore += 100;
+    const result = scoreLevel(completedLevel, {
+      ...performance,
+      failedAttempts: this.journeyFailureCounts.get(completedLevel) ?? 0
+    });
+    this.journeyLevelResults.set(completedLevel, result);
+    this.journeyScore = [...this.journeyLevelResults.values()]
+      .reduce((sum, levelResult) => sum + levelResult.total, 0);
+
+    if (this.isScoredJourney) {
+      const partialSummary = summariseJourney(
+        [...this.journeyLevelResults.values()],
+        this.journeyTime
+      );
+      this.personalBests = updatePersonalBests(this.personalBests, partialSummary);
+      savePersonalBests(this.personalBests);
+    }
+
     this.isTransitioning = true;
     this.setMessage(message);
 
@@ -469,8 +616,9 @@ export class Game {
     this.setMessage("You escaped Wits!");
     this.fadeTransition(() => {
       this.showResults(true);
+      this.journeyScore = 300;
       this.menuTitleElement.textContent = "SECRET ENDING";
-      this.menuCopyElement.textContent = `You drove straight out of Wits instead of going to class. Technically, you can't be late if you never arrive. Score: ${this.journeyScore}.`;
+      this.menuCopyElement.textContent = "You drove straight out of Wits instead of going to class. Technically, you can't be late if you never arrive.";
     });
   }
 
@@ -483,20 +631,34 @@ export class Game {
     });
   }
 
-  failLevel(message) {
+  // `failure` is a { title, reason, next } description from the level; a
+  // plain sentence still works for older call sites.
+  failLevel(failure) {
     if (this.currentLevelNumber === null || this.isTransitioning) return;
 
+    if (this.isScoredJourney) {
+      this.recordFailedAttempt(this.currentLevelNumber);
+    }
     this.isTransitioning = true;
-    this.setMessage(message);
-    this.fadeTransition(() => this.showFailure(message));
+    this.setMessage(describeFailure(failure).title);
+    this.fadeTransition(() => this.showFailure(failure));
   }
 
-  showFailure(message) {
+  // A respawn that does not end the run, such as Level 2 sending the player
+  // back to a checkpoint. Play continues, so this only explains itself.
+  reportSetback(failure) {
+    if (this.currentLevelNumber === null) return;
+    this.setbackBanner.show(failure, SETBACK_DISPLAY_TIME);
+  }
+
+  showFailure(failure) {
+    const { title, reason, next } = describeFailure(failure);
     this.loadVersion += 1;
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "failed";
+    this.setbackBanner.hide();
     this.isLoading = false;
     this.isPaused = false;
     this.isTransitioning = false;
@@ -505,8 +667,13 @@ export class Game {
     this.setMessage("");
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
-    this.menuTitleElement.textContent = "Game Over";
-    this.menuCopyElement.textContent = message;
+    this.menuTitleElement.textContent = title;
+    // The card says what went wrong and what Retry will do, rather than the
+    // single line the message strip used to flash before the fade covered it.
+    this.menuCopyElement.innerHTML = `
+      <p class="failure-reason">${reason}</p>
+      <p class="failure-next">${next}</p>
+    `;
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
     this.menuElement.classList.remove("menu-home");
@@ -609,17 +776,19 @@ export class Game {
       return;
     }
 
-    if (import.meta.env.DEV) {
+    // Same race as the menu buttons: a keypress mid-load would supersede the
+    // load in flight and abandon it halfway through.
+    if (import.meta.env.DEV && !this.isLoading) {
       if (this.globalControls.wasPressed("levelOne")) {
-        this.startLevel(1);
+        this.startPracticeLevel(1);
       }
 
       if (this.globalControls.wasPressed("levelTwo")) {
-        this.startLevel(2);
+        this.startPracticeLevel(2);
       }
 
       if (this.globalControls.wasPressed("levelThree")) {
-        this.startLevel(3);
+        this.startPracticeLevel(3);
       }
     }
 
@@ -630,12 +799,18 @@ export class Game {
     }
 
     if (this.input.isControlDown() && this.globalControls.wasPressed("restart")) {
-      this.restartCurrentLevel();
+      this.restartCurrentLevel(false, true);
     }
   }
 
   onMenuClick(event) {
     const action = event.target.closest("[data-game-action]")?.dataset.gameAction;
+
+    // Starting a second load while one is in flight supersedes the first
+    // midway through, which is what leaves the UI half-applied. The level
+    // buttons sit on the home screen, so this is reachable by clicking fast.
+    const startsLoad = action === "start" || action === "retry" || Boolean(action?.startsWith("level-"));
+    if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
       this.startJourney();
@@ -658,7 +833,7 @@ export class Game {
     }
 
     if (action?.startsWith("level-")) {
-      this.startLevel(Number(action.at(-1)));
+      this.startPracticeLevel(Number(action.at(-1)));
     }
   }
 

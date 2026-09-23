@@ -14,7 +14,11 @@ import {
   parkingBayKey,
   pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
-import { PARKING_LAYOUT } from "../src/levels/parking/ParkingEnvironment.js";
+import {
+  getLevelOneM1TrafficRotation,
+  LEVEL_ONE_M1_TRAFFIC_CAR_SPECS,
+  PARKING_LAYOUT
+} from "../src/levels/parking/ParkingEnvironment.js";
 import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 
 const EPSILON = 0.001;
@@ -134,6 +138,25 @@ test("driving aisles remain open and align with the lot entrance", () => {
 
   assert.equal(layout.playerSpawn.angle, 0, "player faces north into the parking lot");
   assert.ok(layout.playerSpawn.z > PARKING_LAYOUT.mainLot.outline.at(-4)[1]);
+});
+
+test("Level 1 M1 traffic faces the same direction it travels", () => {
+  assert.equal(getLevelOneM1TrafficRotation(1), -Math.PI / 2);
+  assert.equal(getLevelOneM1TrafficRotation(-1), Math.PI / 2);
+});
+
+test("Level 1 M1 moving traffic excludes the backwards-facing coupe", () => {
+  assert.equal(
+    LEVEL_ONE_M1_TRAFFIC_CAR_SPECS.length,
+    PARKING_CAR_SPECS.length - 1
+  );
+  assert.ok(
+    LEVEL_ONE_M1_TRAFFIC_CAR_SPECS.every((spec) => spec.id !== "pack-coupe")
+  );
+  assert.ok(
+    PARKING_CAR_SPECS.some((spec) => spec.id === "pack-coupe"),
+    "the coupe remains available for static parked-car scenery"
+  );
 });
 
 test("cars fit within every bay", () => {

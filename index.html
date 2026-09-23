@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="en">
   <head>
-<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
@@ -55,6 +57,12 @@
     </div>
 
     <div id="hud"></div>
+    <aside id="setback-banner" class="setback-banner" aria-live="assertive" hidden>
+      <p class="setback-kicker">Setback</p>
+      <h2 id="setback-title" class="setback-title"></h2>
+      <p id="setback-reason" class="setback-reason"></p>
+      <p id="setback-next" class="setback-next"></p>
+    </aside>
     <div id="message"></div>
     <button id="level1-view-toggle" type="button" aria-pressed="false" hidden>
       Sky view
