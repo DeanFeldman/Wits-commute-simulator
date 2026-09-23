@@ -571,6 +571,16 @@ export class Game {
     this.journeyLevelResults.set(completedLevel, result);
     this.journeyScore = [...this.journeyLevelResults.values()]
       .reduce((sum, levelResult) => sum + levelResult.total, 0);
+
+    if (this.isScoredJourney) {
+      const partialSummary = summariseJourney(
+        [...this.journeyLevelResults.values()],
+        this.journeyTime
+      );
+      this.personalBests = updatePersonalBests(this.personalBests, partialSummary);
+      savePersonalBests(this.personalBests);
+    }
+
     this.isTransitioning = true;
     this.setMessage(message);
 
