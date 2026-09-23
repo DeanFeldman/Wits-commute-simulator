@@ -50,14 +50,19 @@ test("north diorama foliage builds fuller crowns and avoids architecture", () =>
   const exclusions = getNorthDioramaFoliageExclusions();
   const layout = getNorthDioramaFoliageLayout({ exclusions });
 
-  assert.ok(layout.treesLod2.length > 0, "landscaping contains lightweight trees");
+  assert.ok(layout.giantTrees.length > 0, "landscaping contains giant hero trees");
+  assert.ok(layout.treesNear.length > 0, "landscaping contains detailed near trees");
+  assert.ok(layout.treesFar.length > 0, "landscaping contains lightweight distant trees");
   assert.ok(
-    layout.treesLod2.some((tree) => tree.widthScale > 1),
-    "tree crowns are widened"
+    [...layout.giantTrees, ...layout.treesNear, ...layout.treesFar]
+      .every((tree) => tree.scale >= 4.5 && tree.scale <= 13),
+    "tree heights remain appropriate for the campus buildings"
   );
 
   for (const item of [
-    ...layout.treesLod2,
+    ...layout.giantTrees,
+    ...layout.treesNear,
+    ...layout.treesFar,
     ...layout.bushes,
     ...layout.grass
   ]) {

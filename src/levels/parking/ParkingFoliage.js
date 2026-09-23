@@ -1,25 +1,38 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-// The three packs are loaded only once.  Individual foliage placements are
+// The foliage packs are loaded only once. Individual placements are
 // baked into InstancedMeshes, keeping the parking level's draw-call count low.
 const loader = new GLTFLoader();
 const packPromises = new Map();
 
 const PACKS = Object.freeze({
-  trees: "./assets/models/foliage/maple-trees-lods.glb",
+  treePack: "./assets/models/foliage/low-poly-tree-pack.glb",
+  giantTree: "./assets/models/foliage/giant-low-poly-tree.glb",
   bushes: "./assets/models/foliage/lilac-bushes-lods.glb",
   grass: "./assets/models/foliage/grass-pack-lods.glb"
 });
 
-const TREE_VARIANTS_LOD2 = Object.freeze([
-  "Acer_large_1_LOD2",
-  "Acer_large_2_LOD2",
-  "Acer_large_3_LOD2",
-  "Acer_medium_1_LOD2",
-  "Acer_medium_2_LOD2",
-  "Acer_medium_3_LOD2"
+// The supplied pack has no authored LOD names, so the tiers are selected by
+// measured vertex cost and silhouette. Near trees use the fuller 1.6k-4k
+// vertex models; distant trees use 156-508 vertex models.
+const TREE_VARIANTS_NEAR = Object.freeze([
+  "skp3703_1",
+  "skp5771_1",
+  "skp665F1",
+  "skp7EEA1",
+  "skp7EEA_1_",
+  "skpEFB7_1"
 ]);
+
+const TREE_VARIANTS_FAR = Object.freeze([
+  "Group6",
+  "skp4847_1",
+  "Group4",
+  "Group5"
+]);
+
+const GIANT_TREE_VARIANTS = Object.freeze(["Root"]);
 
 const BUSH_VARIANTS = Object.freeze([
   "Lilac_small_bush_1_LOD2",
@@ -103,14 +116,24 @@ function createStrip({
   ));
 }
 
-function createForestPatch({ x, z, columns, rows, stepX, stepZ, scale, seed }) {
+function createForestPatch({
+  x,
+  z,
+  columns,
+  rows,
+  stepX,
+  stepZ,
+  scale,
+  scaleVariance = 0.16,
+  seed
+}) {
   return Array.from({ length: columns * rows }, (_, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
     return placement(
       x + column * stepX + signedVariation(index, seed) * 1.25,
       z + row * stepZ + signedVariation(index, seed + 1) * 1.45,
-      scale + signedVariation(index, seed + 2) * 0.16,
+      scale + signedVariation(index, seed + 2) * scaleVariance,
       variation(index, seed + 3) * Math.PI * 2
     );
   });
@@ -150,9 +173,22 @@ function createPlacementMatrix(item) {
   );
 }
 
-function getMeshParts(prototype) {
+function getMeshParts(prototype, normalizeToUnitHeight = false) {
   prototype.updateWorldMatrix(true, true);
-  const inversePrototypeMatrix = prototype.matrixWorld.clone().invert();
+  let prototypeMatrix = prototype.matrixWorld.clone().invert();
+
+  // The user-supplied tree pack stores its meshes in a large shared authoring
+  // scene. Bake each selected subtree's world transform, recenter it at the
+  // trunk base, and normalize it to one metre before applying game scale.
+  if (normalizeToUnitHeight) {
+    const bounds = new THREE.Box3().setFromObject(prototype);
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    const normalScale = size.y > 0 ? 1 / size.y : 1;
+    prototypeMatrix = new THREE.Matrix4()
+      .makeScale(normalScale, normalScale, normalScale)
+      .multiply(new THREE.Matrix4().makeTranslation(-center.x, -bounds.min.y, -center.z));
+  }
   const parts = [];
 
   prototype.traverse((object) => {
@@ -160,14 +196,19 @@ function getMeshParts(prototype) {
     parts.push({
       geometry: object.geometry,
       material: object.material,
-      matrix: inversePrototypeMatrix.clone().multiply(object.matrixWorld)
+      matrix: prototypeMatrix.clone().multiply(object.matrixWorld)
     });
   });
   return parts;
 }
 
-function addInstancedVariant(root, prototype, placements, name) {
-  const parts = getMeshParts(prototype);
+function isLeafMaterial(material) {
+  const name = material?.name ?? "";
+  return /cluster|brunch|leaf|vegetati|0077|0014/i.test(name);
+}
+
+function addInstancedVariant(root, prototype, placements, name, { normalizeToUnitHeight = false } = {}) {
+  const parts = getMeshParts(prototype, normalizeToUnitHeight);
   const placementMatrix = new THREE.Matrix4();
   const finalMatrix = new THREE.Matrix4();
 
@@ -181,8 +222,8 @@ function addInstancedVariant(root, prototype, placements, name) {
       placementMatrix.copy(createPlacementMatrix(item));
       finalMatrix.multiplyMatrices(placementMatrix, part.matrix);
       instances.setMatrixAt(index, finalMatrix);
-      if (/cluster|brunch/i.test(part.material?.name ?? "")) {
-        const greens = [0xc6ddbf, 0xb8d2b4, 0xd2dfc0];
+      if (isLeafMaterial(part.material)) {
+        const greens = [0xe0efda, 0xcce4c7, 0xeff3cf];
         instances.setColorAt(index, new THREE.Color(greens[index % greens.length]));
       }
     });
@@ -193,7 +234,7 @@ function addInstancedVariant(root, prototype, placements, name) {
   }
 }
 
-async function addPackInstances(root, kind, variants, placements) {
+async function addPackInstances(root, kind, variants, placements, options = {}) {
   const scene = await getPack(kind);
   const placementsByVariant = new Map();
 
@@ -210,7 +251,7 @@ async function addPackInstances(root, kind, variants, placements) {
       console.warn(`Parking foliage variant not found: ${variant}`);
       continue;
     }
-    addInstancedVariant(root, prototype, variantPlacements, `parking-foliage-${variant}`);
+    addInstancedVariant(root, prototype, variantPlacements, `parking-foliage-${variant}`, options);
   }
 }
 
@@ -222,7 +263,13 @@ export function addParkingFoliage(root) {
   root.add(foliageRoot);
 
   Promise.all([
-    addPackInstances(foliageRoot, "trees", TREE_VARIANTS_LOD2, TREE_PLACEMENTS),
+    addPackInstances(
+      foliageRoot,
+      "treePack",
+      TREE_VARIANTS_FAR,
+      TREE_PLACEMENTS.map((item) => ({ ...item, scale: item.scale * 15 })),
+      { normalizeToUnitHeight: true }
+    ),
     addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, BUSH_PLACEMENTS),
     addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, GRASS_PLACEMENTS)
   ]).catch((error) => {
@@ -238,15 +285,43 @@ function takeDensity(placements, density) {
 const NORTH_TREE_PLACEMENTS = Object.freeze([
   // A substantial left-hand canopy masks the simplified western building
   // transitions and establishes the asymmetric mass in the reference.
-  ...createForestPatch({ x: -114, z: -148, columns: 8, rows: 6, stepX: 5.3, stepZ: 5.7, scale: 0.6, seed: 60 }),
+  ...createForestPatch({
+    x: -114,
+    z: -148,
+    columns: 8,
+    rows: 6,
+    stepX: 5.3,
+    stepZ: 5.7,
+    scale: 7.3,
+    scaleVariance: 1.15,
+    seed: 60
+  }),
   // This controlled front band is what the driving camera sees most clearly.
   // Its small Z jitter keeps trunks in the landscaped gap between parking and
   // campus, instead of allowing them to drift into either footprint.
   // Keep the centre-facade sightline open. Even correctly placed foreground
   // trees read as though they grow through the building when their leaf cards
   // project across its window bands from the reference camera.
-  ...createStrip({ x: -75, z: -114.9, count: 5, stepX: 7.25, scale: 0.56, scaleVariance: 0.08, jitterX: 0.7, jitterZ: 0.12 }),
-  ...createStrip({ x: 73.5, z: -114.7, count: 8, stepZ: -4.7, scale: 0.54, scaleVariance: 0.08, jitterX: 0.7, jitterZ: 0.45 })
+  ...createStrip({
+    x: -75,
+    z: -114.9,
+    count: 5,
+    stepX: 7.25,
+    scale: 9.2,
+    scaleVariance: 1.1,
+    jitterX: 0.7,
+    jitterZ: 0.12
+  }),
+  ...createStrip({
+    x: 73.5,
+    z: -114.7,
+    count: 8,
+    stepZ: -4.7,
+    scale: 8.4,
+    scaleVariance: 0.9,
+    jitterX: 0.7,
+    jitterZ: 0.45
+  })
 ]);
 
 const NORTH_BUSH_PLACEMENTS = Object.freeze([
@@ -271,7 +346,7 @@ export function getNorthDioramaFoliageLayout({ density = 1, exclusions = [] } = 
   const baseTrees = takeDensity(NORTH_TREE_PLACEMENTS, density)
     .map((item, index) => ({
       ...item,
-      widthScale: 1.16 + variation(index, 111) * 0.13
+      widthScale: 1 + variation(index, 111) * 0.14
     }))
     .filter((item) => outsideExclusions(item, exclusions));
 
@@ -283,13 +358,25 @@ export function getNorthDioramaFoliageLayout({ density = 1, exclusions = [] } = 
       ...item,
       x: item.x + signedVariation(index, 112) * 2.15,
       z: item.z + signedVariation(index, 113) * 0.24,
-      scale: item.scale * 0.84,
+      scale: item.scale * 0.78,
       rotation: item.rotation + Math.PI * (0.45 + variation(index, 114) * 0.3),
-      widthScale: 1.22
+      widthScale: 1 + variation(index, 118) * 0.1
     }))
     .filter((item) => outsideExclusions(item, exclusions));
 
   const trees = [...baseTrees, ...companions];
+  const nearTrees = trees.filter((item) => item.z > -126);
+  const giantTreeSources = [
+    nearTrees[0],
+    nearTrees[Math.floor(nearTrees.length * 0.55)],
+    nearTrees.at(-1)
+  ].filter(Boolean);
+  const giantTreeSet = new Set(giantTreeSources);
+  const giantTrees = giantTreeSources.map((tree) => ({
+    ...tree,
+    scale: tree.scale * 1.22,
+    widthScale: tree.widthScale * 1.04
+  }));
   const explicitBushes = takeDensity(NORTH_BUSH_PLACEMENTS, density);
   const understory = trees
     .filter((_, index) => index % 2 === 0)
@@ -301,10 +388,9 @@ export function getNorthDioramaFoliageLayout({ density = 1, exclusions = [] } = 
     ));
 
   return Object.freeze({
-    // These backdrop trees are visually reinforced by crown overlap and the
-    // low-poly western canopy mass. LOD1 from this source pack is too dense
-    // for the target lab hardware even when instanced.
-    treesLod2: Object.freeze(trees),
+    giantTrees: Object.freeze(giantTrees),
+    treesNear: Object.freeze(nearTrees.filter((tree) => !giantTreeSet.has(tree))),
+    treesFar: Object.freeze(trees.filter((item) => item.z <= -126)),
     bushes: Object.freeze([...explicitBushes, ...understory]
       .filter((item) => outsideExclusions(item, exclusions))),
     grass: Object.freeze(takeDensity(NORTH_GRASS_PLACEMENTS, density)
@@ -321,7 +407,27 @@ export async function addNorthDioramaFoliage(root, density = 1, { exclusions = [
 
   try {
     await Promise.all([
-      addPackInstances(foliageRoot, "trees", TREE_VARIANTS_LOD2, layout.treesLod2),
+      addPackInstances(
+        foliageRoot,
+        "giantTree",
+        GIANT_TREE_VARIANTS,
+        layout.giantTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_NEAR,
+        layout.treesNear,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_FAR,
+        layout.treesFar,
+        { normalizeToUnitHeight: true }
+      ),
       addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, layout.bushes),
       addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, layout.grass)
     ]);
