@@ -11,3 +11,5 @@ export const CREDITS = {
   ],
   note: "All external assets must be added here when imported into the project."
 };
+
+export const credits = CREDITS;
