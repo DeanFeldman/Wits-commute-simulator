@@ -11,6 +11,7 @@ import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
+import { CREDITS } from "../shared/creditsRegistry.js";
 
 const LEVEL_STATES = new Map([
   [1, "level1"],
@@ -147,6 +148,7 @@ export class Game {
     this.menuCopyElement = document.querySelector("#menu-copy");
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
+    this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
@@ -227,6 +229,8 @@ export class Game {
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
+    this.menuCreditsAction.hidden = false;
+    this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
     this.devLevelSelect.hidden = false;
@@ -659,6 +663,19 @@ export class Game {
     this.menuTitleElement.textContent = "Credits";
     this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
     this.menuPrimaryAction.textContent = "Back to menu";
+    this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
+      <section class="credits-section" aria-label="${heading}">
+        <h2>${heading}</h2>
+        ${entries.map(({ name, detail, url }) => `
+          <article class="credit-entry">
+            <h3>${url ? `<a href="${url}" target="_blank" rel="noreferrer">${name}</a>` : name}</h3>
+            <p>${detail}</p>
+          </article>
+        `).join("")}
+      </section>
+    `).join("");
+    this.menuElement.classList.add("menu-credits");
+    this.menuCreditsAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
