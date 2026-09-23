@@ -127,16 +127,15 @@ function getParkingGrassMaterial() {
   if (parkingGrassMaterial) return parkingGrassMaterial;
 
   parkingGrassMaterial = new THREE.MeshStandardMaterial({
-    // The source texture is intentionally dry, but Level 1's warm dusk light
-    // made an untinted map read as orange soil. This cool-green tint preserves
-    // the stylized variation while keeping the terrain recognisably grass.
-    color: 0x6fb75a,
+    // A half-strength cool-green correction offsets the warm dusk lighting
+    // without pushing the dry Highveld albedo into an artificial green.
+    color: 0xb7dbad,
     map: loadGrassTexture(GRASS_TEXTURES.albedo, { color: true }),
     normalMap: loadGrassTexture(GRASS_TEXTURES.normal),
     roughnessMap: loadGrassTexture(GRASS_TEXTURES.roughness),
     aoMap: loadGrassTexture(GRASS_TEXTURES.ao),
     emissive: 0x102a0d,
-    emissiveIntensity: 0.16,
+    emissiveIntensity: 0.08,
     roughness: 0.92,
     normalScale: new THREE.Vector2(0.32, 0.32),
     aoMapIntensity: 0.32
