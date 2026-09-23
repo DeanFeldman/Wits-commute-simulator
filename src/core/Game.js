@@ -294,6 +294,7 @@ export class Game {
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.menuElement.hidden = true;
+    this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
     this.disposeCurrentLevel();
@@ -301,6 +302,9 @@ export class Game {
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
+    // Nothing to undo here: this load has not built anything yet, and every
+    // field it set above has already been overwritten by the load that
+    // superseded it.
     if (loadVersion !== this.loadVersion) {
       return;
     }
@@ -325,6 +329,16 @@ export class Game {
 
     if (loadVersion !== this.loadVersion) {
       level.dispose();
+      // level.load() sets its own instruction message and HUD, and it did so
+      // while the winning load was still in flight, so that text is now
+      // sitting on screen for a level that no longer exists. Put the winner's
+      // loading state back. `isLoading` still belongs to the winner, so it is
+      // deliberately not reset here; whichever load finishes last clears it.
+      if (this.isLoading) {
+        this.setHUD("");
+        this.setMessage(`Loading Level ${this.currentLevelNumber}…`);
+        this.levelNameElement.textContent = `Loading Level ${this.currentLevelNumber}…`;
+      }
       return;
     }
 
@@ -630,7 +644,9 @@ export class Game {
       return;
     }
 
-    if (import.meta.env.DEV) {
+    // Same race as the menu buttons: a keypress mid-load would supersede the
+    // load in flight and abandon it halfway through.
+    if (import.meta.env.DEV && !this.isLoading) {
       if (this.globalControls.wasPressed("levelOne")) {
         this.startLevel(1);
       }
@@ -657,6 +673,12 @@ export class Game {
 
   onMenuClick(event) {
     const action = event.target.closest("[data-game-action]")?.dataset.gameAction;
+
+    // Starting a second load while one is in flight supersedes the first
+    // midway through, which is what leaves the UI half-applied. The level
+    // buttons sit on the home screen, so this is reachable by clicking fast.
+    const startsLoad = action === "start" || action === "retry" || Boolean(action?.startsWith("level-"));
+    if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
       this.startJourney();
