@@ -1191,8 +1191,15 @@ export class ParkingLevel {
     this.skyCamera = null;
     this.skyViewActive = false;
     this.viewToggle = null;
+    this.devToggle = null;
+    this.devMenu = null;
+    this.skyZoomInput = null;
+    this.skyZoomValue = null;
+    this.skyViewScale = LEVEL_ONE_PARKING_LAYOUT.skyViewScale;
     this.chaseFog = null;
     this.onViewToggle = this.toggleSkyView.bind(this);
+    this.onDevToggle = this.toggleDevMenu.bind(this);
+    this.onSkyZoomInput = this.setSkyZoom.bind(this);
     this.asphaltUniforms = null;
     this.potholeWaterUniforms = null;
     this.potholeSplash = null;
@@ -1344,6 +1351,15 @@ async load() {
   this.viewToggle = document.querySelector("#level1-view-toggle");
   this.viewToggle.hidden = false;
   this.viewToggle.addEventListener("click", this.onViewToggle);
+  this.devToggle = document.querySelector("#level1-dev-toggle");
+  this.devMenu = document.querySelector("#level1-dev-menu");
+  this.skyZoomInput = document.querySelector("#level1-sky-zoom");
+  this.skyZoomValue = document.querySelector("#level1-sky-zoom-value");
+  this.devToggle.hidden = false;
+  this.skyZoomInput.value = String(this.skyViewScale);
+  this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
+  this.devToggle.addEventListener("click", this.onDevToggle);
+  this.skyZoomInput.addEventListener("input", this.onSkyZoomInput);
 
   await Promise.all([
     parkedCarsReady,
@@ -1357,10 +1373,23 @@ async load() {
 
     const lot = PARKING_LAYOUT.mainLot;
     const aspect = window.innerWidth / window.innerHeight;
-    this.skyCamera.userData.viewHeight = LEVEL_ONE_PARKING_LAYOUT.skyViewScale * Math.max(
+    this.skyCamera.userData.viewHeight = this.skyViewScale * Math.max(
       lot.depth + 10,
       (lot.width + 10) / aspect
     );
+  }
+
+  toggleDevMenu() {
+    const opening = this.devMenu.hidden;
+    this.devMenu.hidden = !opening;
+    this.devToggle.setAttribute("aria-expanded", String(opening));
+  }
+
+  setSkyZoom(event) {
+    this.skyViewScale = Number(event.target.value);
+    this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
+    this.updateSkyCameraFrustum();
+    if (this.skyViewActive) this.game.onResize();
   }
 
   toggleSkyView() {
@@ -3061,11 +3090,18 @@ if (hit) {
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
+    this.devToggle?.removeEventListener("click", this.onDevToggle);
+    this.skyZoomInput?.removeEventListener("input", this.onSkyZoomInput);
     if (this.viewToggle) {
       this.viewToggle.hidden = true;
       this.viewToggle.textContent = "Sky view";
       this.viewToggle.setAttribute("aria-pressed", "false");
     }
+    if (this.devToggle) {
+      this.devToggle.hidden = true;
+      this.devToggle.setAttribute("aria-expanded", "false");
+    }
+    if (this.devMenu) this.devMenu.hidden = true;
     disposeObject3D(this.root);
     this.potholeSplash = null;
   }

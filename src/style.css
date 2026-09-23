@@ -50,6 +50,15 @@ body.level-2 #level2-vignette{opacity:1}
   flex: 1;
 }
 
+#fps-counter {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #9fe7b0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
 #hud {
   position: fixed;
   left: 1rem;
@@ -103,6 +112,53 @@ body.level-2 #level2-vignette{opacity:1}
 
 #level1-view-toggle[hidden] {
   display: none;
+}
+
+#level1-dev-toggle {
+  position: fixed;
+  top: 8.4rem;
+  right: 1rem;
+  z-index: 12;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(244, 244, 245, 0.45);
+  border-radius: 7px;
+  background: rgba(5, 8, 14, 0.86);
+  color: #f4f4f5;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+#level1-dev-toggle[hidden],
+#level1-dev-menu[hidden] {
+  display: none;
+}
+
+#level1-dev-menu {
+  position: fixed;
+  top: 11.3rem;
+  right: 1rem;
+  z-index: 12;
+  width: 210px;
+  padding: 0.7rem;
+  border: 1px solid rgba(244, 244, 245, 0.22);
+  border-radius: 8px;
+  background: rgba(5, 8, 14, 0.9);
+  color: #f4f4f5;
+  font-size: 0.82rem;
+  backdrop-filter: blur(8px);
+}
+
+#level1-dev-menu label {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+#level1-dev-menu input {
+  width: 100%;
+  margin-top: 0.6rem;
 }
 
 .hidden {

@@ -49,6 +49,7 @@
     <div id="top-bar">
       <strong>Wits Commute Sim</strong>
       <span id="level-name">Loading…</span>
+      <span id="fps-counter" aria-label="Frames per second">FPS: --</span>
       <span class="spacer"></span>
       <span>P = pause</span>
     </div>
@@ -58,6 +59,13 @@
     <button id="level1-view-toggle" type="button" aria-pressed="false" hidden>
       Sky view
     </button>
+    <button id="level1-dev-toggle" type="button" aria-expanded="false" hidden>
+      Dev
+    </button>
+    <aside id="level1-dev-menu" aria-label="Level 1 developer controls" hidden>
+      <label for="level1-sky-zoom">Sky view zoom out <output id="level1-sky-zoom-value">1.05×</output></label>
+      <input id="level1-sky-zoom" type="range" min="0.7" max="2.5" step="0.05" value="1.05" />
+    </aside>
 
     <main id="menu" aria-live="polite">
       <section class="menu-card" aria-labelledby="menu-title">

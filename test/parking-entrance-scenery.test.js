@@ -99,12 +99,14 @@ test("driving aisles remain open and align with the lot entrance", () => {
   // opening in the lot boundary.
   assert.equal(PARKING_LAYOUT.mainEntrance, undefined, "the disused central entrance is gone");
 
-  // The campus checkpoint controls the street where it meets Yale Road. A gate
-  // standing in the middle of an open road guards nothing, so it has to sit
-  // short of the intersection and well clear of the lot entrance.
+  // Yale Road bends diagonally beyond a landscaped strip. The campus
+  // checkpoint remains on the connecting street, clear of the lot entrance.
   const bridge = PARKING_LAYOUT.bridgeRoad;
   const gate = PARKING_LAYOUT.campusGate;
-  assert.ok(gate.x + 7 < bridge.x - bridge.width / 2, "campus gate stops short of the intersection");
+  assert.ok(bridge.rotation < 0, "Yale Road follows the reference diagonal");
+  const yaleWestEdgeAtLot = bridge.x - Math.cos(bridge.rotation) * bridge.width / 2;
+  assert.ok(yaleWestEdgeAtLot - 59 >= 4, "a grass strip separates Yale Road from the east parking curb");
+  assert.ok(gate.x < yaleWestEdgeAtLot, "campus gate stays west of Yale Road");
   assert.ok(
     gate.x - 7 > PARKING_LAYOUT.parkingBoomEntrance.x + PARKING_LAYOUT.parkingBoomEntrance.boundaryWidth,
     "campus gate is clear of the lot entrance"

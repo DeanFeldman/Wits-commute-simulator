@@ -138,10 +138,13 @@ export class Game {
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.levelThreeLookSensitivity = 1;
+    this.fpsFrames = 0;
+    this.fpsElapsed = 0;
 
     this.hudElement = document.querySelector("#hud");
     this.messageElement = document.querySelector("#message");
     this.levelNameElement = document.querySelector("#level-name");
+    this.fpsElement = document.querySelector("#fps-counter");
     this.menuElement = document.querySelector("#menu");
     this.fadeElement = document.querySelector("#fade-overlay");
     this.menuTitleElement = document.querySelector("#menu-title");
@@ -714,7 +717,10 @@ export class Game {
 
   animate() {
     this.animationFrameId = requestAnimationFrame(this.animate);
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const rawDt = this.clock.getDelta();
+    const dt = Math.min(rawDt, 0.05);
+
+    this.updateFps(rawDt);
 
     this.update(dt);
     // Wrapped around render() rather than inside it, so the level 3 composer
@@ -724,6 +730,25 @@ export class Game {
     this.gpuTimer?.end();
     this.gpuTimer?.poll();
     this.input.endFrame();
+  }
+
+  updateFps(rawDt) {
+    // Ignore a background-tab pause rather than briefly reporting 1 FPS when
+    // the page becomes active again. Updating twice a second avoids a DOM
+    // write on every frame.
+    if (rawDt > 0.5) {
+      this.fpsFrames = 0;
+      this.fpsElapsed = 0;
+      return;
+    }
+
+    this.fpsFrames += 1;
+    this.fpsElapsed += rawDt;
+    if (this.fpsElapsed < 0.5) return;
+
+    this.fpsElement.textContent = `FPS: ${Math.round(this.fpsFrames / this.fpsElapsed)}`;
+    this.fpsFrames = 0;
+    this.fpsElapsed = 0;
   }
 
   update(dt) {
