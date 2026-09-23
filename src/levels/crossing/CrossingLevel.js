@@ -11,7 +11,7 @@ import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
-import { CUP_SCORE, CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
+import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
   generateLevel2Layout,
@@ -62,7 +62,9 @@ export class CrossingLevel {
     this.hopController = null;
     this.crossingTime = 0;
     this.backwardPenalty = 0;
+    this.backwardSteps = 0;
     this.attempts = 0;
+    this.impactCount = 0;
     this.traffic = [];
     this.lanes = [];
     this.strips = [];
@@ -410,7 +412,10 @@ export class CrossingLevel {
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
+    if (landedDirection?.z > 0) {
+      this.backwardPenalty += 0.25;
+      this.backwardSteps += 1;
+    }
     if (landedDirection) this.updateCheckpoint();
     if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
     this.updateCups(dt);
@@ -634,8 +639,14 @@ checkFinish() {
       return;
     }
     this.completed = true;
-    this.game.journeyScore += cups * CUP_SCORE;
-    this.game.completeLevel(`You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s (+${cups * CUP_SCORE}). Heading to Level 3.`);
+    this.game.completeLevel(
+      `You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s. Heading to Level 3.`,
+      {
+        time,
+        impacts: this.impactCount,
+        backwardSteps: this.backwardSteps
+      }
+    );
   }
 
   checkCollisions() {
@@ -646,6 +657,7 @@ checkFinish() {
       if (vehicle.lane.isHighway) continue;
       const vehicleBox = this.vehicleCollisionBox.setFromObject(vehicle.root);
       if (!playerBox.intersectsBox(vehicleBox)) continue;
+      this.impactCount += 1;
       if (this.powerUps.consumeShield()) this.saveWithShield(vehicle.isTaxi);
       else this.failAtCheckpoint(vehicle.isTaxi);
       return;

@@ -211,6 +211,7 @@ Start here:
 - `AGENTS.md` — instructions for AI coding assistants
 - `CONTRIBUTING.md` — Git and collaboration rules
 - `docs/GAME_DESIGN.md` — gameplay source of truth
+- `docs/COMMUTE_SCORING.md` — scoring, commute ratings and personal-best contract
 - `docs/LEVEL_3_CHEATING_MECHANICS.md` — detailed Level 3 interaction and implementation contract
 - `docs/ARCHITECTURE.md` — code architecture
 - `docs/DEVELOPMENT.md` — development phases and working rules
