@@ -13,9 +13,17 @@ import {
 import {
   attachVehicleModel,
   createSeededRandom,
+  PARKING_CAR_SPECS,
   pickRandomParkingCar
 } from "../../shared/VehicleModelLibrary.js";
 
+export const LEVEL_ONE_M1_TRAFFIC_CAR_SPECS = Object.freeze(
+  PARKING_CAR_SPECS.filter((spec) => spec.id !== "pack-coupe")
+);
+
+export function getLevelOneM1TrafficRotation(direction) {
+  return direction > 0 ? -Math.PI / 2 : Math.PI / 2;
+}
 
 export const PARKING_LAYOUT = Object.freeze({
   groundY: 0,
@@ -386,17 +394,19 @@ function createM1Traffic(root, laneZ) {
       laneZ[lane]
     );
 
-    // Optimized models are +Z forward/length.
-    // M1 traffic moves left/right along world X.
-    holder.rotation.y =
-      direction > 0
-        ? Math.PI / 2
-        : -Math.PI / 2;
+    // Match the visual forward convention used by the corrected Level 2
+    // traffic: positive-X travel needs -90 degrees, negative-X needs +90.
+    holder.rotation.y = getLevelOneM1TrafficRotation(direction);
 
     root.add(holder);
 
-    const spec = pickRandomParkingCar(random);
+    const spec =
+      LEVEL_ONE_M1_TRAFFIC_CAR_SPECS[
+        Math.floor(random() * LEVEL_ONE_M1_TRAFFIC_CAR_SPECS.length)
+      ] ?? LEVEL_ONE_M1_TRAFFIC_CAR_SPECS[0];
 
+    // The coupe asset is excluded from moving traffic because its authored
+    // front faces backwards after normalization. Parked-car pools keep it.
     // Lite variant is intended for M1/background traffic.
     attachVehicleModel(
       holder,
