@@ -16,6 +16,7 @@ import {
   PARKING_CAR_SPECS,
   pickRandomParkingCar
 } from "../../shared/VehicleModelLibrary.js";
+import { createNorthDiorama } from "./NorthDiorama.js";
 
 export const LEVEL_ONE_M1_TRAFFIC_CAR_SPECS = Object.freeze(
   PARKING_CAR_SPECS.filter((spec) => spec.id !== "pack-coupe")
@@ -1136,11 +1137,23 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const updateLotBooms = LOT_OPENINGS.map(
     (opening) => createParkingBoomEntrance(root, collisionWorld, playerCar, opening)
   );
+
+  // The north vista is a scenery-only stage beyond the playable boundary. It
+  // deliberately contributes no colliders and no per-frame update work.
+  const northDiorama = createNorthDiorama();
+  root.add(northDiorama.root);
+
   const update = (dt) => {
     updateM1Traffic(dt);
     updateCampusBoom(dt);
     for (const updateBoom of updateLotBooms) updateBoom(dt);
   };
 
-  return { root, update };
+  return {
+    root,
+    update,
+    ready: northDiorama.ready,
+    northDiorama: northDiorama.root,
+    northDioramaStats: northDiorama.stats
+  };
 }

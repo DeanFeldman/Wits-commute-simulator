@@ -36,6 +36,7 @@ import {
   createParkingEnvironment,
   PARKING_LAYOUT
 } from "./parking/ParkingEnvironment.js";
+import { NORTH_DIORAMA_CONFIG } from "./parking/NorthDiorama.js";
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
 
 const LEVEL_ONE_ASPHALT_Y = 0.035;
@@ -1189,17 +1190,22 @@ export class ParkingLevel {
     this.activePothole = null;
     this.chaseCamera = null;
     this.skyCamera = null;
+    this.northReferenceCamera = null;
     this.skyViewActive = false;
+    this.northReferenceActive = false;
     this.viewToggle = null;
     this.devToggle = null;
     this.devMenu = null;
     this.skyZoomInput = null;
     this.skyZoomValue = null;
+    this.northReferenceToggle = null;
     this.skyViewScale = LEVEL_ONE_PARKING_LAYOUT.skyViewScale;
     this.chaseFog = null;
+    this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
     this.onViewToggle = this.toggleSkyView.bind(this);
     this.onDevToggle = this.toggleDevMenu.bind(this);
     this.onSkyZoomInput = this.setSkyZoom.bind(this);
+    this.onNorthReferenceToggle = this.toggleNorthReferenceView.bind(this);
     this.asphaltUniforms = null;
     this.potholeWaterUniforms = null;
     this.potholeSplash = null;
@@ -1322,7 +1328,7 @@ async load() {
     58,
     1,
     0.1,
-    150
+    NORTH_DIORAMA_CONFIG.referenceCamera.far
   );
 
   const initialBehind = new THREE.Vector3(
@@ -1335,6 +1341,17 @@ async load() {
   initialLookTarget.y += 1;
   camera.lookAt(initialLookTarget);
   this.chaseCamera = camera;
+
+  const reference = NORTH_DIORAMA_CONFIG.referenceCamera;
+  this.northReferenceCamera = new THREE.PerspectiveCamera(
+    reference.fov,
+    1,
+    0.1,
+    reference.far
+  );
+  this.northReferenceCamera.name = "NorthReferenceCamera";
+  this.northReferenceCamera.position.set(...reference.position);
+  this.northReferenceCamera.lookAt(...reference.target);
 
   this.skyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
   this.skyCamera.position.set(PARKING_LAYOUT.mainLot.x, 90, PARKING_LAYOUT.mainLot.z);
@@ -1362,16 +1379,22 @@ async load() {
   this.devMenu = document.querySelector("#level1-dev-menu");
   this.skyZoomInput = document.querySelector("#level1-sky-zoom");
   this.skyZoomValue = document.querySelector("#level1-sky-zoom-value");
+  this.northReferenceToggle = document.querySelector("#level1-north-reference-toggle");
   this.devToggle.hidden = false;
   this.skyZoomInput.value = String(this.skyViewScale);
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
   this.devToggle.addEventListener("click", this.onDevToggle);
   this.skyZoomInput.addEventListener("input", this.onSkyZoomInput);
+  if (this.northReferenceToggle) {
+    this.northReferenceToggle.hidden = !import.meta.env.DEV;
+    this.northReferenceToggle.addEventListener("click", this.onNorthReferenceToggle);
+  }
 
   await Promise.all([
     parkedCarsReady,
     playerCarReady,
-    this.roadTextures.ready
+    this.roadTextures.ready,
+    this.environment.ready
   ]);
 }
 
@@ -1400,6 +1423,11 @@ async load() {
   }
 
   toggleSkyView() {
+    if (this.northReferenceActive) {
+      this.northReferenceActive = false;
+      this.northReferenceToggle?.setAttribute("aria-pressed", "false");
+      if (this.northReferenceToggle) this.northReferenceToggle.textContent = "North reference view";
+    }
     this.skyViewActive = !this.skyViewActive;
 
     if (this.skyViewActive) {
@@ -1411,6 +1439,25 @@ async load() {
 
     this.viewToggle.textContent = this.skyViewActive ? "Chase view" : "Sky view";
     this.viewToggle.setAttribute("aria-pressed", String(this.skyViewActive));
+  }
+
+  toggleNorthReferenceView() {
+    if (!import.meta.env.DEV || !this.northReferenceCamera) return;
+
+    this.northReferenceActive = !this.northReferenceActive;
+    if (this.northReferenceActive) {
+      this.skyViewActive = false;
+      this.viewToggle.textContent = "Sky view";
+      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.game.setCamera(this.northReferenceCamera);
+    } else {
+      this.game.setCamera(this.chaseCamera);
+    }
+
+    this.northReferenceToggle.textContent = this.northReferenceActive
+      ? "Return to chase view"
+      : "North reference view";
+    this.northReferenceToggle.setAttribute("aria-pressed", String(this.northReferenceActive));
   }
 loadPotholeShark() {
   return new Promise(resolve => {
@@ -3007,6 +3054,10 @@ if (hit) {
       return;
     }
 
+    // The saved development view remains fixed so before/after screenshots
+    // compare the diorama from exactly the same composition.
+    if (this.northReferenceActive) return;
+
     const camera =
       this.game.camera;
 
@@ -3109,6 +3160,7 @@ if (hit) {
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
     this.devToggle?.removeEventListener("click", this.onDevToggle);
     this.skyZoomInput?.removeEventListener("input", this.onSkyZoomInput);
+    this.northReferenceToggle?.removeEventListener("click", this.onNorthReferenceToggle);
     if (this.viewToggle) {
       this.viewToggle.hidden = true;
       this.viewToggle.textContent = "Sky view";
@@ -3119,6 +3171,11 @@ if (hit) {
       this.devToggle.setAttribute("aria-expanded", "false");
     }
     if (this.devMenu) this.devMenu.hidden = true;
+    if (this.northReferenceToggle) {
+      this.northReferenceToggle.hidden = true;
+      this.northReferenceToggle.textContent = "North reference view";
+      this.northReferenceToggle.setAttribute("aria-pressed", "false");
+    }
     disposeObject3D(this.root);
     this.potholeSplash = null;
   }
