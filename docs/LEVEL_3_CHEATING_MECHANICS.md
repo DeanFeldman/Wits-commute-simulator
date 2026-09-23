@@ -140,7 +140,7 @@ Suspicion is tied to exposed peeking, not typing:
 | Zooming while unseen | Holds its current value |
 | Not peeking | Holds its current value |
 
-Reaching 100 suspicion fails the level. The timer starts at 75 seconds, and reaching zero also fails. Answer progress reaching 100 completes the level.
+Reaching 100 suspicion fails the level. The timer starts at 100 seconds, and reaching zero also fails. Answer progress reaching 100 completes the level.
 
 The tutor uses `WaypointMover` to patrol the front, centre aisle, side aisles, and rear of the room. At pauses, the tutor turns toward the player's side and sweeps their head. Detection combines distance, view angle, player peeking state, and raycast visibility. Substantial classroom geometry can block sight; chairs and nearby students are intentionally excluded so they do not make the player permanently safe.
 
