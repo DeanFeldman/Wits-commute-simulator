@@ -41,17 +41,12 @@ import { measurePoolCoverage } from "./parking/poolCoverage.js";
 const LEVEL_ONE_ASPHALT_Y = 0.035;
 const WATER_FILLED_FRACTION = 0.35;
 const POTHOLE_WATER_DEPTH_RATIO = 0.42;
-const sharkTexture = new THREE.TextureLoader().load(
-  "/assets/models/characters/wits-shark.png"
-);
 
 const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
 const potholeSharkLoader = new GLTFLoader();
 let potholeSharkModel = null;
-potholeSharkLoader.load("/assets/models/wits-shark.glb", g => {
-  potholeSharkModel = g.scene;
-});
+
 export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
 export const LEVEL_ONE_DAMAGE = Object.freeze({
@@ -1292,6 +1287,7 @@ async load() {
   this.createParkingSurface(this.generatedPotholes);
   this.createRoadMarkings();
   const parkedCarsReady = this.createParkedCars();
+  await this.loadPotholeShark();
   this.createPotholes();
   this.createPotholeSplashSystem();
   this.createParkingWaypoints();
@@ -1380,7 +1376,16 @@ async load() {
     this.viewToggle.textContent = this.skyViewActive ? "Chase view" : "Sky view";
     this.viewToggle.setAttribute("aria-pressed", String(this.skyViewActive));
   }
+loadPotholeShark() {
+  return new Promise(resolve => {
+    if (potholeSharkModel) return resolve();
 
+    potholeSharkLoader.load("/assets/models/characters/wits-shark.glb", g => {
+      potholeSharkModel = g.scene;
+      resolve();
+    });
+  });
+}
 
 createParkingSurface(potholes = []) {
   const lot = PARKING_LAYOUT.mainLot;
@@ -1552,32 +1557,27 @@ createParkingSurface(potholes = []) {
         water.name =
           `pothole-water-${index}`;
 
-        if (Math.random() < 0.35) {
-          const shark = new THREE.Sprite(
-            new THREE.SpriteMaterial({
-              map: sharkTexture,
-              transparent: true,
-              depthWrite: false
-            })
-          );
+    if (Math.random() < 0.35 && potholeSharkModel) {
+       //if (potholeSharkModel) { 
+        const shark = potholeSharkModel.clone();
+        
+        shark.scale.set(2,2,2);
+        //shark.position.set(0,-1.5,0);
 
-          shark.scale.set(1.5, 1.5, 1);
-          shark.position.set(
-            0,
-            -1.5,
-            0
-          );
+        
+        shark.userData.baseY=-1.5;
+        shark.userData.popY=0.25;
+        shark.userData.floatOffset=Math.random()*10;
+        shark.userData.popped=false;
+        shark.userData.popProgress=0;
+        shark.position.y=-0.6;
 
-          shark.userData.isWitsShark = true;
-          shark.userData.floatOffset = Math.random() * 10;
-          shark.userData.targetY = -1.5;
-          shark.userData.visibleY = 0.25;
-          shark.userData.popDistance = 12;
-
-          water.add(shark);
-          this.potholeSharks.push(shark);
-        }
-
+        water.add(shark);
+        shark.userData.worldX=x;
+        shark.userData.worldZ=z;
+        this.potholeSharks.push(shark);
+      }
+      
         water.castShadow =
           false;
 
@@ -1747,21 +1747,42 @@ createParkingSurface(potholes = []) {
 
 
   update(dt) {
-    this.potholeSharks?.forEach((shark) => {
-      const distance =
-        shark.parent?.parent?.position.distanceTo(
-          this.car.position
-        ) ?? 999;
+    if(!this.car)return;
 
-      const target =
-        distance < shark.userData.popDistance
-          ? shark.userData.visibleY
-          : shark.userData.targetY;
+    this.potholeSharks?.forEach((shark,index)=>{
+      const dx=shark.userData.worldX-this.car.position.x;
+      const dz=shark.userData.worldZ-this.car.position.z;
+      const distance=Math.hypot(dx,dz);
 
-      shark.position.y +=
-        (target - shark.position.y) * 0.08;
+      if(distance<8){
+        shark.userData.popped=true;
+      }else{
+        shark.userData.popped=false;
+      }
 
-      shark.rotation.z += dt * 2;
+      const target=shark.userData.popped?1:0;
+
+      shark.userData.popProgress=THREE.MathUtils.lerp(
+        shark.userData.popProgress,
+        target,
+        dt*5
+      );
+
+      const rise=THREE.MathUtils.lerp(
+        shark.userData.baseY,
+        shark.userData.popY,
+        shark.userData.popProgress
+      );
+
+      const bob=Math.sin(
+        performance.now()*0.01+index
+      )*0.08;
+
+      shark.position.y=rise+bob;
+
+      shark.rotation.y=Math.sin(
+        performance.now()*0.003+index
+      )*0.15;
     });
 
     if (this.completed) {
