@@ -636,18 +636,27 @@ body.level-2 #level2-vignette{opacity:1}
 
 
 /* MAIN MENU HOME SCREEN OVERRIDES */
+/* The menu art is 1806x871 (2.07:1), much wider than a typical window, so
+   `cover` scaled it to fill and cropped its left and right edges away. The
+   card now takes the art's exact aspect ratio and contains it, which keeps
+   the whole image on screen; because the buttons are positioned in
+   percentages of that same box, they stay locked to the art at every size.
+   The backdrop is the art's own sky and ground, so the letterbox bars that
+   appear above and below it blend instead of framing the image. */
 #menu.menu-home {
-  background: url("/assets/images/ui/main-menu-background.png") center/cover no-repeat;
+  padding: 0;
+  background: linear-gradient(180deg, #8bc0f2 0 50%, #5a5a6c 50% 100%);
 }
 
 #menu.menu-home > .menu-card {
   position: relative;
-  width: min(92vw, 1280px);
-  height: min(86vh, 720px);
+  width: min(100vw, calc(100vh * 1806 / 871));
+  max-height: 100vh;
+  aspect-ratio: 1806 / 871;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: url("/assets/images/ui/main-menu-background.png") center/contain no-repeat;
   box-shadow: none;
 }
 
@@ -662,19 +671,24 @@ body.level-2 #level2-vignette{opacity:1}
   clip-path: inset(50%);
 }
 
+/* The right-hand column is sized as a share of the card rather than in
+   pixels. A fixed 96px-per-row stack starting at 64% overflowed the bottom
+   of a laptop-height card, which pushed the Level 3 button off screen. */
 #menu.menu-home #menu-primary-action {
   position: absolute;
   right: 7%;
-  top: 43%;
-  min-width: 360px;
-  min-height: 90px;
+  top: 40%;
+  width: 28%;
+  min-width: 0;
+  height: 13%;
+  min-height: 0;
   margin: 0;
   border: 4px solid #243556;
   border-radius: 10px;
   background: #68d7d0;
   color: #243556;
   font-family: "Pixelify Sans", monospace;
-  font-size: 1.9rem;
+  font-size: clamp(1rem, 3.4vh, 1.9rem);
   font-weight: 700;
   text-transform: uppercase;
   box-shadow: 8px 8px 0 #243556;
@@ -686,16 +700,20 @@ body.level-2 #level2-vignette{opacity:1}
   background: #7be6df;
 }
 
+/* Anchored top AND bottom with equal rows, so all three levels always fit
+   inside the card no matter how short the window is. */
 #menu.menu-home #dev-level-select {
   position: absolute;
   right: 7%;
   top: 64%;
-  width: 360px;
+  bottom: 5%;
+  width: 28%;
   margin: 0;
   padding: 0;
   border: 0;
   display: grid !important;
-  gap: 16px;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3%;
 }
 
 #menu.menu-home #dev-level-select[hidden] {
@@ -711,11 +729,12 @@ body.level-2 #level2-vignette{opacity:1}
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
-  min-height: 96px;
+  height: 100%;
+  min-height: 0;
   margin: 0;
-  padding: 14px 22px;
+  padding: 0 clamp(10px, 1.6vw, 22px);
   border: 4px solid #6a738a;
   border-radius: 10px;
   background: rgba(255,255,255,.92);
@@ -734,55 +753,85 @@ body.level-2 #level2-vignette{opacity:1}
 
 #menu.menu-home .menu-level-title {
   display: block;
-  font-size: 1.5rem;
-  line-height: 1;
+  font-size: clamp(0.85rem, 2.6vh, 1.5rem);
+  line-height: 1.05;
 }
 
 #menu.menu-home .menu-level-subtitle {
   display: block;
-  font-size: .95rem;
-  line-height: 1.1;
+  font-size: clamp(0.65rem, 1.6vh, 0.95rem);
+  line-height: 1.15;
   opacity: .95;
 }
 
 @media (max-width: 1100px) {
-  #menu.menu-home > .menu-card {
-    width: 100%;
-    height: 100%;
-  }
-
+  /* Widths are a share of the card, not the window, so the buttons keep
+     their place on the art once it is letterboxed. */
   #menu.menu-home #menu-primary-action,
+  #menu.menu-home #menu-credits-action,
   #menu.menu-home #dev-level-select {
     right: 4%;
-    width: min(42vw, 360px);
+    width: 40%;
+    min-width: 0;
   }
 }
 
 @media (max-width: 860px) {
-  #menu.menu-home {
-    background-position: 40% center;
+  /* Too narrow to sit buttons on top of the art without covering it, so the
+     card fills the screen and the art sits as a full-width band up top. */
+  #menu.menu-home > .menu-card {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    aspect-ratio: auto;
+    background-position: center top;
+    background-size: 100% auto;
+  }
+
+  /* Normal flow below the art, so the four controls stack and none of them
+     can overlap or fall off the bottom. */
+  #menu.menu-home > .menu-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 6% 5%;
+  }
+
+  #menu.menu-home #menu-primary-action,
+  #menu.menu-home #menu-credits-action,
+  #menu.menu-home #dev-level-select {
+    position: static;
+    inset: auto;
+    transform: none;
+    width: 100%;
+    height: auto;
   }
 
   #menu.menu-home #menu-primary-action {
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: 26%;
-    transform: translateX(-50%);
-    width: min(88vw, 420px);
+    min-height: 64px;
+    font-size: 1.4rem;
   }
 
-  #menu.menu-home #menu-primary-action:hover {
-    transform: translate(calc(-50% + 4px), 4px);
+  #menu.menu-home #menu-credits-action {
+    min-height: 48px;
+    font-size: 1rem;
   }
 
   #menu.menu-home #dev-level-select {
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: 3%;
-    transform: translateX(-50%);
-    width: min(88vw, 420px);
+    grid-template-rows: none;
+    gap: 10px;
+  }
+
+  #menu.menu-home #dev-level-select button {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 16px;
+  }
+
+  #menu.menu-home #menu-primary-action:hover,
+  #menu.menu-home #menu-credits-action:hover {
+    transform: translate(4px, 4px);
   }
 }
 
@@ -841,16 +890,18 @@ body.level-2 #level2-vignette{opacity:1}
 #menu.menu-home #menu-credits-action {
   position: absolute;
   right: 7%;
-  top: 55%;
-  min-width: 360px;
-  min-height: 56px;
+  top: 54%;
+  width: 28%;
+  min-width: 0;
+  height: 7%;
+  min-height: 0;
   margin: 0;
   border: 4px solid #243556;
   border-radius: 10px;
   background: rgba(255,255,255,.92);
   color: #243556;
   font-family: "Pixelify Sans", monospace;
-  font-size: 1.1rem;
+  font-size: clamp(0.7rem, 1.9vh, 1.1rem);
   font-weight: 700;
   text-transform: uppercase;
   box-shadow: 6px 6px 0 #243556;
@@ -882,17 +933,6 @@ body.level-2 #level2-vignette{opacity:1}
 .credit-entry h3 { margin: 0; font-size: 1rem; }
 .credit-entry p { margin: .2rem 0 0; line-height: 1.35; }
 .credit-entry a { color: inherit; }
-
-@media (max-width: 860px) {
-  #menu.menu-home #menu-credits-action {
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: 18%;
-    transform: translateX(-50%);
-    width: min(88vw, 420px);
-  }
-}
 
 /* Credits use the typewriter face from the loading-page status tags. */
 #menu.menu-credits .menu-card,
