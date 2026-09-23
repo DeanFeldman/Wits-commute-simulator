@@ -512,10 +512,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     const studentScale = 0.58;
     const studentBaseY = 0.26;
-    // The shared Level 2 capsule torso is taller than the old Level 3 box
-    // torso. Keep the seated torso where it is, but raise the head enough for
-    // the sphere to clear the shoulders instead of intersecting the body.
-    const studentHeadY = studentBaseY + 1.7 * studentScale;
+    // Match the Level 2 PedestrianFactory proportions exactly. In that rig,
+    // the torso centre is at y=0.06 and the head centre at y=0.72, a 0.66
+    // centre-to-centre offset. Applying the same offset to the seated torso
+    // keeps the head touching the shoulders without sinking into the body.
+    const studentTorsoY = studentBaseY + 0.92 * studentScale;
+    const studentHeadY = studentTorsoY + 0.66 * studentScale;
     const transform = new THREE.Object3D();
     const createStudentInstances = (geometry, material, count) => {
       const instances = new THREE.InstancedMesh(geometry, material, count);
@@ -614,7 +616,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           torsos,
           studentIndex,
           x,
-          studentBaseY + 0.92 * studentScale,
+          studentTorsoY,
           z
         );
 
