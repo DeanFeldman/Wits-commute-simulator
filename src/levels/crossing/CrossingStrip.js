@@ -2876,7 +2876,21 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     // followed by a very large empty section of road.
     const lane = vehicle.lane;
     const entryX = lane.direction > 0 ? -TRAFFIC_EDGE : TRAFFIC_EDGE;
-    vehicle.mover.reset(new THREE.Vector3(entryX, 0, lane.localZ), 1);
+    const otherVehicles = this.traffic.filter(
+      (candidate) => candidate !== vehicle && candidate.lane === lane
+    );
+    const nearestProgress = otherVehicles.reduce((nearest, candidate) => {
+      const progress = (candidate.root.position.x - entryX) * lane.direction;
+      return progress >= 0 ? Math.min(nearest, progress) : nearest;
+    }, Infinity);
+    const minimumFollowingDistance = otherVehicles.reduce((minimum, candidate) => (
+      Math.max(minimum, (vehicle.length + candidate.length) / 2 + 0.8)
+    ), vehicle.length + 0.8);
+    const entryBackoff = Number.isFinite(nearestProgress)
+      ? Math.max(0, minimumFollowingDistance - nearestProgress)
+      : 0;
+    const recycleX = entryX - lane.direction * entryBackoff;
+    vehicle.mover.reset(new THREE.Vector3(recycleX, 0, lane.localZ), 1);
 
     // Pick a fresh but bounded cruise speed each lap. Faster cars will ease
     // behind slower ones via distanceToVehicleAhead rather than overlapping.
