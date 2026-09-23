@@ -71,7 +71,7 @@ test("traffic strips orient, space, and recycle their fixed vehicle pools", () =
     assert.equal(strip.traffic.length, strip.lanes.reduce((total, lane) => total + lane.vehicleCount, 0));
     for (const vehicle of strip.traffic) {
       assert.ok(vehicle.lane.allowedVehicleTypes.includes(vehicle.type));
-      assert.equal(vehicle.root.rotation.y, vehicle.lane.direction > 0 ? Math.PI / 2 : -Math.PI / 2);
+      assert.equal(vehicle.root.rotation.y, vehicle.lane.direction > 0 ? -Math.PI / 2 : Math.PI / 2);
       assert.ok(vehicle.cruiseSpeed >= vehicle.lane.speed * 0.88);
       assert.ok(vehicle.cruiseSpeed <= vehicle.lane.speed * 1.12);
       assert.ok(PARKING_CAR_SPECS.includes(vehicle.spec));
