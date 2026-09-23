@@ -183,6 +183,8 @@ Game should not contain:
 - tutor suspicion logic
 - level-specific objectives
 
+Journey-wide scoring is an engine concern, but level-specific measurements are not. Levels report raw completion statistics to `Game.completeLevel()`; `src/core/commuteScoring.js` owns the pure scoring rules, commute rating thresholds, and personal-best calculations. `Game` owns attempt accounting, aggregation, persistence, and presentation.
+
 ---
 
 ## Level Lifecycle
