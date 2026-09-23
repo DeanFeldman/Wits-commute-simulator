@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   getCommuteRating,
+  loadPersonalBests,
+  PERSONAL_BESTS_STORAGE_KEY,
+  savePersonalBests,
   scoreLevel,
   scoreTime,
   summariseJourney,
@@ -86,4 +89,26 @@ test("personal bests only improve", () => {
   assert.equal(records.levelTimes["3"], 45);
   assert.equal(records.journeyTime, 100);
   assert.equal(records.journeyScore, 300);
+});
+
+
+test("personal bests round-trip through local storage", () => {
+  const values = new Map();
+  const storage = {
+    getItem(key) {
+      return values.get(key) ?? null;
+    },
+    setItem(key, value) {
+      values.set(key, value);
+    }
+  };
+  const records = {
+    levelTimes: { "1": 42.5 },
+    journeyTime: 110,
+    journeyScore: 260
+  };
+
+  assert.equal(savePersonalBests(records, storage), true);
+  assert.equal(values.has(PERSONAL_BESTS_STORAGE_KEY), true);
+  assert.deepEqual(loadPersonalBests(storage), records);
 });
