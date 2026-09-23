@@ -468,7 +468,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       torso: PEDESTRIAN_GEOMETRY.body,
       head: PEDESTRIAN_GEOMETRY.head,
       arm: PEDESTRIAN_GEOMETRY.arm,
-      leg: PEDESTRIAN_GEOMETRY.leg,
+      thigh: PEDESTRIAN_GEOMETRY.leg,
+      shin: PEDESTRIAN_GEOMETRY.leg,
       shoe: PEDESTRIAN_GEOMETRY.shoe,
       hairShort: PEDESTRIAN_GEOMETRY.hairShort,
       hairPuff: PEDESTRIAN_GEOMETRY.hairPuff,
@@ -564,8 +565,16 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       heads.instanceMatrix.needsUpdate = true;
     });
 
-    const legs = createStudentInstances(
-      studentGeometry.leg,
+    // Build an actual seated leg pose instead of rotating one standing leg
+    // through the chair. Thighs project forward from the seat, knees sit just
+    // beyond the chair edge, and shins drop vertically toward the floor.
+    const thighs = createStudentInstances(
+      studentGeometry.thigh,
+      trousersMaterial,
+      studentSeats.length * 2
+    );
+    const shins = createStudentInstances(
+      studentGeometry.shin,
       trousersMaterial,
       studentSeats.length * 2
     );
@@ -575,27 +584,44 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       studentSeats.length * 2
     );
 
+    const studentHipY = studentBaseY + 0.47 * studentScale;
+    const studentThighZ = -0.2 * studentScale;
+    const studentKneeZ = -0.43 * studentScale;
+    const studentShinY = studentBaseY + 0.16 * studentScale;
+    const studentShoeY = studentBaseY - 0.08 * studentScale;
+    const studentShoeZ = -0.46 * studentScale;
+
     studentSeats.forEach(({ x, z }, studentIndex) => {
       for (const [sideIndex, side] of [-1, 1].entries()) {
         const legIndex = studentIndex * 2 + sideIndex;
+        const legX = x + side * 0.16 * studentScale;
+
         setStudentPart(
-          legs,
+          thighs,
           legIndex,
-          x + side * 0.16 * studentScale,
-          studentBaseY + 0.36 * studentScale,
-          z - 0.35 * studentScale,
+          legX,
+          studentHipY,
+          z + studentThighZ,
           Math.PI / 2
+        );
+        setStudentPart(
+          shins,
+          legIndex,
+          legX,
+          studentShinY,
+          z + studentKneeZ
         );
         setStudentPart(
           shoes,
           legIndex,
-          x + side * 0.16 * studentScale,
-          studentBaseY + 0.13 * studentScale,
-          z - 0.62 * studentScale
+          legX,
+          studentShoeY,
+          z + studentShoeZ
         );
       }
     });
-    legs.instanceMatrix.needsUpdate = true;
+    thighs.instanceMatrix.needsUpdate = true;
+    shins.instanceMatrix.needsUpdate = true;
     shoes.instanceMatrix.needsUpdate = true;
 
     shirtMaterials.forEach((shirtMaterial, shirtIndex) => {
