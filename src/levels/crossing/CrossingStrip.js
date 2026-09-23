@@ -2184,8 +2184,10 @@ createBridgeFenceReturns({
     // Spread the fixed pool over the whole movement corridor instead of
     // creating a tight convoy near one edge. A random phase and bounded jitter
     // keep the stream from looking like a repeating metronome while still
-    // preserving readable gaps.
-    const laneSpan = TRAFFIC_EDGE * 2;
+    // preserving readable gaps. Selected lanes may use a slightly longer
+    // seed-driven loop to create a modestly easier opening.
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const laneSpan = trafficEdge * 2;
     const slotSize = laneSpan / lane.vehicleCount;
     const phase = this.random() * slotSize;
 
@@ -2195,8 +2197,8 @@ createBridgeFenceReturns({
       const jitter = (this.random() - 0.5) * slotSize * TRAFFIC_SLOT_JITTER;
       const progress = (phase + index * slotSize + jitter + laneSpan) % laneSpan;
       const startX = lane.direction > 0
-        ? -TRAFFIC_EDGE + progress
-        : TRAFFIC_EDGE - progress;
+        ? -trafficEdge + progress
+        : trafficEdge - progress;
 
       vehicle.root.position.x = startX;
       vehicle.mover.reset(vehicle.root.position, 1);
@@ -2230,8 +2232,9 @@ createBridgeFenceReturns({
     }
     const passenger = type === "taxi" ? this.createTaxiPassenger(lane) : null;
     vehicleRoot.position.z = lane.localZ;
-    const start = new THREE.Vector3(lane.direction > 0 ? -TRAFFIC_EDGE : TRAFFIC_EDGE, 0, lane.localZ);
-    const end = new THREE.Vector3(lane.direction > 0 ? TRAFFIC_EDGE : -TRAFFIC_EDGE, 0, lane.localZ);
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const start = new THREE.Vector3(lane.direction > 0 ? -trafficEdge : trafficEdge, 0, lane.localZ);
+    const end = new THREE.Vector3(lane.direction > 0 ? trafficEdge : -trafficEdge, 0, lane.localZ);
     const cruiseSpeed = lane.speed * (
       1 - TRAFFIC_SPEED_VARIATION
       + this.random() * TRAFFIC_SPEED_VARIATION * 2
@@ -2859,6 +2862,10 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     return Math.max(0, allowed);
   }
 
+  trafficEdgeFor(lane) {
+    return TRAFFIC_EDGE * (lane.spacingScale ?? 1);
+  }
+
   distanceToVehicleAhead(vehicle) {
     let available = Infinity;
     for (const other of this.traffic) {
@@ -2876,7 +2883,8 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     // current tail. The old tail-based recycle progressively formed convoys,
     // followed by a very large empty section of road.
     const lane = vehicle.lane;
-    const entryX = lane.direction > 0 ? -TRAFFIC_EDGE : TRAFFIC_EDGE;
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const entryX = lane.direction > 0 ? -trafficEdge : trafficEdge;
     const otherVehicles = this.traffic.filter(
       (candidate) => candidate !== vehicle && candidate.lane === lane
     );
