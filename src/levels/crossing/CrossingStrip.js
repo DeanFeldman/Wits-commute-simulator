@@ -2210,8 +2210,9 @@ createBridgeFenceReturns({
     const spec = pickRandomParkingCar(this.random);
     const vehicleRoot = new THREE.Group();
     vehicleRoot.name = `${type}-${this.definition.index}-${lane.laneIndex}-${index}`;
-    // Vehicle prototypes face +Z. Rotate +Z toward the lane's X direction.
-    vehicleRoot.rotation.y = lane.direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+    // The imported Level 2 vehicle models are visually authored so this
+    // rotation makes their noses point along the lane's X travel direction.
+    vehicleRoot.rotation.y = lane.direction > 0 ? -Math.PI / 2 : Math.PI / 2;
     vehicleRoot.userData.vehicleSpecId = spec.id;
     this.root.add(vehicleRoot);
 
