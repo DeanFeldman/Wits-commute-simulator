@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   LEVEL_2_ROW_COUNT,
   LEVEL_2_STRIPS,
+  YALE_LANE_COUNT,
   STRIP_DEPTH,
   STRIP_WIDTH,
   createSeededRandom,
@@ -48,6 +49,23 @@ test("the Wits route order is fixed while seeded scene variation stays reproduci
   assert.deepEqual([first(), first(), first()], [second(), second(), second()]);
 });
 
+test("Yale Road relief gaps stay small, partial, and reproducible for a seed", () => {
+  const first = generateLevel2Layout("gentler-yale");
+  const second = generateLevel2Layout("gentler-yale");
+  const firstYale = first.strips.find((strip) => strip.type === "yale-road");
+  const secondYale = second.strips.find((strip) => strip.type === "yale-road");
+
+  const firstScales = firstYale.traffic.lanes.map((lane) => lane.spacingScale);
+  const secondScales = secondYale.traffic.lanes.map((lane) => lane.spacingScale);
+
+  assert.deepEqual(firstScales, secondScales);
+  assert.equal(firstScales.filter((scale) => scale > 1).length, 3);
+  assert.equal(firstScales.filter((scale) => scale === 1).length, YALE_LANE_COUNT - 3);
+  assert.ok(firstScales.filter((scale) => scale > 1).every((scale) => (
+    scale >= 1.08 && scale <= 1.12
+  )));
+});
+
 test("the route has a safe ARM start and reaches Engineering after the M1 bridge", () => {
   const layout = generateLevel2Layout(42);
   assert.equal(layout.rowCount, LEVEL_2_ROW_COUNT);
@@ -76,7 +94,7 @@ test("Yale traffic is lethal and M1 traffic is environmental", () => {
   const layout = generateLevel2Layout(7);
   const yale = layout.strips.find((strip) => strip.type === "yale-road");
   const bridge = layout.strips.find((strip) => strip.type === "bridge");
-  assert.equal(yale.traffic.lanes.length, 4);
+  assert.equal(yale.traffic.lanes.length, YALE_LANE_COUNT);
   assert.ok(yale.traffic.lanes.every((lane) => !lane.isHighway));
   assert.ok(yale.traffic.lanes.some((lane) => lane.taxiStops));
   assert.ok(bridge.traffic.lanes.length >= 4);
