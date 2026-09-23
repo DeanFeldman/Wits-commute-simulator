@@ -285,7 +285,9 @@ export class Game {
     this.levelNameElement.textContent = "Results";
     this.setHUD("");
     this.setMessage("");
-    this.menuTitleElement.textContent = `${summary.rating.grade} — ${summary.rating.label}`;
+    this.menuTitleElement.textContent = summary.isFullJourney
+      ? `${summary.rating.grade} — ${summary.rating.label}`
+      : "Practice results";
     this.menuCopyElement.innerHTML = this.renderResults(summary);
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
@@ -353,7 +355,7 @@ export class Game {
 
     return `
       <section class="results-summary">
-        <p class="result-total"><strong>${summary.totalScore}/300</strong> · ${summary.totalTime.toFixed(1)}s total commute time</p>
+        <p class="result-total"><strong>${summary.totalScore}/${summary.isFullJourney ? 300 : Math.max(100, summary.levels.length * 100)}</strong> · ${summary.totalTime.toFixed(1)}s total commute time</p>
         <div class="result-levels">${levelCards}</div>
         ${records}
       </section>
