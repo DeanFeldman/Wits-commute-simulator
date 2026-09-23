@@ -1117,7 +1117,18 @@ export function createPoolCoverageMaterial(
 }
 
 export function createRoadMaterial(textures) {
-  return new THREE.MeshStandardMaterial({map:textures.colour,roughnessMap:textures.roughness,normalMap:textures.normal,normalScale:new THREE.Vector2(.45,.45),color:0x9a9a9a,roughness:.9,metalness:.01});
+  // Roads share the lot texture set, but use the standard material path rather
+  // than the wet/damaged shader. Tint that path to the same charcoal range so
+  // entrance throats and surrounding roads do not read as a lighter brown.
+  return new THREE.MeshStandardMaterial({
+    map: textures.colour,
+    roughnessMap: textures.roughness,
+    normalMap: textures.normal,
+    normalScale: new THREE.Vector2(0.45, 0.45),
+    color: 0x55595b,
+    roughness: 0.94,
+    metalness: 0.01
+  });
 }
 
 export function applyRoadUvs(

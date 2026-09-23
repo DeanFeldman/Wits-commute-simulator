@@ -53,8 +53,12 @@ export const PARKING_LAYOUT = Object.freeze({
   // The M1 runs in a cutting below the parking lot, as it does on the ground:
   // you look over the lot fence, across a verge, and down onto the carriageway.
   // y is the level of the trench floor.
-  m1: { x: 0, z: -62, width: 190, depth: 15, y: -4 },
-  bridgeRoad: { x: 72, z: -5, width: 11, depth: 150, y: 0.08 },
+  // The M1 follows the angled north edge of the real parking area and sits
+  // immediately beyond its retaining ledge, rather than far out in the field.
+  m1: { x: 0, z: -56.5, width: 300, depth: 18, y: -4, rotation: THREE.MathUtils.degToRad(-6) },
+  // Yale Road runs diagonally beside the parking area. The resulting green
+  // corridor separates its edge from the east parking bays, as in the aerial.
+  bridgeRoad: { x: 69, z: -5, width: 11, depth: 150, y: 0.08, rotation: THREE.MathUtils.degToRad(-4) },
 
   // Player entrance aligned with the second aisle from the west, and the exit
   // on the third. Their aisles are 16 m apart, so the boundary openings are
@@ -70,15 +74,17 @@ export const PARKING_LAYOUT = Object.freeze({
   armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
   armWalkway: { x: -64.5, z: -9.7, width: 7, depth: 88.4 },
   armWalkwayEntrance: { x: -58.5, z: -37.95, width: 5, depth: 8.0 },
-  pedestrianBridge: { x: -64.8, z: -62, width: 6.4, depth: 16.4 },
+  pedestrianBridge: { x: -64.8, z: -63.3, width: 6.4, depth: 23 },
 
   // Bigger Flower Hall so it fills the left/background scene more strongly.
   flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
 
-// Campus checkpoint. It sits just west of the Yale Road intersection, where
-  // a gate across the street actually controls something, rather than standing
-  // in the middle of an open road.
-  campusGate: { x: 58, z: 41 }
+  // Campus checkpoint on the campus street, immediately west of the Yale Road
+  // junction. The connecting street stays paved while the north/south strip
+  // between Yale Road and the lot remains landscaped.
+  // Shifted west to sit at the campus-road approach, before the Yale Road
+  // bridge structure, rather than underneath the crossing itself.
+  campusGate: { x: 47.5, z: 41 }
 });
 
 const COLORS = {
@@ -96,8 +102,55 @@ const COLORS = {
   witsBlue: 0x245987
 };
 
+const GRASS_TEXTURES = Object.freeze({
+  albedo: "./assets/textures/ground/stylized-grass-albedo.png",
+  normal: "./assets/textures/ground/stylized-grass-normal.png",
+  roughness: "./assets/textures/ground/stylized-grass-roughness.png",
+  ao: "./assets/textures/ground/stylized-grass-ao.png"
+});
+
+let parkingGrassMaterial = null;
+
 function material(color, roughness = 0.9, extras = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness, ...extras });
+}
+
+function loadGrassTexture(path, { color = false } = {}) {
+  if (typeof document === "undefined") return null;
+
+  const texture = new THREE.TextureLoader().load(path);
+  texture.name = path.split("/").at(-1);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  // The same detail density holds across both terrain slabs without needing
+  // large source textures. Anisotropy improves the low chase-camera angle.
+  texture.repeat.set(30, 30);
+  texture.anisotropy = 8;
+  if (color) texture.colorSpace = THREE.SRGBColorSpace;
+  texture.userData.sharedAsset = true;
+  return texture;
+}
+
+function getParkingGrassMaterial() {
+  if (parkingGrassMaterial) return parkingGrassMaterial;
+
+  parkingGrassMaterial = new THREE.MeshStandardMaterial({
+    // A half-strength cool-green correction offsets the warm dusk lighting
+    // without pushing the dry Highveld albedo into an artificial green.
+    color: 0xb7dbad,
+    map: loadGrassTexture(GRASS_TEXTURES.albedo, { color: true }),
+    normalMap: loadGrassTexture(GRASS_TEXTURES.normal),
+    roughnessMap: loadGrassTexture(GRASS_TEXTURES.roughness),
+    aoMap: loadGrassTexture(GRASS_TEXTURES.ao),
+    emissive: 0x102a0d,
+    emissiveIntensity: 0.08,
+    roughness: 0.92,
+    normalScale: new THREE.Vector2(0.32, 0.32),
+    aoMapIntensity: 0.32
+  });
+  parkingGrassMaterial.name = "parking-stylized-grass-material";
+  parkingGrassMaterial.userData.sharedAsset = true;
+  return parkingGrassMaterial;
 }
 
 function box(root, size, position, mat, { castShadow = false, receiveShadow = true, name = "" } = {}) {
@@ -200,19 +253,82 @@ function createAngledFenceRun(root, collisionWorld, {
 }
 
 function createSeparatedGround(root) {
-  const grass = material(COLORS.grass, 0.98, { flatShading: true });
+  const grass = getParkingGrassMaterial();
   const { m1 } = PARKING_LAYOUT;
 
-  // Terrain is one continuous surface, which avoids the sky-coloured bands that
-  // once separated the lot from its roads, but it has to stop at each lip of
-  // the motorway cutting rather than paving over the trench.
-  const southLip = m1.z + m1.depth / 2;
-  const northLip = m1.z - m1.depth / 2;
-  const southDepth = 105 - southLip;
-  const northDepth = northLip + 105;
+  // The dev sky camera can zoom far beyond the playable lot. Keep the terrain
+  // broad enough that it never reveals the clear colour at the map edges.
+  const terrainEdge = 150;
+  const terrainWidth = 420;
+  const halfRoadDepth = m1.depth / 2;
+  const cos = Math.cos(m1.rotation);
+  const sin = Math.sin(m1.rotation);
 
-  box(root, [230, 0.14, southDepth], [0, -0.31, southLip + southDepth / 2], grass);
-  box(root, [230, 0.14, northDepth], [0, -0.31, northLip - northDepth / 2], grass);
+  // Build terrain in the motorway's rotated coordinate frame. Its inner edges
+  // now run parallel to the M1 instead of remaining as two horizontal slabs.
+  for (const [localStart, localEnd] of [
+    [halfRoadDepth, terrainEdge],
+    [-terrainEdge, -halfRoadDepth]
+  ]) {
+    const localCentreZ = (localStart + localEnd) / 2;
+    const terrain = box(root, [terrainWidth, 0.14, localEnd - localStart], [
+      m1.x + sin * localCentreZ,
+      -0.31,
+      m1.z + cos * localCentreZ
+    ], grass);
+    terrain.rotation.y = m1.rotation;
+    // Three.js reads the AO map from uv2. The box's existing UV layout remains
+    // in use for the albedo, normal, and roughness maps.
+    terrain.geometry.setAttribute("uv2", terrain.geometry.attributes.uv.clone());
+  }
+
+  // This lies below the carriageway, filling the cutting itself without
+  // covering the lowered M1 surface or exposing a blue void at either side.
+  const cuttingFloor = box(root, [terrainWidth, 0.1, m1.depth + 8], [0, m1.y - 0.42, m1.z], material(0x253023, 0.96));
+  cuttingFloor.rotation.y = m1.rotation;
+}
+
+function createNorthM1Ledge(root) {
+  const { mainLot, m1 } = PARKING_LAYOUT;
+  const [northWest, northEast] = mainLot.outline;
+  const southLipZAt = (x) => {
+    const localZ = m1.depth / 2;
+    const localX = (x - m1.x - Math.sin(m1.rotation) * localZ) / Math.cos(m1.rotation);
+    return m1.z - Math.sin(m1.rotation) * localX + Math.cos(m1.rotation) * localZ;
+  };
+
+  // The real north edge is a retaining ledge directly above the M1. Cover the
+  // old grass wedge with a concrete apron that follows the angled parking
+  // boundary, then put the vertical retaining face on that boundary.
+  const apronGeometry = new THREE.BufferGeometry();
+  apronGeometry.setAttribute("position", new THREE.Float32BufferAttribute([
+    northWest[0], 0.025, northWest[1],
+    northEast[0], 0.025, northEast[1],
+    northEast[0], 0.025, southLipZAt(northEast[0]),
+    northWest[0], 0.025, southLipZAt(northWest[0])
+  ], 3));
+  apronGeometry.setIndex([0, 1, 2, 0, 2, 3]);
+  apronGeometry.computeVertexNormals();
+  const apron = new THREE.Mesh(
+    apronGeometry,
+    material(0x6f7672, 0.9, { metalness: 0.04 })
+  );
+  apron.name = "m1-north-retaining-apron";
+  apron.receiveShadow = true;
+  root.add(apron);
+
+  const dx = northEast[0] - northWest[0];
+  const dz = northEast[1] - northWest[1];
+  const length = Math.hypot(dx, dz);
+  const wallHeight = Math.abs(m1.y) + 0.25;
+  const ledgeWall = box(
+    root,
+    [length, wallHeight, 0.72],
+    [(northWest[0] + northEast[0]) / 2, m1.y + wallHeight / 2, (northWest[1] + northEast[1]) / 2],
+    material(0x81878a, 0.88),
+    { castShadow: true, name: "m1-north-retaining-wall" }
+  );
+  ledgeWall.rotation.y = -Math.atan2(dz, dx);
 }
 function createBackdropWall(root) {
   const wallMat = material(0x6f766f, 0.92);
@@ -324,6 +440,7 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
     asphalt
   );
   applyRoadUvs(bridge.geometry, bridgeRoad.width, bridgeRoad.depth);
+  bridge.rotation.y = bridgeRoad.rotation;
 
 }
 
@@ -332,6 +449,7 @@ function createM1(root, roadMaterial) {
   const highwayMat = roadMaterial ?? material(COLORS.m1, 0.88);
   const highway = box(root, [m1.width, 0.14, m1.depth], [m1.x, m1.y, m1.z], highwayMat);
   applyRoadUvs(highway.geometry, m1.width, m1.depth);
+  highway.rotation.y = m1.rotation;
 
   const laneZ = [-5.2, -1.75, 1.75, 5.2].map((offset) => m1.z + offset);
 
@@ -339,45 +457,100 @@ function createM1(root, roadMaterial) {
   // from the trench floor to the lip, so the face of the wall is what you see
   // when you look over the edge from the lot.
   const wallMat = material(0x8f9498, 0.86);
-  const parapetMat = material(0xa2a6a2, 0.88);
   const wallThickness = 0.7;
   const wallHeight = Math.abs(m1.y) + 0.2;
-  const lips = [
-    { z: m1.z + m1.depth / 2 + wallThickness / 2 },
-    { z: m1.z - m1.depth / 2 - wallThickness / 2 }
-  ];
+  const lips = [m1.depth / 2 + wallThickness / 2, -m1.depth / 2 - wallThickness / 2];
+  const m1Cos = Math.cos(m1.rotation);
+  const m1Sin = Math.sin(m1.rotation);
 
-  for (const lip of lips) {
-    box(root, [m1.width, wallHeight, wallThickness], [m1.x, m1.y + wallHeight / 2, lip.z], wallMat, {
-      castShadow: true
-    });
-    // Leave an opening where the Level 1 pedestrian bridge crosses.
-    const openingLeft = pedestrianBridge.x - pedestrianBridge.width / 2 - 0.3;
-    const openingRight = pedestrianBridge.x + pedestrianBridge.width / 2 + 0.3;
-    for (const [start, end] of [[m1.x - m1.width / 2, openingLeft], [openingRight, m1.x + m1.width / 2]]) {
-      const length = end - start;
-      box(root, [length, 0.8, wallThickness + 0.25], [start + length / 2, 0.4, lip.z], parapetMat, { castShadow: true });
+  // Find the actual crossing of the two diagonal centre lines. The previous
+  // bridge was centred at M1's world Z, which left its rails visibly offset.
+  const m1Direction = new THREE.Vector2(m1Cos, -m1Sin);
+  const yaleDirection = new THREE.Vector2(Math.sin(bridgeRoad.rotation), Math.cos(bridgeRoad.rotation));
+  const betweenRoadOrigins = new THREE.Vector2(bridgeRoad.x - m1.x, bridgeRoad.z - m1.z);
+  const determinant = m1Direction.x * yaleDirection.y - m1Direction.y * yaleDirection.x;
+  const yaleM1LocalX = Math.abs(determinant) > 0.0001
+    ? (betweenRoadOrigins.x * yaleDirection.y - betweenRoadOrigins.y * yaleDirection.x) / determinant
+    : 0;
+  const yaleBridgeCentre = new THREE.Vector3(
+    m1.x + m1Direction.x * yaleM1LocalX,
+    0,
+    m1.z + m1Direction.y * yaleM1LocalX
+  );
+  const pedestrianM1LocalX = m1Cos * (pedestrianBridge.x - m1.x) - m1Sin * (pedestrianBridge.z - m1.z);
+  const bridgeOpenings = [
+    { centre: pedestrianM1LocalX, width: pedestrianBridge.width + 0.8 },
+    { centre: yaleM1LocalX, width: bridgeRoad.width + 1.4 }
+  ].sort((a, b) => a.centre - b.centre);
+
+  for (const localZ of lips) {
+    let runStart = -m1.width / 2;
+    for (const opening of bridgeOpenings) {
+      const runEnd = opening.centre - opening.width / 2;
+      if (runEnd > runStart) {
+        const centre = (runStart + runEnd) / 2;
+        const retainingWall = box(root, [runEnd - runStart, wallHeight, wallThickness], [
+          m1.x + m1Cos * centre + m1Sin * localZ,
+          m1.y + wallHeight / 2,
+          m1.z - m1Sin * centre + m1Cos * localZ
+        ], wallMat, { castShadow: true });
+        retainingWall.rotation.y = m1.rotation;
+      }
+      runStart = opening.centre + opening.width / 2;
+    }
+    if (runStart < m1.width / 2) {
+      const centre = (runStart + m1.width / 2) / 2;
+      const retainingWall = box(root, [m1.width / 2 - runStart, wallHeight, wallThickness], [
+        m1.x + m1Cos * centre + m1Sin * localZ,
+        m1.y + wallHeight / 2,
+        m1.z - m1Sin * centre + m1Cos * localZ
+      ], wallMat, { castShadow: true });
+      retainingWall.rotation.y = m1.rotation;
     }
   }
 
   // The right-hand road crosses the cutting, so it needs a deck under it and
   // rails along it rather than simply floating over the gap.
-  const bridgeSpan = m1.depth + wallThickness * 2 + 1.4;
-  box(
+  // Yale Road meets the M1 at a slight angle, so its deck needs extra length
+  // to clear both retaining walls instead of stopping inside the cutting.
+  const bridgeSpan = m1.depth + wallThickness * 2 + 7;
+  const bridgeDeck = box(
     root,
     [bridgeRoad.width + 1.2, 0.85, bridgeSpan],
-    [bridgeRoad.x, -0.4, m1.z],
+    [yaleBridgeCentre.x, -0.4, yaleBridgeCentre.z],
     material(0x7d8285, 0.88),
     { castShadow: true }
   );
-  for (const x of [bridgeRoad.x - bridgeRoad.width / 2 + 0.28, bridgeRoad.x + bridgeRoad.width / 2 - 0.28]) {
-    box(root, [0.14, 0.86, bridgeSpan], [x, 0.54, m1.z], material(COLORS.metal, 0.66, { metalness: 0.28 }), { castShadow: true });
+  bridgeDeck.rotation.y = bridgeRoad.rotation;
+  for (const offsetX of [-bridgeRoad.width / 2 + 0.28, bridgeRoad.width / 2 - 0.28]) {
+    const rail = box(
+      root,
+      [0.14, 0.86, bridgeSpan],
+      [
+        yaleBridgeCentre.x + Math.cos(bridgeRoad.rotation) * offsetX,
+        0.54,
+        yaleBridgeCentre.z - Math.sin(bridgeRoad.rotation) * offsetX
+      ],
+      material(COLORS.metal, 0.66, { metalness: 0.28 }),
+      { castShadow: true }
+    );
+    rail.rotation.y = bridgeRoad.rotation;
   }
 
   return { laneZ };
 }
 
 function createM1Traffic(root, laneZ) {
+  const { m1 } = PARKING_LAYOUT;
+  const cos = Math.cos(m1.rotation);
+  const sin = Math.sin(m1.rotation);
+  const setTrafficPosition = (holder, localX, localZ) => {
+    holder.position.set(
+      m1.x + cos * localX + sin * localZ,
+      m1.y + 0.08,
+      m1.z - sin * localX + cos * localZ
+    );
+  };
   const random = createSeededRandom(30061);
   const count = 16;
   const traffic = [];
@@ -388,15 +561,12 @@ function createM1Traffic(root, laneZ) {
 
     const holder = new THREE.Group();
 
-    holder.position.set(
-      -68 + ((index * 14.5) % 136),
-      PARKING_LAYOUT.m1.y + 0.08,
-      laneZ[lane]
-    );
+    const localX = -68 + ((index * 14.5) % 136);
+    setTrafficPosition(holder, localX, laneZ[lane]);
 
-    // Match the visual forward convention used by the corrected Level 2
-    // traffic: positive-X travel needs -90 degrees, negative-X needs +90.
-    holder.rotation.y = getLevelOneM1TrafficRotation(direction);
+// Match the visual forward convention used by the corrected Level 2
+    // traffic, then align it to the M1's angled local X axis.
+    holder.rotation.y = getLevelOneM1TrafficRotation(direction) + m1.rotation;
 
     root.add(holder);
 
@@ -422,6 +592,8 @@ function createM1Traffic(root, laneZ) {
     traffic.push({
       holder,
       direction,
+      localX,
+      laneZ: laneZ[lane],
       speed:
         10.5 +
         lane * 1.25 +
@@ -431,18 +603,16 @@ function createM1Traffic(root, laneZ) {
 
   const update = (dt) => {
     for (const car of traffic) {
-      car.holder.position.x +=
-        car.direction *
-        car.speed *
-        dt;
+      car.localX += car.direction * car.speed * dt;
 
-      if (car.holder.position.x > 74) {
-        car.holder.position.x = -74;
+      if (car.localX > 74) {
+        car.localX = -74;
       }
 
-      if (car.holder.position.x < -74) {
-        car.holder.position.x = 74;
+      if (car.localX < -74) {
+        car.localX = 74;
       }
+      setTrafficPosition(car.holder, car.localX, car.laneZ);
     }
   };
 
@@ -487,11 +657,11 @@ function createArmPedestrianLink(root, collisionWorld) {
   const { armWalkway:w, armWalkwayEntrance:e, pedestrianBridge:b }=PARKING_LAYOUT;
   const base=createAmicDeckMaterial();
 
-  const addPanel=(width,depth,x,z,y=0.09,height=0.08,name="amic-level1-walkway")=>{
+  const addPanel=(width,depth,x,z,y=0.09,height=0.08,name="amic-level1-walkway",rotation=0)=>{
     const mat=base.clone();
     if(base.map){mat.map=base.map.clone();mat.map.wrapS=THREE.RepeatWrapping;mat.map.wrapT=THREE.RepeatWrapping;mat.map.repeat.set(width/1.8,depth/1.8);mat.map.offset.set((x-width/2)/1.8,(z-depth/2)/1.8);mat.map.needsUpdate=true;}
     const mesh=new THREE.Mesh(new THREE.BoxGeometry(width,height,depth),mat);
-    mesh.position.set(x,y-height/2,z);mesh.receiveShadow=true;mesh.name=name;root.add(mesh);return mesh;
+    mesh.position.set(x,y-height/2,z);mesh.rotation.y=rotation;mesh.receiveShadow=true;mesh.name=name;root.add(mesh);return mesh;
   };
 
   // Main ARM walkway.
@@ -543,15 +713,23 @@ function createArmPedestrianLink(root, collisionWorld) {
     color:0xffaa00
   });
 
-  // Bridge.
-  addPanel(b.width,b.depth,b.x,b.z,0.17,0.34,"amic-level1-bridge-deck");
+  // Bridge: turn it with the diagonal M1 and let the deck clear the entire
+  // trench, not just the original horizontal cut width.
+  const bridgeRotation=PARKING_LAYOUT.m1.rotation;
+  addPanel(b.width,b.depth,b.x,b.z,0.17,0.34,"amic-level1-bridge-deck",bridgeRotation);
 
   for(const side of [-1,1]){
     const fence=createAmicFenceSection({
       length:b.depth,
       name:`amic-level1-bridge-${side<0?"left":"right"}-rail`
     });
-    fence.position.set(b.x+side*(b.width/2-0.2),0.17,b.z);
+    const offset=side*(b.width/2-0.2);
+    fence.position.set(
+      b.x+Math.cos(bridgeRotation)*offset,
+      0.17,
+      b.z-Math.sin(bridgeRotation)*offset
+    );
+    fence.rotation.y=bridgeRotation;
     root.add(fence);
   }
 }
@@ -935,49 +1113,12 @@ function createSecondaryParkingLink(root, roadMaterial) {
 }
 
 
-function createTrees(root, collisionWorld) {
-  const positions = [
-    [-104, -35], [-104, -15], [-104, 8], [-101, 28],
-    [-70, -51], [-48, -51], [-22, -51], [55, -46],
-    [64, -44], [64, -19], [64, 5], [64, 26],
-    [-91, 35], [-76, 38], [-61, 39], [51, 56],
-    [65, 58], [84, 20], [85, -20], [85, -50]
-  ];
-  const trunk = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.16, 0.24, 2.6, 6),
-    material(0x62462f, 0.95),
-    positions.length
-  );
-  const canopy = new THREE.InstancedMesh(
-    new THREE.ConeGeometry(1.8, 4.2, 7),
-    material(0x31583b, 0.96, { flatShading: true }),
-    positions.length
-  );
-  const matrix = new THREE.Matrix4();
-  positions.forEach(([x, z], index) => {
-    matrix.makeTranslation(x, 1.3, z);
-    trunk.setMatrixAt(index, matrix);
-    matrix.makeTranslation(x, 4.2, z);
-    canopy.setMatrixAt(index, matrix);
-
-    addCollider(
-      collisionWorld,
-      root,
-      [x, 1.3, z],
-      [0.65, 2.6, 0.65],
-      "tree"
-    );
-  });
-  trunk.instanceMatrix.needsUpdate = true;
-  canopy.instanceMatrix.needsUpdate = true;
-  root.add(trunk, canopy);
-}
-
 export function createParkingEnvironment({ collisionWorld, playerCar, roadMaterial = null }) {
   const root = new THREE.Group();
   root.name = "parking-environment";
 
   createSeparatedGround(root);
+  createNorthM1Ledge(root);
   createCampusRoad(root, collisionWorld, roadMaterial);
   const { laneZ } = createM1(root, roadMaterial);
   const updateM1Traffic = createM1Traffic(root, laneZ);
@@ -995,9 +1136,6 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const updateLotBooms = LOT_OPENINGS.map(
     (opening) => createParkingBoomEntrance(root, collisionWorld, playerCar, opening)
   );
-  createTrees(root, collisionWorld);
-
-
   const update = (dt) => {
     updateM1Traffic(dt);
     updateCampusBoom(dt);

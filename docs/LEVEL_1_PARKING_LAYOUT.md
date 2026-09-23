@@ -27,7 +27,7 @@ Level 1 is based on the real Wits third-year parking area beside the ARM buildin
 - Consistent drive aisles between the strips.
 - A horizontal/parallel-parked row following the north curb.
 - A single row following the east curb, square to it like the other rows.
-- A lower street with a single west player entrance into the lot, and an Entrance 9 checkpoint further east where that street meets Yale Road.
+- A lower street with a single west player entrance into the lot, and an Entrance 9 checkpoint at the Yale Road junction. Yale Road itself runs diagonally outside a landscaped east-side strip.
 - Dense parking. Every bay is taken except the three the player is being sent to.
 
 Parking bay outlines are the only paint anywhere in the level. The lot floor, the campus street, the M1 and the bridge road all carry no markings: no lane dashes, no centre lines, no directional arrows and no hatched keep-clear boxes. Do not reintroduce them.
@@ -144,9 +144,9 @@ A third, central opening once existed at `X = -2.5` with its own throat and keep
 
 ### Campus checkpoint
 
-- Centre: `X = 58`, `Z = 41`
+- Centre: `X = 47.5`, `Z = 41`
 
-This is the Entrance 9-style canopy and boom. It controls the campus street where that street meets Yale Road, so it sits just west of the intersection rather than in the middle of an open road, where a gate would guard nothing. It must stay clear of the lot entrance and stop short of the crossing road; the test asserts both.
+This is the Entrance 9-style canopy and boom. It controls the campus street just west of its junction with Yale Road. Yale Road is deliberately diagonal and offset from the east parking curb, leaving a landscaped grass strip between the lot and road. The checkpoint remains well clear of the lot entrance; the test asserts both.
 
 The checkpoint is modelled in a local frame where `+X` runs across the lanes and `+Z` runs the way traffic travels, then the whole group is turned a quarter turn to line up with a street running east to west. Without that turn the boom lies along the road instead of across it. Its colliders are added in root space with world coordinates, because `CollisionWorld` reads local positions and ignores parent transforms; anything added inside the rotated group will not collide where it appears.
 
@@ -199,14 +199,14 @@ Any of the three bays completes the level. Changing `freeBayCount` or the separa
 
 ## The M1 Cutting
 
-The motorway runs in a cutting below the parking lot, as it does on the ground: you look over the lot fence, across a verge, and down onto the carriageway. `PARKING_LAYOUT.m1.y` is the level of the trench floor, not the road's thickness.
+The motorway runs in a cutting below the parking lot, as it does on the ground: the north parking curb gives directly onto a concrete retaining ledge and down to the carriageway. There is deliberately no grass verge between the lot and M1. `PARKING_LAYOUT.m1.y` is the level of the trench floor, not the road's thickness.
 
 Two things follow from that and are easy to break:
 
 - The terrain slab has to stop at each lip of the cutting. It is drawn as a southern and a northern piece for exactly that reason. Restoring it to one slab paves straight over the trench.
 - The retaining walls run from the trench floor up to the lip, so the wall face is what you see when you look over the edge. They are not walls standing on the ground beside a flat road.
 
-Anything placed near the north edge has to sit on the verge rather than over the trench; several trees had to move south when the cutting was dug. The right-hand road crosses it, so it carries a deck and rails over the span.
+Do not place grass or foliage on the north retaining apron. The right-hand Yale Road crosses the cutting, so it carries a deck and rails over the span.
 
 ## Collision and Boundary Rules
 
