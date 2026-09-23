@@ -24,7 +24,12 @@ import { createWitsBusStop } from "./WitsBusStop.js";
 const ROAD_COLOR = 0x292d31;
 
 const ROAD_VISUAL_WIDTH = 200;
-const TRAFFIC_EDGE = ROAD_VISUAL_WIDTH / 2 - 4;
+// Traffic only needs to travel a little beyond the playable/camera area.
+// Keeping the movement corridor compact avoids long periods where every car
+// is travelling far off-screen before it returns.
+const TRAFFIC_EDGE = 32;
+const TRAFFIC_SPEED_VARIATION = 0.12;
+const TRAFFIC_SLOT_JITTER = 0.32;
 
 const ARM_BACK_EXTENSION = 20;
 
@@ -2176,17 +2181,29 @@ createBridgeFenceReturns({
   }
 
   createTrafficLane(lane) {
-    let previousX = lane.direction > 0
-      ? -TRAFFIC_EDGE + this.random() * 20
-      : TRAFFIC_EDGE - this.random() * 20;
+    // Spread the fixed pool over the whole movement corridor instead of
+    // creating a tight convoy near one edge. A random phase and bounded jitter
+    // keep the stream from looking like a repeating metronome while still
+    // preserving readable gaps. Selected lanes may use a slightly longer
+    // seed-driven loop to create a modestly easier opening.
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const laneSpan = trafficEdge * 2;
+    const slotSize = laneSpan / lane.vehicleCount;
+    const phase = this.random() * slotSize;
+
     for (let index = 0; index < lane.vehicleCount; index++) {
       const type = this.vehicleTypeFor(lane, index);
       const vehicle = this.createVehicle(lane, type, index);
-      if (index > 0) previousX -= lane.direction * this.randomGap(lane);
-        vehicle.root.position.x = previousX;
-        vehicle.mover.reset(vehicle.root.position, 1);
-        vehicle.controller.speed = lane.speed;
-        if (vehicle.isTaxi) this.scheduleTaxiStop(vehicle);
+      const jitter = (this.random() - 0.5) * slotSize * TRAFFIC_SLOT_JITTER;
+      const progress = (phase + index * slotSize + jitter + laneSpan) % laneSpan;
+      const startX = lane.direction > 0
+        ? -trafficEdge + progress
+        : trafficEdge - progress;
+
+      vehicle.root.position.x = startX;
+      vehicle.mover.reset(vehicle.root.position, 1);
+      vehicle.controller.speed = vehicle.cruiseSpeed;
+      if (vehicle.isTaxi) this.scheduleTaxiStop(vehicle);
       this.traffic.push(vehicle);
     }
   }
@@ -2195,6 +2212,8 @@ createBridgeFenceReturns({
     const spec = pickRandomParkingCar(this.random);
     const vehicleRoot = new THREE.Group();
     vehicleRoot.name = `${type}-${this.definition.index}-${lane.laneIndex}-${index}`;
+    // The imported Level 2 vehicle models are visually authored so this
+    // rotation makes their noses point along the lane's X travel direction.
     vehicleRoot.rotation.y = lane.direction > 0 ? -Math.PI / 2 : Math.PI / 2;
     vehicleRoot.userData.vehicleSpecId = spec.id;
     this.root.add(vehicleRoot);
@@ -2213,19 +2232,26 @@ createBridgeFenceReturns({
     }
     const passenger = type === "taxi" ? this.createTaxiPassenger(lane) : null;
     vehicleRoot.position.z = lane.localZ;
-    const start = new THREE.Vector3(lane.direction > 0 ? -TRAFFIC_EDGE : TRAFFIC_EDGE, 0, lane.localZ);
-    const end = new THREE.Vector3(lane.direction > 0 ? TRAFFIC_EDGE : -TRAFFIC_EDGE, 0, lane.localZ);
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const start = new THREE.Vector3(lane.direction > 0 ? -trafficEdge : trafficEdge, 0, lane.localZ);
+    const end = new THREE.Vector3(lane.direction > 0 ? trafficEdge : -trafficEdge, 0, lane.localZ);
+    const cruiseSpeed = lane.speed * (
+      1 - TRAFFIC_SPEED_VARIATION
+      + this.random() * TRAFFIC_SPEED_VARIATION * 2
+    );
+
     return {
       root: vehicleRoot,
       controller: new VehicleController(vehicleRoot, {
-        maxForwardSpeed: lane.speed,
+        maxForwardSpeed: lane.speed * (1 + TRAFFIC_SPEED_VARIATION),
         acceleration: 18,
         braking: 24
       }),
       lane,
+      cruiseSpeed,
       mover: new WaypointMover(vehicleRoot, {
         points: [start, end],
-        speed: lane.speed,
+        speed: lane.speed * (1 + TRAFFIC_SPEED_VARIATION),
         mode: "one-shot",
         debugRoot: this.root,
         debugColor: type === "taxi" ? 0xf2b233 : 0x8fd6c8
@@ -2806,7 +2832,7 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     // Avoid repeatedly hard-resetting speed to zero, which makes traffic jerk.
     const available = this.distanceToVehicleAhead(vehicle);
 
-    let targetSpeed = vehicle.lane.speed;
+    let targetSpeed = vehicle.cruiseSpeed;
 
     // Begin easing off before reaching the minimum following distance.
     if (Number.isFinite(available) && available < 6) {
@@ -2836,6 +2862,10 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     return Math.max(0, allowed);
   }
 
+  trafficEdgeFor(lane) {
+    return TRAFFIC_EDGE * (lane.spacingScale ?? 1);
+  }
+
   distanceToVehicleAhead(vehicle) {
     let available = Infinity;
     for (const other of this.traffic) {
@@ -2849,15 +2879,36 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
   }
 
   recycleVehicle(vehicle) {
-    // Reuse the same object behind the current tail instead of creating a new vehicle.
+    // Wrap at a fixed off-screen edge instead of placing the car behind the
+    // current tail. The old tail-based recycle progressively formed convoys,
+    // followed by a very large empty section of road.
     const lane = vehicle.lane;
-    const otherVehicles = this.traffic.filter((candidate) => candidate !== vehicle && candidate.lane === lane);
-    const tailX = lane.direction > 0
-      ? Math.min(...otherVehicles.map((candidate) => candidate.root.position.x), -TRAFFIC_EDGE)
-      : Math.max(...otherVehicles.map((candidate) => candidate.root.position.x), TRAFFIC_EDGE);
-    const nextX = tailX - lane.direction * this.randomGap(lane);
-    vehicle.mover.reset(new THREE.Vector3(nextX, 0, lane.localZ), 1);
-    vehicle.controller.speed = lane.speed;
+    const trafficEdge = this.trafficEdgeFor(lane);
+    const entryX = lane.direction > 0 ? -trafficEdge : trafficEdge;
+    const otherVehicles = this.traffic.filter(
+      (candidate) => candidate !== vehicle && candidate.lane === lane
+    );
+    const nearestProgress = otherVehicles.reduce((nearest, candidate) => {
+      const progress = (candidate.root.position.x - entryX) * lane.direction;
+      return progress >= 0 ? Math.min(nearest, progress) : nearest;
+    }, Infinity);
+    const minimumFollowingDistance = otherVehicles.reduce((minimum, candidate) => (
+      Math.max(minimum, (vehicle.length + candidate.length) / 2 + 0.8)
+    ), vehicle.length + 0.8);
+    const entryBackoff = Number.isFinite(nearestProgress)
+      ? Math.max(0, minimumFollowingDistance - nearestProgress)
+      : 0;
+    const recycleX = entryX - lane.direction * entryBackoff;
+    vehicle.mover.reset(new THREE.Vector3(recycleX, 0, lane.localZ), 1);
+
+    // Pick a fresh but bounded cruise speed each lap. Faster cars will ease
+    // behind slower ones via distanceToVehicleAhead rather than overlapping.
+    vehicle.cruiseSpeed = lane.speed * (
+      1 - TRAFFIC_SPEED_VARIATION
+      + this.random() * TRAFFIC_SPEED_VARIATION * 2
+    );
+    vehicle.controller.speed = vehicle.cruiseSpeed;
+
     if (vehicle.isTaxi) {
       vehicle.passenger.visible = false;
       this.scheduleTaxiStop(vehicle);
