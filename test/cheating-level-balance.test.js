@@ -406,3 +406,39 @@ test("low suspicion leaves the normal tutor patrol unchanged", () => {
 
   assert.equal(level.tutorMover.index, 13);
 });
+
+
+test("Level 3 tutor reuses the rounded Level 2 pedestrian rig", () => {
+  const level = new CheatingLevel({});
+  level.root = new THREE.Group();
+  level.collisionWorld = { add() {} };
+
+  level.createTutor();
+
+  assert.equal(level.tutorRig.head.geometry.type, "SphereGeometry");
+  assert.equal(level.tutorRig.body.geometry.type, "CapsuleGeometry");
+  assert.equal(level.tutorRig.legs[0].children[0].geometry.type, "CapsuleGeometry");
+  assert.ok(
+    level.tutorRig.legs[0].children.some((child) => child.geometry?.type === "BoxGeometry"),
+    "tutor should retain the Level 2 shoe geometry"
+  );
+  assert.equal(level.spotlight.parent, level.tutorHead);
+});
+
+test("Level 3 tutor head still scans independently with the vision cone attached", () => {
+  const level = new CheatingLevel({});
+  level.root = new THREE.Group();
+  level.collisionWorld = { add() {} };
+  level.createTutor();
+  level.patrolState = "scan";
+  level.tutorTime = 0.5;
+
+  level.updateTutorAnimation(1 / 60, false);
+
+  assert.notEqual(level.tutorHead.rotation.y, 0);
+  assert.equal(level.spotlight.parent, level.tutorHead);
+  assert.ok(
+    level.tutorHead.children.some((child) => child.geometry?.type === "ConeGeometry"),
+    "vision cone should remain parented to the tutor head"
+  );
+});
