@@ -9,9 +9,9 @@ export const SCORE_CONFIG = Object.freeze({
   }),
   levels: Object.freeze({
     1: Object.freeze({ parTime: 45, slowTime: 120 }),
-    // Level 2 records real elapsed time now. Its previous 18-second par was
-    // based on a clock that could be reduced by Flat White bonuses.
-    2: Object.freeze({ parTime: 36 }),
+    // Level 2 records real elapsed time and has no timeout. Forty seconds
+    // or faster earns full time credit; slower runs decay continuously.
+    2: Object.freeze({ parTime: 40 }),
     3: Object.freeze({ parTime: 45, slowTime: 100 })
   })
 });
