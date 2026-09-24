@@ -954,12 +954,13 @@ export class Game {
       u.uCameraMatrixWorld.value.copy(this.camera.matrixWorld);
       u.uTime.value=this.clock.elapsedTime;
       if(level1Fog){
+        const fog=this.currentLevel.roadFogConfig??{};
         u.uRadialMode.value=1;
         u.uFogCenterX.value=0;
         u.uFogCenterZ.value=-8;
-        u.uFogStart.value=82;
-        u.uFogEnd.value=130;
-        u.uDensity.value=0.9;
+        u.uFogStart.value=fog.fogStart??82;
+        u.uFogEnd.value=fog.fogEnd??130;
+        u.uDensity.value=fog.density??0.9;
       }else{
         u.uRadialMode.value=0;
         u.uFogCenterX.value=0;
