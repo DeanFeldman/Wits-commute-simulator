@@ -37,6 +37,9 @@ import {
   PARKING_LAYOUT
 } from "./parking/ParkingEnvironment.js";
 import { NORTH_DIORAMA_CONFIG } from "./parking/NorthDiorama.js";
+import { EAST_DIORAMA_CONFIG } from "./parking/EastDiorama.js";
+import { SOUTH_DIORAMA_CONFIG } from "./parking/SouthDiorama.js";
+import { WEST_DIORAMA_CONFIG } from "./parking/WestDiorama.js";
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
 
 const LEVEL_ONE_ASPHALT_Y = 0.035;
@@ -1191,14 +1194,23 @@ export class ParkingLevel {
     this.chaseCamera = null;
     this.skyCamera = null;
     this.northReferenceCamera = null;
+    this.eastReferenceCamera = null;
+    this.southReferenceCamera = null;
+    this.westReferenceCamera = null;
     this.skyViewActive = false;
     this.northReferenceActive = false;
+    this.eastReferenceActive = false;
+    this.southReferenceActive = false;
+    this.westReferenceActive = false;
     this.viewToggle = null;
     this.devToggle = null;
     this.devMenu = null;
     this.skyZoomInput = null;
     this.skyZoomValue = null;
     this.northReferenceToggle = null;
+    this.eastReferenceToggle = null;
+    this.southReferenceToggle = null;
+    this.westReferenceToggle = null;
     this.skyViewScale = LEVEL_ONE_PARKING_LAYOUT.skyViewScale;
     this.chaseFog = null;
     this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
@@ -1206,6 +1218,9 @@ export class ParkingLevel {
     this.onDevToggle = this.toggleDevMenu.bind(this);
     this.onSkyZoomInput = this.setSkyZoom.bind(this);
     this.onNorthReferenceToggle = this.toggleNorthReferenceView.bind(this);
+    this.onEastReferenceToggle = this.toggleEastReferenceView.bind(this);
+    this.onSouthReferenceToggle = this.toggleSouthReferenceView.bind(this);
+    this.onWestReferenceToggle = this.toggleWestReferenceView.bind(this);
     this.asphaltUniforms = null;
     this.potholeWaterUniforms = null;
     this.potholeSplash = null;
@@ -1328,7 +1343,12 @@ async load() {
     58,
     1,
     0.1,
-    NORTH_DIORAMA_CONFIG.referenceCamera.far
+    Math.max(
+      NORTH_DIORAMA_CONFIG.referenceCamera.far,
+      EAST_DIORAMA_CONFIG.referenceCamera.far,
+      SOUTH_DIORAMA_CONFIG.referenceCamera.far,
+      WEST_DIORAMA_CONFIG.referenceCamera.far
+    )
   );
 
   const initialBehind = new THREE.Vector3(
@@ -1352,6 +1372,39 @@ async load() {
   this.northReferenceCamera.name = "NorthReferenceCamera";
   this.northReferenceCamera.position.set(...reference.position);
   this.northReferenceCamera.lookAt(...reference.target);
+
+  const eastReference = EAST_DIORAMA_CONFIG.referenceCamera;
+  this.eastReferenceCamera = new THREE.PerspectiveCamera(
+    eastReference.fov,
+    1,
+    0.1,
+    eastReference.far
+  );
+  this.eastReferenceCamera.name = "EastReferenceCamera";
+  this.eastReferenceCamera.position.set(...eastReference.position);
+  this.eastReferenceCamera.lookAt(...eastReference.target);
+
+  const southReference = SOUTH_DIORAMA_CONFIG.referenceCamera;
+  this.southReferenceCamera = new THREE.PerspectiveCamera(
+    southReference.fov,
+    1,
+    0.1,
+    southReference.far
+  );
+  this.southReferenceCamera.name = "SouthReferenceCamera";
+  this.southReferenceCamera.position.set(...southReference.position);
+  this.southReferenceCamera.lookAt(...southReference.target);
+
+  const westReference = WEST_DIORAMA_CONFIG.referenceCamera;
+  this.westReferenceCamera = new THREE.PerspectiveCamera(
+    westReference.fov,
+    1,
+    0.1,
+    westReference.far
+  );
+  this.westReferenceCamera.name = "WestReferenceCamera";
+  this.westReferenceCamera.position.set(...westReference.position);
+  this.westReferenceCamera.lookAt(...westReference.target);
 
   this.skyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
   this.skyCamera.position.set(PARKING_LAYOUT.mainLot.x, 90, PARKING_LAYOUT.mainLot.z);
@@ -1380,6 +1433,9 @@ async load() {
   this.skyZoomInput = document.querySelector("#level1-sky-zoom");
   this.skyZoomValue = document.querySelector("#level1-sky-zoom-value");
   this.northReferenceToggle = document.querySelector("#level1-north-reference-toggle");
+  this.eastReferenceToggle = document.querySelector("#level1-east-reference-toggle");
+  this.southReferenceToggle = document.querySelector("#level1-south-reference-toggle");
+  this.westReferenceToggle = document.querySelector("#level1-west-reference-toggle");
   this.devToggle.hidden = false;
   this.skyZoomInput.value = String(this.skyViewScale);
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
@@ -1388,6 +1444,18 @@ async load() {
   if (this.northReferenceToggle) {
     this.northReferenceToggle.hidden = !import.meta.env.DEV;
     this.northReferenceToggle.addEventListener("click", this.onNorthReferenceToggle);
+  }
+  if (this.eastReferenceToggle) {
+    this.eastReferenceToggle.hidden = !import.meta.env.DEV;
+    this.eastReferenceToggle.addEventListener("click", this.onEastReferenceToggle);
+  }
+  if (this.southReferenceToggle) {
+    this.southReferenceToggle.hidden = !import.meta.env.DEV;
+    this.southReferenceToggle.addEventListener("click", this.onSouthReferenceToggle);
+  }
+  if (this.westReferenceToggle) {
+    this.westReferenceToggle.hidden = !import.meta.env.DEV;
+    this.westReferenceToggle.addEventListener("click", this.onWestReferenceToggle);
   }
 
   await Promise.all([
@@ -1423,11 +1491,7 @@ async load() {
   }
 
   toggleSkyView() {
-    if (this.northReferenceActive) {
-      this.northReferenceActive = false;
-      this.northReferenceToggle?.setAttribute("aria-pressed", "false");
-      if (this.northReferenceToggle) this.northReferenceToggle.textContent = "North reference view";
-    }
+    this.resetReferenceViews();
     this.skyViewActive = !this.skyViewActive;
 
     if (this.skyViewActive) {
@@ -1444,12 +1508,16 @@ async load() {
   toggleNorthReferenceView() {
     if (!import.meta.env.DEV || !this.northReferenceCamera) return;
 
+    if (this.eastReferenceActive || this.southReferenceActive || this.westReferenceActive) {
+      this.resetReferenceViews();
+    }
     this.northReferenceActive = !this.northReferenceActive;
     if (this.northReferenceActive) {
       this.skyViewActive = false;
       this.viewToggle.textContent = "Sky view";
       this.viewToggle.setAttribute("aria-pressed", "false");
       this.game.setCamera(this.northReferenceCamera);
+      this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
     } else {
       this.game.setCamera(this.chaseCamera);
     }
@@ -1458,6 +1526,102 @@ async load() {
       ? "Return to chase view"
       : "North reference view";
     this.northReferenceToggle.setAttribute("aria-pressed", String(this.northReferenceActive));
+  }
+
+  toggleEastReferenceView() {
+    if (!import.meta.env.DEV || !this.eastReferenceCamera) return;
+
+    if (this.northReferenceActive || this.southReferenceActive || this.westReferenceActive) {
+      this.resetReferenceViews();
+    }
+    this.eastReferenceActive = !this.eastReferenceActive;
+    if (this.eastReferenceActive) {
+      this.skyViewActive = false;
+      this.viewToggle.textContent = "Sky view";
+      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.game.setCamera(this.eastReferenceCamera);
+      this.roadFogConfig = EAST_DIORAMA_CONFIG.atmosphere;
+    } else {
+      this.game.setCamera(this.chaseCamera);
+      this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
+    }
+
+    this.eastReferenceToggle.textContent = this.eastReferenceActive
+      ? "Return to chase view"
+      : "East reference view";
+    this.eastReferenceToggle.setAttribute("aria-pressed", String(this.eastReferenceActive));
+  }
+
+  toggleSouthReferenceView() {
+    if (!import.meta.env.DEV || !this.southReferenceCamera) return;
+
+    if (this.northReferenceActive || this.eastReferenceActive || this.westReferenceActive) {
+      this.resetReferenceViews();
+    }
+    this.southReferenceActive = !this.southReferenceActive;
+    if (this.southReferenceActive) {
+      this.skyViewActive = false;
+      this.viewToggle.textContent = "Sky view";
+      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.game.setCamera(this.southReferenceCamera);
+      this.roadFogConfig = SOUTH_DIORAMA_CONFIG.atmosphere;
+    } else {
+      this.game.setCamera(this.chaseCamera);
+      this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
+    }
+
+    this.southReferenceToggle.textContent = this.southReferenceActive
+      ? "Return to chase view"
+      : "South reference view";
+    this.southReferenceToggle.setAttribute("aria-pressed", String(this.southReferenceActive));
+  }
+
+  toggleWestReferenceView() {
+    if (!import.meta.env.DEV || !this.westReferenceCamera) return;
+
+    if (this.northReferenceActive || this.eastReferenceActive || this.southReferenceActive) {
+      this.resetReferenceViews();
+    }
+    this.westReferenceActive = !this.westReferenceActive;
+    if (this.westReferenceActive) {
+      this.skyViewActive = false;
+      this.viewToggle.textContent = "Sky view";
+      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.game.setCamera(this.westReferenceCamera);
+      this.roadFogConfig = WEST_DIORAMA_CONFIG.atmosphere;
+    } else {
+      this.game.setCamera(this.chaseCamera);
+      this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
+    }
+
+    this.westReferenceToggle.textContent = this.westReferenceActive
+      ? "Return to chase view"
+      : "West reference view";
+    this.westReferenceToggle.setAttribute("aria-pressed", String(this.westReferenceActive));
+  }
+
+  resetReferenceViews() {
+    this.northReferenceActive = false;
+    this.eastReferenceActive = false;
+    this.southReferenceActive = false;
+    this.westReferenceActive = false;
+    this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
+    if (this.northReferenceToggle) {
+      this.northReferenceToggle.textContent = "North reference view";
+      this.northReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.eastReferenceToggle) {
+      this.eastReferenceToggle.textContent = "East reference view";
+      this.eastReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.southReferenceToggle) {
+      this.southReferenceToggle.textContent = "South reference view";
+      this.southReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.westReferenceToggle) {
+      this.westReferenceToggle.textContent = "West reference view";
+      this.westReferenceToggle.setAttribute("aria-pressed", "false");
+    }
   }
 loadPotholeShark() {
   return new Promise(resolve => {
@@ -3056,7 +3220,12 @@ if (hit) {
 
     // The saved development view remains fixed so before/after screenshots
     // compare the diorama from exactly the same composition.
-    if (this.northReferenceActive) return;
+    if (
+      this.northReferenceActive
+      || this.eastReferenceActive
+      || this.southReferenceActive
+      || this.westReferenceActive
+    ) return;
 
     const camera =
       this.game.camera;
@@ -3161,6 +3330,9 @@ if (hit) {
     this.devToggle?.removeEventListener("click", this.onDevToggle);
     this.skyZoomInput?.removeEventListener("input", this.onSkyZoomInput);
     this.northReferenceToggle?.removeEventListener("click", this.onNorthReferenceToggle);
+    this.eastReferenceToggle?.removeEventListener("click", this.onEastReferenceToggle);
+    this.southReferenceToggle?.removeEventListener("click", this.onSouthReferenceToggle);
+    this.westReferenceToggle?.removeEventListener("click", this.onWestReferenceToggle);
     if (this.viewToggle) {
       this.viewToggle.hidden = true;
       this.viewToggle.textContent = "Sky view";
@@ -3175,6 +3347,21 @@ if (hit) {
       this.northReferenceToggle.hidden = true;
       this.northReferenceToggle.textContent = "North reference view";
       this.northReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.eastReferenceToggle) {
+      this.eastReferenceToggle.hidden = true;
+      this.eastReferenceToggle.textContent = "East reference view";
+      this.eastReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.southReferenceToggle) {
+      this.southReferenceToggle.hidden = true;
+      this.southReferenceToggle.textContent = "South reference view";
+      this.southReferenceToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.westReferenceToggle) {
+      this.westReferenceToggle.hidden = true;
+      this.westReferenceToggle.textContent = "West reference view";
+      this.westReferenceToggle.setAttribute("aria-pressed", "false");
     }
     disposeObject3D(this.root);
     this.potholeSplash = null;

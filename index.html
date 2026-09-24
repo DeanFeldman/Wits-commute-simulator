@@ -73,8 +73,17 @@
     <aside id="level1-dev-menu" aria-label="Level 1 developer controls" hidden>
       <label for="level1-sky-zoom">Sky view zoom out <output id="level1-sky-zoom-value">1.05×</output></label>
       <input id="level1-sky-zoom" type="range" min="0.7" max="2.5" step="0.05" value="1.05" />
-      <button id="level1-north-reference-toggle" type="button" aria-pressed="false" hidden>
+      <button id="level1-north-reference-toggle" class="level1-reference-toggle" type="button" aria-pressed="false" hidden>
         North reference view
+      </button>
+      <button id="level1-east-reference-toggle" class="level1-reference-toggle" type="button" aria-pressed="false" hidden>
+        East reference view
+      </button>
+      <button id="level1-south-reference-toggle" class="level1-reference-toggle" type="button" aria-pressed="false" hidden>
+        South reference view
+      </button>
+      <button id="level1-west-reference-toggle" class="level1-reference-toggle" type="button" aria-pressed="false" hidden>
+        West reference view
       </button>
     </aside>
 

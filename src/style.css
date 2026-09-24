@@ -164,7 +164,7 @@ body.level-2 #level2-vignette{opacity:1}
   margin-top: 0.6rem;
 }
 
-#level1-north-reference-toggle {
+.level1-reference-toggle {
   width: 100%;
   margin-top: 0.75rem;
   padding: 0.5rem 0.65rem;
@@ -177,14 +177,14 @@ body.level-2 #level2-vignette{opacity:1}
   font-weight: 700;
 }
 
-#level1-north-reference-toggle:hover,
-#level1-north-reference-toggle:focus-visible,
-#level1-north-reference-toggle[aria-pressed="true"] {
+.level1-reference-toggle:hover,
+.level1-reference-toggle:focus-visible,
+.level1-reference-toggle[aria-pressed="true"] {
   background: #35e0d1;
   color: #071111;
 }
 
-#level1-north-reference-toggle[hidden] {
+.level1-reference-toggle[hidden] {
   display: none;
 }
 

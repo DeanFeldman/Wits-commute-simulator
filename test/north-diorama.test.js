@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   NORTH_DIORAMA_CONFIG,
+  createNorthDiorama,
   getNorthDioramaCarPlacements,
   getNorthDioramaFoliageExclusions
 } from "../src/levels/parking/NorthDiorama.js";
@@ -44,6 +45,41 @@ test("north diorama cars stay inside their relocated parking ground", () => {
     assert.ok(car.z < southEdgeZ);
     assert.ok(car.z > northEdgeZ);
   }
+});
+
+test("north-west forecourt fills the bridge-side gap without covering the M1", () => {
+  const { plaza, landing, serviceLane } = NORTH_DIORAMA_CONFIG.northWestForecourt;
+  const plazaWest = plaza.center[0] - plaza.width / 2;
+  const plazaEast = plaza.center[0] + plaza.width / 2;
+  const plazaSouth = plaza.center[1] + plaza.depth / 2;
+  const parkingWest = NORTH_DIORAMA_CONFIG.parking.center[0]
+    - NORTH_DIORAMA_CONFIG.parking.width / 2;
+
+  for (const x of [plazaWest, plaza.center[0], plazaEast]) {
+    assert.ok(
+      plazaSouth <= northM1LipZAt(x) - 2,
+      `forecourt clears the far M1 lip at x=${x}`
+    );
+  }
+  assert.ok(
+    landing.center[0] + landing.width / 2 >= -64,
+    "landing reaches the existing pedestrian bridge"
+  );
+  assert.equal(
+    serviceLane.center[0] + serviceLane.width / 2,
+    parkingWest,
+    "shuttle lane meets the west edge of the backdrop parking"
+  );
+
+  const { root, stats } = createNorthDiorama({ loadVegetation: false });
+  const names = [];
+  root.traverse((object) => names.push(object.name));
+  assert.ok(names.includes("NorthWestForecourt"));
+  assert.ok(names.includes("north-west-forecourt-plaza"));
+  assert.ok(names.includes("north-west-shuttle-bodies"));
+  assert.ok(names.includes("north-west-forecourt-tree-canopies"));
+  assert.ok(stats.northWestForecourtDrawCalls <= 14, "forecourt remains a cheap static diorama");
+  assert.equal(stats.dynamicUpdates, 0);
 });
 
 test("north diorama foliage builds fuller crowns and avoids architecture", () => {

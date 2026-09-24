@@ -208,6 +208,35 @@ Two things follow from that and are easy to break:
 
 Do not place grass or foliage on the north retaining apron. The right-hand Yale Road crosses the cutting, so it carries a deck and rails over the span.
 
+## West Campus Diorama
+
+`src/levels/parking/WestDiorama.js` owns the architecture-heavy view beyond the west (`-X`) edge of the playable lot. It is scenery only: the existing parking field remains the foreground and source of all parking gameplay, parked cars, targets, and colliders. Do not add a second parking lot or move the playable rows to reproduce the reference image.
+
+The approved landmark hierarchy is:
+
+- the large cool-grey institutional block centred near `(-83, -5)`, behind the west curb;
+- a warm red/brown vertical facade section on its player-facing side;
+- the attached lower grey annex to the north/screen-right;
+- three white arched-roof halls stepping away on the south/screen-left;
+- layered low-detail campus blocks behind those landmarks;
+- a tall thin tower/chimney visible above the roofline;
+- the existing M1 cutting continued into the west background;
+- dense tree bands around, but never inside, the building footprints or road corridor.
+
+The developer-only west reference camera is a normal ground-level inspection view at `(43, 5, -5)`, looking toward `(-142, 8, -5)`, with a `58` degree field of view. It exists to compare silhouettes and spatial ordering with the west-side reference; it is not a gameplay camera and the level must still start in chase view.
+
+West foliage is generated through `ParkingFoliage.js` from cached vegetation assets and Level-of-Detail groups. Repeated facade windows, skyline masses, and other repeated details are instanced. The diorama has no per-frame update loop. Preserve those constraints when adding detail so the view remains suitable for lab hardware.
+
+## North-West Forecourt
+
+The scenery-only gap north-west of the M1 is filled by the lightweight forecourt in `NorthDiorama.js`. It contains a brick plaza, the landing from the existing pedestrian bridge, a shuttle/drop-off strip that meets the west edge of the north backdrop parking, a shelter, benches, planters and six low-poly trees. These details are static and mostly instanced; they must not introduce gameplay colliders or extend onto the M1 cutting.
+
+## South Industrial Yard
+
+The south composition preserves the depth visible from Entrance 9: the playable lot and campus road remain in the foreground, followed by a long scenery-only parking garden, a central gate avenue with inexpensive instanced trees, then a service court and the campus buildings set well back. The secondary parking uses four north-south double strips rather than a shallow facade-side row.
+
+`SouthDiorama.js` places the static service yard behind that parking garden. It includes outlined service bays, four low-detail campus vans, a loading canopy and doors, facade ribs, rooftop plant and a tall service stack. The yard remains west of Yale Road, contributes no colliders or update loop, and is supplied as a foliage exclusion so trees do not grow through its asphalt or vehicles. The three principal south buildings must remain behind the parking garden; do not pull them back up against the playable lot.
+
 ## Collision and Boundary Rules
 
 - Fences, curbs, buildings, parked cars, and a closed boom use `CollisionWorld`.

@@ -25,6 +25,15 @@ export const NORTH_DIORAMA_CONFIG = Object.freeze({
     depth: 36,
     carDensity: 1
   }),
+  northWestForecourt: Object.freeze({
+    // Lightweight scenery for the previously empty wedge west of the north
+    // parking. The landing meets the existing pedestrian bridge while the
+    // service lane meets the parking's north-west corner.
+    plaza: Object.freeze({ center: Object.freeze([-111, -97]), width: 56, depth: 28 }),
+    landing: Object.freeze({ center: Object.freeze([-74, -80]), width: 22, depth: 6 }),
+    approach: Object.freeze({ center: Object.freeze([-64, -75.5]), width: 6, depth: 4.5 }),
+    serviceLane: Object.freeze({ center: Object.freeze([-111, -116]), width: 62, depth: 6 })
+  }),
   campus: Object.freeze({
     mainRightPosition: Object.freeze([36, -128]),
     centrePosition: Object.freeze([-18, -136]),
@@ -59,7 +68,12 @@ const PALETTE = Object.freeze({
   skylineDark: 0x6f7d80,
   canopy: 0x46694d,
   cloud: 0xd2dde0,
-  parkingPaint: 0xd7d3b5
+  parkingPaint: 0xd7d3b5,
+  plaza: 0xb7835f,
+  plazaJoint: 0x76513f,
+  planter: 0x7d8179,
+  wood: 0x754a2f,
+  shuttle: 0xd6d8d3
 });
 
 function standardMaterial(color, roughness = 0.9, extras = {}) {
@@ -168,6 +182,7 @@ export function getNorthDioramaFoliageExclusions() {
   const [mainX, mainZ] = NORTH_DIORAMA_CONFIG.campus.mainRightPosition;
   const [connectorX, connectorZ] = NORTH_DIORAMA_CONFIG.campus.connectorPosition;
   const parking = NORTH_DIORAMA_CONFIG.parking;
+  const forecourt = NORTH_DIORAMA_CONFIG.northWestForecourt;
   // The extra clearance is large enough for the widened tree crowns, so the
   // foliage reads as landscaping in front of a facade rather than growing
   // through it.
@@ -190,6 +205,30 @@ export function getNorthDioramaFoliageExclusions() {
       width: parking.width,
       depth: parking.depth,
       buffer: 0.35
+    }),
+    Object.freeze({
+      name: "north-west-forecourt-plaza",
+      x: forecourt.plaza.center[0],
+      z: forecourt.plaza.center[1],
+      width: forecourt.plaza.width,
+      depth: forecourt.plaza.depth,
+      buffer: 0.8
+    }),
+    Object.freeze({
+      name: "north-west-forecourt-landing",
+      x: forecourt.landing.center[0],
+      z: forecourt.landing.center[1],
+      width: forecourt.landing.width + 8,
+      depth: forecourt.landing.depth + 5,
+      buffer: 0.5
+    }),
+    Object.freeze({
+      name: "north-west-shuttle-lane",
+      x: forecourt.serviceLane.center[0],
+      z: forecourt.serviceLane.center[1],
+      width: forecourt.serviceLane.width,
+      depth: forecourt.serviceLane.depth,
+      buffer: 1
     })
   ]);
 }
@@ -298,6 +337,137 @@ function createParking(root, materials) {
     "north-diorama-light-heads",
     polePositions.map((x) => ({ position: [x, 9.58, config.center[1]], scale: [2.2, 0.16, 0.34] })),
     materials.metal
+  );
+}
+
+function createNorthWestForecourt(root, materials) {
+  const group = new THREE.Group();
+  group.name = "NorthWestForecourt";
+  root.add(group);
+
+  const config = NORTH_DIORAMA_CONFIG.northWestForecourt;
+  const { plaza, landing, approach, serviceLane } = config;
+
+  addBox(
+    group,
+    [plaza.width, 0.12, plaza.depth],
+    [plaza.center[0], 0.035, plaza.center[1]],
+    materials.plaza,
+    { name: "north-west-forecourt-plaza" }
+  );
+  addBox(
+    group,
+    [landing.width, 0.14, landing.depth],
+    [landing.center[0], 0.05, landing.center[1]],
+    materials.plaza,
+    { name: "north-west-bridge-landing" }
+  );
+  addBox(
+    group,
+    [approach.width, 0.16, approach.depth],
+    [approach.center[0], 0.08, approach.center[1]],
+    materials.plaza,
+    { name: "north-west-bridge-approach" }
+  );
+  addBox(
+    group,
+    [serviceLane.width, 0.1, serviceLane.depth],
+    [serviceLane.center[0], 0.02, serviceLane.center[1]],
+    materials.asphalt,
+    { name: "north-west-shuttle-lane" }
+  );
+
+  // A single instanced batch suggests the large brick paving grid visible in
+  // the aerial reference without introducing another texture or shader.
+  const joints = [];
+  const plazaWest = plaza.center[0] - plaza.width / 2;
+  const plazaEast = plaza.center[0] + plaza.width / 2;
+  const plazaNorth = plaza.center[1] - plaza.depth / 2;
+  const plazaSouth = plaza.center[1] + plaza.depth / 2;
+  for (let x = plazaWest + 7; x < plazaEast; x += 7) {
+    joints.push({ position: [x, 0.102, plaza.center[1]], scale: [0.075, 0.018, plaza.depth - 0.5] });
+  }
+  for (let z = plazaNorth + 7; z < plazaSouth; z += 7) {
+    joints.push({ position: [plaza.center[0], 0.103, z], scale: [plaza.width - 0.5, 0.018, 0.075] });
+  }
+  addInstancedBoxes(group, "north-west-forecourt-paving-joints", joints, materials.plazaJoint);
+
+  // Three low-detail campus shuttles create scale and connect the plaza to the
+  // north parking. Bodies and roofs are two instanced draw calls in total.
+  const shuttleXs = [-130, -108, -87];
+  addInstancedBoxes(
+    group,
+    "north-west-shuttle-bodies",
+    shuttleXs.map((x) => ({ position: [x, 1.05, serviceLane.center[1]], scale: [8, 1.9, 2.45] })),
+    materials.shuttle
+  );
+  addInstancedBoxes(
+    group,
+    "north-west-shuttle-window-bands",
+    shuttleXs.map((x) => ({ position: [x, 2.02, serviceLane.center[1]], scale: [6.8, 0.24, 1.9] })),
+    materials.glass
+  );
+
+  const shelterX = -109;
+  addBox(group, [20, 0.28, 3.2], [shelterX, 3.05, -111.1], materials.roof, {
+    name: "north-west-shuttle-shelter-roof",
+    receiveShadow: false
+  });
+  addInstancedBoxes(
+    group,
+    "north-west-shuttle-shelter-posts",
+    [-118, -112, -106, -100].map((x) => ({ position: [x, 1.5, -111.1], scale: [0.14, 3, 0.14] })),
+    materials.metal
+  );
+
+  const planterPositions = [
+    [-136, -106], [-136, -96], [-136, -86],
+    [-126, -83.8], [-108, -83.8], [-90, -83.8]
+  ];
+  addInstancedBoxes(
+    group,
+    "north-west-forecourt-planters",
+    planterPositions.map(([x, z]) => ({ position: [x, 0.42, z], scale: [2.4, 0.75, 2.4] })),
+    materials.planter
+  );
+  addInstancedBoxes(
+    group,
+    "north-west-forecourt-tree-trunks",
+    planterPositions.map(([x, z]) => ({ position: [x, 2.15, z], scale: [0.34, 3.2, 0.34] })),
+    materials.wood
+  );
+
+  const canopyGeometry = new THREE.IcosahedronGeometry(1, 1);
+  const canopies = new THREE.InstancedMesh(canopyGeometry, materials.canopy, planterPositions.length);
+  canopies.name = "north-west-forecourt-tree-canopies";
+  canopies.castShadow = false;
+  canopies.receiveShadow = true;
+  const canopyMatrix = new THREE.Matrix4();
+  const canopyPosition = new THREE.Vector3();
+  const canopyScale = new THREE.Vector3();
+  const canopyQuaternion = new THREE.Quaternion();
+  planterPositions.forEach(([x, z], index) => {
+    canopyPosition.set(x, 5.15, z);
+    canopyScale.set(2.7 + index % 2 * 0.45, 3.3, 2.6 + (index + 1) % 2 * 0.4);
+    canopyMatrix.compose(canopyPosition, canopyQuaternion, canopyScale);
+    canopies.setMatrixAt(index, canopyMatrix);
+  });
+  canopies.instanceMatrix.needsUpdate = true;
+  canopies.computeBoundingSphere();
+  group.add(canopies);
+
+  const benches = [[-123, -101], [-108, -101], [-94, -93]];
+  addInstancedBoxes(
+    group,
+    "north-west-forecourt-bench-seats",
+    benches.map(([x, z]) => ({ position: [x, 0.62, z], scale: [4.2, 0.22, 0.72] })),
+    materials.wood
+  );
+  addInstancedBoxes(
+    group,
+    "north-west-forecourt-bench-backs",
+    benches.map(([x, z]) => ({ position: [x, 1.05, z + 0.3], scale: [4.2, 0.85, 0.18] })),
+    materials.wood
   );
 }
 
@@ -536,6 +706,11 @@ export function createNorthDiorama({ loadVegetation = true } = {}) {
     skyline: new THREE.MeshBasicMaterial({ color: PALETTE.skyline }),
     skylineDark: new THREE.MeshBasicMaterial({ color: PALETTE.skylineDark }),
     canopy: standardMaterial(PALETTE.canopy, 0.96),
+    plaza: standardMaterial(PALETTE.plaza, 0.94),
+    plazaJoint: new THREE.MeshBasicMaterial({ color: PALETTE.plazaJoint }),
+    planter: standardMaterial(PALETTE.planter, 0.96),
+    wood: standardMaterial(PALETTE.wood, 0.9),
+    shuttle: standardMaterial(PALETTE.shuttle, 0.68, { metalness: 0.08 }),
     cloud: new THREE.MeshBasicMaterial({
       color: PALETTE.cloud,
       transparent: true,
@@ -546,6 +721,7 @@ export function createNorthDiorama({ loadVegetation = true } = {}) {
 
   createForeground(root, materials);
   createParking(root, materials);
+  createNorthWestForecourt(root, materials);
 
   const vegetation = new THREE.Group();
   vegetation.name = "Vegetation";
@@ -561,7 +737,7 @@ export function createNorthDiorama({ loadVegetation = true } = {}) {
   createCampusBuildings(root, materials);
   createDistantSkyline(root, materials);
 
-  if (import.meta.env.DEV) createDebugHelpers(root);
+  if (import.meta.env?.DEV) createDebugHelpers(root);
 
   // Loading individual LOD nodes at runtime still downloads each complete source GLB.
   // TODO: production asset pass: export trimmed packs containing only the
@@ -580,6 +756,7 @@ export function createNorthDiorama({ loadVegetation = true } = {}) {
     stats: Object.freeze({
       placeholderCars: getNorthDioramaCarPlacements(NORTH_DIORAMA_CONFIG.parking.carDensity).length,
       skylineBuildings: 31,
+      northWestForecourtDrawCalls: 14,
       dynamicUpdates: 0
     })
   };

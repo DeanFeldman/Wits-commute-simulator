@@ -4,7 +4,6 @@ import { createAmicFenceSection } from "../../shared/AmicFence.js";
 import { createInstancedCarField } from "../../shared/InstancedCarField.js";
 import { applyRoadUvs } from "../../shaders/asphaltShader.js";
 import {
-  PARKING_AISLE_WIDTH,
   PARKING_BAY_LENGTH,
   PARKING_BAY_WIDTH,
   PARKING_SLOT_PITCH,
@@ -17,6 +16,9 @@ import {
   pickRandomParkingCar
 } from "../../shared/VehicleModelLibrary.js";
 import { createNorthDiorama } from "./NorthDiorama.js";
+import { createEastDiorama } from "./EastDiorama.js";
+import { createSouthDiorama } from "./SouthDiorama.js";
+import { createWestDiorama } from "./WestDiorama.js";
 
 export const LEVEL_ONE_M1_TRAFFIC_CAR_SPECS = Object.freeze(
   PARKING_CAR_SPECS.filter((spec) => spec.id !== "pack-coupe")
@@ -28,6 +30,10 @@ export function getLevelOneM1TrafficRotation(direction) {
 
 export const PARKING_LAYOUT = Object.freeze({
   groundY: 0,
+  // The south diorama reaches well beyond the original 150 m terrain edge.
+  // Keep enough grass behind its rear buildings that the sky camera never
+  // exposes the renderer clear colour before the scenery ends.
+  terrain: { edge: 300, width: 420 },
   // Broad, slightly tapered footprint matching the aerial shape of the Wits
   // parking area between the ARM building, M1 and Yale Road.
   mainLot: {
@@ -60,6 +66,10 @@ export const PARKING_LAYOUT = Object.freeze({
   // Yale Road runs diagonally beside the parking area. The resulting green
   // corridor separates its edge from the east parking bays, as in the aerial.
   bridgeRoad: { x: 69, z: -5, width: 11, depth: 150, y: 0.08, rotation: THREE.MathUtils.degToRad(-4) },
+  // Continues from the bridge-road endpoint through the south diorama. Keeping
+  // this separate preserves the approved bridge and parking-side alignment.
+  bridgeRoadExtension: { x: 55.72, z: 184.91, width: 11, depth: 230.74, y: 0.08, rotation: THREE.MathUtils.degToRad(-4) },
+  yaleCampusIntersection: { shoulder: 1.25, apronDepth: 14 },
 
   // Player entrance aligned with the second aisle from the west, and the exit
   // on the third. Their aisles are 16 m apart, so the boundary openings are
@@ -70,7 +80,17 @@ export const PARKING_LAYOUT = Object.freeze({
   // Duplicate the entrance position for the opposite parking.
   otherEntrance: { x: 8, z: 46.5, width: 9 },
 
-  otherParking: { x: 8, z: 62, width: 54, depth: 28 },
+  // Scenery-only parking beyond the campus road. The real Entrance 9 view has
+  // a long, tree-lined parking garden between the playable lot and the campus
+  // buildings, rather than a shallow pair of rows pressed against a facade.
+  otherParking: {
+    x: 10,
+    z: 82,
+    width: 78,
+    depth: 68,
+    rotation: 0,
+    stripCenters: Object.freeze([-18, -2, 22, 38])
+  },
 
   armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
   armWalkway: { x: -64.5, z: -9.7, width: 7, depth: 88.4 },
@@ -78,7 +98,10 @@ export const PARKING_LAYOUT = Object.freeze({
   pedestrianBridge: { x: -64.8, z: -63.3, width: 6.4, depth: 23 },
 
   // Bigger Flower Hall so it fills the left/background scene more strongly.
-  flowerHall: { x: -48, z: 64, width: 48, depth: 26, height: 10 },
+  // Kept to the west side of the south parking garden and set back with the
+  // rest of the campus. Its former close position filled the south camera
+  // with a dark wall before the diorama could be seen.
+  flowerHall: { x: -82, z: 122, width: 48, depth: 26, height: 10 },
 
   // Campus checkpoint on the campus street, immediately west of the Yale Road
   // junction. The connecting street stays paved while the north/south strip
@@ -255,12 +278,12 @@ function createAngledFenceRun(root, collisionWorld, {
 
 function createSeparatedGround(root) {
   const grass = getParkingGrassMaterial();
-  const { m1 } = PARKING_LAYOUT;
+  const { m1, terrain: terrainConfig } = PARKING_LAYOUT;
 
   // The dev sky camera can zoom far beyond the playable lot. Keep the terrain
   // broad enough that it never reveals the clear colour at the map edges.
-  const terrainEdge = 150;
-  const terrainWidth = 420;
+  const terrainEdge = terrainConfig.edge;
+  const terrainWidth = terrainConfig.width;
   const halfRoadDepth = m1.depth / 2;
   const cos = Math.cos(m1.rotation);
   const sin = Math.sin(m1.rotation);
@@ -352,15 +375,18 @@ const LOT_OPENINGS = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parking
 
 // Spans of the parking-side kerb line, skipping each entrance opening so the
 // street surface runs uninterrupted into the lot.
-function kerbRunsBetweenEntrances(left, right) {
-  const openings = LOT_OPENINGS
+function kerbRunsBetweenEntrances(left, right, extraOpenings = [], includeLotOpenings = true) {
+  const openings = [
+    ...(includeLotOpenings ? LOT_OPENINGS : [])
     .map((entrance) => {
       // Only the driving surface breaks the kerb. The raised shoulders either
       // side of the throat are themselves kerb, so the run passes under them
       // and no gap opens between the two.
       const width = entrance.width + 0.4;
       return { left: entrance.x - width / 2, right: entrance.x + width / 2 };
-    })
+    }),
+    ...extraOpenings
+  ]
     .sort((a, b) => a.left - b.left);
 
   const runs = [];
@@ -374,7 +400,12 @@ function kerbRunsBetweenEntrances(left, right) {
 }
 
 function createCampusRoad(root, collisionWorld, roadMaterial) {
-  const { campusRoad, bridgeRoad } = PARKING_LAYOUT;
+  const {
+    campusRoad,
+    bridgeRoad,
+    bridgeRoadExtension,
+    yaleCampusIntersection
+  } = PARKING_LAYOUT;
   // The streets share the parking lot's asphalt maps, so the whole level reads
   // as one surface. Falls back to flat colour if no texture set was supplied.
   const asphalt = roadMaterial ?? material(COLORS.asphalt, 0.93);
@@ -399,9 +430,20 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
   for (const side of [-1, 1]) {
     const kerbZ = campusRoad.z + side * (campusRoad.depth / 2 + 0.24);
     const pavementZ = campusRoad.z + side * (campusRoad.depth / 2 + 1.28);
-    const runs = side < 0
-      ? kerbRunsBetweenEntrances(campusRoad.x - halfWidth, campusRoad.x + halfWidth)
-      : [[campusRoad.x - halfWidth, campusRoad.x + halfWidth]];
+    const yaleCentreX = bridgeRoad.x
+      + Math.tan(bridgeRoad.rotation) * (pavementZ - bridgeRoad.z);
+    const yaleOpeningWidth = bridgeRoad.width / Math.cos(bridgeRoad.rotation)
+      + yaleCampusIntersection.shoulder * 2;
+    const yaleOpening = {
+      left: yaleCentreX - yaleOpeningWidth / 2,
+      right: yaleCentreX + yaleOpeningWidth / 2
+    };
+    const runs = kerbRunsBetweenEntrances(
+      campusRoad.x - halfWidth,
+      campusRoad.x + halfWidth,
+      [yaleOpening],
+      side < 0
+    );
 
     for (const [start, end] of runs) {
       const length = end - start;
@@ -442,6 +484,40 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
   );
   applyRoadUvs(bridge.geometry, bridgeRoad.width, bridgeRoad.depth);
   bridge.rotation.y = bridgeRoad.rotation;
+
+  const bridgeExtension = box(
+    root,
+    [bridgeRoadExtension.width, 0.18, bridgeRoadExtension.depth],
+    [bridgeRoadExtension.x, bridgeRoadExtension.y, bridgeRoadExtension.z],
+    asphalt,
+    { name: "yale-road-south-extension" }
+  );
+  applyRoadUvs(
+    bridgeExtension.geometry,
+    bridgeRoadExtension.width,
+    bridgeRoadExtension.depth
+  );
+  bridgeExtension.rotation.y = bridgeRoadExtension.rotation;
+
+  // A broad, level asphalt apron unifies the crossing. The adjoining kerbs
+  // and pavements stop at its shoulders instead of continuing beneath Yale
+  // Road, so this reads as a junction rather than one mesh cutting another.
+  const intersectionX = bridgeRoad.x
+    + Math.tan(bridgeRoad.rotation) * (campusRoad.z - bridgeRoad.z);
+  const intersectionWidth = bridgeRoad.width / Math.cos(bridgeRoad.rotation)
+    + yaleCampusIntersection.shoulder * 2;
+  const intersection = box(
+    root,
+    [intersectionWidth, 0.18, yaleCampusIntersection.apronDepth],
+    [intersectionX, bridgeRoad.y, campusRoad.z],
+    asphalt,
+    { name: "yale-campus-intersection" }
+  );
+  applyRoadUvs(
+    intersection.geometry,
+    intersectionWidth,
+    yaleCampusIntersection.apronDepth
+  );
 
 }
 
@@ -789,32 +865,33 @@ function createOtherParking(root, roadMaterial) {
   );
   applyRoadUvs(surface.geometry,p.width,p.depth);
 
-  const usableWidth=p.width-2;
-  const count=Math.floor((usableWidth-PARKING_BAY_WIDTH)/PARKING_SLOT_PITCH)+1;
-  const usedWidth=(count-1)*PARKING_SLOT_PITCH;
-  const startX=p.x-usedWidth/2;
-  const rowOffset=PARKING_AISLE_WIDTH/2+PARKING_BAY_LENGTH/2;
-
+  const startZ=p.z-p.depth/2+5;
+  const endZ=p.z+p.depth/2-5;
+  const count=Math.floor((endZ-startZ)/PARKING_SLOT_PITCH)+1;
   const spaces=[];
-  for(const [z,angle] of [
-    [p.z-rowOffset,Math.PI],
-    [p.z+rowOffset,0]
-  ]){
-    for(let i=0;i<count;i++){
-      spaces.push({
-        x:startX+i*PARKING_SLOT_PITCH,
-        z,
-        angle,
-        rowName:z<p.z?"secondary-front":"secondary-back",
-        rowIndex:i
-      });
+  for(const [stripIndex,stripX] of p.stripCenters.entries()){
+    for(const [side,x,angle] of [
+      ["west",stripX-PARKING_BAY_LENGTH/2,-Math.PI/2],
+      ["east",stripX+PARKING_BAY_LENGTH/2,Math.PI/2]
+    ]){
+      for(let i=0;i<count;i++){
+        spaces.push({
+          x,
+          z:startZ+i*PARKING_SLOT_PITCH,
+          angle,
+          rowName:`secondary-${stripIndex}-${side}`,
+          rowIndex:i
+        });
+      }
     }
   }
 
   root.add(...createParkingBayMarkings(spaces,{y:0.075}));
 
   // Keep a few empty bays so it looks natural rather than perfectly packed.
-  const free=new Set([3,12,count+6,count+15].filter(i=>i<spaces.length));
+  const free=new Set(spaces
+    .map((_,index)=>index)
+    .filter((index)=>index%17===4 || index%29===11));
   const random=createSeededRandom(20260905);
   const placements=[];
 
@@ -835,6 +912,51 @@ function createOtherParking(root, roadMaterial) {
       root.add(field);
     })
     .catch(error=>console.warn("Secondary parking cars could not be loaded.",error));
+
+  // The wider centre gap is the Entrance 9 approach. A small gate canopy and
+  // two rows of low-poly trees sell the real parking-garden depth for only a
+  // handful of draw calls; none of this scenery participates in gameplay.
+  const canopyMaterial=material(0xd9d8cf,0.82);
+  const postMaterial=material(0x636b6a,0.72,{metalness:0.18});
+  const entranceZ=p.z-p.depth/2+3.2;
+  box(root,[10,0.45,4],[p.x,3.35,entranceZ],canopyMaterial,{name:"secondary-parking-gate-canopy"});
+  for(const x of [p.x-4.2,p.x+4.2]){
+    box(root,[0.28,3.2,0.28],[x,1.6,entranceZ],postMaterial,{name:"secondary-parking-gate-post"});
+  }
+  box(root,[3.2,2.5,3.2],[p.x-5.8,1.25,entranceZ+0.8],canopyMaterial,{name:"secondary-parking-gatehouse"});
+
+  const treePlacements=[];
+  for(const x of [p.x-5.4,p.x+5.4]){
+    for(let z=p.z-p.depth/2+12;z<=p.z+p.depth/2-8;z+=12.5){
+      treePlacements.push([x,z]);
+    }
+  }
+  const trunks=new THREE.InstancedMesh(
+    new THREE.CylinderGeometry(0.28,0.38,3.2,6),
+    material(0x5b4029,0.96),
+    treePlacements.length
+  );
+  const crowns=new THREE.InstancedMesh(
+    new THREE.DodecahedronGeometry(2.5,0),
+    material(0x365f35,0.96),
+    treePlacements.length
+  );
+  trunks.name="secondary-parking-tree-trunks";
+  crowns.name="secondary-parking-tree-crowns";
+  const matrix=new THREE.Matrix4();
+  treePlacements.forEach(([x,z],index)=>{
+    matrix.makeTranslation(x,1.6,z);
+    trunks.setMatrixAt(index,matrix);
+    matrix.compose(
+      new THREE.Vector3(x,4.5,z),
+      new THREE.Quaternion(),
+      new THREE.Vector3(1.15,0.92,1.15)
+    );
+    crowns.setMatrixAt(index,matrix);
+  });
+  trunks.instanceMatrix.needsUpdate=true;
+  crowns.instanceMatrix.needsUpdate=true;
+  root.add(trunks,crowns);
 }
 
 function createMainParkingBoundary(root, collisionWorld) {
@@ -1143,6 +1265,30 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   const northDiorama = createNorthDiorama();
   root.add(northDiorama.root);
 
+  // The east vista extends the same scenery-only diorama pattern. Existing
+  // playable parking, Entrance 9, Yale Road, the M1 and its bridge remain the
+  // foreground landmarks; this root supplies the staged field and horizon.
+  const eastDiorama = createEastDiorama();
+  root.add(eastDiorama.root);
+
+  // South reuses the existing campus road, pavement and secondary parking as
+  // its foreground. Its sibling root begins beyond those systems and adds the
+  // close architectural stage visible from the normal playable area.
+  const southDiorama = createSouthDiorama({
+    roadSegments: [
+      PARKING_LAYOUT.bridgeRoad,
+      PARKING_LAYOUT.bridgeRoadExtension,
+      PARKING_LAYOUT.otherParking
+    ]
+  });
+  root.add(southDiorama.root);
+
+  // The playable parking lot itself is the foreground of the west view. This
+  // sibling begins beyond its west boundary and supplies the dense campus
+  // architecture, curved roofs and skyline without duplicating gameplay cars.
+  const westDiorama = createWestDiorama();
+  root.add(westDiorama.root);
+
   const update = (dt) => {
     updateM1Traffic(dt);
     updateCampusBoom(dt);
@@ -1152,8 +1298,19 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   return {
     root,
     update,
-    ready: northDiorama.ready,
+    ready: Promise.all([
+      northDiorama.ready,
+      eastDiorama.ready,
+      southDiorama.ready,
+      westDiorama.ready
+    ]),
     northDiorama: northDiorama.root,
-    northDioramaStats: northDiorama.stats
+    northDioramaStats: northDiorama.stats,
+    eastDiorama: eastDiorama.root,
+    eastDioramaStats: eastDiorama.stats,
+    southDiorama: southDiorama.root,
+    southDioramaStats: southDiorama.stats,
+    westDiorama: westDiorama.root,
+    westDioramaStats: westDiorama.stats
   };
 }

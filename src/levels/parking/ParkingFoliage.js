@@ -282,6 +282,20 @@ function takeDensity(placements, density) {
   return placements.slice(0, count);
 }
 
+function isClearOfRoadSegments(item, roadSegments, margin) {
+  return roadSegments.every((road) => {
+    const dx = item.x - road.x;
+    const dz = item.z - road.z;
+    const cos = Math.cos(road.rotation);
+    const sin = Math.sin(road.rotation);
+    const localX = dx * cos - dz * sin;
+    const localZ = dx * sin + dz * cos;
+    const besideSegment = Math.abs(localZ) <= road.depth / 2 + margin;
+    const outsideCarriageway = Math.abs(localX) > road.width / 2 + margin;
+    return !besideSegment || outsideCarriageway;
+  });
+}
+
 const NORTH_TREE_PLACEMENTS = Object.freeze([
   // A substantial left-hand canopy masks the simplified western building
   // transitions and establishes the asymmetric mass in the reference.
@@ -433,5 +447,464 @@ export async function addNorthDioramaFoliage(root, density = 1, { exclusions = [
     ]);
   } catch (error) {
     console.warn("Unable to add north diorama foliage", error);
+  }
+}
+
+// East-facing vista vegetation is staged in depth along +X. The central field
+// stays deliberately sparse; most of the triangle budget is reserved for the
+// two staggered background bands that form the cemetery/green-belt horizon.
+const EAST_SCATTERED_TREE_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: 98,
+    z: -27,
+    count: 16,
+    stepZ: 8.1,
+    scale: 6.4,
+    scaleVariance: 0.85,
+    jitterX: 10,
+    jitterZ: 0.9
+  })
+]);
+
+const EAST_DENSE_TREE_PLACEMENTS = Object.freeze([
+  ...createForestPatch({
+    x: 150,
+    z: -17,
+    columns: 9,
+    rows: 22,
+    stepX: 6.2,
+    stepZ: 6.7,
+    scale: 8.4,
+    scaleVariance: 1.05,
+    seed: 200
+  }),
+  ...createForestPatch({
+    x: 204,
+    z: -12,
+    columns: 5,
+    rows: 22,
+    stepX: 6.8,
+    stepZ: 7,
+    scale: 9.2,
+    scaleVariance: 1.2,
+    seed: 220
+  })
+]);
+
+const EAST_BUSH_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: 78.2,
+    z: -36.5,
+    count: 44,
+    stepZ: 3.05,
+    scale: 0.4,
+    scaleVariance: 0.07,
+    jitterX: 0.65,
+    jitterZ: 0.55
+  }),
+  ...createStrip({
+    x: 137,
+    z: -30.5,
+    count: 27,
+    stepZ: 4.7,
+    scale: 0.43,
+    scaleVariance: 0.08,
+    jitterX: 2.4,
+    jitterZ: 0.65
+  })
+]);
+
+const EAST_GRASS_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: 79.5,
+    z: -36,
+    count: 67,
+    stepZ: 1.95,
+    scale: 0.48,
+    scaleVariance: 0.08,
+    jitterX: 1.3,
+    jitterZ: 0.7
+  }),
+  ...createStrip({
+    x: 131,
+    z: -30.5,
+    count: 49,
+    stepZ: 2.55,
+    scale: 0.45,
+    scaleVariance: 0.08,
+    jitterX: 4.5,
+    jitterZ: 0.75
+  })
+]);
+
+export function getEastDioramaFoliageLayout(density = 1) {
+  const scatteredTrees = takeDensity(EAST_SCATTERED_TREE_PLACEMENTS, density);
+  const heroIndices = new Set([0, 4, 8].filter((index) => index < scatteredTrees.length));
+
+  return Object.freeze({
+    giantTrees: Object.freeze(scatteredTrees
+      .filter((_, index) => heroIndices.has(index))
+      .map((item) => ({ ...item, scale: item.scale * 1.15 }))),
+    scatteredTrees: Object.freeze(scatteredTrees.filter((_, index) => !heroIndices.has(index))),
+    denseTrees: Object.freeze(takeDensity(EAST_DENSE_TREE_PLACEMENTS, density)),
+    bushes: Object.freeze(takeDensity(EAST_BUSH_PLACEMENTS, density)),
+    grass: Object.freeze(takeDensity(EAST_GRASS_PLACEMENTS, density))
+  });
+}
+
+export async function addEastDioramaFoliage(root, density = 1) {
+  const foliageRoot = new THREE.Group();
+  foliageRoot.name = "east-diorama-foliage";
+  root.add(foliageRoot);
+
+  const layout = getEastDioramaFoliageLayout(density);
+
+  try {
+    await Promise.all([
+      addPackInstances(
+        foliageRoot,
+        "giantTree",
+        GIANT_TREE_VARIANTS,
+        layout.giantTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_FAR,
+        layout.scatteredTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_FAR,
+        layout.denseTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      // These names explicitly select the supplied lilac LOD2 nodes.
+      addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, layout.bushes),
+      addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, layout.grass)
+    ]);
+  } catch (error) {
+    console.warn("Unable to add east diorama foliage", error);
+  }
+}
+
+// West is the densest architectural vista. Trees are arranged as irregular
+// edge clusters and a deep horizon rather than a uniform screen, then filtered
+// against every building footprint supplied by WestDiorama.
+const WEST_TREE_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: -108,
+    z: -82,
+    count: 15,
+    stepZ: 12.1,
+    scale: 9.1,
+    scaleVariance: 1.1,
+    jitterX: 3.2,
+    jitterZ: 1.4
+  }),
+  ...createForestPatch({
+    x: -151,
+    z: -118,
+    columns: 4,
+    rows: 13,
+    stepX: 15.5,
+    stepZ: 18.2,
+    scale: 7.5,
+    scaleVariance: 0.95,
+    seed: 510
+  }),
+  ...createStrip({
+    x: -224,
+    z: -142,
+    count: 34,
+    stepZ: 8.8,
+    scale: 7.1,
+    scaleVariance: 0.85,
+    jitterX: 8.5,
+    jitterZ: 1.3
+  })
+]);
+
+const WEST_BUSH_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: -104,
+    z: -100,
+    count: 36,
+    stepZ: 6.1,
+    scale: 0.43,
+    scaleVariance: 0.07,
+    jitterX: 2.6,
+    jitterZ: 0.8
+  }),
+  ...createStrip({
+    x: -153,
+    z: -116,
+    count: 42,
+    stepZ: 5.7,
+    scale: 0.39,
+    scaleVariance: 0.06,
+    jitterX: 6.2,
+    jitterZ: 0.9
+  }),
+  ...createStrip({
+    x: -226,
+    z: -132,
+    count: 26,
+    stepZ: 10.2,
+    scale: 0.36,
+    scaleVariance: 0.05,
+    jitterX: 7.5,
+    jitterZ: 1.2
+  })
+]);
+
+const WEST_GRASS_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: -105,
+    z: -108,
+    count: 48,
+    stepZ: 4.8,
+    scale: 0.46,
+    scaleVariance: 0.08,
+    jitterX: 3.4,
+    jitterZ: 0.8
+  }),
+  ...createStrip({
+    x: -142,
+    z: -118,
+    count: 44,
+    stepZ: 5.2,
+    scale: 0.43,
+    scaleVariance: 0.07,
+    jitterX: 7.5,
+    jitterZ: 1.1
+  }),
+  ...createStrip({
+    x: -221,
+    z: -128,
+    count: 24,
+    stepZ: 10.6,
+    scale: 0.4,
+    scaleVariance: 0.06,
+    jitterX: 9,
+    jitterZ: 1.4
+  })
+]);
+
+export function getWestDioramaFoliageLayout({ density = 1, exclusions = [] } = {}) {
+  const trees = takeDensity(WEST_TREE_PLACEMENTS, density)
+    .filter((item) => outsideExclusions(item, exclusions));
+  const heroIndices = new Set([
+    1,
+    Math.floor(trees.length * 0.28),
+    Math.floor(trees.length * 0.55),
+    Math.floor(trees.length * 0.78)
+  ].filter((index) => index >= 0 && index < trees.length));
+
+  return Object.freeze({
+    giantTrees: Object.freeze(trees
+      .filter((_, index) => heroIndices.has(index))
+      .map((item) => ({ ...item, scale: item.scale * 1.16 }))),
+    lod2Trees: Object.freeze(trees.filter((_, index) => !heroIndices.has(index))),
+    bushes: Object.freeze(takeDensity(WEST_BUSH_PLACEMENTS, density)
+      .filter((item) => outsideExclusions(item, exclusions))),
+    grass: Object.freeze(takeDensity(WEST_GRASS_PLACEMENTS, density)
+      .filter((item) => outsideExclusions(item, exclusions)))
+  });
+}
+
+export async function addWestDioramaFoliage(
+  root,
+  density = 1,
+  { exclusions = [] } = {}
+) {
+  const foliageRoot = new THREE.Group();
+  foliageRoot.name = "west-diorama-foliage";
+  root.add(foliageRoot);
+  const layout = getWestDioramaFoliageLayout({ density, exclusions });
+
+  try {
+    await Promise.all([
+      addPackInstances(
+        foliageRoot,
+        "giantTree",
+        GIANT_TREE_VARIANTS,
+        layout.giantTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_FAR,
+        layout.lod2Trees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, layout.bushes),
+      addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, layout.grass)
+    ]);
+  } catch (error) {
+    console.warn("Unable to add west diorama foliage", error);
+  }
+}
+
+// The south view is intentionally closer and more architectural than the
+// north/east vistas. Trees form irregular screens in front of facade seams,
+// with a lighter rear band preventing the scene from ending behind the roofs.
+// The generic tree pack has no authored Acer LOD names; TREE_VARIANTS_FAR is
+// its measured lowest-cost true 3D tier and fills the same LOD2 role here.
+const SOUTH_TREE_PLACEMENTS = Object.freeze([
+  ...createForestPatch({
+    x: -116,
+    z: 84,
+    columns: 4,
+    rows: 6,
+    stepX: 7.1,
+    stepZ: 8.2,
+    scale: 8.1,
+    scaleVariance: 1.05,
+    seed: 300
+  }),
+  ...createStrip({
+    x: -98,
+    z: 80.5,
+    count: 6,
+    stepX: 10,
+    scale: 8.7,
+    scaleVariance: 0.95,
+    jitterX: 0.85,
+    jitterZ: 0.45
+  }),
+  ...createStrip({
+    x: -41,
+    z: 80.2,
+    count: 6,
+    stepX: 12.7,
+    scale: 9.1,
+    scaleVariance: 1.05,
+    jitterX: 1.1,
+    jitterZ: 0.4
+  }),
+  ...createStrip({
+    x: 31,
+    z: 79.8,
+    count: 7,
+    stepX: 10.8,
+    scale: 8.8,
+    scaleVariance: 1,
+    jitterX: 0.9,
+    jitterZ: 0.5
+  }),
+  ...createForestPatch({
+    x: -109,
+    z: 198,
+    columns: 12,
+    rows: 2,
+    stepX: 19.5,
+    stepZ: 9.2,
+    scale: 7.4,
+    scaleVariance: 0.9,
+    seed: 340
+  })
+]);
+
+const SOUTH_BUSH_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: -112,
+    z: 79.2,
+    count: 55,
+    stepX: 4.05,
+    scale: 0.42,
+    scaleVariance: 0.07,
+    jitterX: 0.5,
+    jitterZ: 0.48
+  }),
+  ...createStrip({
+    x: -105,
+    z: 190,
+    count: 32,
+    stepX: 7.1,
+    scale: 0.38,
+    scaleVariance: 0.06,
+    jitterX: 0.75,
+    jitterZ: 4.8
+  })
+]);
+
+const SOUTH_GRASS_PLACEMENTS = Object.freeze([
+  ...createStrip({
+    x: -110,
+    z: 78.6,
+    count: 44,
+    stepX: 5.05,
+    scale: 0.45,
+    scaleVariance: 0.08,
+    jitterX: 0.7,
+    jitterZ: 0.45
+  }),
+  ...createStrip({
+    x: -103,
+    z: 188,
+    count: 18,
+    stepX: 11.1,
+    scale: 0.42,
+    scaleVariance: 0.07,
+    jitterX: 0.8,
+    jitterZ: 3.6
+  })
+]);
+
+export function getSouthDioramaFoliageLayout(density = 1, roadSegments = []) {
+  // Trees need canopy clearance as well as trunk clearance. Smaller foliage
+  // keeps a narrower verge while still remaining completely off the asphalt.
+  const trees = takeDensity(SOUTH_TREE_PLACEMENTS, density)
+    .filter((item) => isClearOfRoadSegments(item, roadSegments, 4));
+  const heroIndices = new Set([
+    4, 8, 12, 18, 24, 27, 30, 33, 36, 38, 42, 46
+  ].filter((index) => index < trees.length));
+
+  return Object.freeze({
+    giantTrees: Object.freeze(trees
+      .filter((_, index) => heroIndices.has(index))
+      .map((item) => ({ ...item, scale: item.scale * 1.12 }))),
+    lod2Trees: Object.freeze(trees.filter((_, index) => !heroIndices.has(index))),
+    bushes: Object.freeze(takeDensity(SOUTH_BUSH_PLACEMENTS, density)
+      .filter((item) => isClearOfRoadSegments(item, roadSegments, 1.4))),
+    grass: Object.freeze(takeDensity(SOUTH_GRASS_PLACEMENTS, density)
+      .filter((item) => isClearOfRoadSegments(item, roadSegments, 0.9)))
+  });
+}
+
+export async function addSouthDioramaFoliage(root, density = 1, roadSegments = []) {
+  const foliageRoot = new THREE.Group();
+  foliageRoot.name = "south-diorama-foliage";
+  root.add(foliageRoot);
+
+  const layout = getSouthDioramaFoliageLayout(density, roadSegments);
+
+  try {
+    await Promise.all([
+      addPackInstances(
+        foliageRoot,
+        "giantTree",
+        GIANT_TREE_VARIANTS,
+        layout.giantTrees,
+        { normalizeToUnitHeight: true }
+      ),
+      addPackInstances(
+        foliageRoot,
+        "treePack",
+        TREE_VARIANTS_FAR,
+        layout.lod2Trees,
+        { normalizeToUnitHeight: true }
+      ),
+      // The source lilac names explicitly select its lowest-detail 3D LOD2.
+      addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, layout.bushes),
+      addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, layout.grass)
+    ]);
+  } catch (error) {
+    console.warn("Unable to add south diorama foliage", error);
   }
 }
