@@ -9,7 +9,9 @@ export const SCORE_CONFIG = Object.freeze({
   }),
   levels: Object.freeze({
     1: Object.freeze({ parTime: 45, slowTime: 120 }),
-    2: Object.freeze({ parTime: 18, slowTime: 30 }),
+    // Level 2 records real elapsed time now. Its previous 18-second par was
+    // based on a clock that could be reduced by Flat White bonuses.
+    2: Object.freeze({ parTime: 36 }),
     3: Object.freeze({ parTime: 45, slowTime: 100 })
   })
 });
@@ -31,6 +33,16 @@ export function scoreTime(time, parTime, slowTime) {
 
   const fraction = 1 - (time - parTime) / (slowTime - parTime);
   return Math.round(SCORE_CONFIG.components.time * fraction);
+}
+
+// Level 2 has no deadline. After par, its time score decays continuously
+// instead of dropping to zero at an arbitrary cutoff, so faster finishes
+// remain worth more even on longer runs.
+export function scoreFastestTime(time, parTime) {
+  if (!Number.isFinite(time) || time <= 0 || !Number.isFinite(parTime) || parTime <= 0) return 0;
+  if (time <= parTime) return SCORE_CONFIG.components.time;
+
+  return Math.round(SCORE_CONFIG.components.time * (parTime / time));
 }
 
 function finalise(levelNumber, performance, componentScores) {
@@ -58,7 +70,10 @@ export function scoreLevel(levelNumber, performance = {}) {
     throw new Error(`No scoring configuration for Level ${levelNumber}`);
   }
 
-  const timeScore = scoreTime(Number(performance.time), config.parTime, config.slowTime);
+  const time = Number(performance.time);
+  const timeScore = levelNumber === 2
+    ? scoreFastestTime(time, config.parTime)
+    : scoreTime(time, config.parTime, config.slowTime);
 
   if (levelNumber === 1) {
     const condition = clamp(Number(performance.condition) || 0, 0, 100);
