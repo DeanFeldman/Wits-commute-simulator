@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import * as THREE from "three";
 import { GridHopController } from "../src/levels/crossing/GridHopController.js";
+import { CrossingLevel } from "../src/levels/crossing/CrossingLevel.js";
 import { CampusCrowd, CROWD_LINES, createCrowdPlan, standingCells } from "../src/levels/crossing/CampusCrowd.js";
 import { PedestrianFactory } from "../src/levels/crossing/PedestrianFactory.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "../src/levels/crossing/VidaCups.js";
@@ -112,7 +113,7 @@ test("cups follow the authored plan and never sit on people, kerbs or the spawn"
   }
 });
 
-test("power-ups speed the walk, slow traffic, save you once and take time off", () => {
+test("power-ups speed the walk, slow traffic and save you once", () => {
   const state = new PowerUpState();
   assert.equal(state.speedMultiplier, 1);
   state.apply("doubleShot");
@@ -121,7 +122,6 @@ test("power-ups speed the walk, slow traffic, save you once and take time off", 
   state.apply("shield");
   assert.ok(state.speedMultiplier > 1);
   assert.ok(state.trafficScale < 1);
-  assert.equal(state.timeBonus, CUP_TYPES.flatWhite.timeBonus);
   assert.equal(state.collected, 4);
   assert.equal(state.consumeShield(), true);
   assert.equal(state.consumeShield(), false);
@@ -129,6 +129,54 @@ test("power-ups speed the walk, slow traffic, save you once and take time off", 
   assert.equal(state.speedMultiplier, 1);
   assert.equal(state.trafficScale, 1);
   assert.equal(state.active.length, 0);
+});
+
+test("Level 2 elapsed timer keeps running without a timeout", () => {
+  const level = {
+    completed: false,
+    quizPaused: true,
+    crossingTime: 45,
+    updateHUD() {
+      this.hudUpdated = true;
+    }
+  };
+
+  CrossingLevel.prototype.update.call(level, 1);
+
+  assert.equal(level.crossingTime, 46);
+  assert.equal(level.completed, false);
+  assert.equal(level.hudUpdated, true);
+});
+
+test("Level 2 can finish after the old 30-second deadline", () => {
+  let completion = null;
+  const level = {
+    hopController: {
+      isHopping: false,
+      gridPosition: { y: -10 }
+    },
+    finishZ: 0,
+    cups: { total: 2 },
+    powerUps: { collected: 2 },
+    crossingTime: 75,
+    impactCount: 1,
+    backwardSteps: 3,
+    completed: false,
+    game: {
+      setMessage() {},
+      completeLevel(message, performance) {
+        completion = { message, performance };
+      }
+    }
+  };
+
+  CrossingLevel.prototype.checkFinish.call(level);
+
+  assert.equal(level.completed, true);
+  assert.equal(completion.performance.time, 75);
+  assert.equal(completion.performance.impacts, 1);
+  assert.equal(completion.performance.backwardSteps, 3);
+  assert.match(completion.message, /75\.0s/);
 });
 
 test("walking through a cup collects it once", () => {

@@ -30,8 +30,6 @@ const PLAYER_SCALE = 1.03;
 const WALKWAY_SURFACE_Y = 0.19;
 const YALE_SURFACE_Y = 0.01;
 const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
-const LEVEL_2_TIME_LIMIT = 30;
-
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
@@ -61,7 +59,6 @@ export class CrossingLevel {
     this.collisionWorld = null;
     this.hopController = null;
     this.crossingTime = 0;
-    this.backwardPenalty = 0;
     this.backwardSteps = 0;
     this.attempts = 0;
     this.impactCount = 0;
@@ -114,15 +111,6 @@ export class CrossingLevel {
     this.gridSize = STRIP_DEPTH;
     this.completed = false;
   }
-  getAdjustedTime() {
-  return Math.max(
-    0,
-    this.crossingTime +
-    this.backwardPenalty -
-    this.powerUps.timeBonus
-  );
-}
-
   async load() {
     const scene = this.game.scene;
 
@@ -371,18 +359,6 @@ export class CrossingLevel {
     this.root.add(this.shieldBubble);
   }
 
-  // Running out of time ends the run, the same as Level 1's condition meter
-  // and Level 3's clock, so it goes through the shared Game Over card. It
-  // used to call startLevel() directly, which reloaded the level with no
-  // fade and no explanation at all.
-  restartFromBeginning(failure) {
-    if (this.completed) return;
-    this.completed = true;
-    // Retry starts the crossing over rather than at the last checkpoint.
-    this.game.setCheckpoint("start");
-    this.game.failLevel(failure);
-  }
-
     update(dt) {
     if (this.completed) return;
 
@@ -390,17 +366,6 @@ export class CrossingLevel {
       // A quiz doesn't stop the clock — only player input, movement, and
       // collision checks pause while the overlay is open.
       this.crossingTime += dt;
-      if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) {
-        const missing = this.cups.total - this.powerUps.collected;
-        this.restartFromBeginning({
-          title: "Out of time",
-          reason: `The ${LEVEL_2_TIME_LIMIT}-second crossing window closed${missing > 0
-            ? ` with ${missing} Vida cup${missing === 1 ? "" : "s"} still out there`
-            : " just short of Engineering"}. Walking backwards adds a time penalty, and iced lattes buy some of it back.`,
-          next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
-        });
-        return;
-      }
       this.updateHUD();
       return;
     }
@@ -412,24 +377,13 @@ export class CrossingLevel {
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
     this.powerUps.update(dt);
-    if (this.getAdjustedTime() >= LEVEL_2_TIME_LIMIT) {
-      const missing = this.cups.total - this.powerUps.collected;
-      this.restartFromBeginning({
-        title: "Out of time",
-        reason: `The ${LEVEL_2_TIME_LIMIT}-second crossing window closed${missing > 0
-          ? ` with ${missing} Vida cup${missing === 1 ? "" : "s"} still out there`
-          : " just short of Engineering"}. Walking backwards adds a time penalty, and iced lattes buy some of it back.`,
-        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
-      });
-      return;
-    }
     this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput();
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardPenalty += 0.25;
+    if (landedDirection?.z > 0) this.backwardSteps += 1;
     if (landedDirection) this.updateCheckpoint();
     if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
     this.updateCups(dt);
@@ -450,13 +404,12 @@ export class CrossingLevel {
         <span>${type.label}</span>
         <span class="l2-effect-bar"><span style="width: ${(fraction * 100).toFixed(0)}%"></span></span>
       </div>`).join("");
-   // const time = Math.max(0, this.crossingTime + this.backwardPenalty - this.powerUps.timeBonus);
-    const time = this.getAdjustedTime();
+    const time = this.crossingTime;
 
     this.game.setHUD(`
       <div class="l2-hud">
         <strong class="l2-hud-title">Cross the Road</strong>
-        <div class="l2-hud-row"><span>Time</span><strong${time >= LEVEL_2_TIME_LIMIT - 5 ? ' class="l2-time-low"' : ""}>${time.toFixed(1)} / ${LEVEL_2_TIME_LIMIT.toFixed(1)}s</strong></div>
+        <div class="l2-hud-row"><span>Elapsed</span><strong>${time.toFixed(1)}s</strong></div>
         <div class="l2-hud-row"><span>Attempts</span><strong>${this.attempts + 1}</strong></div>
         <div class="l2-hud-row"><span>Vida cups</span><strong class="l2-cups">${this.powerUps.collected} / ${this.cups.total}</strong></div>
         <div class="l2-hud-row"><span>Checkpoint</span><strong>${this.checkpoint.label}</strong></div>
@@ -655,15 +608,7 @@ checkFinish() {
     if (this.hopController.isHopping || this.hopController.gridPosition.y > this.finishZ) return;
     const cups = this.powerUps.collected, total = this.cups.total;
     if (cups !== total) { this.game.setMessage(`You still need ${total - cups} Vida cup${total - cups === 1 ? "" : "s"} before you can finish!`); return; }
-    const time = this.getAdjustedTime();
-    if (time >= LEVEL_2_TIME_LIMIT) {
-      this.restartFromBeginning({
-        title: "Too slow",
-        reason: `You reached Engineering with every Vida cup, but the clock read ${time.toFixed(1)}s against a ${LEVEL_2_TIME_LIMIT}-second limit.`,
-        next: `Retry restarts the crossing with a fresh ${LEVEL_2_TIME_LIMIT} seconds.`
-      });
-      return;
-    }
+    const time = this.crossingTime;
     this.completed = true;
     this.game.completeLevel(
       `You collected all ${total} Vida cups and crossed in ${time.toFixed(1)}s. Heading to Level 3.`,

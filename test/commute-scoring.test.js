@@ -5,6 +5,7 @@ import {
   loadPersonalBests,
   PERSONAL_BESTS_STORAGE_KEY,
   savePersonalBests,
+  scoreFastestTime,
   scoreLevel,
   scoreTime,
   summariseJourney,
@@ -15,6 +16,12 @@ test("time score gives full credit at par and zero at slow time", () => {
   assert.equal(scoreTime(45, 45, 120), 40);
   assert.equal(scoreTime(120, 45, 120), 0);
   assert.equal(scoreTime(82.5, 45, 120), 20);
+});
+
+test("Level 2 fastest-finish scoring has no slow-time cutoff", () => {
+  assert.equal(scoreFastestTime(40, 40), 40);
+  assert.ok(scoreFastestTime(60, 40) > scoreFastestTime(120, 40));
+  assert.ok(scoreFastestTime(120, 40) > 0);
 });
 
 test("better Level 1 parking produces a better score", () => {
@@ -37,11 +44,12 @@ test("better Level 1 parking produces a better score", () => {
   assert.equal(clean.total <= 100, true);
 });
 
-test("Level 2 counts impacts and backwards steps separately", () => {
-  const clean = scoreLevel(2, { time: 18, impacts: 0, backwardSteps: 0 });
-  const messy = scoreLevel(2, { time: 25, impacts: 2, backwardSteps: 4 });
+test("Level 2 rewards faster finishes and counts impacts and backwards steps separately", () => {
+  const clean = scoreLevel(2, { time: 40, impacts: 0, backwardSteps: 0 });
+  const messy = scoreLevel(2, { time: 60, impacts: 2, backwardSteps: 4 });
 
   assert.equal(clean.total, 100);
+  assert.ok(messy.components.time < clean.components.time);
   assert.ok(messy.components.mistakes < clean.components.mistakes);
   assert.ok(messy.components.quality < clean.components.quality);
 });
@@ -74,7 +82,7 @@ test("commute ratings use the documented thresholds", () => {
 test("personal bests only improve", () => {
   const summary = summariseJourney([
     scoreLevel(1, { time: 40, condition: 100, containmentPercent: 100, alignmentErrorDegrees: 0 }),
-    scoreLevel(2, { time: 18, impacts: 0, backwardSteps: 0 }),
+    scoreLevel(2, { time: 40, impacts: 0, backwardSteps: 0 }),
     scoreLevel(3, { time: 45, incorrectAnswers: 0, suspicion: 0 })
   ], 103);
 
@@ -85,7 +93,7 @@ test("personal bests only improve", () => {
   }, summary);
 
   assert.equal(records.levelTimes["1"], 35);
-  assert.equal(records.levelTimes["2"], 18);
+  assert.equal(records.levelTimes["2"], 22);
   assert.equal(records.levelTimes["3"], 45);
   assert.equal(records.journeyTime, 100);
   assert.equal(records.journeyScore, 300);

@@ -117,6 +117,19 @@ The player should need to read each lane rather than memorise one rhythm.
 
 Collision with a vehicle.
 
+## Time and scoring
+
+Level 2 has no countdown deadline. An elapsed timer runs until the player successfully reaches the finish with all required Vida cups.
+
+The scoring target is fastest completion rather than beating a hard cutoff:
+
+- 40 seconds or faster earns full time points;
+- slower successful finishes receive progressively fewer time points;
+- there is no time-based failure;
+- backwards steps and traffic impacts are scored separately from elapsed time.
+
+The exact formula and score-component weights are defined in `docs/COMMUTE_SCORING.md`.
+
 ## Checkpoints
 
 Kerbs or traffic islands may act as checkpoints.
