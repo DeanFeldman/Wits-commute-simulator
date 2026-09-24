@@ -153,6 +153,7 @@ export class Game {
     this.isScoredJourney = false;
     this.personalBests = loadPersonalBests();
     this.levelThreeLookSensitivity = 1;
+    this.isSoundMuted = false;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
 
@@ -168,6 +169,8 @@ export class Game {
     this.devLevelSelect = document.querySelector("#dev-level-select");
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
+    this.pauseKickerElement = document.querySelector("#pause-kicker");
+    this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
@@ -243,8 +246,9 @@ export class Game {
     if (menu) {
       menu.style.backgroundImage =
         'url("/assets/images/ui/main-menu-background.png")';
-      menu.style.backgroundSize = "cover";
+      menu.style.backgroundSize = "100% auto";
       menu.style.backgroundPosition = "center";
+      menu.style.backgroundColor = "#8bc0f2";
       menu.style.minHeight = "100vh";
     }
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
@@ -435,6 +439,8 @@ export class Game {
     }
 
     this.levelNameElement.textContent = level.name;
+    level.audio?.setMuted?.(this.isSoundMuted);
+    level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
     if (showIntro) this.setLevelIntroLoadState("ready");
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
@@ -623,6 +629,7 @@ export class Game {
   }
 
   playOneShotAudio(path, volume = 1) {
+    if (this.isSoundMuted) return;
     const audio = new Audio(path);
     audio.volume = volume;
     audio.play().catch(() => {
@@ -722,10 +729,17 @@ export class Game {
     }
 
     this.isPaused = true;
-    if (this.currentLevelNumber === 3) {
-      this.pauseMenuElement.hidden = false;
-      if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
-    }
+    this.pauseMenuElement.hidden = false;
+    this.pauseKickerElement.textContent = `LEVEL ${this.currentLevelNumber} PAUSED`;
+    this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
+    this.pauseSoundAction.textContent = this.isSoundMuted ? "Sound: off" : "Sound: on";
+    this.pauseSoundAction.setAttribute("aria-pressed", String(this.isSoundMuted));
+    // Releasing pointer lock is what returns the visible cursor immediately;
+    // no Escape key or extra click should be required to use this menu.
+    if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
+    requestAnimationFrame(() => {
+      this.pauseMenuElement.querySelector("[data-pause-action='resume']")?.focus();
+    });
     this.setMessage("Paused — press P or Resume to continue.");
   }
 
@@ -880,8 +894,33 @@ export class Game {
   onPauseMenuClick(event) {
     if (event.target.closest("[data-pause-action='resume']")) {
       this.resume();
-      this.input.requestPointerLock();
+      if (this.currentLevelNumber === 3) this.input.requestPointerLock();
+      return;
     }
+
+    if (event.target.closest("[data-pause-action='restart']")) {
+      this.pauseMenuElement.hidden = true;
+      this.isPaused = false;
+      this.restartCurrentLevel(false, true);
+      return;
+    }
+
+    if (event.target.closest("[data-pause-action='home']")) {
+      this.showMenu();
+      return;
+    }
+
+    if (event.target.closest("[data-pause-action='sound']")) {
+      this.setSoundMuted(!this.isSoundMuted);
+    }
+  }
+
+  setSoundMuted(muted) {
+    this.isSoundMuted = muted;
+    this.currentLevel?.audio?.setMuted?.(muted);
+    this.currentLevel?.setMuted?.(muted);
+    this.pauseSoundAction.textContent = muted ? "Sound: off" : "Sound: on";
+    this.pauseSoundAction.setAttribute("aria-pressed", String(muted));
   }
 
   onLookSensitivityInput(event) {

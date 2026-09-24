@@ -7,6 +7,7 @@ export class LevelAudio {
     this.ambience = null;
     this.tickTimer = 0;
     this.stepTimer = 0;
+    this.isMuted = false;
   }
 
   ensure() {
@@ -15,7 +16,7 @@ export class LevelAudio {
     if (!AudioContext) return false;
     this.context = new AudioContext();
     this.master = this.context.createGain();
-    this.master.gain.value = 0.16;
+    this.master.gain.value = this.isMuted ? 0 : 0.16;
     this.master.connect(this.context.destination);
     this.context.resume?.();
     return true;
@@ -78,6 +79,11 @@ export class LevelAudio {
     if (this.tickTimer > 0) return;
     this.tickTimer = 1;
     this.cue(920, 0.035, 0.025);
+  }
+
+  setMuted(muted) {
+    this.isMuted = muted;
+    if (this.master) this.master.gain.value = muted ? 0 : 0.16;
   }
 
   dispose() {

@@ -1987,6 +1987,7 @@ createParkingSurface(potholes = []) {
     const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
     idleAudio.loop = true;
     idleAudio.volume = 0.5;
+    idleAudio.muted = this.game.isSoundMuted;
     this.carIdleAudio = idleAudio;
     idleAudio.play().catch(() => {
       // A browser can still refuse playback if the level was not started from
@@ -1998,6 +1999,7 @@ createParkingSurface(potholes = []) {
   // The source element is kept for preloading; each hit plays a clone so
   // back-to-back impacts can overlap instead of cutting each other off.
   playCollisionSound(speedFactor = 1) {
+    if (this.game.isSoundMuted) return;
     if (!this.collisionHitAudio) {
       this.collisionHitAudio = new Audio("./assets/audio/level1/collision-hit.mp3");
       this.collisionHitAudio.preload = "auto";
@@ -2011,6 +2013,12 @@ createParkingSurface(potholes = []) {
       // Playback can be refused without a user gesture; keep the level playable.
       this.collisionHitPlaying.delete(hit);
     });
+  }
+
+  setMuted(muted) {
+    this.audio.setMuted(muted);
+    if (this.carIdleAudio) this.carIdleAudio.muted = muted;
+    this.collisionHitPlaying.forEach((hit) => { hit.muted = muted; });
   }
 
 
