@@ -695,27 +695,24 @@ body.level-2 #level2-vignette{opacity:1}
 
 
 /* MAIN MENU HOME SCREEN OVERRIDES */
-/* The menu art is 1806x871 (2.07:1), much wider than a typical window, so
-   `cover` scaled it to fill and cropped its left and right edges away. The
-   card now takes the art's exact aspect ratio and contains it, which keeps
-   the whole image on screen; because the buttons are positioned in
-   percentages of that same box, they stay locked to the art at every size.
-   The backdrop is the art's own sky and ground, so the letterbox bars that
-   appear above and below it blend instead of framing the image. */
+/* The menu art is 1806x871 (2.07:1), wider than most displays. Fill the
+   viewport and crop only outer edges when aspect ratios differ; containing
+   the image leaves the visible letterbox bars shown on the main menu. */
 #menu.menu-home {
   padding: 0;
-  background: linear-gradient(180deg, #8bc0f2 0 50%, #5a5a6c 50% 100%);
+  background: #8bc0f2;
 }
 
 #menu.menu-home > .menu-card {
   position: relative;
-  width: min(100vw, calc(100vh * 1806 / 871));
-  max-height: 100vh;
-  aspect-ratio: 1806 / 871;
+  width: 100vw;
+  height: 100vh;
+  max-height: none;
+  aspect-ratio: auto;
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: url("/assets/images/ui/main-menu-background.png") center/contain no-repeat;
+  background: url("/assets/images/ui/main-menu-background.png") center/cover no-repeat;
   box-shadow: none;
 }
 
@@ -826,8 +823,7 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 @media (max-width: 1100px) {
-  /* Widths are a share of the card, not the window, so the buttons keep
-     their place on the art once it is letterboxed. */
+  /* Widths remain a share of the viewport-sized card. */
   #menu.menu-home #menu-primary-action,
   #menu.menu-home #menu-credits-action,
   #menu.menu-home #dev-level-select {
@@ -838,15 +834,14 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 @media (max-width: 860px) {
-  /* Too narrow to sit buttons on top of the art without covering it, so the
-     card fills the screen and the art sits as a full-width band up top. */
+  /* Too narrow to sit buttons on top of the art without covering it. */
   #menu.menu-home > .menu-card {
     width: 100%;
     height: 100%;
     max-height: none;
     aspect-ratio: auto;
     background-position: center top;
-    background-size: 100% auto;
+    background-size: cover;
   }
 
   /* Normal flow below the art, so the four controls stack and none of them
