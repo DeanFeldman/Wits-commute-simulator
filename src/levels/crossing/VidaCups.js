@@ -2,15 +2,16 @@ import * as THREE from "three";
 
 // Collectible Vida e Caffè cups for Level 2 and the power-ups they grant.
 //
-// Each cup type has a sleeve colour, a glow colour and one effect:
-// - flatWhite:  takes seconds off the crossing time
+// Each cup type has its own sleeve and glow. Some cups also grant a temporary
+// gameplay effect:
+// - flatWhite:  route collectible only
 // - doubleShot: walk faster for a few seconds
 // - icedLatte:  traffic slows down for a few seconds
 // - shield:     the next vehicle hit knocks you over instead of sending you back
 export const CUP_TYPES = Object.freeze({
   flatWhite: Object.freeze({
     id: "flatWhite", label: "Flat White", sleeve: "#f1e6cf", ink: "#7a2320", glow: 0xffe7a8,
-    duration: 0, timeBonus: 3, blurb: "-3s off your time"
+    duration: 0, blurb: "Route collectible"
   }),
   doubleShot: Object.freeze({
     id: "doubleShot", label: "Double Shot", sleeve: "#b8322d", ink: "#fff3e4", glow: 0xff7043,
@@ -76,7 +77,6 @@ export class PowerUpState {
   constructor() {
     this.timers = { doubleShot: 0, icedLatte: 0 };
     this.shield = false;
-    this.timeBonus = 0;
     this.collected = 0;
   }
 
@@ -84,7 +84,6 @@ export class PowerUpState {
     const type = CUP_TYPES[typeId];
     if (!type) return null;
     this.collected += 1;
-    if (type.timeBonus) this.timeBonus += type.timeBonus;
     if (type.duration > 0) this.timers[typeId] = type.duration;
     if (typeId === "shield") this.shield = true;
     return type;
