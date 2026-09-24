@@ -1195,11 +1195,6 @@ body.level-2 #level2-vignette{opacity:1}
   display: none;
 }
 
-/* Level 2 runs against a 30-second limit; the last five seconds turn red so
-   the deadline is visible before it arrives. */
-.l2-hud-row strong.l2-time-low { color: #ff9aa4; }
-
-
 /* Issue #41: final commute scorecard. */
 .results-summary {
   display: grid;
