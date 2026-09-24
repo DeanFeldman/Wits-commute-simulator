@@ -203,7 +203,7 @@ export class CrossingLevel {
       moveRight: ["KeyD", "ArrowRight"]
     });
     this.game.setMessage(
-      "Collect every Vida cup and reach Engineering in under 30 seconds."
+      "Collect every Vida cup and reach Engineering as fast as you can."
     );
   }
 
