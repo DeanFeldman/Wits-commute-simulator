@@ -1206,6 +1206,8 @@ export class ParkingLevel {
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
     this.carIdleAudio = null;
+    this.collisionHitAudio = null;
+    this.collisionHitPlaying = new Set();
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -1781,6 +1783,25 @@ createParkingSurface(potholes = []) {
     });
   }
 
+  // Level 1 only: one-shot crunch for pothole and parked-car impacts.
+  // The source element is kept for preloading; each hit plays a clone so
+  // back-to-back impacts can overlap instead of cutting each other off.
+  playCollisionSound(speedFactor = 1) {
+    if (!this.collisionHitAudio) {
+      this.collisionHitAudio = new Audio("./assets/audio/level1/collision-hit.mp3");
+      this.collisionHitAudio.preload = "auto";
+    }
+
+    const hit = this.collisionHitAudio.cloneNode();
+    hit.volume = THREE.MathUtils.lerp(0.45, 1, THREE.MathUtils.clamp(speedFactor, 0, 1));
+    this.collisionHitPlaying.add(hit);
+    hit.addEventListener("ended", () => this.collisionHitPlaying.delete(hit), { once: true });
+    hit.play().catch(() => {
+      // Playback can be refused without a user gesture; keep the level playable.
+      this.collisionHitPlaying.delete(hit);
+    });
+  }
+
 
   update(dt) {
     if(!this.car)return;
@@ -1871,6 +1892,8 @@ const hit = this.collisionWorld.firstHit(
 );
 
 if (hit) {
+  // Read the speed before revertToSafePose() stops the vehicle.
+  const crashSpeedFactor = clamp(Math.abs(this.vehicle.speed) / 6, 0, 1);
   revertToSafePose(this.car, this.vehicle, previousPosition, previousRotationY);
 
   if (this.impactCooldown <= 0) {
@@ -1883,6 +1906,11 @@ if (hit) {
 
     this.game.flashHUD();
     this.audio.cue(78, 0.12, 0.15);
+
+    // Crashing into a parked car only; kerbs, fences and signs stay silent.
+    if (hit.tag === "parked-car") {
+      this.playCollisionSound(crashSpeedFactor);
+    }
 
     this.impactCooldown = 0.55;
   }
@@ -2800,6 +2828,10 @@ if (hit) {
       0.14
     );
 
+    this.playCollisionSound(
+      speedFactor
+    );
+
     this.condition =
       Math.max(
         0,
@@ -3104,6 +3136,9 @@ if (hit) {
   dispose() {
     this.carIdleAudio?.pause();
     this.carIdleAudio = null;
+    this.collisionHitPlaying.forEach((hit) => hit.pause());
+    this.collisionHitPlaying.clear();
+    this.collisionHitAudio = null;
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);

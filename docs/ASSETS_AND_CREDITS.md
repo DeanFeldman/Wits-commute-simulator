@@ -538,6 +538,7 @@ are replaced with team-authored or properly licensed alternatives.
 | `audio/level1/car-crash.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
 | `audio/level1/car-door-shut.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
 | `audio/level1/idle-car.wav` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
+| `audio/level1/collision-hit.mp3` | Supplied as `freesound_community-fast-collision-reverb-14611.mp3`; used for pothole and parked-car impacts; the filename suggests a Freesound community upload, but no page URL or licence was recorded. | Source URL, author and licence (confirm attribution requirements), or replacement. |
 | `models/characters/wits-shark.glb`, `models/characters/wits-shark.png` | Added without an attribution record. | Source/licence or team-authorship record. |
 | `textures/road/amic-fence.png`, `textures/road/amic-fence-reference.png`, `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` | Added without an attribution record. | Source/licence or team-authorship record. |
 | `images/ui/main-menu-background.png`, `images/ui/level2-story-loading-screen.png`, `images/ui/level3-story-loading-screen.png` | Added without a generation or source record. | Generation record or source/licence. |
