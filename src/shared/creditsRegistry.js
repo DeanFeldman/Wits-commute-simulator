@@ -34,7 +34,7 @@ export const CREDITS = [
   { heading: "Provenance review required before submission", entries: [
     { name: "Normalised vehicle pack", detail: "Aston Martin, BYD, Honda, Nissan and Volkswagen source archives did not retain source or licence metadata. Do not submit until the original download pages and licences are recorded." },
     { name: "Diesel Thomas proxy", detail: "Project-made procedural stand-in; original uploaded Blender source is not used at runtime. The underlying character reference needs rights clearance before submission." },
-    { name: "Level 1 recorded audio", detail: "car-crash.mp3, car-door-shut.mp3 and idle-car.wav have no retained source or licence metadata. Do not submit until verified or replaced with team-authored/licensed audio." },
+    { name: "Level 1 recorded audio", detail: "car-crash.mp3, car-door-shut.mp3, idle-car.wav and collision-hit.mp3 have no retained source or licence metadata. Do not submit until verified or replaced with team-authored/licensed audio." },
     { name: "Wits shark and unregistered image textures", detail: "wits-shark.glb, wits-shark.png, AMIC fence/deck textures and UI artwork need source-or-team-authorship records in the asset ledger before submission." }
   ] }
 ];
