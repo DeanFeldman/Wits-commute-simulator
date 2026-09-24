@@ -15,7 +15,9 @@ Every successful level is worth at most 100 points:
 
 A complete three-level journey is therefore scored out of 300.
 
-Time credit is full at or below the level's par time, zero at or above its slow time, and interpolated linearly between those values.
+Levels 1 and 3 use bounded time scoring: full credit at or below the level's par time, zero at or above its slow time, and linear interpolation between those values.
+
+Level 2 is intentionally different because it has no time limit. It uses open-ended fastest-completion scoring instead: full time credit at or below its par time, then a continuously decreasing score for slower successful finishes.
 
 ## Level 1 — Park at Wits
 
@@ -40,9 +42,14 @@ The level reports its successful attempt's elapsed time, remaining condition, co
 
 Time:
 
-- par: 18 seconds
-- slow: 30 seconds
-- uses the same adjusted time shown by the level, including backwards penalties and time bonuses.
+- there is no countdown time limit and no time-based failure state;
+- the level records the player's actual elapsed completion time;
+- par: 40 seconds;
+- 40 seconds or faster earns the full 40-point time component;
+- after 40 seconds, the time component is `round(40 × 40 / elapsedSeconds)`;
+- there is no slow-time cutoff, so slower successful runs continue to earn some time credit;
+- Flat White cups no longer subtract seconds from the recorded time;
+- backwards movement no longer changes the timer and is scored only through the quality component.
 
 Mistake score:
 
