@@ -19,9 +19,9 @@ test("time score gives full credit at par and zero at slow time", () => {
 });
 
 test("Level 2 fastest-finish scoring has no slow-time cutoff", () => {
-  assert.equal(scoreFastestTime(36, 36), 40);
-  assert.ok(scoreFastestTime(60, 36) > scoreFastestTime(120, 36));
-  assert.ok(scoreFastestTime(120, 36) > 0);
+  assert.equal(scoreFastestTime(40, 40), 40);
+  assert.ok(scoreFastestTime(60, 40) > scoreFastestTime(120, 40));
+  assert.ok(scoreFastestTime(120, 40) > 0);
 });
 
 test("better Level 1 parking produces a better score", () => {
@@ -45,7 +45,7 @@ test("better Level 1 parking produces a better score", () => {
 });
 
 test("Level 2 rewards faster finishes and counts impacts and backwards steps separately", () => {
-  const clean = scoreLevel(2, { time: 36, impacts: 0, backwardSteps: 0 });
+  const clean = scoreLevel(2, { time: 40, impacts: 0, backwardSteps: 0 });
   const messy = scoreLevel(2, { time: 60, impacts: 2, backwardSteps: 4 });
 
   assert.equal(clean.total, 100);
@@ -82,7 +82,7 @@ test("commute ratings use the documented thresholds", () => {
 test("personal bests only improve", () => {
   const summary = summariseJourney([
     scoreLevel(1, { time: 40, condition: 100, containmentPercent: 100, alignmentErrorDegrees: 0 }),
-    scoreLevel(2, { time: 36, impacts: 0, backwardSteps: 0 }),
+    scoreLevel(2, { time: 40, impacts: 0, backwardSteps: 0 }),
     scoreLevel(3, { time: 45, incorrectAnswers: 0, suspicion: 0 })
   ], 103);
 
