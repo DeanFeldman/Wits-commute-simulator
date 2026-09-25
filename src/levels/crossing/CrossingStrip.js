@@ -1853,10 +1853,11 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
     const trees = [];
     const sideWidth = Math.max(0, (this.definition.width - BRIDGE_DECK_WIDTH) / 2);
     const sideCenter = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
-    if (sideWidth > 0) for (const side of [-1, 1]) this.createLandscapePanel(sideWidth, this.definition.depth, {
+    let treeBedTop = WALKWAY_TOP_Y;
+    if (sideWidth > 0) for (const side of [-1, 1]) treeBedTop = this.createRaisedPlantingBed(sideWidth - 0.35, this.definition.depth - 0.28, {
       x: side * sideCenter,
-      name: `level2-tree-verge-${this.definition.index}-${side < 0 ? "left" : "right"}`,
-      color: side < 0 ? 0x557a45 : 0x5f844b
+      name: `level2-tree-bed-${this.definition.index}-${side < 0 ? "left" : "right"}`,
+      height: 0.18
     });
 
     for (let index = 0; index < count; index++) {
@@ -1871,7 +1872,7 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
       const variation = this.random();
       trees.push({
         x: marker.position.x,
-        y: WALKWAY_TOP_Y,
+        y: treeBedTop,
         z: marker.position.z,
         scale: baseScale * (0.92 + variation * 0.16),
         rotation: variation * Math.PI * 2
