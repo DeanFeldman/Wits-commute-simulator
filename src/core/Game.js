@@ -767,8 +767,10 @@ export class Game {
     this.onResize();
   }
 
-  setHUD(html) {
+  setHUD(html, variant = "") {
     this.hudElement.innerHTML = html;
+    if (variant) this.hudElement.dataset.variant = variant;
+    else delete this.hudElement.dataset.variant;
   }
 
   flashHUD() {
