@@ -488,6 +488,7 @@ export class Game {
       document.exitPointerLock?.();
     }
 
+    this.currentLevel?.audio?.stopMusic?.();
     this.uiAudio.startMusic("menu");
     this.uiAudio.setMuted(this.isSoundMuted);
     this.levelIntroConfig = config;
