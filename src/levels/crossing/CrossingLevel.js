@@ -24,6 +24,7 @@ import {
 // walk speed replace the old 2.4 m lunges between rows.
 const WALK_STEP = STRIP_DEPTH / 2;
 const WALK_SPEED = 4.6;
+const MAX_LEVEL_2_ATTEMPTS = 3;
 // Distance covered by one full left-right stride cycle.
 const STRIDE_LENGTH = 1.6;
 const PLAYER_SCALE = 1.03;
@@ -407,16 +408,11 @@ export class CrossingLevel {
     const time = this.crossingTime;
 
     this.game.setHUD(`
-      <div class="l2-hud">
-        <strong class="l2-hud-title">Cross the Road</strong>
-        <div class="l2-hud-row"><span>Elapsed</span><strong>${time.toFixed(1)}s</strong></div>
-        <div class="l2-hud-row"><span>Attempts</span><strong>${this.attempts + 1}</strong></div>
-        <div class="l2-hud-row"><span>Vida cups</span><strong class="l2-cups">${this.powerUps.collected} / ${this.cups.total}</strong></div>
-        <div class="l2-hud-row"><span>Checkpoint</span><strong>${this.checkpoint.label}</strong></div>
+      <div class="game-hud l2-hud">
+        <div class="hud-split"><span>Time <strong>${time.toFixed(1)}s</strong></span><span class="l2-cups">Vida <strong>${this.powerUps.collected}/${this.cups.total}</strong></span></div>
         ${effects}
-        <span class="gap-hint">${this.getNextGapHint()}</span>
       </div>
-    `);
+    `, "level2");
   }
 
   updatePlayerGroundHeight() {
@@ -496,7 +492,7 @@ export class CrossingLevel {
     }
 
     const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer && !person.quizDone) {
+    if (isQuizzer) {
       this.startQuiz(person);
       return;
     }
@@ -517,8 +513,7 @@ export class CrossingLevel {
 
   // Stops the player and opens a quiz for a psychQuizzer/ccduAdvisor person.
   // The answer is checked for validity only (see quizBank.isValidAnswer) and
-  // is never stored — `person.quizDone` just stops the same person from
-  // re-asking for the  of this playthrough.
+  // is never stored; survey NPCs can ask again later in the same run.
     startQuiz(person) {
     if (person.kind === "psychQuizzer") {
       this.quizPaused = true;
@@ -545,7 +540,7 @@ export class CrossingLevel {
   // per NPC, just two ways of arriving at it.
   handleChaseCatches() {
     if (this.quizPaused) return;
-    const caughtBy = this.crowd.people.find((person) => person.caught && !person.quizDone);
+    const caughtBy = this.crowd.people.find((person) => person.caught);
     if (!caughtBy) return;
     this.startQuiz(caughtBy);
   }
@@ -690,19 +685,23 @@ checkFinish() {
     this.attempts += 1;
     this.game.flashHUD();
     this.audio.cue(wasTaxi ? 110 : 165, 0.2, 0.12);
+
+    if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
+      this.game.setCheckpoint("start");
+      this.game.failLevel({
+        title: "Too many impacts",
+        reason: `You were hit ${MAX_LEVEL_2_ATTEMPTS} times while crossing Yale Road.`,
+        next: "Retry restarts Level 2 from the beginning."
+      });
+      return;
+    }
+
     this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
     this.impactTimer = 0.42;
     this.cameraShakeTime = 0.34;
     this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;
     this.hopController.delay(this.impactTimer);
-    this.game.reportSetback({
-      title: wasTaxi ? "Taxi impact" : "Vehicle impact",
-      reason: wasTaxi
-        ? "A taxi clipped you mid-lane. They do not brake for pedestrians — cross on a gap, not on hope."
-        : "A car clipped you mid-lane. Check the gap hint in the HUD before you step off the kerb.",
-      next: `Back to the ${this.checkpoint.label} checkpoint. Attempt ${this.attempts + 1}.`
-    });
   }
 
   updateImpact(dt) {

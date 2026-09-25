@@ -189,7 +189,6 @@ export class CampusCrowd {
       chaseTime: 0,
       chaseDistance: 0,
       caught: false,
-      quizDone: false,
       leaving: false,
       leaveDirection: null,
       leaveYaw: 0,
@@ -237,16 +236,10 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
-  // Called once a chase NPC's quiz completes (see CrossingLevel.startQuiz).
-  // Rather than freezing mid-chase with its hands still up, the NPC keeps
-  // moving forward in whatever direction it was last facing — it reads as
-  // jogging on past the player — while updateLeaving/animate blend its pose
-  // back down out of the chase stance via the normal walk cycle. It settles
-  // into an idle stance once it's put some distance behind it and never
-  // chases again (quizDone keeps it out of updateChaser for good).
+  // After a survey, jog past the player, then become chaseable again.
   sendOff(person) {
-    person.quizDone = true;
     person.chasing = false;
+    person.chaseArmed = false;
     person.caught = false;
     const yaw = person.mesh.rotation.y;
     person.leaveYaw = yaw;
@@ -269,11 +262,9 @@ export class CampusCrowd {
           this.animate(person, dt);
           continue;
         }
-        if (!person.quizDone) {
-          this.updateChaser(person, dt, player);
-          this.animate(person, dt);
-          continue;
-        }
+        this.updateChaser(person, dt, player);
+        this.animate(person, dt);
+        continue;
       }
 
       if (person.reactTimer > 0) {
@@ -354,6 +345,8 @@ export class CampusCrowd {
     const position = person.mesh.position;
     if (person.leaveTraveled >= LEAVE_DISTANCE) {
       person.moving = false;
+      person.leaving = false;
+      person.chaseArmed = true;
       return;
     }
     const step = Math.min(LEAVE_SPEED * dt, LEAVE_DISTANCE - person.leaveTraveled);
@@ -419,7 +412,7 @@ export class CampusCrowd {
   animate(person, dt) {
     const rig = person.rig;
 
-    if (CHASE_KINDS.has(person.kind) && person.chasing && !person.quizDone) {
+    if (CHASE_KINDS.has(person.kind) && person.chasing) {
       const runAmount = person.caught ? 0.3 : 1;
       poseChase(rig, (person.stride / 1.3) * Math.PI * 2, runAmount);
       rig.head.rotation.x = 0;

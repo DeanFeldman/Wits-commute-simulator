@@ -2146,17 +2146,21 @@ if (hit) {
     this.updateParkingWaypoints(dt);
     this.updateCamera(dt);
 
+    const checks = [
+      ["Inside bay", this.parkingStatus.containment],
+      ["Straight", this.parkingStatus.alignment],
+      ["Stopped", this.parkingStatus.rest]
+    ];
+    const parkingActive = this.parkingStatus.containmentPercent > 0 || this.parkingStatus.holdTime > 0;
     this.game.setHUD(`
-      <strong>Park at Wits</strong><br>
-      <span class="hud-label">CONDITION</span><div class="meter condition"><i style="width: ${this.condition}%"></i></div>${Math.round(this.condition)}%<br>
-      Time: ${this.elapsedTime.toFixed(1)}s<br>
-      Speed: ${Math.abs(this.vehicle.speed).toFixed(1)}<br>
-      Goal: park in any of the ${this.parkingBays.length} marked bays<br>
-      Containment (${Math.round(this.parkingStatus.containmentPercent)}%): ${this.parkingStatus.containment ? "PASS" : "FAIL"}<br>
-      Alignment (12 degrees): ${this.parkingStatus.alignment ? "PASS" : "FAIL"}<br>
-      Rest (0.3 m/s): ${this.parkingStatus.rest ? "PASS" : "FAIL"}<br>
-      ${this.parkingStatus.holdTime > 0 ? `Confirming: ${Math.round(this.parkingStatus.holdTime / this.parkingConfirmationDuration * 100)}%` : "All three tests must pass"}
-    `);
+      <div class="game-hud l1-hud">
+        <div class="hud-metric"><span class="hud-label">Condition</span><strong>${Math.round(this.condition)}%</strong></div>
+        <div class="meter condition"><i style="width: ${this.condition}%"></i></div>
+        <div class="hud-split"><span>Time <strong>${this.elapsedTime.toFixed(1)}s</strong></span><span>${parkingActive ? `Parking <strong>${checks.filter(([, pass]) => pass).length}/3</strong>` : "Find a marked bay"}</span></div>
+        ${parkingActive ? `<div class="parking-checks">${checks.map(([label, pass]) => `<span class="${pass ? "pass" : ""}">${pass ? "✓" : "○"} ${label}</span>`).join("")}</div>` : ""}
+        ${this.parkingStatus.holdTime > 0 ? `<div class="hud-confirm">Hold still · ${Math.round(this.parkingStatus.holdTime / this.parkingConfirmationDuration * 100)}%</div>` : ""}
+      </div>
+    `, "level1");
 
     if (this.condition <= 0) {
       this.completed = true;

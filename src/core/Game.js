@@ -659,6 +659,7 @@ export class Game {
   }
 
   showFailure(failure) {
+    document.exitPointerLock?.();
     const { title, reason, next } = describeFailure(failure);
     this.loadVersion += 1;
     this.disposeCurrentLevel();
@@ -767,8 +768,10 @@ export class Game {
     this.onResize();
   }
 
-  setHUD(html) {
+  setHUD(html, variant = "") {
     this.hudElement.innerHTML = html;
+    if (variant) this.hudElement.dataset.variant = variant;
+    else delete this.hudElement.dataset.variant;
   }
 
   flashHUD() {
