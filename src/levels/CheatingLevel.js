@@ -1194,12 +1194,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       : "";
 
     this.game.setHUD(`
-      <strong>Don't Get Caught</strong><br>
-      <span class="hud-label">ANSWERS</span><div class="meter progress"><i style="width: ${this.answerProgress}%"></i></div>${Math.round(this.answerProgress)}%<br>
-      <span class="hud-label">SUSPICION</span><div class="meter suspicion"><i style="width: ${this.suspicion}%"></i></div>${Math.round(this.suspicion)}%<br>
-      Time remaining: ${Math.ceil(this.timeRemaining)}s<br>
-      ${instruction}${typedLine}
-    `);
+      <div class="game-hud l3-hud">
+        <div class="hud-split"><span>Time <strong>${Math.ceil(this.timeRemaining)}s</strong></span><span>Answers <strong>${Math.round(this.answerProgress)}%</strong></span></div>
+        <div class="meter progress"><i style="width: ${this.answerProgress}%"></i></div>
+        <div class="hud-metric"><span class="hud-label">Suspicion</span><strong>${Math.round(this.suspicion)}%</strong></div>
+        <div class="meter suspicion"><i style="width: ${this.suspicion}%"></i></div>
+        <div class="hud-tip l3-context">${instruction}${typedLine}</div>
+      </div>
+    `, "level3");
 
     if (this.answerProgress >= 100) {
       this.completed = true;
