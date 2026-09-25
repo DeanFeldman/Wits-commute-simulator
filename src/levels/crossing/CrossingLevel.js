@@ -492,7 +492,7 @@ export class CrossingLevel {
     }
 
     const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer && !person.quizDone) {
+    if (isQuizzer) {
       this.startQuiz(person);
       return;
     }
@@ -513,8 +513,7 @@ export class CrossingLevel {
 
   // Stops the player and opens a quiz for a psychQuizzer/ccduAdvisor person.
   // The answer is checked for validity only (see quizBank.isValidAnswer) and
-  // is never stored — `person.quizDone` just stops the same person from
-  // re-asking for the  of this playthrough.
+  // is never stored; survey NPCs can ask again later in the same run.
     startQuiz(person) {
     if (person.kind === "psychQuizzer") {
       this.quizPaused = true;
@@ -541,7 +540,7 @@ export class CrossingLevel {
   // per NPC, just two ways of arriving at it.
   handleChaseCatches() {
     if (this.quizPaused) return;
-    const caughtBy = this.crowd.people.find((person) => person.caught && !person.quizDone);
+    const caughtBy = this.crowd.people.find((person) => person.caught);
     if (!caughtBy) return;
     this.startQuiz(caughtBy);
   }
