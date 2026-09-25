@@ -156,7 +156,7 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
-    this.isMenuMusicPaused = false;
+    this.isMusicEnabled = true;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
 
@@ -175,6 +175,7 @@ export class Game {
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
     this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
+    this.pauseMusicAction = document.querySelector("[data-pause-action='music']");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
@@ -230,6 +231,7 @@ export class Game {
   showMenu() {
     this.cancelTransition();
     this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
     this.uiAudio.setMuted(this.isSoundMuted);
     this.hideLevelIntro();
     this.loadVersion += 1;
@@ -264,7 +266,6 @@ export class Game {
     this.menuCreditsAction.textContent = "Credits & licences";
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuMusicAction.hidden = false;
-    this.isMenuMusicPaused ? this.uiAudio.pauseMusic() : this.uiAudio.resumeMusic();
     this.updateMenuMusicAction();
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
@@ -419,6 +420,7 @@ export class Game {
 
     const level = new Level(this);
     this.currentLevel = level;
+    level.audio?.setMusicEnabled?.(this.isMusicEnabled);
 
     try {
       await level.load();
@@ -498,6 +500,7 @@ export class Game {
 
     this.currentLevel?.audio?.stopMusic?.();
     this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
     this.uiAudio.setMuted(this.isSoundMuted);
     this.levelIntroConfig = config;
     this.isLevelIntroActive = true;
@@ -757,6 +760,7 @@ export class Game {
     this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
     this.pauseSoundAction.textContent = this.isSoundMuted ? "Sound: off" : "Sound: on";
     this.pauseSoundAction.setAttribute("aria-pressed", String(this.isSoundMuted));
+    this.updatePauseMusicAction();
     // Releasing pointer lock is what returns the visible cursor immediately;
     // no Escape key or extra click should be required to use this menu.
     if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
@@ -867,9 +871,7 @@ export class Game {
     }
 
     if (action === "music") {
-      this.isMenuMusicPaused = !this.isMenuMusicPaused;
-      this.isMenuMusicPaused ? this.uiAudio.pauseMusic() : this.uiAudio.resumeMusic();
-      this.updateMenuMusicAction();
+      this.setMusicEnabled(!this.isMusicEnabled);
       return;
     }
 
@@ -884,8 +886,13 @@ export class Game {
   }
 
   updateMenuMusicAction() {
-    this.menuMusicAction.textContent = this.isMenuMusicPaused ? "Play music" : "Pause music";
-    this.menuMusicAction.setAttribute("aria-pressed", String(this.isMenuMusicPaused));
+    this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
+    this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
+  }
+
+  updatePauseMusicAction() {
+    this.pauseMusicAction.textContent = this.isMusicEnabled ? "Music: on" : "Music: off";
+    this.pauseMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   showCredits() {
@@ -950,7 +957,18 @@ export class Game {
 
     if (event.target.closest("[data-pause-action='sound']")) {
       this.setSoundMuted(!this.isSoundMuted);
+      return;
     }
+
+    if (event.target.closest("[data-pause-action='music']")) this.setMusicEnabled(!this.isMusicEnabled);
+  }
+
+  setMusicEnabled(enabled) {
+    this.isMusicEnabled = enabled;
+    this.uiAudio.setMusicEnabled(enabled);
+    this.currentLevel?.audio?.setMusicEnabled?.(enabled);
+    this.updateMenuMusicAction();
+    this.updatePauseMusicAction();
   }
 
   setSoundMuted(muted) {
