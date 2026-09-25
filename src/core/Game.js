@@ -13,6 +13,7 @@ import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 import {
   loadPersonalBests,
   savePersonalBests,
@@ -154,6 +155,7 @@ export class Game {
     this.personalBests = loadPersonalBests();
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
+    this.uiAudio = new LevelAudio();
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
 
@@ -225,6 +227,8 @@ export class Game {
 
   showMenu() {
     this.cancelTransition();
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.hideLevelIntro();
     this.loadVersion += 1;
     this.disposeCurrentLevel();
@@ -461,6 +465,7 @@ export class Game {
   }
 
   startPracticeLevel(levelNumber) {
+    this.uiAudio.stopMusic();
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.journeyLevelResults.clear();
@@ -483,6 +488,8 @@ export class Game {
       document.exitPointerLock?.();
     }
 
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.levelIntroConfig = config;
     this.isLevelIntroActive = true;
     this.isLevelIntroReady = false;
@@ -546,6 +553,8 @@ export class Game {
     if (!this.isLevelIntroReady) return;
 
     this.hideLevelIntro();
+    this.uiAudio.stopMusic();
+    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     // The Continue click is a user gesture, so it can immediately return
     // focus and mouse control to the loaded level without a second click.
     this.input.requestPointerLock();
@@ -920,6 +929,7 @@ export class Game {
 
   setSoundMuted(muted) {
     this.isSoundMuted = muted;
+    this.uiAudio.setMuted(muted);
     this.currentLevel?.audio?.setMuted?.(muted);
     this.currentLevel?.setMuted?.(muted);
     this.pauseSoundAction.textContent = muted ? "Sound: off" : "Sound: on";
