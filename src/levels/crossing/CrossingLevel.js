@@ -45,7 +45,8 @@ const SPEAKER_TITLES = {
   jogger: "Jogger",
   queue: "Vida queue",
   psychQuizzer: "Psych Elective",
-  ccduAdvisor: "CCDU"
+  ccduAdvisor: "CCDU",
+  robot: "Wits Bot"
 };
 
 export class CrossingLevel {
