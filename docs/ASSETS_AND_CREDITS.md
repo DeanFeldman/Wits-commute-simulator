@@ -382,10 +382,13 @@ The pre-Level 1 story and asset-loading screen.
 ### Original Level Soundtrack
 
 Type:
-Music / procedural Web Audio composition
+Music / pre-rendered WAV soundtrack
 
 Source:
-Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request, then implemented as oscillator-based runtime sequences in `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/` and played directly by `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+
+Files:
+`menu-commute-theme.wav`, `level1-dusk-drive.wav`, `level2-empire-rush.wav`, `level3-dont-get-caught.wav`.
 
 Author:
 OpenAI-assisted composition generated for the Wits Commute Simulator team.
