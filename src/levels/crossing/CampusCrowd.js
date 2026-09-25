@@ -18,8 +18,7 @@ const CHASE_TRIGGER_DISTANCE = 4;
 const CHASE_CATCH_DISTANCE = 0.9;
 const CHASE_SPEED = 3.3;
 const CHASE_MAX_DURATION = 1.6;
-const CHASE_MAX_TRAVEL = 3.2;
-const CHASE_RETRY_COOLDOWN = 2.5;
+const CHASE_MAX_TRAVEL = 4.5;
 const LEAVE_SPEED = 1.6;
 const LEAVE_DISTANCE = 6;
 
@@ -188,7 +187,6 @@ export class CampusCrowd {
       chasing: false,
       chaseTime: 0,
       chaseDistance: 0,
-      chaseCooldown: 0,
       caught: false,
       quizDone: false,
       leaving: false,
@@ -261,7 +259,6 @@ export class CampusCrowd {
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
-      person.chaseCooldown = Math.max(0, person.chaseCooldown - dt);
       person.recoil = Math.max(0, person.recoil - dt * 3);
       person.caught = false;
 
@@ -312,7 +309,7 @@ export class CampusCrowd {
     const dz = player.z - position.z;
     const distance = Math.hypot(dx, dz);
 
-    if (!person.chasing && person.chaseCooldown === 0 && distance <= CHASE_TRIGGER_DISTANCE) {
+    if (!person.chasing && distance <= CHASE_TRIGGER_DISTANCE) {
       person.chasing = true;
       person.chaseTime = 0;
       person.chaseDistance = 0;
@@ -320,7 +317,6 @@ export class CampusCrowd {
       person.chaseTime += dt;
       if (distance > CHASE_TRIGGER_DISTANCE || person.chaseTime >= CHASE_MAX_DURATION || person.chaseDistance >= CHASE_MAX_TRAVEL) {
         person.chasing = false;
-        person.chaseCooldown = CHASE_RETRY_COOLDOWN;
       }
     }
 
