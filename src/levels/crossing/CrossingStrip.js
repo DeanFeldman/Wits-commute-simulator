@@ -180,6 +180,19 @@ export class CrossingStrip {
     return mesh;
   }
 
+  createLandscapePanel(width, depth, { x = 0, z = 0, name = "level2-landscape", color = 0x557a45 } = {}) {
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, depth),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.98, metalness: 0 })
+    );
+    panel.name = name;
+    panel.rotation.x = -Math.PI / 2;
+    panel.position.set(x, WALKWAY_TOP_Y + 0.012, z);
+    panel.receiveShadow = true;
+    this.root.add(panel);
+    return panel;
+  }
+
   async loadModels(loader, modelCache) {
     // Load optional GLB scenery declared by this strip's preset.
     await Promise.all((this.definition.models ?? []).map(async (modelDefinition) => {
@@ -1143,26 +1156,35 @@ this.createZebraCrossing({
   const sideCenterX =
     BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
 
-  // On the spawn side (bridge-entry), keep only the left plaza.
-  // The right side is now taken by the parking extension.
-  //
-  // On the far side (bridge-exit), keep both side plazas.
-  const pavedSides = isFarSideLanding
-    ? [-1]
-    : [-1];
-
-  for (const side of pavedSides) {
-    this.createWalkwayPanel(
-      sideWidth,
-      this.definition.depth,
-      {
-        x: side * sideCenterX,
-        name:
-          isFarSideLanding && side < 0
-            ? "amic-vida-courtyard"
-            : "amic-bridge-side-plaza"
-      }
-    );
+  // Keep Vida paved on the far landing, but turn the ARM-side bridge
+  // approach into a planted lawn like the real campus edge.
+  if (isFarSideLanding) {
+    this.createWalkwayPanel(sideWidth, this.definition.depth, { x: -sideCenterX, name: "amic-vida-courtyard" });
+  } else {
+    this.createLandscapePanel(sideWidth, this.definition.depth, {
+      x: -sideCenterX,
+      name: "amic-bridge-entry-green",
+      color: 0x557a45
+    });
+    const foliage = { trees: [], bushes: [], grass: [] };
+    for (const [x, z, scale] of [
+      [-6.1, -1.8, 4.9], [-8.7, 1.4, 5.4], [-10.1, -1.1, 4.6]
+    ]) foliage.trees.push({ x, y: WALKWAY_TOP_Y, z, scale, rotation: (foliage.trees.length * 2.17) % (Math.PI * 2) });
+    for (let i = 0; i < 11; i++) foliage.bushes.push({
+      x: -4.6 - (i % 3) * 1.9,
+      y: WALKWAY_TOP_Y,
+      z: -2.5 + Math.floor(i / 3) * 1.55,
+      scale: 0.38 + (i % 2) * 0.06,
+      rotation: (i * 2.399) % (Math.PI * 2)
+    });
+    for (let i = 0; i < 18; i++) foliage.grass.push({
+      x: -4.3 - (i % 5) * 1.4,
+      y: WALKWAY_TOP_Y,
+      z: -2.6 + Math.floor(i / 5) * 1.55,
+      scale: 0.42 + (i % 3) * 0.04,
+      rotation: (i * 1.83) % (Math.PI * 2)
+    });
+    addSharedFoliage(this.root, foliage, { name: "level2-bridge-entry-greenery" });
   }
 
   if (isFarSideLanding) {
@@ -1805,6 +1827,13 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
     const gridSize = this.definition.depth / this.definition.rowSpan;
     const baseScale = (config.scale ?? 1) * 4.4;
     const trees = [];
+    const sideWidth = Math.max(0, (this.definition.width - BRIDGE_DECK_WIDTH) / 2);
+    const sideCenter = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
+    if (sideWidth > 0) for (const side of [-1, 1]) this.createLandscapePanel(sideWidth, this.definition.depth, {
+      x: side * sideCenter,
+      name: `level2-tree-verge-${this.definition.index}-${side < 0 ? "left" : "right"}`,
+      color: side < 0 ? 0x557a45 : 0x5f844b
+    });
 
     for (let index = 0; index < count; index++) {
       const block = blocks[index];
@@ -2250,7 +2279,10 @@ createBridgeFenceReturns({
     };
   }
 createYaleEntranceScenery() {
-  const foliage = { trees: [], bushes: [] };
+  const foliage = { trees: [], bushes: [], grass: [] };
+  this.createLandscapePanel(12, 5.6, { x: -9.2, z: -2.2, name: "yale-left-garden", color: 0x4f7440 });
+  this.createLandscapePanel(12, 5.6, { x: 9.2, z: -2.2, name: "yale-right-garden", color: 0x567d45 });
+  this.createLandscapePanel(42, 3.2, { x: -27, z: -6.15, name: "yale-building-green-belt", color: 0x486d3c });
   const gatePostMaterial = new THREE.MeshStandardMaterial({
     color: 0xc8c0ac,
     roughness: 0.88
@@ -2286,6 +2318,15 @@ createYaleEntranceScenery() {
     x, y: WALKWAY_TOP_Y, z, scale: scale * 4.6,
     rotation: (foliage.trees.length * 2.399) % (Math.PI * 2)
   });
+  const addGrassPatch = (x, z, width, depth, count) => {
+    for (let i = 0; i < count; i++) foliage.grass.push({
+      x: x + (((i * 37) % 101) / 100 - 0.5) * width,
+      y: WALKWAY_TOP_Y,
+      z: z + (((i * 61) % 97) / 96 - 0.5) * depth,
+      scale: 0.38 + (i % 4) * 0.035,
+      rotation: (i * 2.11) % (Math.PI * 2)
+    });
+  };
 
   const addFence = (x, z, length, rotationY = 0, name = "yale-entrance-fence") => {
     const fence = createAmicFenceSection({
@@ -2428,6 +2469,23 @@ addHedge(-19,-5.9,12,1.4,.9);
 addHedge(-9,-6.1,6,1.25,.8,true);
 addHedge(9,-6.1,6,1.25,.8,true);
 addHedge(19,-5.9,12,1.4,.9);
+addGrassPatch(-9.2, -2.2, 10.8, 4.8, 24);
+addGrassPatch(9.2, -2.2, 10.8, 4.8, 24);
+addGrassPatch(-27, -6.15, 40, 2.6, 32);
+
+// Street-view-inspired low planters along the Engineering-side paved edge.
+const planterMaterial = new THREE.MeshStandardMaterial({ color: 0x9c9484, roughness: 0.94 });
+for (const [x, z] of [[5.6, 1.25], [8.4, 1.05], [11.2, 0.85]]) {
+  const planter = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.42, 0.9), planterMaterial);
+  planter.name = "yale-flower-planter";
+  planter.position.set(x, WALKWAY_TOP_Y + 0.2, z);
+  planter.castShadow = true;
+  planter.receiveShadow = true;
+  this.root.add(planter);
+  for (const dx of [-0.45, 0, 0.45]) foliage.bushes.push({
+    x: x + dx, y: WALKWAY_TOP_Y + 0.38, z, scale: 0.31, rotation: (foliage.bushes.length * 2.399) % (Math.PI * 2)
+  });
+}
 
 addSharedFoliage(this.root, foliage, { name: "level2-yale-entrance-foliage" });
 }
