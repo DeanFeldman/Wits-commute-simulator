@@ -23,7 +23,9 @@ export const PEDESTRIAN_GEOMETRY = {
   capBrim: shared(new THREE.BoxGeometry(0.34, 0.03, 0.22)),
   backpack: shared(new THREE.BoxGeometry(0.44, 0.52, 0.2)),
   vest: shared(new THREE.CapsuleGeometry(0.305, 0.3, 4, 10)),
-  phone: shared(new THREE.BoxGeometry(0.09, 0.16, 0.02))
+  phone: shared(new THREE.BoxGeometry(0.09, 0.16, 0.02)),
+  robotHead: shared(new THREE.BoxGeometry(0.42, 0.36, 0.36)),
+  robotEye: shared(new THREE.BoxGeometry(0.32, 0.065, 0.018))
 };
 
 export const SKIN_TONES = [0x5a3825, 0x7b4a2d, 0x9a6440, 0xb97857, 0xd29c78, 0xe7bf9d];
@@ -55,12 +57,13 @@ export class PedestrianFactory {
     backpack = null,
     vest = false,
     holding = null,
+    robot = false,
     scale = 1
   }) {
     const pedestrian = new THREE.Group();
-    const shirtMaterial = this.material(shirt, 0.78);
-    const skinMaterial = this.material(skin, 0.86);
-    const trouserMaterial = this.material(trousers, 0.9);
+    const shirtMaterial = this.material(shirt, robot ? 0.42 : 0.78, robot ? { metalness: 0.68 } : {});
+    const skinMaterial = this.material(skin, robot ? 0.38 : 0.86, robot ? { metalness: 0.82 } : {});
+    const trouserMaterial = this.material(trousers, robot ? 0.5 : 0.9, robot ? { metalness: 0.5 } : {});
     const shoeMaterial = this.material(0x202328, 0.72);
 
     // Legs stay on the pedestrian; everything above the hips sits in `upper`
@@ -70,10 +73,14 @@ export class PedestrianFactory {
 
     const body = new THREE.Mesh(PEDESTRIAN_GEOMETRY.body, shirtMaterial);
     body.position.y = 0.06;
-    const head = new THREE.Mesh(PEDESTRIAN_GEOMETRY.head, skinMaterial);
+    const head = new THREE.Mesh(robot ? PEDESTRIAN_GEOMETRY.robotHead : PEDESTRIAN_GEOMETRY.head, skinMaterial);
     head.position.y = 0.72;
     upper.add(body, head);
-    this.addHair(head, hair, hairColor);
+    if (robot) {
+      const eye = new THREE.Mesh(PEDESTRIAN_GEOMETRY.robotEye, this.material(0x62d9ff, 0.3, { emissive: 0x1c8fb7, emissiveIntensity: 1.8 }));
+      eye.position.set(0, 0.02, 0.188);
+      head.add(eye);
+    } else this.addHair(head, hair, hairColor);
 
     if (vest) {
       const hiVis = new THREE.Mesh(PEDESTRIAN_GEOMETRY.vest, this.material(0xd7ef2a, 0.6, { emissive: 0x2c3300 }));
