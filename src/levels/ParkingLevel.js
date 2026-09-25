@@ -1986,7 +1986,7 @@ createParkingSurface(potholes = []) {
 
     const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
     idleAudio.loop = true;
-    idleAudio.volume = 0.5;
+    idleAudio.volume = 0.15;
     idleAudio.muted = this.game.isSoundMuted;
     this.carIdleAudio = idleAudio;
     idleAudio.play().catch(() => {
@@ -1995,7 +1995,7 @@ createParkingSurface(potholes = []) {
     });
   }
 
-  // Level 1 only: one-shot crunch for pothole and parked-car impacts.
+  // Level 1 only: one-shot crunch for parked-car impacts.
   // The source element is kept for preloading; each hit plays a clone so
   // back-to-back impacts can overlap instead of cutting each other off.
   playCollisionSound(speedFactor = 1) {
@@ -3044,16 +3044,6 @@ if (hit) {
       travelDirection;
 
     this.game.flashHUD();
-
-    this.audio.cue(
-      92,
-      0.12,
-      0.14
-    );
-
-    this.playCollisionSound(
-      speedFactor
-    );
 
     this.condition =
       Math.max(
