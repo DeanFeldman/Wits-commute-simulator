@@ -394,7 +394,7 @@ Licence:
 Generated output - no third-party licence attaches. Note that the generating model was trained on third-party data.
 
 Used for:
-Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
+"Commute Theme" on the home page and level loading/story screens, Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
 
 ### Classroom Brick Wall / Classroom Terrazzo Floor
 
