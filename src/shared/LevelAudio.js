@@ -21,6 +21,7 @@ export class LevelAudio {
     this.tickTimer = 0;
     this.stepTimer = 0;
     this.isMuted = false;
+    this.musicEnabled = true;
     this.unlockAudio = null;
   }
 
@@ -28,7 +29,7 @@ export class LevelAudio {
     if (this.unlockAudio) return;
     this.unlockAudio = () => {
       this.context?.resume?.().catch(() => {});
-      if (this.music?.paused) this.music.play().catch(() => {});
+      if (this.musicEnabled && this.music?.paused) this.music.play().catch(() => {});
     };
     globalThis.addEventListener?.("pointerdown", this.unlockAudio, { passive: true });
     globalThis.addEventListener?.("keydown", this.unlockAudio);
@@ -70,7 +71,7 @@ export class LevelAudio {
       this.musicSource = this.context.createMediaElementSource(music);
       this.musicSource.connect(this.musicGain);
     } else music.muted = this.isMuted;
-    music.play().catch(() => {});
+    if (this.musicEnabled) music.play().catch(() => {});
   }
 
   stopMusic() {
@@ -83,8 +84,9 @@ export class LevelAudio {
   }
 
   pauseMusic() { this.music?.pause(); }
-  resumeMusic() { this.music?.play().catch(() => {}); }
+  resumeMusic() { if (this.musicEnabled) this.music?.play().catch(() => {}); }
   isMusicPaused() { return !this.music || this.music.paused; }
+  setMusicEnabled(enabled) { this.musicEnabled = enabled; enabled ? this.resumeMusic() : this.pauseMusic(); }
 
   startDrone(frequency, volume = 0.02) {
     if (!this.ensure() || this.ambience) return;
