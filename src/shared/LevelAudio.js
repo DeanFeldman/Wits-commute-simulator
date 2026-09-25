@@ -1,4 +1,5 @@
 const MUSIC = {
+  menu: { bpm: 80, chords: [[60,64,67],[57,60,64],[53,57,60],[55,59,62]], bass: [36,33,29,31] },
   level1: { bpm: 84, chords: [[62,65,69],[58,62,65],[53,57,60],[60,64,67]], bass: [38,34,41,36] },
   level2: { bpm: 132, chords: [[64,67,71],[60,64,67],[55,59,62],[62,66,69]], bass: [40,36,43,38] },
   level3: { bpm: 72, chords: [[38,45],[38,45],[38,45],[38,45]], bass: [38,38,38,38] }
@@ -71,7 +72,12 @@ export class LevelAudio {
     const bar = Math.floor(step / 8) % 4;
     const beat = 60 / p.bpm;
     const chord = p.chords[bar];
-    if (this.musicPreset === "level1") {
+    if (this.musicPreset === "menu") {
+      if (s === 0) this.musicToneAt(midi(p.bass[bar]), time, beat * 3.8, 0.07, "sine");
+      this.musicToneAt(midi(chord[s % 3] + 12), time, beat * 0.5, 0.045, "triangle", s % 2 ? 0.25 : -0.25);
+      if (s === 0 || s === 4) this.musicThumpAt(time, 0.065, 66);
+      if (bar === 3 && [1,3,5,7].includes(s)) this.musicToneAt(midi([67,69,71,72][[1,3,5,7].indexOf(s)]), time, beat * 0.35, 0.032, "sine", 0.15);
+    } else if (this.musicPreset === "level1") {
       if (s === 0) this.musicToneAt(midi(p.bass[bar]), time, beat * 3.8, 0.11);
       this.musicToneAt(midi(chord[s % 3]), time, beat * 0.42, 0.055, "sine", s % 2 ? 0.35 : -0.35);
       if (s === 0 || s === 4) this.musicThumpAt(time, 0.11, 78);
