@@ -699,6 +699,7 @@ export class Game {
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
     this.menuElement.classList.remove("menu-home");
+    this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
     requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
