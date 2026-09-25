@@ -138,43 +138,30 @@ export class CrossingLevel {
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
-    // Trimmed from 2.9 / 4.2 for ACES, 2026-09-08. These were the highest
-    // intensities in the game and were clipping against NoToneMapping; the
-    // curve's 1.67x pre-gain pushed them further up rather than down, so
-    // midday measured 4.7% brighter and 18.6% less saturated after the
-    // change. See src/core/renderSettings.js and docs/DECISIONS.md.
-    const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.65);
+    // Match Level 1's exterior lighting exactly: same cool hemisphere,
+    // warm dusk sun, intensity balance, shadow resolution and direction.
+    const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 1.63);
     this.root.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff1cf, 3.65);
-    sun.position.set(-10, 18, 8);
+    const sun = new THREE.DirectionalLight(0xffb56a, 3.91);
+    sun.position.set(-18, 11, 8);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -12;
-    sun.shadow.camera.right = 12;
-    sun.shadow.camera.top = 14;
-    sun.shadow.camera.bottom = -14;
+    sun.shadow.mapSize.set(1536, 1536);
+    sun.shadow.camera.left = -18;
+    sun.shadow.camera.right = 18;
+    sun.shadow.camera.top = 18;
+    sun.shadow.camera.bottom = -18;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 55;
-    sun.shadow.bias = -0.0003;
+    sun.shadow.bias = -0.0004;
     sun.shadow.normalBias = 0.025;
-
     this.root.add(sun);
-    this.root.add(sun.target);
-    sun.target.position.set(0, 0, 0);
-
-    // Soft opposite-side fill keeps faces, trees and the Engineering plaza
-    // readable when they fall into the main sun's shadow.
-    const fill = new THREE.DirectionalLight(0xb9d9ff, 0.9);
-    fill.position.set(12, 10, -10);
-    this.root.add(fill);
 
     // Build the generated environment before placing gameplay actors into it.
     this.parkingRoadTextures = createRoadTextures();
     await this.parkingRoadTextures.ready;
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
-    this.createRouteLighting();
 
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
@@ -262,32 +249,6 @@ export class CrossingLevel {
     this.blockedCells = this.strips.flatMap((strip) => strip.blockedCells);
     this.boundaryVolumes = this.strips.flatMap((strip) => strip.boundaryVolumes);
     await Promise.all(this.strips.map((strip) => strip.whenReady()));
-  }
-
-  createRouteLighting() {
-    const root = new THREE.Group();
-    root.name = "level2-route-lighting";
-    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x262d31, roughness: 0.62, metalness: 0.38 });
-    const lampMaterial = new THREE.MeshStandardMaterial({ color: 0xffe7b0, emissive: 0xffc76a, emissiveIntensity: 2.1, roughness: 0.42 });
-    const poleGeometry = new THREE.CylinderGeometry(0.055, 0.075, 4.4, 8);
-    const headGeometry = new THREE.SphereGeometry(0.16, 10, 8);
-    const count = 7;
-    for (let index = 0; index < count; index++) {
-      const t = (index + 0.55) / count;
-      const z = THREE.MathUtils.lerp(this.startZ, this.finishZ, t);
-      const x = (index % 2 === 0 ? -1 : 1) * 4.15;
-      const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-      pole.position.set(x, 2.2, z);
-      pole.castShadow = true;
-      root.add(pole);
-      const head = new THREE.Mesh(headGeometry, lampMaterial);
-      head.position.set(x, 4.42, z);
-      root.add(head);
-      const light = new THREE.PointLight(0xffd79a, 4.2, 12, 2);
-      light.position.set(x, 4.15, z);
-      root.add(light);
-    }
-    this.root.add(root);
   }
 
   resolveSeed() {
