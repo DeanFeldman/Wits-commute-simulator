@@ -138,24 +138,26 @@ export class CrossingLevel {
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
-    // Match Level 1's exterior lighting exactly: same cool hemisphere,
-    // warm dusk sun, intensity balance, shadow resolution and direction.
-    const hemi = new THREE.HemisphereLight(0x5e7898, 0x170d09, 1.63);
+    // Keep Level 2's original physical lights for geometry/shadows.
+    // The Level 1-like warm/cool look is applied in a shader pass in Game.js.
+    const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.65);
     this.root.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xffb56a, 3.91);
-    sun.position.set(-18, 11, 8);
+    const sun = new THREE.DirectionalLight(0xfff1cf, 3.4);
+    sun.position.set(-10, 18, 8);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1536, 1536);
-    sun.shadow.camera.left = -18;
-    sun.shadow.camera.right = 18;
-    sun.shadow.camera.top = 18;
-    sun.shadow.camera.bottom = -18;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -12;
+    sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 14;
+    sun.shadow.camera.bottom = -14;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 55;
-    sun.shadow.bias = -0.0004;
+    sun.shadow.bias = -0.0003;
     sun.shadow.normalBias = 0.025;
     this.root.add(sun);
+    this.root.add(sun.target);
+    sun.target.position.set(0, 0, 0);
 
     // Build the generated environment before placing gameplay actors into it.
     this.parkingRoadTextures = createRoadTextures();
