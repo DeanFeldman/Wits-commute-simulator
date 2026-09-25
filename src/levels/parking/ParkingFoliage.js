@@ -68,12 +68,13 @@ function getPack(kind) {
           // sparse crown look even thinner when several cards overlap. Alpha
           // testing gives the silhouettes solid depth and avoids sorting
           // artefacts without adding geometry or draw calls.
-          if (/cluster|brunch/i.test(item.name)) {
+          const cutout = /cluster|brunch|grass|lilac|leaf|vegetat/i.test(item.name) || item.transparent || item.alphaMap;
+          if (cutout) {
             item.transparent = false;
-            item.alphaTest = Math.max(item.alphaTest ?? 0, 0.38);
+            item.alphaTest = Math.max(item.alphaTest ?? 0, 0.46);
             item.depthWrite = true;
             item.side = THREE.DoubleSide;
-            if (item.color) item.color.multiply(new THREE.Color(0xc5dbc0));
+            if (/cluster|brunch|leaf|vegetat/i.test(item.name) && item.color) item.color.multiply(new THREE.Color(0xc5dbc0));
             item.needsUpdate = true;
           }
         }
