@@ -13,6 +13,7 @@ import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
+import { LevelAudio } from "../shared/LevelAudio.js";
 import {
   loadPersonalBests,
   savePersonalBests,
@@ -154,6 +155,8 @@ export class Game {
     this.personalBests = loadPersonalBests();
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
+    this.uiAudio = new LevelAudio();
+    this.isMusicEnabled = true;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
 
@@ -168,9 +171,11 @@ export class Game {
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
+    this.menuMusicAction = document.querySelector("#menu-music-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
     this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
+    this.pauseMusicAction = document.querySelector("[data-pause-action='music']");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
@@ -225,6 +230,9 @@ export class Game {
 
   showMenu() {
     this.cancelTransition();
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.hideLevelIntro();
     this.loadVersion += 1;
     this.disposeCurrentLevel();
@@ -255,6 +263,10 @@ export class Game {
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Credits & licences";
+    this.menuCreditsAction.dataset.gameAction = "credits";
+    this.menuMusicAction.hidden = false;
+    this.updateMenuMusicAction();
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
@@ -300,6 +312,7 @@ export class Game {
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.remove("menu-home");
+    this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
@@ -407,6 +420,7 @@ export class Game {
 
     const level = new Level(this);
     this.currentLevel = level;
+    level.audio?.setMusicEnabled?.(this.isMusicEnabled);
 
     try {
       await level.load();
@@ -439,6 +453,7 @@ export class Game {
     }
 
     this.levelNameElement.textContent = level.name;
+    level.audio?.setMusicEnabled?.(this.isMusicEnabled);
     level.audio?.setMuted?.(this.isSoundMuted);
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
@@ -461,6 +476,7 @@ export class Game {
   }
 
   startPracticeLevel(levelNumber) {
+    this.uiAudio.stopMusic();
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.journeyLevelResults.clear();
@@ -483,6 +499,10 @@ export class Game {
       document.exitPointerLock?.();
     }
 
+    this.currentLevel?.audio?.stopMusic?.();
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.levelIntroConfig = config;
     this.isLevelIntroActive = true;
     this.isLevelIntroReady = false;
@@ -546,6 +566,8 @@ export class Game {
     if (!this.isLevelIntroReady) return;
 
     this.hideLevelIntro();
+    this.uiAudio.stopMusic();
+    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     // The Continue click is a user gesture, so it can immediately return
     // focus and mouse control to the loaded level without a second click.
     this.input.requestPointerLock();
@@ -684,7 +706,11 @@ export class Game {
     `;
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
+    this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Back to menu";
+    this.menuCreditsAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
+    this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
     requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
@@ -735,6 +761,7 @@ export class Game {
     this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
     this.pauseSoundAction.textContent = this.isSoundMuted ? "Sound: off" : "Sound: on";
     this.pauseSoundAction.setAttribute("aria-pressed", String(this.isSoundMuted));
+    this.updatePauseMusicAction();
     // Releasing pointer lock is what returns the visible cursor immediately;
     // no Escape key or extra click should be required to use this menu.
     if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
@@ -844,6 +871,11 @@ export class Game {
       return;
     }
 
+    if (action === "music") {
+      this.setMusicEnabled(!this.isMusicEnabled);
+      return;
+    }
+
     if (action === "menu") {
       this.showMenu();
       return;
@@ -852,6 +884,16 @@ export class Game {
     if (action?.startsWith("level-")) {
       this.startPracticeLevel(Number(action.at(-1)));
     }
+  }
+
+  updateMenuMusicAction() {
+    this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
+    this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
+  }
+
+  updatePauseMusicAction() {
+    this.pauseMusicAction.textContent = this.isMusicEnabled ? "Music: on" : "Music: off";
+    this.pauseMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   showCredits() {
@@ -871,6 +913,7 @@ export class Game {
     `).join("");
     this.menuElement.classList.add("menu-credits");
     this.menuCreditsAction.hidden = true;
+    this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
@@ -915,11 +958,23 @@ export class Game {
 
     if (event.target.closest("[data-pause-action='sound']")) {
       this.setSoundMuted(!this.isSoundMuted);
+      return;
     }
+
+    if (event.target.closest("[data-pause-action='music']")) this.setMusicEnabled(!this.isMusicEnabled);
+  }
+
+  setMusicEnabled(enabled) {
+    this.isMusicEnabled = enabled;
+    this.uiAudio.setMusicEnabled(enabled);
+    this.currentLevel?.audio?.setMusicEnabled?.(enabled);
+    this.updateMenuMusicAction();
+    this.updatePauseMusicAction();
   }
 
   setSoundMuted(muted) {
     this.isSoundMuted = muted;
+    this.uiAudio.setMuted(muted);
     this.currentLevel?.audio?.setMuted?.(muted);
     this.currentLevel?.setMuted?.(muted);
     this.pauseSoundAction.textContent = muted ? "Sound: off" : "Sound: on";
