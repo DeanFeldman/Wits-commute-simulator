@@ -135,7 +135,7 @@ export class CrossingLevel {
       nearScenery: false,
       palette: { ground: 0x4f6844, buildings: 0x86513d, windows: 0xf0b56b, trees: 0x315c3a }
     }));
-    this.audio.startDrone(58, 0.018);
+    this.audio.startMusic("level2");
     this.collisionWorld = new CollisionWorld(this.root);
 
     // Keep Level 2's original physical lights for geometry/shadows.
