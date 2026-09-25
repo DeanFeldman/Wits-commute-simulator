@@ -2460,14 +2460,14 @@ createYaleEntranceScenery() {
   // --------------------------------------------------
 
   // Left side hedge grouping
-  addHedge(-8.2, 0.55, 4.4, 1.4, 0.85);
-  addHedge(-6.3,  1.75, 3.0, 1.2, 0.75, true);
-  addHedge(-9.8,  1.75, 2.4, 1.2, 0.75, true);
+  addHedge(-8.2, 0.35, 4.4, 1.4, 0.85);
+  addHedge(-6.3,  1.05, 3.0, 1.2, 0.75, true);
+  addHedge(-9.8,  1.05, 2.4, 1.2, 0.75, true);
 
   // Right side hedge grouping
-  addHedge( 8.2, 0.55, 4.4, 1.4, 0.85);
-  addHedge( 6.3,  1.75, 3.0, 1.2, 0.75, true);
-  addHedge( 9.8,  1.75, 2.4, 1.2, 0.75, true);
+  addHedge( 8.2, 0.35, 4.4, 1.4, 0.85);
+  addHedge( 6.3,  1.05, 3.0, 1.2, 0.75, true);
+  addHedge( 9.8,  1.05, 2.4, 1.2, 0.75, true);
 
 // Trees moved backward in -Z so they stop crowding the crossing
 addTree(-12.2, -2.4, 1.02);
