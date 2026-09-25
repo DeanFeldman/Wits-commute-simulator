@@ -82,6 +82,10 @@ export class LevelAudio {
     this.musicPreset = null;
   }
 
+  pauseMusic() { this.music?.pause(); }
+  resumeMusic() { this.music?.play().catch(() => {}); }
+  isMusicPaused() { return !this.music || this.music.paused; }
+
   startDrone(frequency, volume = 0.02) {
     if (!this.ensure() || this.ambience) return;
     this.ambience = this.context.createOscillator();
