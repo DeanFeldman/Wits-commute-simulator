@@ -1,8 +1,8 @@
-const MUSIC = {
-  menu: "./assets/audio/music/menu-commute-theme.wav",
-  level1: "./assets/audio/music/level1-dusk-drive.wav",
-  level2: "./assets/audio/music/level2-empire-rush.wav",
-  level3: "./assets/audio/music/level3-dont-get-caught.wav"
+const MUSIC_FILES = {
+  menu: "./assets/audio/music/menu_commute_theme.wav",
+  level1: "./assets/audio/music/level1_dusk_drive.wav",
+  level2: "./assets/audio/music/level2_empire_rush.wav",
+  level3: "./assets/audio/music/level3_dont_get_caught.wav"
 };
 
 export class LevelAudio {
@@ -44,22 +44,17 @@ export class LevelAudio {
   }
 
   startMusic(preset) {
-    const src = MUSIC[preset];
-    if (!src) return;
-    if (this.musicPreset === preset && this.music) {
-      this.music.muted = this.isMuted;
-      this.music.play().catch(() => {});
-      return;
-    }
+    const src = MUSIC_FILES[preset];
+    if (!src || this.musicPreset === preset) return;
     this.stopMusic();
+    const music = new Audio(src);
+    music.loop = true;
+    music.preload = "auto";
+    music.volume = 0.85;
+    music.muted = this.isMuted;
+    this.music = music;
     this.musicPreset = preset;
-    this.music = new Audio(src);
-    this.music.loop = true;
-    this.music.preload = "auto";
-    this.music.volume = 0.9;
-    this.music.muted = this.isMuted;
-    this.armUnlock();
-    this.music.play().catch(() => {});
+    music.play().catch(() => {});
   }
 
   stopMusic() {
@@ -133,6 +128,7 @@ export class LevelAudio {
   setMuted(muted) {
     this.isMuted = muted;
     if (this.master) this.master.gain.value = muted ? 0 : 0.16;
+    if (this.music) this.music.muted = muted;
     if (this.music) this.music.muted = muted;
   }
 
