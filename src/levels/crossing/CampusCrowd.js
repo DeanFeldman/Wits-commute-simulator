@@ -185,6 +185,7 @@ export class CampusCrowd {
       facePlayer: null,
       // Chase-only state; harmless on every other kind of person.
       chasing: false,
+      chaseArmed: true,
       chaseTime: 0,
       chaseDistance: 0,
       caught: false,
@@ -309,15 +310,16 @@ export class CampusCrowd {
     const dz = player.z - position.z;
     const distance = Math.hypot(dx, dz);
 
-    if (!person.chasing && distance <= CHASE_TRIGGER_DISTANCE) {
+    if (distance > CHASE_TRIGGER_DISTANCE) person.chaseArmed = true;
+
+    if (!person.chasing && person.chaseArmed && distance <= CHASE_TRIGGER_DISTANCE) {
       person.chasing = true;
+      person.chaseArmed = false;
       person.chaseTime = 0;
       person.chaseDistance = 0;
     } else if (person.chasing) {
       person.chaseTime += dt;
-      if (distance > CHASE_TRIGGER_DISTANCE || person.chaseTime >= CHASE_MAX_DURATION || person.chaseDistance >= CHASE_MAX_TRAVEL) {
-        person.chasing = false;
-      }
+      if (distance > CHASE_TRIGGER_DISTANCE || person.chaseTime >= CHASE_MAX_DURATION || person.chaseDistance >= CHASE_MAX_TRAVEL) person.chasing = false;
     }
 
     if (!person.chasing) {
