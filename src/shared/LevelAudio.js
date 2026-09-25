@@ -56,6 +56,7 @@ export class LevelAudio {
     const p = MUSIC[this.musicPreset];
     if (!p || !this.context) return;
     const stepDuration = 30 / p.bpm;
+    if (this.nextMusicTime < this.context.currentTime - 0.25) this.nextMusicTime = this.context.currentTime + 0.05;
     const horizon = this.context.currentTime + 0.12;
     while (this.nextMusicTime < horizon) {
       if (!this.isMuted) this.scheduleMusicStep(p, this.musicStep, this.nextMusicTime);
