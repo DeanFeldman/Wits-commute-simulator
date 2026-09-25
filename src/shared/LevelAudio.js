@@ -17,6 +17,7 @@ export class LevelAudio {
     this.isMuted = false;
     this.musicTimer = null;
     this.musicPreset = null;
+    this.musicVolumeScale = 2.8;
     this.musicStep = 0;
     this.nextMusicTime = 0;
     this.unlockAudio = null;
@@ -71,31 +72,39 @@ export class LevelAudio {
     const beat = 60 / p.bpm;
     const chord = p.chords[bar];
     if (this.musicPreset === "level1") {
-      if (s === 0) this.toneAt(midi(p.bass[bar]), time, beat * 3.8, 0.11);
-      this.toneAt(midi(chord[s % 3]), time, beat * 0.42, 0.055, "sine", s % 2 ? 0.35 : -0.35);
-      if (s === 0 || s === 4) this.thumpAt(time, 0.11, 78);
-      if (s === 2 || s === 6) this.toneAt(190, time, 0.07, 0.025, "triangle");
-      if (bar === 2 && [0,3,6].includes(s)) this.toneAt(midi([81,84,88][[0,3,6].indexOf(s)]), time, beat * 0.35, 0.035, "sine", 0.15);
+      if (s === 0) this.musicToneAt(midi(p.bass[bar]), time, beat * 3.8, 0.11);
+      this.musicToneAt(midi(chord[s % 3]), time, beat * 0.42, 0.055, "sine", s % 2 ? 0.35 : -0.35);
+      if (s === 0 || s === 4) this.musicThumpAt(time, 0.11, 78);
+      if (s === 2 || s === 6) this.musicToneAt(190, time, 0.07, 0.025, "triangle");
+      if (bar === 2 && [0,3,6].includes(s)) this.musicToneAt(midi([81,84,88][[0,3,6].indexOf(s)]), time, beat * 0.35, 0.035, "sine", 0.15);
     } else if (this.musicPreset === "level2") {
-      this.toneAt(midi(p.bass[bar] + (s >= 4 ? 12 : 0)), time, beat * 0.28, 0.075, "sawtooth", s % 2 ? 0.12 : -0.12);
-      if (s === 0 || s === 4) this.thumpAt(time, 0.13, 92);
-      if (s === 2 || s === 6) this.toneAt(175, time, 0.08, 0.04, "triangle");
-      if (s % 2 === 1) this.toneAt(midi([76,79,81,83,86][(bar + s) % 5]), time, beat * 0.24, 0.04, "triangle", s % 4 === 1 ? 0.4 : -0.4);
+      this.musicToneAt(midi(p.bass[bar] + (s >= 4 ? 12 : 0)), time, beat * 0.28, 0.075, "sawtooth", s % 2 ? 0.12 : -0.12);
+      if (s === 0 || s === 4) this.musicThumpAt(time, 0.13, 92);
+      if (s === 2 || s === 6) this.musicToneAt(175, time, 0.08, 0.04, "triangle");
+      if (s % 2 === 1) this.musicToneAt(midi([76,79,81,83,86][(bar + s) % 5]), time, beat * 0.24, 0.04, "triangle", s % 4 === 1 ? 0.4 : -0.4);
       if (bar === 3 && s === 5) {
-        this.toneAt(midi(71), time, beat * 0.18, 0.05, "sawtooth", -0.2);
-        this.toneAt(midi(74), time + beat * 0.18, beat * 0.18, 0.04, "sawtooth", 0.2);
+        this.musicToneAt(midi(71), time, beat * 0.18, 0.05, "sawtooth", -0.2);
+        this.musicToneAt(midi(74), time + beat * 0.18, beat * 0.18, 0.04, "sawtooth", 0.2);
       }
     } else {
       if (s === 0) {
-        this.toneAt(midi(38), time, beat * 3.8, 0.045, "sine", -0.15);
-        this.toneAt(midi(45), time, beat * 3.8, 0.018, "triangle", 0.2);
+        this.musicToneAt(midi(38), time, beat * 3.8, 0.045, "sine", -0.15);
+        this.musicToneAt(midi(45), time, beat * 3.8, 0.018, "triangle", 0.2);
       }
-      if (bar % 2 === 1 && (s === 3 || s === 6)) this.toneAt(midi(s === 3 ? 65 : 70), time, beat * 0.55, 0.018, "sine", s === 3 ? -0.35 : 0.35);
+      if (bar % 2 === 1 && (s === 3 || s === 6)) this.musicToneAt(midi(s === 3 ? 65 : 70), time, beat * 0.55, 0.018, "sine", s === 3 ? -0.35 : 0.35);
       if (bar >= 2 && s === 4) {
-        this.thumpAt(time, 0.08, 64);
-        this.thumpAt(time + beat * 0.32, 0.05, 58);
+        this.musicThumpAt(time, 0.08, 64);
+        this.musicThumpAt(time + beat * 0.32, 0.05, 58);
       }
     }
+  }
+
+  musicToneAt(frequency, time, duration, volume = 0.08, type = "sine", pan = 0) {
+    this.toneAt(frequency, time, duration, volume * this.musicVolumeScale, type, pan);
+  }
+
+  musicThumpAt(time, volume = 0.1, frequency = 80) {
+    this.thumpAt(time, volume * this.musicVolumeScale, frequency);
   }
 
   toneAt(frequency, time, duration, volume = 0.08, type = "sine", pan = 0) {
@@ -155,7 +164,7 @@ export class LevelAudio {
     }
     const intensity = Math.min(Math.abs(speed) / 10, 1);
     this.engine.frequency.setTargetAtTime(52 + intensity * 130, this.context.currentTime, 0.06);
-    this.engineGain.gain.setTargetAtTime(0.008 + intensity * 0.055, this.context.currentTime, 0.06);
+    this.engineGain.gain.setTargetAtTime(0.002 + intensity * 0.012, this.context.currentTime, 0.06);
   }
 
   cue(frequency = 440, duration = 0.08, volume = 0.12, pan = 0) {
