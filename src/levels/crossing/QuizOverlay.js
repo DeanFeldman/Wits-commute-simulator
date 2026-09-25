@@ -38,7 +38,10 @@ export class QuizOverlay {
     return this.root && !this.root.hidden;
   }
 
+  releasePointer() { document.exitPointerLock?.(); document.body.style.cursor = "default"; }
+
   open(quiz, onComplete) {
+    this.releasePointer();
     this.mode = "quiz";
     this.onComplete = onComplete;
     this.selected = null;
@@ -82,10 +85,7 @@ export class QuizOverlay {
     this.currentQuiz = null;
     this.selected = null;
     this.questionnaireSession = createPsychologyQuestionnaireSession(random);
-    // A survey is mouse-driven. Releasing pointer lock makes the system
-    // cursor visible even if this overlay is opened from a locked camera.
-    document.exitPointerLock?.();
-    document.body.style.cursor = "default";
+    this.releasePointer();
     this.root.classList.add("psychology-questionnaire-open");
     this.titleEl.hidden = true;
     this.introEl.hidden = true;
