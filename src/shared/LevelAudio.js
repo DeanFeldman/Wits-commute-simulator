@@ -1,9 +1,9 @@
 const MUSIC_GAIN = 3.2;
 const MUSIC_FILES = {
-  menu: "./assets/audio/music/menu_commute_theme.wav",
-  level1: "./assets/audio/music/level1_dusk_drive.wav",
-  level2: "./assets/audio/music/level2_empire_rush.wav",
-  level3: "./assets/audio/music/level3_dont_get_caught.wav"
+  menu: "./assets/audio/music/menu-commute-theme.wav",
+  level1: "./assets/audio/music/level1-dusk-drive.wav",
+  level2: "./assets/audio/music/level2-empire-rush.wav",
+  level3: "./assets/audio/music/level3-dont-get-caught.wav"
 };
 
 export class LevelAudio {
