@@ -261,6 +261,8 @@ export class Game {
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Credits & licences";
+    this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuMusicAction.hidden = false;
     this.isMenuMusicPaused ? this.uiAudio.pauseMusic() : this.uiAudio.resumeMusic();
     this.updateMenuMusicAction();
@@ -700,6 +702,9 @@ export class Game {
     `;
     this.menuPrimaryAction.textContent = "Retry";
     this.menuPrimaryAction.dataset.gameAction = "retry";
+    this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Back to menu";
+    this.menuCreditsAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
     this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
