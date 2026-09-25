@@ -410,7 +410,6 @@ export class CrossingLevel {
       <div class="game-hud l2-hud">
         <div class="hud-split"><span>Time <strong>${time.toFixed(1)}s</strong></span><span class="l2-cups">Vida <strong>${this.powerUps.collected}/${this.cups.total}</strong></span></div>
         ${effects}
-        <div class="hud-tip">${this.getNextGapHint().replace("Next gap: ", "")}</div>
       </div>
     `, "level2");
   }
