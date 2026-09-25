@@ -453,6 +453,7 @@ export class Game {
     }
 
     this.levelNameElement.textContent = level.name;
+    level.audio?.setMusicEnabled?.(this.isMusicEnabled);
     level.audio?.setMuted?.(this.isSoundMuted);
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
