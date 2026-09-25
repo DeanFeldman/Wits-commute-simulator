@@ -1279,7 +1279,7 @@ async load() {
   this.chaseFog = null;
 
   scene.add(this.root);
-  this.audio.startMusic("level1");
+  if (!this.game.isLevelIntroActive) this.audio.startMusic("level1");
 
   // Raised from 0.75 for ACES, 2026-09-08, with the dusk sun below. Level 1
   // is the darkest scene in the game, and three's ACES curve is sub-unity
