@@ -1815,7 +1815,7 @@ createParkingSurface(potholes = []) {
 
         
         shark.userData.baseY=-1.5;
-        shark.userData.popY=1.25;
+        shark.userData.popY=1;
         shark.userData.floatOffset=Math.random()*10;
         shark.userData.popped=false;
         shark.userData.popProgress=0;
