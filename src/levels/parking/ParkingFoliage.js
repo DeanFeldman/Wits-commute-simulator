@@ -68,12 +68,13 @@ function getPack(kind) {
           // sparse crown look even thinner when several cards overlap. Alpha
           // testing gives the silhouettes solid depth and avoids sorting
           // artefacts without adding geometry or draw calls.
-          if (/cluster|brunch/i.test(item.name)) {
+          const cutout = /cluster|brunch|grass|lilac|leaf|vegetat/i.test(item.name) || item.transparent || item.alphaMap;
+          if (cutout) {
             item.transparent = false;
-            item.alphaTest = Math.max(item.alphaTest ?? 0, 0.38);
+            item.alphaTest = Math.max(item.alphaTest ?? 0, 0.46);
             item.depthWrite = true;
             item.side = THREE.DoubleSide;
-            if (item.color) item.color.multiply(new THREE.Color(0xc5dbc0));
+            if (/cluster|brunch|leaf|vegetat/i.test(item.name) && item.color) item.color.multiply(new THREE.Color(0xc5dbc0));
             item.needsUpdate = true;
           }
         }
@@ -167,7 +168,7 @@ function chooseVariant(variants, index) {
 function createPlacementMatrix(item) {
   const widthScale = item.widthScale ?? 1;
   return new THREE.Matrix4().compose(
-    new THREE.Vector3(item.x, 0.05, item.z),
+    new THREE.Vector3(item.x, item.y ?? 0.05, item.z),
     new THREE.Quaternion().setFromEuler(new THREE.Euler(0, item.rotation, 0)),
     new THREE.Vector3(item.scale * widthScale, item.scale, item.scale * widthScale)
   );
@@ -253,6 +254,19 @@ async function addPackInstances(root, kind, variants, placements, options = {}) 
     }
     addInstancedVariant(root, prototype, variantPlacements, `parking-foliage-${variant}`, options);
   }
+}
+
+export function addSharedFoliage(root, { trees = [], bushes = [], grass = [] } = {}, { name = "shared-foliage", treeDetail = "near" } = {}) {
+  const foliageRoot = new THREE.Group();
+  foliageRoot.name = name;
+  root.add(foliageRoot);
+  if (typeof document === "undefined") return foliageRoot;
+  Promise.all([
+    addPackInstances(foliageRoot, "treePack", treeDetail === "far" ? TREE_VARIANTS_FAR : TREE_VARIANTS_NEAR, trees, { normalizeToUnitHeight: true }),
+    addPackInstances(foliageRoot, "bushes", BUSH_VARIANTS, bushes),
+    addPackInstances(foliageRoot, "grass", GRASS_VARIANTS, grass)
+  ]).catch((error) => console.warn(`Unable to add ${name}`, error));
+  return foliageRoot;
 }
 
 // Deliberately fire-and-forget: the environment remains usable while foliage

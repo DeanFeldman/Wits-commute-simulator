@@ -20,6 +20,7 @@ import {
   STRIP_DEPTH
 } from "./Level2StripGenerator.js";
 import { createWitsBusStop } from "./WitsBusStop.js";
+import { addSharedFoliage } from "../parking/ParkingFoliage.js";
 
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
@@ -177,6 +178,64 @@ export class CrossingStrip {
     mesh.receiveShadow = true;
     this.root.add(mesh);
     return mesh;
+  }
+
+  createLandscapePanel(width, depth, { x = 0, z = 0, name = "level2-landscape", color = 0x557a45 } = {}) {
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, depth),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.98, metalness: 0 })
+    );
+    panel.name = name;
+    panel.rotation.x = -Math.PI / 2;
+    panel.position.set(x, WALKWAY_TOP_Y + 0.012, z);
+    panel.receiveShadow = true;
+    this.root.add(panel);
+    return panel;
+  }
+
+  createRaisedPlantingBed(width, depth, { x = 0, z = 0, name = "level2-planting-bed", height = 0.24 } = {}) {
+    const edge = new THREE.Mesh(
+      new THREE.BoxGeometry(width, height, depth),
+      new THREE.MeshStandardMaterial({ color: 0x8c7d67, roughness: 0.96, metalness: 0 })
+    );
+    edge.name = `${name}-edge`;
+    edge.position.set(x, WALKWAY_TOP_Y + height / 2, z);
+    edge.castShadow = true;
+    edge.receiveShadow = true;
+    this.root.add(edge);
+
+    const inset = 0.1;
+    const soilHeight = 0.07;
+    const soil = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(0.2, width - inset * 2), soilHeight, Math.max(0.2, depth - inset * 2)),
+      new THREE.MeshStandardMaterial({ color: 0x5a4630, roughness: 1, metalness: 0 })
+    );
+    soil.name = `${name}-soil`;
+    soil.position.set(x, WALKWAY_TOP_Y + height + soilHeight / 2 - 0.015, z);
+    soil.receiveShadow = true;
+    this.root.add(soil);
+    return WALKWAY_TOP_Y + height + soilHeight - 0.015;
+  }
+
+  addOpaqueShrubs(placements, { name = "level2-shrubs", color = 0x4f783d } = {}) {
+    if (!placements.length) return;
+    const mesh = new THREE.InstancedMesh(
+      new THREE.DodecahedronGeometry(0.5, 0),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.92, flatShading: true }),
+      placements.length
+    );
+    const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion();
+    placements.forEach((item, index) => {
+      const sx = item.sx ?? item.scale ?? 1, sy = item.sy ?? item.scale ?? 1, sz = item.sz ?? item.scale ?? 1;
+      matrix.compose(new THREE.Vector3(item.x, item.y + sy / 2, item.z), quaternion, new THREE.Vector3(sx, sy, sz));
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.name = name;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    this.root.add(mesh);
   }
 
   async loadModels(loader, modelCache) {
@@ -1142,26 +1201,28 @@ this.createZebraCrossing({
   const sideCenterX =
     BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
 
-  // On the spawn side (bridge-entry), keep only the left plaza.
-  // The right side is now taken by the parking extension.
-  //
-  // On the far side (bridge-exit), keep both side plazas.
-  const pavedSides = isFarSideLanding
-    ? [-1]
-    : [-1];
-
-  for (const side of pavedSides) {
-    this.createWalkwayPanel(
-      sideWidth,
-      this.definition.depth,
-      {
-        x: side * sideCenterX,
-        name:
-          isFarSideLanding && side < 0
-            ? "amic-vida-courtyard"
-            : "amic-bridge-side-plaza"
-      }
-    );
+  // Keep Vida paved on the far landing, but turn the ARM-side bridge
+  // approach into a planted lawn like the real campus edge.
+  if (isFarSideLanding) {
+    this.createWalkwayPanel(sideWidth, this.definition.depth, { x: -sideCenterX, name: "amic-vida-courtyard" });
+  } else {
+    const bridgeBedTop = this.createRaisedPlantingBed(sideWidth + 0.06, this.definition.depth, {
+      x: -sideCenterX,
+      name: "amic-bridge-entry-bed",
+      height: 0.26
+    });
+    const foliage = { trees: [] }, shrubs = [];
+    for (const [x, z, scale] of [
+      [-6.1, -1.8, 4.9], [-8.7, 1.4, 5.4], [-10.1, -1.1, 4.6]
+    ]) foliage.trees.push({ x, y: bridgeBedTop, z, scale, rotation: (foliage.trees.length * 2.17) % (Math.PI * 2) });
+    for (let i = 0; i < 11; i++) shrubs.push({
+      x: -4.8 - (i % 3) * 1.75,
+      y: bridgeBedTop,
+      z: -2.35 + Math.floor(i / 3) * 1.45,
+      sx: 0.72, sy: 0.5 + (i % 2) * 0.08, sz: 0.62
+    });
+    addSharedFoliage(this.root, foliage, { name: "level2-bridge-entry-greenery" });
+    this.addOpaqueShrubs(shrubs, { name: "level2-bridge-entry-shrubs" });
   }
 
   if (isFarSideLanding) {
@@ -1791,13 +1852,9 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
 }
 
   createTrees() {
-    // Pick unique grid blocks using the strip's seeded RNG. Tree presets normally
-    // reserve the centre columns so the player's forward route stays open.
     const config = this.definition.trees;
     const blocks = [];
-    for (const rowOffset of config.rowOffsets) {
-      for (const column of config.columns) blocks.push({ column, rowOffset });
-    }
+    for (const rowOffset of config.rowOffsets) for (const column of config.columns) blocks.push({ column, rowOffset });
     for (let index = blocks.length - 1; index > 0; index--) {
       const other = Math.floor(this.random() * (index + 1));
       [blocks[index], blocks[other]] = [blocks[other], blocks[index]];
@@ -1805,51 +1862,39 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
 
     const [minimumCount, maximumCount] = config.countRange;
     const count = minimumCount + Math.floor(this.random() * (maximumCount - minimumCount + 1));
-    const treeScale = config.scale ?? 1;
     const gridSize = this.definition.depth / this.definition.rowSpan;
-    const trunkGeometry = new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7);
-    const canopyGeometry = new THREE.ConeGeometry(0.72, 1.45, 7);
-    const trunkMaterial = new THREE.MeshStandardMaterial({
-      color: config.trunkColor ?? 0x76513a,
-      roughness: 0.92,
-      flatShading: true
+    const baseScale = (config.scale ?? 1) * 4.4;
+    const trees = [];
+    const sideWidth = Math.max(0, (this.definition.width - BRIDGE_DECK_WIDTH) / 2);
+    const sideCenter = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
+    let treeBedTop = WALKWAY_TOP_Y;
+    if (sideWidth > 0) for (const side of [-1, 1]) treeBedTop = this.createRaisedPlantingBed(sideWidth + 0.06, this.definition.depth, {
+      x: side * sideCenter,
+      name: `level2-tree-bed-${this.definition.index}-${side < 0 ? "left" : "right"}`,
+      height: 0.18
     });
-    const canopyColors = config.canopyColors ?? [0x3f7f4c, 0x57934f, 0x6aa557];
-    const canopyMaterials = canopyColors.map((color) => new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.86,
-      flatShading: true
-    }));
 
     for (let index = 0; index < count; index++) {
       const block = blocks[index];
-      const tree = new THREE.Group();
-      tree.name = `strip-tree-${this.definition.index}-${index}`;
-      tree.userData.gridColumn = block.column;
-      tree.userData.rowOffset = block.rowOffset;
+      const marker = new THREE.Group();
+      marker.name = `strip-tree-${this.definition.index}-${index}`;
+      marker.userData.gridColumn = block.column;
+      marker.userData.rowOffset = block.rowOffset;
+      marker.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
+      this.root.add(marker);
 
-      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-      trunk.position.y = 0.68;
-      trunk.castShadow = true;
-      tree.add(trunk);
-
-      const canopy = new THREE.Mesh(
-        canopyGeometry,
-        canopyMaterials[Math.floor(this.random() * canopyMaterials.length)]
-      );
-      canopy.position.y = 1.75;
-      canopy.castShadow = true;
-      tree.add(canopy);
-
-      tree.scale.setScalar(treeScale);
-      tree.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
-      this.root.add(tree);
-      this.blockedCells.push({
-        x: tree.position.x,
-        z: this.z + tree.position.z,
-        type: "tree"
+      const variation = this.random();
+      trees.push({
+        x: marker.position.x,
+        y: treeBedTop,
+        z: marker.position.z,
+        scale: baseScale * (0.92 + variation * 0.16),
+        rotation: variation * Math.PI * 2
       });
+      this.blockedCells.push({ x: marker.position.x, z: this.z + marker.position.z, type: "tree" });
     }
+
+    addSharedFoliage(this.root, { trees }, { name: `level2-strip-foliage-${this.definition.index}` });
   }
 
   createRoadMarkings() {
@@ -2273,29 +2318,11 @@ createBridgeFenceReturns({
     };
   }
 createYaleEntranceScenery() {
-  const hedgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x426a36,
-    roughness: 0.95,
-    flatShading: true
-  });
-
-  const darkHedgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2f5229,
-    roughness: 0.95,
-    flatShading: true
-  });
-
-  const trunkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x72533a,
-    roughness: 0.92
-  });
-
-  const leafMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4a7a3e,
-    roughness: 0.9,
-    flatShading: true
-  });
-
+  const foliage = { trees: [] }, shrubs = [], flowers = [];
+  const yaleBedTop = this.createRaisedPlantingBed(11.25, 5.6, { x: -9.2, z: -1.15, name: "yale-left-garden-bed", height: 0.24 });
+  this.createRaisedPlantingBed(11.25, 5.6, { x: 9.2, z: -1.15, name: "yale-right-garden-bed", height: 0.24 });
+  const rearBedTop = this.createRaisedPlantingBed(43, 3.2, { x: -27, z: -4.65, name: "yale-building-tree-bed-left", height: 0.2 });
+  this.createRaisedPlantingBed(18, 3.2, { x: 15, z: -4.65, name: "yale-building-tree-bed-right", height: 0.2 });
   const gatePostMaterial = new THREE.MeshStandardMaterial({
     color: 0xc8c0ac,
     roughness: 0.88
@@ -2313,53 +2340,20 @@ createYaleEntranceScenery() {
   });
 
   const addHedge = (x, z, width, depth, height = 0.8, dark = false) => {
-    const hedge = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
-      dark ? darkHedgeMaterial : hedgeMaterial
-    );
-
-    hedge.position.set(
-      x,
-      WALKWAY_TOP_Y + height / 2,
-      z
-    );
-
-    hedge.castShadow = true;
-    hedge.receiveShadow = true;
-    hedge.name = "yale-entrance-hedge";
-
-    this.root.add(hedge);
-    return hedge;
+    const columns = Math.max(2, Math.ceil(width / 1.45)), rows = Math.max(1, Math.ceil(depth / 1.25));
+    const y = z < -3.2 ? rearBedTop : yaleBedTop;
+    for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) shrubs.push({
+      x: x + (column - (columns - 1) / 2) * (width / columns),
+      y,
+      z: z + (row - (rows - 1) / 2) * (depth / rows),
+      sx: width / columns * 0.82, sy: height * (dark ? 0.72 : 0.82), sz: depth / rows * 0.78
+    });
   };
 
-  const addTree = (x, z, scale = 1) => {
-    const tree = new THREE.Group();
-    tree.name = "yale-entrance-tree";
-
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7),
-      trunkMaterial
-    );
-    trunk.position.y = 0.68;
-    trunk.castShadow = true;
-    tree.add(trunk);
-
-   const canopy = new THREE.Mesh(
-  new THREE.SphereGeometry(0.78, 8, 7),
-  leafMaterial
-);
-canopy.position.y = 1.82;
-canopy.scale.set(1.15, 0.95, 1.05);
-canopy.castShadow = true;
-tree.add(canopy);
-
-
-    tree.position.set(x, 0.11, z);
-    tree.scale.setScalar(scale);
-
-    this.root.add(tree);
-    return tree;
-  };
+  const addTree = (x, z, scale = 1, y = yaleBedTop) => foliage.trees.push({
+    x, y, z, scale: scale * 4.6,
+    rotation: (foliage.trees.length * 2.399) % (Math.PI * 2)
+  });
 
   const addFence = (x, z, length, rotationY = 0, name = "yale-entrance-fence") => {
     const fence = createAmicFenceSection({
@@ -2466,43 +2460,56 @@ tree.add(canopy);
   // --------------------------------------------------
 
   // Left side hedge grouping
-  addHedge(-8.2, -0.2, 4.4, 1.4, 0.85);
-  addHedge(-6.3,  1.2, 3.0, 1.2, 0.75, true);
-  addHedge(-9.8,  1.2, 2.4, 1.2, 0.75, true);
+  addHedge(-8.2, 0.35, 4.4, 1.4, 0.85);
+  addHedge(-6.3,  1.05, 3.0, 1.2, 0.75, true);
+  addHedge(-9.8,  1.05, 2.4, 1.2, 0.75, true);
 
   // Right side hedge grouping
-  addHedge( 8.2, -0.2, 4.4, 1.4, 0.85);
-  addHedge( 6.3,  1.2, 3.0, 1.2, 0.75, true);
-  addHedge( 9.8,  1.2, 2.4, 1.2, 0.75, true);
+  addHedge( 8.2, 0.35, 4.4, 1.4, 0.85);
+  addHedge( 6.3,  1.05, 3.0, 1.2, 0.75, true);
+  addHedge( 9.8,  1.05, 2.4, 1.2, 0.75, true);
 
 // Trees moved backward in -Z so they stop crowding the crossing
-addTree(-13.0, -2.2, 1.05);
-addTree(-9.8,  -2.8, 0.95);
-addTree(-6.8,   1.4, 0.9);
+addTree(-12.2, -2.4, 1.02);
+addTree(-9.2,  -1.15, 0.96);
+addTree(-6.2,   0.15, 0.9);
 
-addTree( 13.0, -2.2, 1.05);
-addTree( 9.8,  -2.8, 0.95);
-addTree( 6.8,   1.4, 0.9);
+addTree(12.2, -2.4, 1.02);
+addTree(9.2,  -1.15, 0.96);
+addTree(6.2,   0.15, 0.9);
 
-// Rear trees further back toward the buildings
-addTree(-8.2,-5.0,.95);
-addTree(-3.8,-6.2,1.0);
-addTree(3.8,-6.4,1.0);
-addTree(8.2,-5.0,.95);
+// Rear trees stay centred inside the rear soil beds.
+addTree(-9.0, -4.65, .95, rearBedTop);
+addTree(9.0, -4.65, .95, rearBedTop);
 
 // Dense planting in front of the backdrop buildings.
 for(const [x,z,s] of [
-  [-48,-7.0,1],[-43,-6.5,1.1],[-38,-7.3,.95],[-33,-6.7,1.05],[-27,-7.2,.95],
-  [-23,-6.4,1.05],[-19,-7.1,.95],[-15,-6.5,1.1],[-11,-7.3,.9],[-7,-6.6,1],
-  [7,-6.7,.95],[11,-7.3,1],[15,-6.5,1.1],[19,-7.1,.95],[23,-6.4,1.05]
-])addTree(x,z,s);
+  [-48,-4.85,1],[-43,-4.4,1.1],[-38,-5.05,.95],[-33,-4.55,1.05],[-27,-4.95,.95],
+  [-23,-4.35,1.05],[-19,-4.9,.95],[-15,-4.45,1.1],[-11,-5.0,.9],[-7,-4.5,1],
+  [7,-4.55,.95],[11,-5.0,1],[15,-4.45,1.1],[19,-4.9,.95],[23,-4.35,1.05]
+])addTree(x,z,s,rearBedTop);
 
-addHedge(-43,-5.9,24,1.5,.9,true);
-addHedge(-19,-5.9,12,1.4,.9);
-addHedge(-9,-6.1,6,1.25,.8,true);
-addHedge(9,-6.1,6,1.25,.8,true);
-addHedge(19,-5.9,12,1.4,.9);
+addHedge(-43,-4.25,24,1.5,.9,true);
+addHedge(-19,-4.25,12,1.4,.9);
+addHedge(-9,-4.45,6,1.25,.8,true);
+addHedge(9,-4.45,6,1.25,.8,true);
+addHedge(19,-4.25,12,1.4,.9);
 
+// Street-view-inspired low planters along the Engineering-side paved edge.
+const planterMaterial = new THREE.MeshStandardMaterial({ color: 0x9c9484, roughness: 0.94 });
+for (const [x, z] of [[5.6, 1.25], [8.4, 1.05], [11.2, 0.85]]) {
+  const planter = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.42, 0.9), planterMaterial);
+  planter.name = "yale-flower-planter";
+  planter.position.set(x, WALKWAY_TOP_Y + 0.2, z);
+  planter.castShadow = true;
+  planter.receiveShadow = true;
+  this.root.add(planter);
+  for (const dx of [-0.45, 0, 0.45]) flowers.push({ x: x + dx, y: WALKWAY_TOP_Y + 0.4, z, sx: 0.42, sy: 0.28, sz: 0.42 });
+}
+
+addSharedFoliage(this.root, foliage, { name: "level2-yale-entrance-foliage" });
+this.addOpaqueShrubs(shrubs, { name: "level2-yale-shrubs" });
+this.addOpaqueShrubs(flowers, { name: "level2-yale-flowers", color: 0xc52b78 });
 }
 
 

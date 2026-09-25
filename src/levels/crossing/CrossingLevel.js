@@ -45,7 +45,8 @@ const SPEAKER_TITLES = {
   jogger: "Jogger",
   queue: "Vida queue",
   psychQuizzer: "Psych Elective",
-  ccduAdvisor: "CCDU"
+  ccduAdvisor: "CCDU",
+  robot: "Wits Bot"
 };
 
 export class CrossingLevel {
@@ -137,11 +138,8 @@ export class CrossingLevel {
     this.audio.startDrone(58, 0.018);
     this.collisionWorld = new CollisionWorld(this.root);
 
-    // Trimmed from 2.9 / 4.2 for ACES, 2026-09-08. These were the highest
-    // intensities in the game and were clipping against NoToneMapping; the
-    // curve's 1.67x pre-gain pushed them further up rather than down, so
-    // midday measured 4.7% brighter and 18.6% less saturated after the
-    // change. See src/core/renderSettings.js and docs/DECISIONS.md.
+    // Keep Level 2's original physical lights for geometry/shadows.
+    // The Level 1-like warm/cool look is applied in a shader pass in Game.js.
     const hemi = new THREE.HemisphereLight(0xe9f8ff, 0x5c7d4e, 2.65);
     this.root.add(hemi);
 
@@ -157,16 +155,15 @@ export class CrossingLevel {
     sun.shadow.camera.far = 55;
     sun.shadow.bias = -0.0003;
     sun.shadow.normalBias = 0.025;
-
     this.root.add(sun);
     this.root.add(sun.target);
     sun.target.position.set(0, 0, 0);
+
     // Build the generated environment before placing gameplay actors into it.
     this.parkingRoadTextures = createRoadTextures();
     await this.parkingRoadTextures.ready;
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
-
 
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
@@ -492,7 +489,7 @@ export class CrossingLevel {
     }
 
     const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer) {
+    if (isQuizzer && person.surveyCooldown === 0) {
       this.startQuiz(person);
       return;
     }

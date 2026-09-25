@@ -21,6 +21,7 @@ const CHASE_MAX_DURATION = 1.6;
 const CHASE_MAX_TRAVEL = 4.5;
 const LEAVE_SPEED = 1.6;
 const LEAVE_DISTANCE = 6;
+const SURVEY_COOLDOWN = 5;
 
 // What people say. `bump` lines are picked by personality; after a few bumps
 // everyone runs out of patience and uses `annoyed`.
@@ -76,6 +77,11 @@ export const CROWD_LINES = Object.freeze({
     "Hi! Got 30 seconds for a CCDU wellness question?",
     "Quick check-in from CCDU, if you don't mind."
   ],
+  robot: [
+    "BEEP. PEDESTRIAN ROUTE OCCUPIED.",
+    "WITS BOT REQUESTS RIGHT OF WAY.",
+    "BEEP BEEP. DELIVERY IN PROGRESS."
+  ],
   annoyed: [
     "Again?!",
     "Okay, now you're doing it on purpose.",
@@ -101,7 +107,8 @@ export const CROWD_LINES = Object.freeze({
     phone: "Bru, the taxis on Yale Road stop randomly. Don't trust them.",
     student: "Iced latte from Vida? Everything feels slower after one.",
     psychQuizzer: "Excuse me — walk into me and I'll ask you something fun.",
-    ccduAdvisor: "Hey! CCDU is doing quick check-ins today."
+    ccduAdvisor: "Hey! CCDU is doing quick check-ins today.",
+    robot: "BEEP. CAMPUS DELIVERY ROUTE ACTIVE."
   }
 });
 
@@ -141,16 +148,18 @@ export class CampusCrowd {
   add(entry, index = this.people.length) {
     const pick = (list, salt) => list[(index * salt + Math.floor(this.random() * list.length)) % list.length];
     const kind = entry.kind;
-    const scale = 0.92 + ((index * 7) % 5) * 0.03;
+    const scale = kind === "robot" ? 0.9 : 0.92 + ((index * 7) % 5) * 0.03;
+    const robot = kind === "robot";
     const mesh = this.factory.create({
-      shirt: kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
-      trousers: pick(TROUSERS, 5),
-      skin: pick(SKINS, 7),
-      hair: kind === "guard" ? "cap" : pick(HAIR, 11),
+      shirt: robot ? 0xc7d0d6 : kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
+      trousers: robot ? 0x39454d : pick(TROUSERS, 5),
+      skin: robot ? 0xaebbc4 : pick(SKINS, 7),
+      hair: robot ? "none" : kind === "guard" ? "cap" : pick(HAIR, 11),
       hairColor: kind === "guard" ? 0x1c2a44 : pick(HAIR_COLORS, 13),
-      backpack: kind === "student" || kind === "commuter" ? pick(BACKPACKS, 17) : null,
+      backpack: !robot && (kind === "student" || kind === "commuter") ? pick(BACKPACKS, 17) : null,
       vest: kind === "guard",
-      holding: entry.holding ?? (kind === "phone" ? "phone" : null),
+      holding: robot ? null : entry.holding ?? (kind === "phone" ? "phone" : null),
+      robot,
       scale
     });
     mesh.name = `campus-person-${index}-${kind}`;
@@ -163,7 +172,7 @@ export class CampusCrowd {
 
     const person = {
       kind,
-      name: entry.name ?? NAMES[index % NAMES.length],
+      name: entry.name ?? (robot ? `Wits Bot ${index + 1}` : NAMES[index % NAMES.length]),
       mesh,
       rig: mesh.userData.rig,
       walking,
@@ -188,6 +197,7 @@ export class CampusCrowd {
       chaseArmed: true,
       chaseTime: 0,
       chaseDistance: 0,
+      surveyCooldown: 0,
       caught: false,
       leaving: false,
       leaveDirection: null,
@@ -240,6 +250,7 @@ export class CampusCrowd {
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
+    person.surveyCooldown = SURVEY_COOLDOWN;
     person.caught = false;
     const yaw = person.mesh.rotation.y;
     person.leaveYaw = yaw;
@@ -253,6 +264,7 @@ export class CampusCrowd {
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
+      person.surveyCooldown = Math.max(0, person.surveyCooldown - dt);
       person.recoil = Math.max(0, person.recoil - dt * 3);
       person.caught = false;
 
@@ -301,9 +313,9 @@ export class CampusCrowd {
     const dz = player.z - position.z;
     const distance = Math.hypot(dx, dz);
 
-    if (distance > CHASE_TRIGGER_DISTANCE) person.chaseArmed = true;
+    if (distance > CHASE_TRIGGER_DISTANCE && person.surveyCooldown === 0) person.chaseArmed = true;
 
-    if (!person.chasing && person.chaseArmed && distance <= CHASE_TRIGGER_DISTANCE) {
+    if (!person.chasing && person.chaseArmed && person.surveyCooldown === 0 && distance <= CHASE_TRIGGER_DISTANCE) {
       person.chasing = true;
       person.chaseArmed = false;
       person.chaseTime = 0;
@@ -346,7 +358,7 @@ export class CampusCrowd {
     if (person.leaveTraveled >= LEAVE_DISTANCE) {
       person.moving = false;
       person.leaving = false;
-      person.chaseArmed = true;
+      person.chaseArmed = person.surveyCooldown === 0;
       return;
     }
     const step = Math.min(LEAVE_SPEED * dt, LEAVE_DISTANCE - person.leaveTraveled);
@@ -475,6 +487,8 @@ export function createCrowdPlan({ zones, startZ, step }) {
     { kind: "jogger", x: step * 2, fromZ: top(bridge, 1), toZ: bottom(bridge, 1), speed: 2.3 },
     { kind: "student", x: -step * 2, fromZ: bottom(start), toZ: top(start, 1), speed: 0.95, holding: "doubleShot" },
     { kind: "commuter", x: 0, fromZ: top(finish), toZ: bottom(finish, 2), speed: 1.0 },
+    { kind: "robot", x: -step, fromZ: top(entry), toZ: bottom(entry), speed: 0.78 },
+    { kind: "robot", x: step, fromZ: top(finish, 1), toZ: bottom(finish, 1), speed: 0.72 },
 
     // A pair chatting outside the ARM, facing each other.
     { kind: "student", x: step * 2, z: snap(start.z), yaw: Math.PI },
