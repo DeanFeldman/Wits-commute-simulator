@@ -196,7 +196,7 @@ export class CrossingStrip {
   createRaisedPlantingBed(width, depth, { x = 0, z = 0, name = "level2-planting-bed", height = 0.24 } = {}) {
     const edge = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
-      new THREE.MeshStandardMaterial({ color: 0x9b8b72, roughness: 0.96, metalness: 0 })
+      new THREE.MeshStandardMaterial({ color: 0x8c7d67, roughness: 0.96, metalness: 0 })
     );
     edge.name = `${name}-edge`;
     edge.position.set(x, WALKWAY_TOP_Y + height / 2, z);
@@ -204,7 +204,7 @@ export class CrossingStrip {
     edge.receiveShadow = true;
     this.root.add(edge);
 
-    const inset = 0.22;
+    const inset = 0.1;
     const soilHeight = 0.07;
     const soil = new THREE.Mesh(
       new THREE.BoxGeometry(Math.max(0.2, width - inset * 2), soilHeight, Math.max(0.2, depth - inset * 2)),
@@ -215,6 +215,27 @@ export class CrossingStrip {
     soil.receiveShadow = true;
     this.root.add(soil);
     return WALKWAY_TOP_Y + height + soilHeight - 0.015;
+  }
+
+  addOpaqueShrubs(placements, { name = "level2-shrubs", color = 0x4f783d } = {}) {
+    if (!placements.length) return;
+    const mesh = new THREE.InstancedMesh(
+      new THREE.DodecahedronGeometry(0.5, 0),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.92, flatShading: true }),
+      placements.length
+    );
+    const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion();
+    placements.forEach((item, index) => {
+      const sx = item.sx ?? item.scale ?? 1, sy = item.sy ?? item.scale ?? 1, sz = item.sz ?? item.scale ?? 1;
+      matrix.compose(new THREE.Vector3(item.x, item.y + sy / 2, item.z), quaternion, new THREE.Vector3(sx, sy, sz));
+      mesh.setMatrixAt(index, matrix);
+    });
+    mesh.name = name;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    this.root.add(mesh);
   }
 
   async loadModels(loader, modelCache) {
@@ -1185,23 +1206,23 @@ this.createZebraCrossing({
   if (isFarSideLanding) {
     this.createWalkwayPanel(sideWidth, this.definition.depth, { x: -sideCenterX, name: "amic-vida-courtyard" });
   } else {
-    const bridgeBedTop = this.createRaisedPlantingBed(sideWidth - 0.5, this.definition.depth - 0.45, {
-      x: -sideCenterX - 0.05,
+    const bridgeBedTop = this.createRaisedPlantingBed(sideWidth + 0.06, this.definition.depth, {
+      x: -sideCenterX,
       name: "amic-bridge-entry-bed",
       height: 0.26
     });
-    const foliage = { trees: [], bushes: [] };
+    const foliage = { trees: [] }, shrubs = [];
     for (const [x, z, scale] of [
       [-6.1, -1.8, 4.9], [-8.7, 1.4, 5.4], [-10.1, -1.1, 4.6]
     ]) foliage.trees.push({ x, y: bridgeBedTop, z, scale, rotation: (foliage.trees.length * 2.17) % (Math.PI * 2) });
-    for (let i = 0; i < 11; i++) foliage.bushes.push({
-      x: -4.6 - (i % 3) * 1.9,
+    for (let i = 0; i < 11; i++) shrubs.push({
+      x: -4.8 - (i % 3) * 1.75,
       y: bridgeBedTop,
-      z: -2.5 + Math.floor(i / 3) * 1.55,
-      scale: 0.38 + (i % 2) * 0.06,
-      rotation: (i * 2.399) % (Math.PI * 2)
+      z: -2.35 + Math.floor(i / 3) * 1.45,
+      sx: 0.72, sy: 0.5 + (i % 2) * 0.08, sz: 0.62
     });
     addSharedFoliage(this.root, foliage, { name: "level2-bridge-entry-greenery" });
+    this.addOpaqueShrubs(shrubs, { name: "level2-bridge-entry-shrubs" });
   }
 
   if (isFarSideLanding) {
@@ -1847,7 +1868,7 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
     const sideWidth = Math.max(0, (this.definition.width - BRIDGE_DECK_WIDTH) / 2);
     const sideCenter = BRIDGE_DECK_WIDTH / 2 + sideWidth / 2;
     let treeBedTop = WALKWAY_TOP_Y;
-    if (sideWidth > 0) for (const side of [-1, 1]) treeBedTop = this.createRaisedPlantingBed(sideWidth - 0.35, this.definition.depth - 0.28, {
+    if (sideWidth > 0) for (const side of [-1, 1]) treeBedTop = this.createRaisedPlantingBed(sideWidth + 0.06, this.definition.depth, {
       x: side * sideCenter,
       name: `level2-tree-bed-${this.definition.index}-${side < 0 ? "left" : "right"}`,
       height: 0.18
@@ -2297,10 +2318,10 @@ createBridgeFenceReturns({
     };
   }
 createYaleEntranceScenery() {
-  const foliage = { trees: [], bushes: [] };
-  const yaleBedTop = this.createRaisedPlantingBed(10.8, 5.2, { x: -9.2, z: -1.35, name: "yale-left-garden-bed", height: 0.24 });
-  this.createRaisedPlantingBed(10.8, 5.2, { x: 9.2, z: -1.35, name: "yale-right-garden-bed", height: 0.24 });
-  this.createRaisedPlantingBed(43, 3.2, { x: -27, z: -4.65, name: "yale-building-tree-bed-left", height: 0.2 });
+  const foliage = { trees: [] }, shrubs = [], flowers = [];
+  const yaleBedTop = this.createRaisedPlantingBed(11.25, 5.6, { x: -9.2, z: -1.15, name: "yale-left-garden-bed", height: 0.24 });
+  this.createRaisedPlantingBed(11.25, 5.6, { x: 9.2, z: -1.15, name: "yale-right-garden-bed", height: 0.24 });
+  const rearBedTop = this.createRaisedPlantingBed(43, 3.2, { x: -27, z: -4.65, name: "yale-building-tree-bed-left", height: 0.2 });
   this.createRaisedPlantingBed(18, 3.2, { x: 15, z: -4.65, name: "yale-building-tree-bed-right", height: 0.2 });
   const gatePostMaterial = new THREE.MeshStandardMaterial({
     color: 0xc8c0ac,
@@ -2319,22 +2340,18 @@ createYaleEntranceScenery() {
   });
 
   const addHedge = (x, z, width, depth, height = 0.8, dark = false) => {
-    const columns = Math.max(2, Math.ceil(width / 1.15));
-    const rows = Math.max(1, Math.ceil(depth / 1.05));
-    for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
-      const index = foliage.bushes.length;
-      foliage.bushes.push({
-        x: x + (column - (columns - 1) / 2) * (width / columns),
-        y: yaleBedTop,
-        z: z + (row - (rows - 1) / 2) * (depth / rows),
-        scale: (dark ? 0.4 : 0.44) * (height / 0.8) * (0.94 + (index % 3) * 0.04),
-        rotation: (index * 2.399) % (Math.PI * 2)
-      });
-    }
+    const columns = Math.max(2, Math.ceil(width / 1.45)), rows = Math.max(1, Math.ceil(depth / 1.25));
+    const y = z < -3.2 ? rearBedTop : yaleBedTop;
+    for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) shrubs.push({
+      x: x + (column - (columns - 1) / 2) * (width / columns),
+      y,
+      z: z + (row - (rows - 1) / 2) * (depth / rows),
+      sx: width / columns * 0.82, sy: height * (dark ? 0.72 : 0.82), sz: depth / rows * 0.78
+    });
   };
 
-  const addTree = (x, z, scale = 1) => foliage.trees.push({
-    x, y: yaleBedTop, z, scale: scale * 4.6,
+  const addTree = (x, z, scale = 1, y = yaleBedTop) => foliage.trees.push({
+    x, y, z, scale: scale * 4.6,
     rotation: (foliage.trees.length * 2.399) % (Math.PI * 2)
   });
 
@@ -2453,24 +2470,24 @@ createYaleEntranceScenery() {
   addHedge( 9.8,  1.75, 2.4, 1.2, 0.75, true);
 
 // Trees moved backward in -Z so they stop crowding the crossing
-addTree(-13.0, -2.2, 1.05);
-addTree(-9.8,  -2.8, 0.95);
-addTree(-6.8,   1.4, 0.9);
+addTree(-12.2, -2.4, 1.02);
+addTree(-9.2,  -1.15, 0.96);
+addTree(-6.2,   0.15, 0.9);
 
-addTree( 13.0, -2.2, 1.05);
-addTree( 9.8,  -2.8, 0.95);
-addTree( 6.8,   1.4, 0.9);
+addTree(12.2, -2.4, 1.02);
+addTree(9.2,  -1.15, 0.96);
+addTree(6.2,   0.15, 0.9);
 
-// Keep the centre entrance open; rear trees sit in the side planting beds.
-addTree(-8.2,-4.55,.95);
-addTree(8.2,-4.55,.95);
+// Rear trees stay centred inside the rear soil beds.
+addTree(-9.0, -4.65, .95, rearBedTop);
+addTree(9.0, -4.65, .95, rearBedTop);
 
 // Dense planting in front of the backdrop buildings.
 for(const [x,z,s] of [
   [-48,-4.85,1],[-43,-4.4,1.1],[-38,-5.05,.95],[-33,-4.55,1.05],[-27,-4.95,.95],
   [-23,-4.35,1.05],[-19,-4.9,.95],[-15,-4.45,1.1],[-11,-5.0,.9],[-7,-4.5,1],
   [7,-4.55,.95],[11,-5.0,1],[15,-4.45,1.1],[19,-4.9,.95],[23,-4.35,1.05]
-])addTree(x,z,s);
+])addTree(x,z,s,rearBedTop);
 
 addHedge(-43,-4.25,24,1.5,.9,true);
 addHedge(-19,-4.25,12,1.4,.9);
@@ -2487,12 +2504,12 @@ for (const [x, z] of [[5.6, 1.25], [8.4, 1.05], [11.2, 0.85]]) {
   planter.castShadow = true;
   planter.receiveShadow = true;
   this.root.add(planter);
-  for (const dx of [-0.45, 0, 0.45]) foliage.bushes.push({
-    x: x + dx, y: WALKWAY_TOP_Y + 0.38, z, scale: 0.31, rotation: (foliage.bushes.length * 2.399) % (Math.PI * 2)
-  });
+  for (const dx of [-0.45, 0, 0.45]) flowers.push({ x: x + dx, y: WALKWAY_TOP_Y + 0.4, z, sx: 0.42, sy: 0.28, sz: 0.42 });
 }
 
 addSharedFoliage(this.root, foliage, { name: "level2-yale-entrance-foliage" });
+this.addOpaqueShrubs(shrubs, { name: "level2-yale-shrubs" });
+this.addOpaqueShrubs(flowers, { name: "level2-yale-flowers", color: 0xc52b78 });
 }
 
 
