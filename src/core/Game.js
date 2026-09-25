@@ -156,6 +156,7 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
+    this.isMenuMusicPaused = false;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
 
@@ -261,6 +262,7 @@ export class Game {
     this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuCreditsAction.hidden = false;
     this.menuMusicAction.hidden = false;
+    this.isMenuMusicPaused ? this.uiAudio.pauseMusic() : this.uiAudio.resumeMusic();
     this.updateMenuMusicAction();
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
@@ -860,7 +862,8 @@ export class Game {
     }
 
     if (action === "music") {
-      this.uiAudio.isMusicPaused() ? this.uiAudio.resumeMusic() : this.uiAudio.pauseMusic();
+      this.isMenuMusicPaused = !this.isMenuMusicPaused;
+      this.isMenuMusicPaused ? this.uiAudio.pauseMusic() : this.uiAudio.resumeMusic();
       this.updateMenuMusicAction();
       return;
     }
@@ -876,9 +879,8 @@ export class Game {
   }
 
   updateMenuMusicAction() {
-    const paused = this.uiAudio.isMusicPaused();
-    this.menuMusicAction.textContent = paused ? "Play music" : "Pause music";
-    this.menuMusicAction.setAttribute("aria-pressed", String(paused));
+    this.menuMusicAction.textContent = this.isMenuMusicPaused ? "Play music" : "Pause music";
+    this.menuMusicAction.setAttribute("aria-pressed", String(this.isMenuMusicPaused));
   }
 
   showCredits() {
