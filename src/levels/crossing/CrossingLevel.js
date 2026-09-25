@@ -493,7 +493,7 @@ export class CrossingLevel {
     }
 
     const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer) {
+    if (isQuizzer && person.surveyCooldown === 0) {
       this.startQuiz(person);
       return;
     }
