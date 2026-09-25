@@ -101,7 +101,8 @@ export const CROWD_LINES = Object.freeze({
     phone: "Bru, the taxis on Yale Road stop randomly. Don't trust them.",
     student: "Iced latte from Vida? Everything feels slower after one.",
     psychQuizzer: "Excuse me — walk into me and I'll ask you something fun.",
-    ccduAdvisor: "Hey! CCDU is doing quick check-ins today."
+    ccduAdvisor: "Hey! CCDU is doing quick check-ins today.",
+    robot: "BEEP. CAMPUS DELIVERY ROUTE ACTIVE."
   }
 });
 
@@ -141,16 +142,18 @@ export class CampusCrowd {
   add(entry, index = this.people.length) {
     const pick = (list, salt) => list[(index * salt + Math.floor(this.random() * list.length)) % list.length];
     const kind = entry.kind;
-    const scale = 0.92 + ((index * 7) % 5) * 0.03;
+    const scale = kind === "robot" ? 0.9 : 0.92 + ((index * 7) % 5) * 0.03;
+    const robot = kind === "robot";
     const mesh = this.factory.create({
-      shirt: kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
-      trousers: pick(TROUSERS, 5),
-      skin: pick(SKINS, 7),
-      hair: kind === "guard" ? "cap" : pick(HAIR, 11),
+      shirt: robot ? 0xc7d0d6 : kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
+      trousers: robot ? 0x39454d : pick(TROUSERS, 5),
+      skin: robot ? 0xaebbc4 : pick(SKINS, 7),
+      hair: robot ? "none" : kind === "guard" ? "cap" : pick(HAIR, 11),
       hairColor: kind === "guard" ? 0x1c2a44 : pick(HAIR_COLORS, 13),
-      backpack: kind === "student" || kind === "commuter" ? pick(BACKPACKS, 17) : null,
+      backpack: !robot && (kind === "student" || kind === "commuter") ? pick(BACKPACKS, 17) : null,
       vest: kind === "guard",
-      holding: entry.holding ?? (kind === "phone" ? "phone" : null),
+      holding: robot ? null : entry.holding ?? (kind === "phone" ? "phone" : null),
+      robot,
       scale
     });
     mesh.name = `campus-person-${index}-${kind}`;
@@ -163,7 +166,7 @@ export class CampusCrowd {
 
     const person = {
       kind,
-      name: entry.name ?? NAMES[index % NAMES.length],
+      name: entry.name ?? (robot ? `Wits Bot ${index + 1}` : NAMES[index % NAMES.length]),
       mesh,
       rig: mesh.userData.rig,
       walking,
@@ -475,6 +478,8 @@ export function createCrowdPlan({ zones, startZ, step }) {
     { kind: "jogger", x: step * 2, fromZ: top(bridge, 1), toZ: bottom(bridge, 1), speed: 2.3 },
     { kind: "student", x: -step * 2, fromZ: bottom(start), toZ: top(start, 1), speed: 0.95, holding: "doubleShot" },
     { kind: "commuter", x: 0, fromZ: top(finish), toZ: bottom(finish, 2), speed: 1.0 },
+    { kind: "robot", x: -step, fromZ: top(entry), toZ: bottom(entry), speed: 0.78 },
+    { kind: "robot", x: step, fromZ: top(finish, 1), toZ: bottom(finish, 1), speed: 0.72 },
 
     // A pair chatting outside the ARM, facing each other.
     { kind: "student", x: step * 2, z: snap(start.z), yaw: Math.PI },
