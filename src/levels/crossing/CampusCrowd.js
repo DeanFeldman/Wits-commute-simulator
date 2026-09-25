@@ -14,9 +14,12 @@ import { PEDESTRIAN_SOLE_OFFSET, poseWalk, poseChase } from "./PedestrianFactory
 // freezing mid-chase. Each NPC's state lives on the person object, so the
 // two run independently of one another.
 const CHASE_KINDS = new Set(["psychQuizzer", "ccduAdvisor"]);
-const CHASE_TRIGGER_DISTANCE = 5;
+const CHASE_TRIGGER_DISTANCE = 4;
 const CHASE_CATCH_DISTANCE = 0.9;
 const CHASE_SPEED = 3.3;
+const CHASE_MAX_DURATION = 1.6;
+const CHASE_MAX_TRAVEL = 3.2;
+const CHASE_RETRY_COOLDOWN = 2.5;
 const LEAVE_SPEED = 1.6;
 const LEAVE_DISTANCE = 6;
 
@@ -183,6 +186,9 @@ export class CampusCrowd {
       facePlayer: null,
       // Chase-only state; harmless on every other kind of person.
       chasing: false,
+      chaseTime: 0,
+      chaseDistance: 0,
+      chaseCooldown: 0,
       caught: false,
       quizDone: false,
       leaving: false,
@@ -255,6 +261,7 @@ export class CampusCrowd {
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
+      person.chaseCooldown = Math.max(0, person.chaseCooldown - dt);
       person.recoil = Math.max(0, person.recoil - dt * 3);
       person.caught = false;
 
@@ -305,10 +312,16 @@ export class CampusCrowd {
     const dz = player.z - position.z;
     const distance = Math.hypot(dx, dz);
 
-    if (!person.chasing && distance <= CHASE_TRIGGER_DISTANCE) {
+    if (!person.chasing && person.chaseCooldown === 0 && distance <= CHASE_TRIGGER_DISTANCE) {
       person.chasing = true;
-    } else if (person.chasing && distance > CHASE_TRIGGER_DISTANCE) {
-      person.chasing = false;
+      person.chaseTime = 0;
+      person.chaseDistance = 0;
+    } else if (person.chasing) {
+      person.chaseTime += dt;
+      if (distance > CHASE_TRIGGER_DISTANCE || person.chaseTime >= CHASE_MAX_DURATION || person.chaseDistance >= CHASE_MAX_TRAVEL) {
+        person.chasing = false;
+        person.chaseCooldown = CHASE_RETRY_COOLDOWN;
+      }
     }
 
     if (!person.chasing) {
@@ -330,6 +343,7 @@ export class CampusCrowd {
     const step = Math.min(CHASE_SPEED * dt, distance);
     position.x += Math.sin(yaw) * step;
     position.z += Math.cos(yaw) * step;
+    person.chaseDistance += step;
     person.stride += step;
     person.moving = true;
     this.turnTo(person, yaw, dt);
