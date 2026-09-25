@@ -170,6 +170,7 @@ export class Game {
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
+    this.menuMusicAction = document.querySelector("#menu-music-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
     this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
@@ -259,6 +260,8 @@ export class Game {
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
     this.menuCreditsAction.hidden = false;
+    this.menuMusicAction.hidden = false;
+    this.updateMenuMusicAction();
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
@@ -304,6 +307,7 @@ export class Game {
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.remove("menu-home");
+    this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
@@ -854,6 +858,12 @@ export class Game {
       return;
     }
 
+    if (action === "music") {
+      this.uiAudio.isMusicPaused() ? this.uiAudio.resumeMusic() : this.uiAudio.pauseMusic();
+      this.updateMenuMusicAction();
+      return;
+    }
+
     if (action === "menu") {
       this.showMenu();
       return;
@@ -862,6 +872,12 @@ export class Game {
     if (action?.startsWith("level-")) {
       this.startPracticeLevel(Number(action.at(-1)));
     }
+  }
+
+  updateMenuMusicAction() {
+    const paused = this.uiAudio.isMusicPaused();
+    this.menuMusicAction.textContent = paused ? "Play music" : "Pause music";
+    this.menuMusicAction.setAttribute("aria-pressed", String(paused));
   }
 
   showCredits() {
@@ -881,6 +897,7 @@ export class Game {
     `).join("");
     this.menuElement.classList.add("menu-credits");
     this.menuCreditsAction.hidden = true;
+    this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
