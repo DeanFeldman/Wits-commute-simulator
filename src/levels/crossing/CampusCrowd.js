@@ -21,6 +21,7 @@ const CHASE_MAX_DURATION = 1.6;
 const CHASE_MAX_TRAVEL = 4.5;
 const LEAVE_SPEED = 1.6;
 const LEAVE_DISTANCE = 6;
+const SURVEY_COOLDOWN = 5;
 
 // What people say. `bump` lines are picked by personality; after a few bumps
 // everyone runs out of patience and uses `annoyed`.
@@ -196,6 +197,7 @@ export class CampusCrowd {
       chaseArmed: true,
       chaseTime: 0,
       chaseDistance: 0,
+      surveyCooldown: 0,
       caught: false,
       leaving: false,
       leaveDirection: null,
@@ -248,6 +250,7 @@ export class CampusCrowd {
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
+    person.surveyCooldown = SURVEY_COOLDOWN;
     person.caught = false;
     const yaw = person.mesh.rotation.y;
     person.leaveYaw = yaw;
@@ -261,6 +264,7 @@ export class CampusCrowd {
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
+      person.surveyCooldown = Math.max(0, person.surveyCooldown - dt);
       person.recoil = Math.max(0, person.recoil - dt * 3);
       person.caught = false;
 
@@ -309,9 +313,9 @@ export class CampusCrowd {
     const dz = player.z - position.z;
     const distance = Math.hypot(dx, dz);
 
-    if (distance > CHASE_TRIGGER_DISTANCE) person.chaseArmed = true;
+    if (distance > CHASE_TRIGGER_DISTANCE && person.surveyCooldown === 0) person.chaseArmed = true;
 
-    if (!person.chasing && person.chaseArmed && distance <= CHASE_TRIGGER_DISTANCE) {
+    if (!person.chasing && person.chaseArmed && person.surveyCooldown === 0 && distance <= CHASE_TRIGGER_DISTANCE) {
       person.chasing = true;
       person.chaseArmed = false;
       person.chaseTime = 0;
@@ -354,7 +358,7 @@ export class CampusCrowd {
     if (person.leaveTraveled >= LEAVE_DISTANCE) {
       person.moving = false;
       person.leaving = false;
-      person.chaseArmed = true;
+      person.chaseArmed = person.surveyCooldown === 0;
       return;
     }
     const step = Math.min(LEAVE_SPEED * dt, LEAVE_DISTANCE - person.leaveTraveled);
