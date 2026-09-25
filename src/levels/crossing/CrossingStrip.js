@@ -1190,7 +1190,7 @@ this.createZebraCrossing({
       name: "amic-bridge-entry-bed",
       height: 0.26
     });
-    const foliage = { trees: [], bushes: [], grass: [] };
+    const foliage = { trees: [], bushes: [] };
     for (const [x, z, scale] of [
       [-6.1, -1.8, 4.9], [-8.7, 1.4, 5.4], [-10.1, -1.1, 4.6]
     ]) foliage.trees.push({ x, y: bridgeBedTop, z, scale, rotation: (foliage.trees.length * 2.17) % (Math.PI * 2) });
@@ -1200,13 +1200,6 @@ this.createZebraCrossing({
       z: -2.5 + Math.floor(i / 3) * 1.55,
       scale: 0.38 + (i % 2) * 0.06,
       rotation: (i * 2.399) % (Math.PI * 2)
-    });
-    for (let i = 0; i < 18; i++) foliage.grass.push({
-      x: -4.3 - (i % 5) * 1.4,
-      y: bridgeBedTop,
-      z: -2.6 + Math.floor(i / 5) * 1.55,
-      scale: 0.42 + (i % 3) * 0.04,
-      rotation: (i * 1.83) % (Math.PI * 2)
     });
     addSharedFoliage(this.root, foliage, { name: "level2-bridge-entry-greenery" });
   }
@@ -2304,10 +2297,11 @@ createBridgeFenceReturns({
     };
   }
 createYaleEntranceScenery() {
-  const foliage = { trees: [], bushes: [], grass: [] };
-  const yaleBedTop = this.createRaisedPlantingBed(10.8, 5.2, { x: -9.2, z: -2.2, name: "yale-left-garden-bed", height: 0.24 });
-  this.createRaisedPlantingBed(10.8, 5.2, { x: 9.2, z: -2.2, name: "yale-right-garden-bed", height: 0.24 });
-  this.createRaisedPlantingBed(72, 3.3, { x: -12.5, z: -6.15, name: "yale-building-tree-bed", height: 0.2 });
+  const foliage = { trees: [], bushes: [] };
+  const yaleBedTop = this.createRaisedPlantingBed(10.8, 5.2, { x: -9.2, z: -1.35, name: "yale-left-garden-bed", height: 0.24 });
+  this.createRaisedPlantingBed(10.8, 5.2, { x: 9.2, z: -1.35, name: "yale-right-garden-bed", height: 0.24 });
+  this.createRaisedPlantingBed(43, 3.2, { x: -27, z: -4.65, name: "yale-building-tree-bed-left", height: 0.2 });
+  this.createRaisedPlantingBed(18, 3.2, { x: 15, z: -4.65, name: "yale-building-tree-bed-right", height: 0.2 });
   const gatePostMaterial = new THREE.MeshStandardMaterial({
     color: 0xc8c0ac,
     roughness: 0.88
@@ -2343,15 +2337,6 @@ createYaleEntranceScenery() {
     x, y: yaleBedTop, z, scale: scale * 4.6,
     rotation: (foliage.trees.length * 2.399) % (Math.PI * 2)
   });
-  const addGrassPatch = (x, z, width, depth, count) => {
-    for (let i = 0; i < count; i++) foliage.grass.push({
-      x: x + (((i * 37) % 101) / 100 - 0.5) * width,
-      y: yaleBedTop,
-      z: z + (((i * 61) % 97) / 96 - 0.5) * depth,
-      scale: 0.38 + (i % 4) * 0.035,
-      rotation: (i * 2.11) % (Math.PI * 2)
-    });
-  };
 
   const addFence = (x, z, length, rotationY = 0, name = "yale-entrance-fence") => {
     const fence = createAmicFenceSection({
@@ -2458,14 +2443,14 @@ createYaleEntranceScenery() {
   // --------------------------------------------------
 
   // Left side hedge grouping
-  addHedge(-8.2, -0.2, 4.4, 1.4, 0.85);
-  addHedge(-6.3,  1.2, 3.0, 1.2, 0.75, true);
-  addHedge(-9.8,  1.2, 2.4, 1.2, 0.75, true);
+  addHedge(-8.2, 0.55, 4.4, 1.4, 0.85);
+  addHedge(-6.3,  1.75, 3.0, 1.2, 0.75, true);
+  addHedge(-9.8,  1.75, 2.4, 1.2, 0.75, true);
 
   // Right side hedge grouping
-  addHedge( 8.2, -0.2, 4.4, 1.4, 0.85);
-  addHedge( 6.3,  1.2, 3.0, 1.2, 0.75, true);
-  addHedge( 9.8,  1.2, 2.4, 1.2, 0.75, true);
+  addHedge( 8.2, 0.55, 4.4, 1.4, 0.85);
+  addHedge( 6.3,  1.75, 3.0, 1.2, 0.75, true);
+  addHedge( 9.8,  1.75, 2.4, 1.2, 0.75, true);
 
 // Trees moved backward in -Z so they stop crowding the crossing
 addTree(-13.0, -2.2, 1.05);
@@ -2476,27 +2461,22 @@ addTree( 13.0, -2.2, 1.05);
 addTree( 9.8,  -2.8, 0.95);
 addTree( 6.8,   1.4, 0.9);
 
-// Rear trees further back toward the buildings
-addTree(-8.2,-5.0,.95);
-addTree(-3.8,-6.2,1.0);
-addTree(3.8,-6.4,1.0);
-addTree(8.2,-5.0,.95);
+// Keep the centre entrance open; rear trees sit in the side planting beds.
+addTree(-8.2,-4.55,.95);
+addTree(8.2,-4.55,.95);
 
 // Dense planting in front of the backdrop buildings.
 for(const [x,z,s] of [
-  [-48,-7.0,1],[-43,-6.5,1.1],[-38,-7.3,.95],[-33,-6.7,1.05],[-27,-7.2,.95],
-  [-23,-6.4,1.05],[-19,-7.1,.95],[-15,-6.5,1.1],[-11,-7.3,.9],[-7,-6.6,1],
-  [7,-6.7,.95],[11,-7.3,1],[15,-6.5,1.1],[19,-7.1,.95],[23,-6.4,1.05]
+  [-48,-4.85,1],[-43,-4.4,1.1],[-38,-5.05,.95],[-33,-4.55,1.05],[-27,-4.95,.95],
+  [-23,-4.35,1.05],[-19,-4.9,.95],[-15,-4.45,1.1],[-11,-5.0,.9],[-7,-4.5,1],
+  [7,-4.55,.95],[11,-5.0,1],[15,-4.45,1.1],[19,-4.9,.95],[23,-4.35,1.05]
 ])addTree(x,z,s);
 
-addHedge(-43,-5.9,24,1.5,.9,true);
-addHedge(-19,-5.9,12,1.4,.9);
-addHedge(-9,-6.1,6,1.25,.8,true);
-addHedge(9,-6.1,6,1.25,.8,true);
-addHedge(19,-5.9,12,1.4,.9);
-addGrassPatch(-9.2, -2.2, 10.8, 4.8, 24);
-addGrassPatch(9.2, -2.2, 10.8, 4.8, 24);
-addGrassPatch(-27, -6.15, 40, 2.6, 32);
+addHedge(-43,-4.25,24,1.5,.9,true);
+addHedge(-19,-4.25,12,1.4,.9);
+addHedge(-9,-4.45,6,1.25,.8,true);
+addHedge(9,-4.45,6,1.25,.8,true);
+addHedge(19,-4.25,12,1.4,.9);
 
 // Street-view-inspired low planters along the Engineering-side paved edge.
 const planterMaterial = new THREE.MeshStandardMaterial({ color: 0x9c9484, roughness: 0.94 });
