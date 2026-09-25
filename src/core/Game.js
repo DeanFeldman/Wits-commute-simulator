@@ -659,6 +659,7 @@ export class Game {
   }
 
   showFailure(failure) {
+    document.exitPointerLock?.();
     const { title, reason, next } = describeFailure(failure);
     this.loadVersion += 1;
     this.disposeCurrentLevel();
