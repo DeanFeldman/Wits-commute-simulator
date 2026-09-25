@@ -379,6 +379,23 @@ Used for:
 
 The pre-Level 1 story and asset-loading screen.
 
+### Original Level Soundtrack
+
+Type:
+Music / procedural Web Audio composition
+
+Source:
+Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request, then implemented as oscillator-based runtime sequences in `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+
+Author:
+OpenAI-assisted composition generated for the Wits Commute Simulator team.
+
+Licence:
+Generated output - no third-party licence attaches. Note that the generating model was trained on third-party data.
+
+Used for:
+Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
+
 ### Classroom Brick Wall / Classroom Terrazzo Floor
 
 Type: Texture
