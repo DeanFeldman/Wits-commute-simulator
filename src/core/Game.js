@@ -8,7 +8,6 @@ import { applyRendererBaseline } from "./renderSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
 import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
-import { Level2LightingShader } from "../shaders/level2LightingShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
@@ -212,13 +211,10 @@ export class Game {
     this.roadFogComposer=new EffectComposer(this.renderer,roadFogTarget);
     this.roadFogRenderPass=new RenderPass(this.scene,this.camera);
     this.roadFogPass=new ShaderPass(RoadFogShader);
-    this.level2LightingPass=new ShaderPass(Level2LightingShader);
-    this.level2LightingPass.enabled=false;
     this.roadFogOutputPass=new OutputPass();
 
     this.roadFogComposer.addPass(this.roadFogRenderPass);
     this.roadFogComposer.addPass(this.roadFogPass);
-    this.roadFogComposer.addPass(this.level2LightingPass);
     this.roadFogComposer.addPass(this.roadFogOutputPass);
   }
 
@@ -999,7 +995,6 @@ export class Game {
       u.uProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse);
       u.uCameraMatrixWorld.value.copy(this.camera.matrixWorld);
       u.uTime.value=this.clock.elapsedTime;
-      this.level2LightingPass.enabled=this.currentLevelNumber===2;
       if(level1Fog){
         const fog=this.currentLevel.roadFogConfig??{};
         u.uRadialMode.value=1;
