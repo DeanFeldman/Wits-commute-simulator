@@ -1,3 +1,4 @@
+const MUSIC_GAIN = 3.2;
 const MUSIC_FILES = {
   menu: "./assets/audio/music/menu_commute_theme.wav",
   level1: "./assets/audio/music/level1_dusk_drive.wav",
@@ -13,6 +14,9 @@ export class LevelAudio {
     this.engineGain = null;
     this.ambience = null;
     this.music = null;
+    this.musicSource = null;
+    this.musicGain = null;
+    this.musicLimiter = null;
     this.musicPreset = null;
     this.tickTimer = 0;
     this.stepTimer = 0;
@@ -38,6 +42,15 @@ export class LevelAudio {
     this.master = this.context.createGain();
     this.master.gain.value = this.isMuted ? 0 : 0.16;
     this.master.connect(this.context.destination);
+    this.musicGain = this.context.createGain();
+    this.musicGain.gain.value = this.isMuted ? 0 : MUSIC_GAIN;
+    this.musicLimiter = this.context.createDynamicsCompressor();
+    this.musicLimiter.threshold.value = -8;
+    this.musicLimiter.knee.value = 4;
+    this.musicLimiter.ratio.value = 8;
+    this.musicLimiter.attack.value = 0.003;
+    this.musicLimiter.release.value = 0.2;
+    this.musicGain.connect(this.musicLimiter).connect(this.context.destination);
     this.armUnlock();
     this.unlockAudio();
     return true;
@@ -50,17 +63,22 @@ export class LevelAudio {
     const music = new Audio(src);
     music.loop = true;
     music.preload = "auto";
-    music.volume = 0.85;
-    music.muted = this.isMuted;
+    music.volume = 1;
     this.music = music;
     this.musicPreset = preset;
+    if (this.ensure()) {
+      this.musicSource = this.context.createMediaElementSource(music);
+      this.musicSource.connect(this.musicGain);
+    } else music.muted = this.isMuted;
     music.play().catch(() => {});
   }
 
   stopMusic() {
     this.music?.pause();
     if (this.music) this.music.currentTime = 0;
+    this.musicSource?.disconnect();
     this.music = null;
+    this.musicSource = null;
     this.musicPreset = null;
   }
 
@@ -128,8 +146,8 @@ export class LevelAudio {
   setMuted(muted) {
     this.isMuted = muted;
     if (this.master) this.master.gain.value = muted ? 0 : 0.16;
-    if (this.music) this.music.muted = muted;
-    if (this.music) this.music.muted = muted;
+    if (this.musicGain) this.musicGain.gain.value = muted ? 0 : MUSIC_GAIN;
+    if (this.music && !this.musicSource) this.music.muted = muted;
   }
 
   dispose() {
