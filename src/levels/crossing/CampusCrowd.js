@@ -76,6 +76,11 @@ export const CROWD_LINES = Object.freeze({
     "Hi! Got 30 seconds for a CCDU wellness question?",
     "Quick check-in from CCDU, if you don't mind."
   ],
+  robot: [
+    "BEEP. PEDESTRIAN ROUTE OCCUPIED.",
+    "WITS BOT REQUESTS RIGHT OF WAY.",
+    "BEEP BEEP. DELIVERY IN PROGRESS."
+  ],
   annoyed: [
     "Again?!",
     "Okay, now you're doing it on purpose.",
