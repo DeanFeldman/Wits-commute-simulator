@@ -20,6 +20,7 @@ import {
   STRIP_DEPTH
 } from "./Level2StripGenerator.js";
 import { createWitsBusStop } from "./WitsBusStop.js";
+import { addSharedFoliage } from "../parking/ParkingFoliage.js";
 
 // Visual tuning values shared by every generated Level 2 strip.
 const ROAD_COLOR = 0x292d31;
@@ -1791,13 +1792,9 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
 }
 
   createTrees() {
-    // Pick unique grid blocks using the strip's seeded RNG. Tree presets normally
-    // reserve the centre columns so the player's forward route stays open.
     const config = this.definition.trees;
     const blocks = [];
-    for (const rowOffset of config.rowOffsets) {
-      for (const column of config.columns) blocks.push({ column, rowOffset });
-    }
+    for (const rowOffset of config.rowOffsets) for (const column of config.columns) blocks.push({ column, rowOffset });
     for (let index = blocks.length - 1; index > 0; index--) {
       const other = Math.floor(this.random() * (index + 1));
       [blocks[index], blocks[other]] = [blocks[other], blocks[index]];
@@ -1805,51 +1802,31 @@ const centerZ=(parkingFrontEdgeZ+backEdgeZ)/2;
 
     const [minimumCount, maximumCount] = config.countRange;
     const count = minimumCount + Math.floor(this.random() * (maximumCount - minimumCount + 1));
-    const treeScale = config.scale ?? 1;
     const gridSize = this.definition.depth / this.definition.rowSpan;
-    const trunkGeometry = new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7);
-    const canopyGeometry = new THREE.ConeGeometry(0.72, 1.45, 7);
-    const trunkMaterial = new THREE.MeshStandardMaterial({
-      color: config.trunkColor ?? 0x76513a,
-      roughness: 0.92,
-      flatShading: true
-    });
-    const canopyColors = config.canopyColors ?? [0x3f7f4c, 0x57934f, 0x6aa557];
-    const canopyMaterials = canopyColors.map((color) => new THREE.MeshStandardMaterial({
-      color,
-      roughness: 0.86,
-      flatShading: true
-    }));
+    const baseScale = (config.scale ?? 1) * 4.4;
+    const trees = [];
 
     for (let index = 0; index < count; index++) {
       const block = blocks[index];
-      const tree = new THREE.Group();
-      tree.name = `strip-tree-${this.definition.index}-${index}`;
-      tree.userData.gridColumn = block.column;
-      tree.userData.rowOffset = block.rowOffset;
+      const marker = new THREE.Group();
+      marker.name = `strip-tree-${this.definition.index}-${index}`;
+      marker.userData.gridColumn = block.column;
+      marker.userData.rowOffset = block.rowOffset;
+      marker.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
+      this.root.add(marker);
 
-      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-      trunk.position.y = 0.68;
-      trunk.castShadow = true;
-      tree.add(trunk);
-
-      const canopy = new THREE.Mesh(
-        canopyGeometry,
-        canopyMaterials[Math.floor(this.random() * canopyMaterials.length)]
-      );
-      canopy.position.y = 1.75;
-      canopy.castShadow = true;
-      tree.add(canopy);
-
-      tree.scale.setScalar(treeScale);
-      tree.position.set(block.column * gridSize, 0.11, this.localZForRow(block.rowOffset));
-      this.root.add(tree);
-      this.blockedCells.push({
-        x: tree.position.x,
-        z: this.z + tree.position.z,
-        type: "tree"
+      const variation = this.random();
+      trees.push({
+        x: marker.position.x,
+        y: WALKWAY_TOP_Y,
+        z: marker.position.z,
+        scale: baseScale * (0.92 + variation * 0.16),
+        rotation: variation * Math.PI * 2
       });
+      this.blockedCells.push({ x: marker.position.x, z: this.z + marker.position.z, type: "tree" });
     }
+
+    addSharedFoliage(this.root, { trees }, { name: `level2-strip-foliage-${this.definition.index}` });
   }
 
   createRoadMarkings() {
@@ -2273,29 +2250,7 @@ createBridgeFenceReturns({
     };
   }
 createYaleEntranceScenery() {
-  const hedgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x426a36,
-    roughness: 0.95,
-    flatShading: true
-  });
-
-  const darkHedgeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2f5229,
-    roughness: 0.95,
-    flatShading: true
-  });
-
-  const trunkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x72533a,
-    roughness: 0.92
-  });
-
-  const leafMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4a7a3e,
-    roughness: 0.9,
-    flatShading: true
-  });
-
+  const foliage = { trees: [], bushes: [] };
   const gatePostMaterial = new THREE.MeshStandardMaterial({
     color: 0xc8c0ac,
     roughness: 0.88
@@ -2313,53 +2268,24 @@ createYaleEntranceScenery() {
   });
 
   const addHedge = (x, z, width, depth, height = 0.8, dark = false) => {
-    const hedge = new THREE.Mesh(
-      new THREE.BoxGeometry(width, height, depth),
-      dark ? darkHedgeMaterial : hedgeMaterial
-    );
-
-    hedge.position.set(
-      x,
-      WALKWAY_TOP_Y + height / 2,
-      z
-    );
-
-    hedge.castShadow = true;
-    hedge.receiveShadow = true;
-    hedge.name = "yale-entrance-hedge";
-
-    this.root.add(hedge);
-    return hedge;
+    const columns = Math.max(2, Math.ceil(width / 1.15));
+    const rows = Math.max(1, Math.ceil(depth / 1.05));
+    for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
+      const index = foliage.bushes.length;
+      foliage.bushes.push({
+        x: x + (column - (columns - 1) / 2) * (width / columns),
+        y: WALKWAY_TOP_Y,
+        z: z + (row - (rows - 1) / 2) * (depth / rows),
+        scale: (dark ? 0.4 : 0.44) * (height / 0.8) * (0.94 + (index % 3) * 0.04),
+        rotation: (index * 2.399) % (Math.PI * 2)
+      });
+    }
   };
 
-  const addTree = (x, z, scale = 1) => {
-    const tree = new THREE.Group();
-    tree.name = "yale-entrance-tree";
-
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.22, 1.15, 7),
-      trunkMaterial
-    );
-    trunk.position.y = 0.68;
-    trunk.castShadow = true;
-    tree.add(trunk);
-
-   const canopy = new THREE.Mesh(
-  new THREE.SphereGeometry(0.78, 8, 7),
-  leafMaterial
-);
-canopy.position.y = 1.82;
-canopy.scale.set(1.15, 0.95, 1.05);
-canopy.castShadow = true;
-tree.add(canopy);
-
-
-    tree.position.set(x, 0.11, z);
-    tree.scale.setScalar(scale);
-
-    this.root.add(tree);
-    return tree;
-  };
+  const addTree = (x, z, scale = 1) => foliage.trees.push({
+    x, y: WALKWAY_TOP_Y, z, scale: scale * 4.6,
+    rotation: (foliage.trees.length * 2.399) % (Math.PI * 2)
+  });
 
   const addFence = (x, z, length, rotationY = 0, name = "yale-entrance-fence") => {
     const fence = createAmicFenceSection({
@@ -2503,6 +2429,7 @@ addHedge(-9,-6.1,6,1.25,.8,true);
 addHedge(9,-6.1,6,1.25,.8,true);
 addHedge(19,-5.9,12,1.4,.9);
 
+addSharedFoliage(this.root, foliage, { name: "level2-yale-entrance-foliage" });
 }
 
 
