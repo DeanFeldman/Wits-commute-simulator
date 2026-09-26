@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { disposeObject3D } from "../../shared/disposeObject3D.js";
 import { CollisionWorld } from "../../shared/CollisionWorld.js";
 import { GridHopController } from "./GridHopController.js";
@@ -73,6 +75,9 @@ export class CrossingLevel {
     this.seed = null;
     this.invulnerabilityTimer = 0;
     this.playerRig = null;
+    this.playerMixer = null;
+    this.playerActions = null;
+    this.activePlayerAction = null;
     this.playerAnimationTime = 0;
     this.walkBlend = 0;
     this.celebrateTimer = 0;
@@ -169,7 +174,7 @@ export class CrossingLevel {
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
     this.speech = new SpeechBubbles();
     this.quiz = new QuizOverlay();
-    this.createPlayer();
+    await this.createPlayer();
     const crowdPlan = this.createCrowd();
     this.createCups(crowdPlan);
     this.createPlayerEffects();
@@ -313,7 +318,147 @@ export class CrossingLevel {
     this.cups.spawn(spots);
   }
 
-  createPlayer() {
+  async createPlayer() {
+    try {
+      await this.createAnimatedPlayer();
+    } catch (error) {
+      // Keep Level 2 playable if an exported FBX is missing or cannot be read.
+      // The model paths are relative so this also works from the production
+      // subdirectory deployment.
+      console.warn("Level 2 player FBX could not load; using the fallback pedestrian.", error);
+      this.createFallbackPlayer();
+    }
+    this.player.name = "level2-player";
+    this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
+    this.player.rotation.y = this.level2PlayerSpawn.rotationY;
+    this.root.add(this.player);
+    this.playerRig = this.player.userData.rig ?? null;
+    this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
+  }
+
+  async createAnimatedPlayer() {
+    const loader = new FBXLoader();
+    const textureLoader = new GLTFLoader();
+    const [model, idleSource, runningSource, texturedSource] = await Promise.all([
+      loader.loadAsync("./assets/models/level2-player/level2-player-rig.fbx"),
+      loader.loadAsync("./assets/models/level2-player/injured-idle.fbx"),
+      loader.loadAsync("./assets/models/level2-player/running.fbx"),
+      textureLoader.loadAsync("./assets/models/level2-player/student-model-textured.glb")
+    ]);
+    const idleClip = idleSource.animations[0];
+    const runningClip = runningSource.animations[0];
+    if (!idleClip || !runningClip) throw new Error("The Level 2 animation FBX files contain no animation clips.");
+    this.removeRootMotion(model, idleClip);
+    this.removeRootMotion(model, runningClip);
+
+    // FBX exports can use centimetres or metres. Normalising the measured
+    // height gives the player a stable collision/camera scale either way.
+    const rawBounds = new THREE.Box3().setFromObject(model, true);
+    const rawHeight = rawBounds.max.y - rawBounds.min.y;
+    if (!Number.isFinite(rawHeight) || rawHeight < 0.001) throw new Error("The Level 2 player model has no measurable height.");
+    model.scale.setScalar(1.76 / rawHeight);
+    model.updateMatrixWorld(true);
+    const scaledBounds = new THREE.Box3().setFromObject(model, true);
+    // The player Group is what the grid controller moves. Offset the imported
+    // mesh inside it so that Group origin is exactly at a playable-cell centre.
+    model.position.x = -(scaledBounds.min.x + scaledBounds.max.x) / 2;
+    model.position.y = -PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025 - scaledBounds.min.y;
+    model.position.z = -(scaledBounds.min.z + scaledBounds.max.z) / 2;
+    let authoredBaseColor = null;
+    texturedSource.scene.traverse((child) => {
+      if (authoredBaseColor || !child.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      authoredBaseColor = materials.find((material) => material.map)?.map ?? null;
+    });
+    if (!authoredBaseColor) throw new Error("The textured Level 2 player GLB has no base-colour texture.");
+    const playerTexture = authoredBaseColor.clone();
+    // GLTFLoader supplies this image in glTF orientation. Keep the texture as
+    // authored and convert the FBX UVs below instead of relying on flipY,
+    // which is ignored for ImageBitmap-backed textures in some browsers.
+    playerTexture.flipY = false;
+    playerTexture.colorSpace = THREE.SRGBColorSpace;
+    playerTexture.needsUpdate = true;
+
+    model.traverse((child) => {
+      if (child.isMesh) {
+        // This FBX contains the same triangles as the textured GLB, but its V
+        // coordinates are exported as 1 - glbV. Correcting the geometry makes
+        // every vertex sample the same atlas location as the original GLB.
+        const uv = child.geometry?.getAttribute("uv");
+        if (uv) {
+          for (let index = 0; index < uv.count; index += 1) {
+            uv.setY(index, 1 - uv.getY(index));
+          }
+          uv.needsUpdate = true;
+        }
+        child.castShadow = true;
+        child.receiveShadow = true;
+        // Preserve the FBX material structure so its skinned draw groups stay
+        // intact while replacing only the broken exported colour map.
+        const hadMaterialArray = Array.isArray(child.material);
+        const materials = hadMaterialArray ? child.material : [child.material];
+        const visibleMaterials = materials.map((material) => {
+          const visibleMaterial = material.clone();
+          // Keep the FBX skin/rig, but use the matching authored base-colour
+          // image from StudentModel_textured.glb instead of its broken black
+          // FBX material export.
+          visibleMaterial.map = playerTexture;
+          visibleMaterial.color?.set(0xffffff);
+          visibleMaterial.emissive?.set(0x000000);
+          visibleMaterial.needsUpdate = true;
+          return visibleMaterial;
+        });
+        child.material = hadMaterialArray ? visibleMaterials : visibleMaterials[0];
+      }
+    });
+
+    this.player = new THREE.Group();
+    this.player.add(model);
+    this.playerMixer = new THREE.AnimationMixer(model);
+    this.playerActions = {
+      idle: this.playerMixer.clipAction(idleClip),
+      running: this.playerMixer.clipAction(runningClip)
+    };
+    this.activePlayerAction = this.playerActions.idle;
+    this.activePlayerAction.play();
+    this.playerMixer.update(0);
+
+    // Skinning changes the visible bounds from the unanimated bind pose used
+    // above. Ground the actual first frame of the injured-idle animation so
+    // its lowest point rests on the walkway instead of hovering.
+    model.updateMatrixWorld(true);
+    const animatedBounds = new THREE.Box3().setFromObject(model, true);
+    const desiredSoleY = -PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
+    model.position.x -= (animatedBounds.min.x + animatedBounds.max.x) / 2;
+    model.position.y += desiredSoleY - animatedBounds.min.y;
+    model.position.z -= (animatedBounds.min.z + animatedBounds.max.z) / 2;
+  }
+
+  removeRootMotion(model, clip) {
+    // Mixamo-style FBX clips animate the skeleton root forward as well as the
+    // limbs. Level 2 movement is grid-controlled, so that translation causes
+    // the mesh to run ahead and snap back every loop. Keep vertical bobbing,
+    // but lock the root's local X/Z translation to its first frame.
+    const rootBones = new Map();
+    model.traverse((child) => {
+      if (!child.isSkinnedMesh) return;
+      for (const bone of child.skeleton.bones) {
+        if (!bone.parent?.isBone) rootBones.set(bone.name, bone.position.clone());
+      }
+    });
+    for (const track of clip.tracks) {
+      if (!track.name.endsWith(".position")) continue;
+      const boneName = track.name.slice(0, -".position".length);
+      const bindPosition = rootBones.get(boneName);
+      if (!bindPosition || track.getValueSize() !== 3) continue;
+      for (let index = 0; index < track.values.length; index += 3) {
+        track.values[index] = bindPosition.x;
+        track.values[index + 2] = bindPosition.z;
+      }
+    }
+  }
+
+  createFallbackPlayer() {
     this.player = this.pedestrians.create({
       shirt: 0x2f8f88,
       trousers: 0x263b54,
@@ -322,12 +467,6 @@ export class CrossingLevel {
       backpack: 0xd6a43a,
       scale: PLAYER_SCALE
     });
-    this.player.name = "level2-player";
-    this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
-    this.player.rotation.y = this.level2PlayerSpawn.rotationY;
-    this.root.add(this.player);
-    this.playerRig = this.player.userData.rig;
-    this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
   }
 
   // Power-up visuals live beside the player, not inside it, so they never
@@ -420,9 +559,21 @@ export class CrossingLevel {
 
   updatePlayerAnimation(dt) {
     this.playerAnimationTime += dt;
+    const walking = this.hopController.isHopping;
+    if (this.playerMixer && this.playerActions) {
+      const nextAction = walking ? this.playerActions.running : this.playerActions.idle;
+      if (nextAction !== this.activePlayerAction) {
+        nextAction.reset().play();
+        this.activePlayerAction.crossFadeTo(nextAction, 0.16, false);
+        this.activePlayerAction = nextAction;
+      }
+      this.playerMixer.update(dt);
+      this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
+        || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
+      return;
+    }
     const rig = this.playerRig;
     if (!rig) return;
-    const walking = this.hopController.isHopping;
     this.walkBlend = THREE.MathUtils.damp(this.walkBlend, walking ? 1 : 0, 12, dt);
     const phase = (this.hopController.distanceWalked / STRIDE_LENGTH) * Math.PI * 2;
     poseWalk(rig, phase, this.walkBlend);
@@ -743,6 +894,8 @@ checkFinish() {
     this.controls?.dispose();
     this.speech?.dispose();
     this.quiz?.dispose();
+    this.playerMixer?.stopAllAction();
+    this.playerMixer?.uncacheRoot(this.player?.children[0]);
     disposeObject3D(this.root);
   }
 }
