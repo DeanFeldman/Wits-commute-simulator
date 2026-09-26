@@ -858,7 +858,9 @@ function createFlowerHall(root, roadMaterial) {
   const buildingWalkZ=f.z-f.depth/2-1.55;
   box(root,[55,.075,3.1],[-87,.055,buildingWalkZ],concrete,{name:"flower-hall-building-walkway"});
 
-  const sideLotLeft=f.x+f.width/2,sideLotRight=-47,sideLotTop=78,sideLotBottom=119,sideLotWidth=sideLotRight-sideLotLeft,sideLotDepth=sideLotBottom-sideLotTop,sideLotX=(sideLotLeft+sideLotRight)/2,sideLotZ=(sideLotTop+sideLotBottom)/2;
+  // Fill the whole Flower Hall strip with asphalt from the campus road down
+  // to the southern parking edge, right up to the pedestrian path.
+  const sideLotLeft=f.x+f.width/2,sideLotRight=-41.2,sideLotTop=46.2,sideLotBottom=119,sideLotWidth=sideLotRight-sideLotLeft,sideLotDepth=sideLotBottom-sideLotTop,sideLotX=(sideLotLeft+sideLotRight)/2,sideLotZ=(sideLotTop+sideLotBottom)/2;
   const sideAsphalt=box(root,[sideLotWidth,.1,sideLotDepth],[sideLotX,.012,sideLotZ],asphalt,{name:"flower-hall-side-asphalt"});applyRoadUvs(sideAsphalt.geometry,sideLotWidth,sideLotDepth);
 
   const xStart=-109,xPitch=4.65,parkingSpaces=[];
