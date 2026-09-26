@@ -100,7 +100,7 @@ export const PARKING_LAYOUT = Object.freeze({
   // Flower Hall occupies the west half of the Entrance 9 foreground. The
   // aerial reference shows a long pale multi-bay roof, a narrow parking strip
   // on its east face and a tree-filled pedestrian garden before the main lot.
-  flowerHall: { x: -83, z: 91, width: 52, depth: 48, height: 8 },
+  flowerHall: { x: -88, z: 91, width: 42, depth: 44, height: 8 },
 
   // Campus checkpoint on the campus street, immediately west of the Yale Road
   // junction. The connecting street stays paved while the north/south strip
@@ -828,63 +828,84 @@ function createArmPedestrianLink(root, collisionWorld) {
 }
 
 function createFlowerHall(root, roadMaterial) {
-  const f=PARKING_LAYOUT.flowerHall, asphalt=roadMaterial??material(COLORS.asphalt,0.93);
-  const brick=material(0x8f5a45,0.9), dark=material(0x704233,0.92), roof=material(0xd8d9d2,0.72,{metalness:0.08}), concrete=material(0xb5b2aa,0.92);
-  const hall=new THREE.Group(); hall.name="flower-hall"; hall.position.set(f.x,0,f.z); root.add(hall);
+  const f=PARKING_LAYOUT.flowerHall,asphalt=roadMaterial??material(COLORS.asphalt,0.93);
+  const brick=material(0x8f5a45,0.9),dark=material(0x704233,0.92),roof=material(0xd8d9d2,0.72,{metalness:0.08}),concrete=material(0xb5b2aa,0.92);
+  const hall=new THREE.Group();hall.name="flower-hall";hall.position.set(f.x,0,f.z);root.add(hall);
 
-  // Three long pale roof bays are the strongest top-down landmark in the
-  // aerial. A low brick body keeps the mass readable from the chase camera.
+  // Compact the hall westward so the landscaped court between it and the
+  // large Entrance 9 parking has roughly the same width as the hall itself.
   box(hall,[f.width,f.height,f.depth],[0,f.height/2,0],brick,{castShadow:true,name:"flower-hall-body"});
-  const gap=.75,bayWidth=(f.width-gap*4)/3;
-  for(let i=0;i<3;i++){
+  const gap=.7,bayWidth=(f.width-gap*4)/3;
+  [
+    {z:-1.0,depth:f.depth-2.0},
+    {z:0,depth:f.depth-1.0},
+    {z:1.0,depth:f.depth}
+  ].forEach((bay,i)=>{
     const x=-f.width/2+gap+bayWidth/2+i*(bayWidth+gap);
-    box(hall,[bayWidth,.6,f.depth-1.6],[x,f.height+.3,0],roof,{castShadow:true,name:`flower-hall-roof-bay-${i+1}`});
-    box(hall,[.35,.9,f.depth-1.2],[x+bayWidth/2+.18,f.height+.22,0],dark,{name:"flower-hall-roof-gutter"});
+    box(hall,[bayWidth,.62,bay.depth],[x,f.height+.31,bay.z],roof,{castShadow:true,name:`flower-hall-roof-bay-${i+1}`});
+    if(i<2) box(hall,[.32,.85,bay.depth],[x+bayWidth/2+.2,f.height+.2,bay.z],dark,{name:"flower-hall-roof-gutter"});
+  });
+  box(hall,[7,f.height+2,10],[-f.width/2+5,(f.height+2)/2,9],dark,{castShadow:true,name:"flower-hall-west-tower"});
+  box(hall,[12,2.8,4.5],[f.width/2-7,1.4,-f.depth/2-2.1],concrete,{castShadow:true,name:"flower-hall-front-entry"});
+  box(hall,[f.width+4,.08,4],[0,.05,-f.depth/2-2],concrete,{name:"flower-hall-front-walk"});
+
+  // Two facing rows north of Flower Hall, matching the dense parking court
+  // visible between the hall and the east-west campus road.
+  const northZ=f.z-f.depth/2-8.5,northWidth=f.width+9,northDepth=17;
+  const northSurface=box(root,[northWidth,.1,northDepth],[f.x,.01,northZ],asphalt,{name:"flower-hall-north-parking"});
+  applyRoadUvs(northSurface.geometry,northWidth,northDepth);
+  const x0=f.x-northWidth/2+3.2,pitch=(northWidth-6.4)/9;
+  const northSpaces=[];
+  for(let i=0;i<10;i++){
+    const x=x0+i*pitch;
+    northSpaces.push({x,z:northZ-4.4,angle:0,rowName:"flower-hall-north-a",rowIndex:i});
+    northSpaces.push({x,z:northZ+4.4,angle:Math.PI,rowName:"flower-hall-north-b",rowIndex:i});
   }
-  box(hall,[8,f.height+2,11],[-f.width/2+6,(f.height+2)/2,10],dark,{castShadow:true,name:"flower-hall-west-tower"});
-  box(hall,[13,2.8,5],[f.width/2-8,1.4,-f.depth/2-2.3],concrete,{castShadow:true,name:"flower-hall-front-entry"});
-  box(hall,[f.width+5,.08,4],[0,.05,-f.depth/2-2],concrete,{name:"flower-hall-front-walk"});
 
-  // Parking immediately north of the hall and the single east-side row mirror
-  // the reference rather than leaving a large empty grass rectangle.
-  const northZ=f.z-f.depth/2-5.6;
-  const northSurface=box(root,[f.width+5,.1,11],[f.x,.01,northZ],asphalt,{name:"flower-hall-north-parking"});
-  applyRoadUvs(northSurface.geometry,f.width+5,11);
-  const northSpaces=Array.from({length:10},(_,i)=>({x:f.x-f.width/2+4.5+i*5.0,z:northZ,angle:0,rowName:"flower-hall-north",rowIndex:i}));
-
-  const eastX=f.x+f.width/2+5.2,eastDepth=f.depth-5;
-  const eastSurface=box(root,[10,.1,eastDepth],[eastX,.01,f.z+1.5],asphalt,{name:"flower-hall-east-parking"});
+  // One narrow north-south row hugs the hall's east facade before the tree
+  // garden begins, just like the aerial reference.
+  const eastX=f.x+f.width/2+5.1,eastDepth=f.depth-4;
+  const eastSurface=box(root,[10,.1,eastDepth],[eastX,.01,f.z+1],asphalt,{name:"flower-hall-east-parking"});
   applyRoadUvs(eastSurface.geometry,10,eastDepth);
-  const eastSpaces=Array.from({length:13},(_,i)=>({x:eastX,z:f.z-eastDepth/2+3+i*3.05,angle:-Math.PI/2,rowName:"flower-hall-east",rowIndex:i}));
+  const eastSpaces=Array.from({length:12},(_,i)=>({x:eastX,z:f.z-eastDepth/2+2.8+i*(eastDepth-5.6)/11,angle:-Math.PI/2,rowName:"flower-hall-east",rowIndex:i}));
   root.add(...createParkingBayMarkings([...northSpaces,...eastSpaces],{y:.075}));
 
   const random=createSeededRandom(30062026),spaces=[...northSpaces,...eastSpaces];
-  const placements=spaces.filter((_,i)=>![2,8,13,19].includes(i)).map(space=>({spec:pickRandomParkingCar(random),x:space.x,z:space.z,angle:space.angle,y:.06}));
+  const free=new Set([3,12,19,24,29]);
+  const placements=spaces.filter((_,i)=>!free.has(i)).map(space=>({spec:pickRandomParkingCar(random),x:space.x,z:space.z,angle:space.angle,y:.06}));
   createInstancedCarField(placements,{variant:"lite"}).then(field=>{field.name="flower-hall-parked-cars";root.add(field);}).catch(error=>console.warn("Flower Hall cars could not be loaded.",error));
 
-  // The real strip between Flower Hall and the large parking garden is mostly
-  // trees, lawn and paths. Keep the path geometry simple but dense enough to
-  // read clearly in the sky view.
-  const path=material(0xb39a78,0.96),gardenX=-37.8;
-  box(root,[3.2,.06,52],[gardenX,.03,91],path,{name:"flower-hall-garden-path"});
-  box(root,[19,.06,3.2],[gardenX+2.5,.032,83],path,{name:"flower-hall-garden-cross-path"});
-  box(root,[14,.06,3.2],[gardenX-2,.034,105],path,{name:"flower-hall-garden-south-path"});
+  // Large mature tree court between the hall-side row and the main parking.
+  // Paths form the long north-south spine with short branches seen from above.
+  const path=material(0xb39a78,0.96),gardenX=-43.5;
+  box(root,[3.0,.06,57],[gardenX,.03,91],path,{name:"flower-hall-garden-spine"});
+  box(root,[19,.06,3.0],[gardenX+1.5,.032,78],path,{name:"flower-hall-garden-north-cross"});
+  box(root,[21,.06,3.0],[gardenX+.5,.034,101],path,{name:"flower-hall-garden-south-cross"});
+  const diagonal=box(root,[3,.06,20],[gardenX+3,.036,110],path,{name:"flower-hall-garden-diagonal"});
+  diagonal.rotation.y=THREE.MathUtils.degToRad(-34);
 
   const trees=[
-    [-44,68,2.7],[-38,70,2.4],[-33,73,2.6],[-42,77,2.9],[-34,80,2.5],
-    [-44,87,2.8],[-32.5,89,2.4],[-43,97,2.6],[-33,99,2.9],[-45,108,2.5],[-34,111,2.7]
+    [-53,70,3.0],[-47,72,2.7],[-39,70,3.2],[-33.5,73,2.7],
+    [-51,79,3.4],[-36,80,3.1],[-31.8,84,2.6],
+    [-52,88,3.0],[-47,91,3.5],[-35,90,3.2],[-31.5,94,2.8],
+    [-51,99,3.3],[-42,101,3.7],[-33,103,3.0],
+    [-50,109,2.9],[-43,112,3.4],[-34,111,3.2],[-31.5,118,2.6]
   ];
-  const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.28,.4,3.2,6),material(0x5a402b,.96),trees.length);
+  const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.3,.42,3.3,6),material(0x5a402b,.96),trees.length);
   const crowns=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),material(0x365f35,.96),trees.length);
-  trunks.name="flower-hall-garden-tree-trunks"; crowns.name="flower-hall-garden-tree-crowns";
+  trunks.name="flower-hall-garden-tree-trunks";crowns.name="flower-hall-garden-tree-crowns";
   const matrix=new THREE.Matrix4(),q=new THREE.Quaternion();
-  trees.forEach(([x,z,s],i)=>{matrix.makeTranslation(x,1.6,z);trunks.setMatrixAt(i,matrix);matrix.compose(new THREE.Vector3(x,4.4,z),q,new THREE.Vector3(s,s*.82,s));crowns.setMatrixAt(i,matrix);});
-  trunks.instanceMatrix.needsUpdate=true; crowns.instanceMatrix.needsUpdate=true; root.add(trunks,crowns);
+  trees.forEach(([x,z,s],i)=>{matrix.makeTranslation(x,1.65,z);trunks.setMatrixAt(i,matrix);matrix.compose(new THREE.Vector3(x,4.6,z),q,new THREE.Vector3(s,s*.82,s));crowns.setMatrixAt(i,matrix);});
+  trunks.instanceMatrix.needsUpdate=true;crowns.instanceMatrix.needsUpdate=true;root.add(trunks,crowns);
 
-  // Low planters and a few lawn edges break up the open frontage like the
-  // reference's landscaped pocket without adding gameplay collision.
   const planter=material(0x9a8b72,.94);
-  for(const [x,z,w,d] of [[-48,84,7,1.1],[-31.5,85,1.1,8],[-47,103,6,1.1],[-31.5,104,1.1,7]]) box(root,[w,.35,d],[x,.175,z],planter,{name:"flower-hall-garden-planter"});
+  for(const [x,z,w,d] of [[-54.5,84,5,1],[-32,87,1,7],[-53,104,5,1],[-31.5,106,1,6]]) box(root,[w,.35,d],[x,.175,z],planter,{name:"flower-hall-garden-planter"});
+
+  // A small paved pedestrian connection at the north-east corner prevents the
+  // garden from reading as an isolated blob and echoes the crossing in the map.
+  box(root,[13,.07,4],[-37,.04,64.5],concrete,{name:"flower-hall-north-east-walk"});
+  const stripe=material(COLORS.white,0.88);
+  for(let i=0;i<6;i++) box(root,[.55,.025,4],[-41+i*1.45,.085,64.5],stripe,{receiveShadow:false,name:"flower-hall-crosswalk-stripe"});
 }
 
 function createOtherParking(root, roadMaterial) {
