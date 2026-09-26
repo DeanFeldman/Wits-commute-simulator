@@ -462,7 +462,15 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
         [length, 0.5, 0.6],
         "campus-road-kerb"
       );
-      box(root, [length, 0.08, 1.7], [centre, 0.06, pavementZ], pavementMaterial);
+      // Flower Hall parking needs asphalt access right up to the road. Keep the
+      // kerb, but omit the broad road-side pavement across that frontage; its
+      // pedestrian strip is recreated against the building in createFlowerHall().
+      const flowerHallGap=side>0&&end>-116&&start<-58;
+      if(!flowerHallGap) box(root,[length,0.08,1.7],[centre,0.06,pavementZ],pavementMaterial);
+      else{
+        if(start<-116){const w=-116-start;box(root,[w,0.08,1.7],[start+w/2,0.06,pavementZ],pavementMaterial);}
+        if(end>-58){const w=end+58;box(root,[w,0.08,1.7],[-58+w/2,0.06,pavementZ],pavementMaterial);}
+      }
     }
   }
 
@@ -842,13 +850,13 @@ function createFlowerHall(root, roadMaterial) {
 
   // Mirror parking access on both sides: road -> asphalt drive aisle -> bays -> walkway.
   const upperAisle=box(root,[48,.1,13],[-88,.01,32.8],asphalt,{name:"flower-hall-upper-drive-aisle"});applyRoadUvs(upperAisle.geometry,48,13);
-  // Put the pedestrian strip against the building side of the parking, not
-  // between the parked cars and the campus road.
-  box(root,[48,.07,3.1],[-88,.04,25.3],concrete,{name:"flower-hall-upper-walkway"});
 
   const lowerAisle=box(root,[55,.1,10],[-87,.01,50.5],asphalt,{name:"flower-hall-lower-drive-aisle"});applyRoadUvs(lowerAisle.geometry,55,10);
   const lowerLot=box(root,[55,.1,18],[-87,.01,64.5],asphalt,{name:"flower-hall-lower-parking"});applyRoadUvs(lowerLot.geometry,55,18);
-  box(root,[55,.07,3.1],[-87,.04,74.7],concrete,{name:"flower-hall-lower-walkway"});
+
+  // Single pedestrian strip directly against Flower Hall's north facade.
+  const buildingWalkZ=f.z-f.depth/2-1.55;
+  box(root,[55,.075,3.1],[-87,.055,buildingWalkZ],concrete,{name:"flower-hall-building-walkway"});
 
   const sideLotLeft=f.x+f.width/2,sideLotRight=-47,sideLotTop=78,sideLotBottom=119,sideLotWidth=sideLotRight-sideLotLeft,sideLotDepth=sideLotBottom-sideLotTop,sideLotX=(sideLotLeft+sideLotRight)/2,sideLotZ=(sideLotTop+sideLotBottom)/2;
   const sideAsphalt=box(root,[sideLotWidth,.1,sideLotDepth],[sideLotX,.012,sideLotZ],asphalt,{name:"flower-hall-side-asphalt"});applyRoadUvs(sideAsphalt.geometry,sideLotWidth,sideLotDepth);
@@ -859,7 +867,7 @@ function createFlowerHall(root, roadMaterial) {
     parkingSpaces.push({x,z:36.2,angle:0,rowName:"flower-hall-upper",rowIndex:i});
     parkingSpaces.push({x,z:55.8,angle:0,rowName:"flower-hall-lower-a",rowIndex:i});
     parkingSpaces.push({x,z:63.1,angle:0,rowName:"flower-hall-lower-b",rowIndex:i});
-    parkingSpaces.push({x,z:70.4,angle:0,rowName:"flower-hall-lower-c",rowIndex:i});
+    parkingSpaces.push({x,z:66.2,angle:0,rowName:"flower-hall-lower-c",rowIndex:i});
   }
   root.add(...createParkingBayMarkings(parkingSpaces,{y:.08}));
   const random=createSeededRandom(30062026),free=new Set([5,14,23,32,36]);
