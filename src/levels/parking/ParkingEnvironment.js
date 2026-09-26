@@ -837,54 +837,54 @@ function createFlowerHall(root, roadMaterial) {
   box(hall,[12,2.8,4.5],[f.width/2-7,1.4,-f.depth/2-2.1],concrete,{castShadow:true,name:"flower-hall-front-entry"});
   box(hall,[f.width+4,.08,4],[0,.05,-f.depth/2-2],concrete,{name:"flower-hall-front-walk"});
 
-  // North Flower Hall parking stays connected to the campus road.
-  const northZ=f.z-f.depth/2-8.5,northWidth=f.width+9,northDepth=17;
-  const northSurface=box(root,[northWidth,.1,northDepth],[f.x,.01,northZ],asphalt,{name:"flower-hall-north-parking"});applyRoadUvs(northSurface.geometry,northWidth,northDepth);
-  const x0=f.x-northWidth/2+3.2,pitch=(northWidth-6.4)/9,northSpaces=[];
-  for(let i=0;i<10;i++){const x=x0+i*pitch;northSpaces.push({x,z:northZ-4.4,angle:0,rowName:"flower-hall-north-a",rowIndex:i},{x,z:northZ+4.4,angle:Math.PI,rowName:"flower-hall-north-b",rowIndex:i});}
+  // Keep the campus road visually continuous through the whole Flower Hall frontage.
+  const roadPatch=box(root,[86,.02,road.depth],[-72,.071,road.z],asphalt,{name:"flower-hall-road-texture-continuation"});applyRoadUvs(roadPatch.geometry,86,road.depth);
 
-  // BROWN AREA: continuous asphalt from Flower Hall to the red-line boundary.
-  const lotLeft=f.x+f.width/2,lotRight=-45.5,lotTop=52,lotBottom=119,lotWidth=lotRight-lotLeft,lotDepth=lotBottom-lotTop,lotX=(lotLeft+lotRight)/2,lotZ=(lotTop+lotBottom)/2;
-  const sideLot=box(root,[lotWidth,.1,lotDepth],[lotX,.012,lotZ],asphalt,{name:"flower-hall-side-parking"});applyRoadUvs(sideLot.geometry,lotWidth,lotDepth);
+  // PURPLE: one row above the road plus three same-orientation rows below it.
+  const upper=box(root,[48,.1,8],[-88,.01,31.5],asphalt,{name:"flower-hall-upper-roadside-parking"});applyRoadUvs(upper.geometry,48,8);
+  const lower=box(root,[55,.1,25],[-87,.01,62.5],asphalt,{name:"flower-hall-main-parking"});applyRoadUvs(lower.geometry,55,25);
+  const xStart=-109,xPitch=4.65,parkingSpaces=[];
+  for(let i=0;i<10;i++){const x=xStart+i*xPitch;parkingSpaces.push({x,z:31.5,angle:0,rowName:"flower-hall-upper",rowIndex:i});for(const [r,z] of [[0,55],[1,62.5],[2,70]])parkingSpaces.push({x,z,angle:0,rowName:`flower-hall-lower-${r}`,rowIndex:i});}
 
-  // PURPLE AREA: one north-south row of bays/cars, all in the same orientation.
-  const sideSpaces=Array.from({length:17},(_,i)=>({x:-51.2,z:57+i*3.45,angle:-Math.PI/2,rowName:"flower-hall-side-row",rowIndex:i}));
-  root.add(...createParkingBayMarkings([...northSpaces,...sideSpaces],{y:.075}));
-  const random=createSeededRandom(30062026),spaces=[...northSpaces,...sideSpaces],free=new Set([3,12,19,26,32]);
-  const placements=spaces.filter((_,i)=>!free.has(i)).map(s=>({spec:pickRandomParkingCar(random),x:s.x,z:s.z,angle:s.angle,y:.06}));
+  // Asphalt continues south along Flower Hall, but parking stops at the old red-line boundary.
+  const lotLeft=f.x+f.width/2,lotRight=-47,lotTop=75,lotBottom=119,lotWidth=lotRight-lotLeft,lotDepth=lotBottom-lotTop,lotX=(lotLeft+lotRight)/2,lotZ=(lotTop+lotBottom)/2;
+  const sideAsphalt=box(root,[lotWidth,.1,lotDepth],[lotX,.012,lotZ],asphalt,{name:"flower-hall-side-asphalt"});applyRoadUvs(sideAsphalt.geometry,lotWidth,lotDepth);
+
+  root.add(...createParkingBayMarkings(parkingSpaces,{y:.08}));
+  const random=createSeededRandom(30062026),free=new Set([5,14,23,32]);
+  const placements=parkingSpaces.filter((_,i)=>!free.has(i)).map(s=>({spec:pickRandomParkingCar(random),x:s.x,z:s.z,angle:s.angle,y:.06}));
   createInstancedCarField(placements,{variant:"lite"}).then(field=>{field.name="flower-hall-parked-cars";root.add(field);}).catch(error=>console.warn("Flower Hall cars could not be loaded.",error));
 
-  // Boom entrance into the north parking, kept west of the pedestrian crossing.
-  const gateX=-63,gateStart=road.z+road.depth/2-.2,gateEnd=northZ-northDepth/2+.2,gateDepth=gateEnd-gateStart;
+  // Existing boom entrance remains west of the zebra/path alignment.
+  const gateX=-63,gateStart=road.z+road.depth/2-.2,gateEnd=50,gateDepth=gateEnd-gateStart;
   const gateRoad=box(root,[8,.1,gateDepth],[gateX,.02,gateStart+gateDepth/2],asphalt,{name:"flower-hall-boom-entrance"});applyRoadUvs(gateRoad.geometry,8,gateDepth);
   const boomWhite=material(0xe7e1d2,.62),boomRed=material(0xc34842,.62),boomMetal=material(0x545b61,.7),boomZ=gateStart+2.2;
   box(root,[.52,1.2,.52],[gateX-3.55,.6,boomZ],boomMetal,{castShadow:true,name:"flower-hall-boom-post"});
   box(root,[.42,1.05,.42],[gateX+3.45,.525,boomZ],boomMetal,{castShadow:true,name:"flower-hall-boom-catch"});
   box(root,[7.1,.18,.2],[gateX,1.08,boomZ],boomWhite,{castShadow:true,name:"flower-hall-boom-arm"});
   for(let x=gateX-2.95;x<gateX+3.2;x+=1.05)box(root,[.5,.19,.21],[x,1.09,boomZ],boomRed,{castShadow:true,name:"flower-hall-boom-stripe"});
-  box(root,[2.5,2.4,2.8],[gateX+5.2,1.2,boomZ+2],material(0xc8c1b4,.82),{castShadow:true,name:"flower-hall-gatehouse"});
 
-  // WHITE LINES/CIRCLE: pedestrian spine, ring and branches.
-  const pathX=-42.2,ringZ=88,ringOuter=5.6,ringInner=3.7,pathW=3.2;
-  const addPath=(w,d,x,z,name)=>box(root,[w,.075,d],[x,.055,z],concrete,{name});
+  // WHITE: paths stay out of the road; only the zebra occupies the carriageway.
+  const pathX=-39.5,ringZ=91,ringOuter=5.4,ringInner=3.6,pathW=3.2,addPath=(w,d,x,z,name)=>box(root,[w,.075,d],[x,.055,z],concrete,{name});
+  addPath(48,3.2,-84,35.7,"flower-hall-north-sidewalk");
+  addPath(58,3.2,-80,46.3,"flower-hall-south-sidewalk");
   addPath(pathW,ringZ-ringOuter-(road.z+road.depth/2),pathX,(ringZ-ringOuter+road.z+road.depth/2)/2,"flower-hall-path-north");
   addPath(pathW,119-(ringZ+ringOuter),pathX,(119+ringZ+ringOuter)/2,"flower-hall-path-south");
   addPath(pathX-ringOuter-lotRight,3.2,(lotRight+pathX-ringOuter)/2,ringZ,"flower-hall-path-west");
   addPath(-29-(pathX+ringOuter),3.2,(pathX+ringOuter-29)/2,ringZ,"flower-hall-path-east");
-  addPath(-29-pathX,3.2,(pathX-29)/2,106,"flower-hall-path-east-south");
+  addPath(-29-(pathX+ringOuter),3.2,(pathX+ringOuter-29)/2,108,"flower-hall-path-east-south");
   const ring=new THREE.Mesh(new THREE.RingGeometry(ringInner,ringOuter,40),concrete);ring.rotation.x=-Math.PI/2;ring.position.set(pathX,.058,ringZ);ring.receiveShadow=true;ring.name="flower-hall-walk-ring";root.add(ring);
 
-  // Zebra crossing is exactly in line with the north-south white path.
+  // Zebra is exactly centred on the vertical white path.
   for(let i=0;i<10;i++)box(root,[5.4,.025,.55],[pathX,.095,road.z-road.depth/2+.7+i*.95],stripe,{receiveShadow:false,name:"flower-hall-zebra-stripe"});
 
-  // GREEN AREA: dense trees and bushes only between the path and other parking.
-  const trees=[[-37.8,57,2.5],[-33.4,60,2.9],[-38.5,66,3.1],[-32.4,69,2.6],[-37,75,3.2],[-32,78,2.8],[-36.5,96,3.3],[-31.7,99,2.7],[-37.5,111,3.0],[-32.2,114,2.8]];
+  // GREEN: trees/bushes only east of the path and south of the road.
+  const trees=[[-34.5,57,2.5],[-30.8,61,2.8],[-34.2,68,3],[-30.5,73,2.6],[-34.5,82,3.1],[-30.7,87,2.7],[-34.2,100,3.2],[-30.5,105,2.7],[-34.4,113,3],[-30.8,117,2.6]];
   const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.3,.42,3.3,6),material(0x5a402b,.96),trees.length),crowns=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),green,trees.length),matrix=new THREE.Matrix4(),q=new THREE.Quaternion();
   trees.forEach(([x,z,s],i)=>{matrix.makeTranslation(x,1.65,z);trunks.setMatrixAt(i,matrix);matrix.compose(new THREE.Vector3(x,4.6,z),q,new THREE.Vector3(s,s*.82,s));crowns.setMatrixAt(i,matrix);});trunks.instanceMatrix.needsUpdate=true;crowns.instanceMatrix.needsUpdate=true;trunks.name="flower-hall-garden-tree-trunks";crowns.name="flower-hall-garden-tree-crowns";root.add(trunks,crowns);
-  const bushes=[[-39,61,1.05],[-35,63,1.2],[-30.8,64,1.0],[-39,71,1.15],[-34,73,1.1],[-30.6,76,1.2],[-39,98,1.1],[-34,101,1.2],[-30.5,103,1.0],[-39,112,1.1],[-35,116,1.2],[-30.5,117,1.0]];
+  const bushes=[[-36,60,1],[-32.5,64,1.15],[-35.5,71,1.1],[-31.5,77,1.2],[-35.5,84,1.05],[-31.4,96,1.15],[-35.2,104,1.1],[-31.5,111,1.2],[-35,117,1]];
   const bushMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),bush,bushes.length);bushes.forEach(([x,z,s],i)=>{matrix.compose(new THREE.Vector3(x,.65,z),q,new THREE.Vector3(s,s*.7,s));bushMesh.setMatrixAt(i,matrix);});bushMesh.instanceMatrix.needsUpdate=true;bushMesh.name="flower-hall-bushes";root.add(bushMesh);
 
-  // Low curb marks the red-line end of Flower Hall parking without blocking the path.
   box(root,[.35,.18,lotDepth],[lotRight,.09,lotZ],concrete,{name:"flower-hall-parking-end-curb"});
 }
 
