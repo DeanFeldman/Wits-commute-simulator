@@ -868,10 +868,43 @@ function createFlowerHall(root, roadMaterial) {
   const eastSurface=box(root,[10,.1,eastDepth],[eastX,.01,f.z+1],asphalt,{name:"flower-hall-east-parking"});
   applyRoadUvs(eastSurface.geometry,10,eastDepth);
   const eastSpaces=Array.from({length:12},(_,i)=>({x:eastX,z:f.z-eastDepth/2+2.8+i*(eastDepth-5.6)/11,angle:-Math.PI/2,rowName:"flower-hall-east",rowIndex:i}));
-  root.add(...createParkingBayMarkings([...northSpaces,...eastSpaces],{y:.075}));
 
-  const random=createSeededRandom(30062026),spaces=[...northSpaces,...eastSpaces];
-  const free=new Set([3,12,19,24,29]);
+  // Roadside parking strip directly off the campus road, as in the aerial:
+  // cars sit nose-in along the south edge of the east-west road, with a clear
+  // break for the Flower Hall boom-gate entrance.
+  const road=PARKING_LAYOUT.campusRoad,roadsideZ=road.z+road.depth/2+4.3;
+  const roadsideSurface=box(root,[49,.1,8.4],[-78,.01,roadsideZ],asphalt,{name:"flower-hall-roadside-parking"});
+  applyRoadUvs(roadsideSurface.geometry,49,8.4);
+  const roadsideSpaces=[];
+  for(let i=0;i<11;i++){
+    const x=-101+i*4.6;
+    if(x>-67&&x<-59) continue;
+    roadsideSpaces.push({x,z:roadsideZ,angle:Math.PI,rowName:"flower-hall-roadside",rowIndex:i});
+  }
+
+  // Short access throat from the campus road into the north parking court.
+  const gateX=-63,gateStart=road.z+road.depth/2-0.2,gateEnd=northZ-northDepth/2+0.2,gateDepth=gateEnd-gateStart;
+  const gateRoad=box(root,[8,.1,gateDepth],[gateX,.02,gateStart+gateDepth/2],asphalt,{name:"flower-hall-boom-entrance"});
+  applyRoadUvs(gateRoad.geometry,8,gateDepth);
+
+  // Entrance boom + posts. This is scenery-only, matching the aerial parking
+  // access without changing the playable Level 1 collision route.
+  const boomWhite=material(0xe7e1d2,.62),boomRed=material(0xc34842,.62),boomMetal=material(0x545b61,.7);
+  const boomZ=gateStart+2.2,boomLength=7.1,boomBaseX=gateX-boomLength/2;
+  box(root,[.52,1.2,.52],[boomBaseX,.6,boomZ],boomMetal,{castShadow:true,name:"flower-hall-boom-post"});
+  box(root,[.42,1.05,.42],[gateX+3.45,.525,boomZ],boomMetal,{castShadow:true,name:"flower-hall-boom-catch"});
+  box(root,[boomLength,.18,.2],[gateX,1.08,boomZ],boomWhite,{castShadow:true,name:"flower-hall-boom-arm"});
+  for(let x=gateX-boomLength/2+.55;x<gateX+boomLength/2;x+=1.05) box(root,[.5,.19,.21],[x,1.09,boomZ],boomRed,{castShadow:true,name:"flower-hall-boom-stripe"});
+
+  // Small guard hut and stop marking beside the entrance.
+  box(root,[2.5,2.4,2.8],[gateX+5.2,1.2,boomZ+2.0],material(0xc8c1b4,.82),{castShadow:true,name:"flower-hall-gatehouse"});
+  const stopMat=new THREE.MeshBasicMaterial({color:0xe9e7dc});
+  box(root,[3.2,.025,.12],[gateX,.085,boomZ+3.15],stopMat,{receiveShadow:false,name:"flower-hall-stop-line"});
+
+  root.add(...createParkingBayMarkings([...northSpaces,...eastSpaces,...roadsideSpaces],{y:.075}));
+
+  const random=createSeededRandom(30062026),spaces=[...northSpaces,...eastSpaces,...roadsideSpaces];
+  const free=new Set([3,12,19,24,29,35]);
   const placements=spaces.filter((_,i)=>!free.has(i)).map(space=>({spec:pickRandomParkingCar(random),x:space.x,z:space.z,angle:space.angle,y:.06}));
   createInstancedCarField(placements,{variant:"lite"}).then(field=>{field.name="flower-hall-parked-cars";root.add(field);}).catch(error=>console.warn("Flower Hall cars could not be loaded.",error));
 
