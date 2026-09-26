@@ -586,6 +586,23 @@ function createM1(root, roadMaterial) {
     }
   }
 
+  // The wall openings above are needed so the bridge decks do not intersect
+  // the full-height retaining walls. Fill each opening only up to the deck
+  // underside: this keeps the M1 cutting enclosed and removes the sky-colour
+  // holes visible beneath both Level 1 bridges.
+  const abutments=[
+    {centre:pedestrianM1LocalX,width:pedestrianBridge.width+0.8,top:-0.03,name:"pedestrian"},
+    {centre:yaleM1LocalX,width:bridgeRoad.width+1.4,top:-0.86,name:"yale"}
+  ];
+  for(const localZ of lips) for(const a of abutments){
+    const height=Math.max(0.1,a.top-m1.y),panel=box(root,[a.width,height,wallThickness],[
+      m1.x+m1Cos*a.centre+m1Sin*localZ,
+      m1.y+height/2,
+      m1.z-m1Sin*a.centre+m1Cos*localZ
+    ],wallMat,{castShadow:true,name:`m1-${a.name}-bridge-abutment`});
+    panel.rotation.y=m1.rotation;
+  }
+
   // The right-hand road crosses the cutting, so it needs a deck under it and
   // rails along it rather than simply floating over the gap.
   // Yale Road meets the M1 at a slight angle, so its deck needs extra length
