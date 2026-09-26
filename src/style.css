@@ -1307,3 +1307,19 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 @media (max-width: 620px) { #hud { top: 4rem; left: 0.65rem; width: min(230px, calc(100vw - 1.3rem)); padding: 0.62rem 0.7rem; } #hud[data-variant="level1"], #hud[data-variant="level2"], #hud[data-variant="level3"] { width: min(230px, calc(100vw - 1.3rem)); } .parking-checks { grid-template-columns: 1fr; } }
+
+/* CCDU survey — match the Level 2 psychology questionnaire */
+#quiz-overlay:not(.psychology-questionnaire-open){align-items:stretch;overflow-y:auto;padding:clamp(.75rem,3vw,2.5rem);background:rgba(18,19,20,.78)}
+#quiz-overlay:not(.psychology-questionnaire-open) .menu-card{width:min(100%,54rem);max-width:none;margin:auto;padding:clamp(1.15rem,4vw,3.5rem);border:1px solid #dadce0;border-top:9px solid #35b9ac;border-radius:8px;background:#fff;color:#202124;box-shadow:0 3px 10px #0003;font-family:Arial,sans-serif;text-align:left}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-title{margin:0;padding-bottom:.85rem;border-bottom:1px solid #dadce0;color:#202124;font:700 clamp(1.08rem,3vw,1.55rem) Georgia,"Times New Roman",serif;letter-spacing:.035em;text-align:center}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-title::before{content:"CAMPUS COUNSELLING & CAREER DEVELOPMENT UNIT";display:block;margin-bottom:.4rem;color:#35a99e;font:700 .72rem/1.35 Arial,sans-serif;letter-spacing:.09em}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-title::after{content:"FORM CCDU-01";display:block;margin-top:.25rem;color:#5f6368;font:700 .68rem Arial,sans-serif;letter-spacing:.09em}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-intro{margin:.9rem 0 1.4rem;color:#514e48;font-size:.82rem;font-style:italic;line-height:1.45}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-prompt{margin:0 0 .9rem;padding:.7rem 0;border-top:1px solid #dadce0;border-bottom:1px solid #dadce0;color:#202124;font-size:1rem;line-height:1.45}
+#quiz-overlay:not(.psychology-questionnaire-open) .quiz-body{margin:.9rem 0}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-text-answer{min-height:8rem;padding:.8rem;border:1px solid #9aa0a6;border-radius:3px;background:#fff;color:#202124;font:inherit;line-height:1.45;outline:none}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-text-answer:focus{border-color:#35a99e;box-shadow:0 0 0 2px #35a99e26}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-text-answer::placeholder{color:#80868b}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-error{color:#96362f;font:700 .75rem Arial,sans-serif}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-submit{display:block;margin:1.25rem auto 0;padding:.65rem 1.3rem;border:1px solid #5f6368;border-radius:4px;background:#fff;color:#3c4043;font:700 .8rem Arial,sans-serif;letter-spacing:.08em}
+#quiz-overlay:not(.psychology-questionnaire-open) #quiz-submit:hover,#quiz-overlay:not(.psychology-questionnaire-open) #quiz-submit:focus-visible{border-color:#35a99e;background:#f4fbfa;color:#202124}
