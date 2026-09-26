@@ -841,8 +841,10 @@ function createFlowerHall(root, roadMaterial) {
   const roadPatch=box(root,[86,.02,road.depth],[-72,.071,road.z],asphalt,{name:"flower-hall-road-texture-continuation"});applyRoadUvs(roadPatch.geometry,86,road.depth);
 
   // Mirror parking access on both sides: road -> asphalt drive aisle -> bays -> walkway.
-  const upperAisle=box(root,[48,.1,9],[-88,.01,30.8],asphalt,{name:"flower-hall-upper-drive-aisle"});applyRoadUvs(upperAisle.geometry,48,9);
-  box(root,[48,.07,3.1],[-88,.04,35.9],concrete,{name:"flower-hall-upper-walkway"});
+  const upperAisle=box(root,[48,.1,13],[-88,.01,32.8],asphalt,{name:"flower-hall-upper-drive-aisle"});applyRoadUvs(upperAisle.geometry,48,13);
+  // Put the pedestrian strip against the building side of the parking, not
+  // between the parked cars and the campus road.
+  box(root,[48,.07,3.1],[-88,.04,25.3],concrete,{name:"flower-hall-upper-walkway"});
 
   const lowerAisle=box(root,[55,.1,10],[-87,.01,50.5],asphalt,{name:"flower-hall-lower-drive-aisle"});applyRoadUvs(lowerAisle.geometry,55,10);
   const lowerLot=box(root,[55,.1,18],[-87,.01,64.5],asphalt,{name:"flower-hall-lower-parking"});applyRoadUvs(lowerLot.geometry,55,18);
