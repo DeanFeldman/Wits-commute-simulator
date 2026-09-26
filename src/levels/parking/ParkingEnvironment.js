@@ -869,8 +869,20 @@ function createFlowerHall(root, roadMaterial) {
     parkingSpaces.push({x,z:63.1,angle:0,rowName:"flower-hall-lower-b",rowIndex:i});
     parkingSpaces.push({x,z:66.2,angle:0,rowName:"flower-hall-lower-c",rowIndex:i});
   }
+
+  // Restore the long parking row beside the landscaped path. These bays sit
+  // fully on the side asphalt, facing across the aisle as in the earlier layout.
+  const sideSpaces=Array.from({length:12},(_,i)=>({
+    x:-52.7,
+    z:81.5+i*3.05,
+    angle:-Math.PI/2,
+    rowName:"flower-hall-side-row",
+    rowIndex:i
+  }));
+  parkingSpaces.push(...sideSpaces);
+
   root.add(...createParkingBayMarkings(parkingSpaces,{y:.08}));
-  const random=createSeededRandom(30062026),free=new Set([5,14,23,32,36]);
+  const random=createSeededRandom(30062026),free=new Set([5,14,23,32,36,43,48]);
   const placements=parkingSpaces.filter((_,i)=>!free.has(i)).map(s=>({spec:pickRandomParkingCar(random),x:s.x,z:s.z,angle:s.angle,y:.06}));
   createInstancedCarField(placements,{variant:"lite"}).then(field=>{field.name="flower-hall-parked-cars";root.add(field);}).catch(error=>console.warn("Flower Hall cars could not be loaded.",error));
 
@@ -896,10 +908,11 @@ function createFlowerHall(root, roadMaterial) {
   for(let i=0;i<10;i++)box(root,[5.4,.025,.55],[pathX,.095,road.z-road.depth/2+.7+i*.95],stripe,{receiveShadow:false,name:"flower-hall-zebra-stripe"});
 
   // GREEN: trees/bushes only east of the path and south of the road.
-  const trees=[[-34.5,57,2.5],[-30.8,61,2.8],[-34.2,68,3],[-30.5,73,2.6],[-34.5,82,3.1],[-30.7,87,2.7],[-34.2,100,3.2],[-30.5,105,2.7],[-34.4,113,3],[-30.8,117,2.6]];
+  // Keep all vegetation safely east of the asphalt/path boundary.
+  const trees=[[-33,57,2.4],[-29.8,61,2.7],[-32.8,68,2.9],[-29.5,73,2.5],[-32.8,82,3],[-29.7,87,2.6],[-32.8,100,3.1],[-29.5,105,2.6],[-32.8,113,2.9],[-29.8,117,2.5]];
   const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.3,.42,3.3,6),material(0x5a402b,.96),trees.length),crowns=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),green,trees.length),matrix=new THREE.Matrix4(),q=new THREE.Quaternion();
   trees.forEach(([x,z,s],i)=>{matrix.makeTranslation(x,1.65,z);trunks.setMatrixAt(i,matrix);matrix.compose(new THREE.Vector3(x,4.6,z),q,new THREE.Vector3(s,s*.82,s));crowns.setMatrixAt(i,matrix);});trunks.instanceMatrix.needsUpdate=true;crowns.instanceMatrix.needsUpdate=true;trunks.name="flower-hall-garden-tree-trunks";crowns.name="flower-hall-garden-tree-crowns";root.add(trunks,crowns);
-  const bushes=[[-36,60,1],[-32.5,64,1.15],[-35.5,71,1.1],[-31.5,77,1.2],[-35.5,84,1.05],[-31.4,96,1.15],[-35.2,104,1.1],[-31.5,111,1.2],[-35,117,1]];
+  const bushes=[[-34,60,1],[-30.8,64,1.15],[-33.8,71,1.1],[-30.5,77,1.2],[-33.8,84,1.05],[-30.4,96,1.15],[-33.6,104,1.1],[-30.5,111,1.2],[-33.5,117,1]];
   const bushMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),bush,bushes.length);bushes.forEach(([x,z,s],i)=>{matrix.compose(new THREE.Vector3(x,.65,z),q,new THREE.Vector3(s,s*.7,s));bushMesh.setMatrixAt(i,matrix);});bushMesh.instanceMatrix.needsUpdate=true;bushMesh.name="flower-hall-bushes";root.add(bushMesh);
 
   box(root,[.35,.18,sideLotDepth],[sideLotRight,.09,sideLotZ],concrete,{name:"flower-hall-parking-end-curb"});
