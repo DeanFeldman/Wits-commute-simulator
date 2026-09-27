@@ -412,7 +412,7 @@ export function createEastDiorama({ loadAssets = true } = {}) {
   };
 
   createEntrance(root, materials);
-  createRoadEdge(root, materials);
+
   const fieldMarkers = createCemetery(root, materials);
   createHighwayAndBridgeDetails(root, materials);
   createLeftBuilding(root, materials);

@@ -438,7 +438,8 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
       right: yaleCentreX + yaleOpeningWidth / 2
     };
     const flowerHallBoomOpening={left:-62.2,right:-53.8};
-    const runs=kerbRunsBetweenEntrances(campusRoad.x-halfWidth,campusRoad.x+halfWidth,[yaleOpening,...(side>0?[flowerHallBoomOpening]:[])],side<0);
+    const secondaryParkingOpening={left:PARKING_LAYOUT.otherEntrance.x-PARKING_LAYOUT.otherEntrance.width/2-.2,right:PARKING_LAYOUT.otherEntrance.x+PARKING_LAYOUT.otherEntrance.width/2+.2};
+    const runs=kerbRunsBetweenEntrances(campusRoad.x-halfWidth,campusRoad.x+halfWidth,[yaleOpening,...(side>0?[flowerHallBoomOpening,secondaryParkingOpening]:[])],side<0);
 
     for(const [runStart,end] of runs){
       const start=side<0?Math.max(runStart,-64.8):runStart,length=end-start;
@@ -852,7 +853,7 @@ function createFlowerHall(root, roadMaterial) {
 
   // Fill the whole Flower Hall strip with asphalt from the campus road down
   // to the southern parking edge, right up to the pedestrian path.
-  const sideLotLeft=f.x+f.width/2,sideLotRight=-41.2,sideLotTop=46.2,sideLotBottom=119,sideLotWidth=sideLotRight-sideLotLeft,sideLotDepth=sideLotBottom-sideLotTop,sideLotX=(sideLotLeft+sideLotRight)/2,sideLotZ=(sideLotTop+sideLotBottom)/2;
+  const sideLotLeft=f.x+f.width/2,sideLotRight=-50.2,sideLotTop=46.2,sideLotBottom=119,sideLotWidth=sideLotRight-sideLotLeft,sideLotDepth=sideLotBottom-sideLotTop,sideLotX=(sideLotLeft+sideLotRight)/2,sideLotZ=(sideLotTop+sideLotBottom)/2;
   const sideAsphalt=box(root,[sideLotWidth,.1,sideLotDepth],[sideLotX,.012,sideLotZ],asphalt,{name:"flower-hall-side-asphalt"});applyRoadUvs(sideAsphalt.geometry,sideLotWidth,sideLotDepth);
 
   const xStart=-109,xPitch=PARKING_BAY_WIDTH,parkingSpaces=[];
@@ -867,9 +868,9 @@ function createFlowerHall(root, roadMaterial) {
 
   // Restore the long parking row beside the landscaped path. These bays sit
   // fully on the side asphalt, facing across the aisle as in the earlier layout.
-  const sideSpaces=Array.from({length:12},(_,i)=>({
+  const sideSpaces=Array.from({length:23},(_,i)=>({
     x:-52.7,
-    z:81.5+i*3.05,
+    z:48.8+i*3.05,
     angle:-Math.PI/2,
     rowName:"flower-hall-side-row",
     rowIndex:i
@@ -903,14 +904,6 @@ function createFlowerHall(root, roadMaterial) {
   // Zebra stays aligned with the vertical path.
   for(let i=0;i<10;i++)box(root,[5.4,.025,.55],[pathX,.095,road.z-road.depth/2+.7+i*.95],stripe,{receiveShadow:false,name:"flower-hall-zebra-stripe"});
 
-  // GREEN: trees/bushes only east of the path and south of the road.
-  // Keep all vegetation safely east of the asphalt/path boundary.
-  const trees=[[-33,57,2.4],[-29.8,61,2.7],[-32.8,68,2.9],[-29.5,73,2.5],[-32.8,82,3],[-29.7,87,2.6],[-32.8,100,3.1],[-29.5,105,2.6],[-32.8,113,2.9],[-29.8,117,2.5]];
-  const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.3,.42,3.3,6),material(0x5a402b,.96),trees.length),crowns=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),green,trees.length),matrix=new THREE.Matrix4(),q=new THREE.Quaternion();
-  trees.forEach(([x,z,s],i)=>{matrix.makeTranslation(x,1.65,z);trunks.setMatrixAt(i,matrix);matrix.compose(new THREE.Vector3(x,4.6,z),q,new THREE.Vector3(s,s*.82,s));crowns.setMatrixAt(i,matrix);});trunks.instanceMatrix.needsUpdate=true;crowns.instanceMatrix.needsUpdate=true;trunks.name="flower-hall-garden-tree-trunks";crowns.name="flower-hall-garden-tree-crowns";root.add(trunks,crowns);
-  const bushes=[[-34,60,1],[-30.8,64,1.15],[-33.8,71,1.1],[-30.5,77,1.2],[-33.8,84,1.05],[-30.4,96,1.15],[-33.6,104,1.1],[-30.5,111,1.2],[-33.5,117,1]];
-  const bushMesh=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),bush,bushes.length);bushes.forEach(([x,z,s],i)=>{matrix.compose(new THREE.Vector3(x,.65,z),q,new THREE.Vector3(s,s*.7,s));bushMesh.setMatrixAt(i,matrix);});bushMesh.instanceMatrix.needsUpdate=true;bushMesh.name="flower-hall-bushes";root.add(bushMesh);
-
   box(root,[.35,.18,sideLotDepth],[sideLotRight,.09,sideLotZ],concrete,{name:"flower-hall-parking-end-curb"});
 }
 
@@ -927,7 +920,7 @@ function createOtherParking(root, roadMaterial) {
   );
   applyRoadUvs(surface.geometry,p.width,p.depth);
 
-  const startZ=p.z-p.depth/2+5;
+  const startZ=p.z-p.depth/2+12;
   const endZ=p.z+p.depth/2-5;
   const count=Math.floor((endZ-startZ)/PARKING_SLOT_PITCH)+1;
   const spaces=[];
@@ -980,45 +973,18 @@ function createOtherParking(root, roadMaterial) {
   // handful of draw calls; none of this scenery participates in gameplay.
   const canopyMaterial=material(0xd9d8cf,0.82);
   const postMaterial=material(0x636b6a,0.72,{metalness:0.18});
+  const boomWhite=material(0xe7e1d2,.62),boomRed=material(0xc34842,.62),boomMetal=material(0x545b61,.7);
   const entranceZ=p.z-p.depth/2+3.2;
-  box(root,[10,0.45,4],[p.x,3.35,entranceZ],canopyMaterial,{name:"secondary-parking-gate-canopy"});
-  for(const x of [p.x-4.2,p.x+4.2]){
-    box(root,[0.28,3.2,0.28],[x,1.6,entranceZ],postMaterial,{name:"secondary-parking-gate-post"});
+  box(root,[12,0.45,6],[p.x,3.35,entranceZ+1.2],canopyMaterial,{name:"secondary-parking-gate-canopy"});
+  for(const x of [p.x-4.6,p.x+4.6]){
+    box(root,[0.28,3.2,0.28],[x,1.6,entranceZ+1.2],postMaterial,{name:"secondary-parking-gate-post"});
   }
-  box(root,[3.2,2.5,3.2],[p.x-5.8,1.25,entranceZ+0.8],canopyMaterial,{name:"secondary-parking-gatehouse"});
+  box(root,[2.6,2.35,2.8],[p.x-8.2,1.175,entranceZ+1.8],canopyMaterial,{name:"secondary-parking-gatehouse"});
+  box(root,[0.5,1.2,0.5],[p.x-3.8,0.6,entranceZ+0.4],boomMetal,{castShadow:true,name:"secondary-parking-boom-post"});
+  box(root,[0.38,1.0,0.38],[p.x+3.3,0.5,entranceZ+0.4],boomMetal,{castShadow:true,name:"secondary-parking-boom-catch"});
+  box(root,[7.2,0.18,0.2],[p.x-0.2,1.08,entranceZ+0.4],boomWhite,{castShadow:true,name:"secondary-parking-boom-arm"});
+  for(let x=p.x-2.9;x<p.x+2.9;x+=1.05)box(root,[0.5,0.19,0.21],[x,1.09,entranceZ+0.4],boomRed,{castShadow:true,name:"secondary-parking-boom-stripe"});
 
-  const treePlacements=[];
-  for(const x of [p.x-5.4,p.x+5.4]){
-    for(let z=p.z-p.depth/2+12;z<=p.z+p.depth/2-8;z+=12.5){
-      treePlacements.push([x,z]);
-    }
-  }
-  const trunks=new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.28,0.38,3.2,6),
-    material(0x5b4029,0.96),
-    treePlacements.length
-  );
-  const crowns=new THREE.InstancedMesh(
-    new THREE.DodecahedronGeometry(2.5,0),
-    material(0x365f35,0.96),
-    treePlacements.length
-  );
-  trunks.name="secondary-parking-tree-trunks";
-  crowns.name="secondary-parking-tree-crowns";
-  const matrix=new THREE.Matrix4();
-  treePlacements.forEach(([x,z],index)=>{
-    matrix.makeTranslation(x,1.6,z);
-    trunks.setMatrixAt(index,matrix);
-    matrix.compose(
-      new THREE.Vector3(x,4.5,z),
-      new THREE.Quaternion(),
-      new THREE.Vector3(1.15,0.92,1.15)
-    );
-    crowns.setMatrixAt(index,matrix);
-  });
-  trunks.instanceMatrix.needsUpdate=true;
-  crowns.instanceMatrix.needsUpdate=true;
-  root.add(trunks,crowns);
 }
 
 function createMainParkingBoundary(root, collisionWorld) {
@@ -1350,6 +1316,18 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   // architecture, curved roofs and skyline without duplicating gameplay cars.
   const westDiorama = createWestDiorama();
   root.add(westDiorama.root);
+
+  // Remove Flower Hall / west / south foreground vegetation
+  [
+    root.getObjectByName("flower-hall-garden-tree-trunks"),
+    root.getObjectByName("flower-hall-garden-tree-crowns"),
+    root.getObjectByName("flower-hall-bushes"),
+    root.getObjectByName("secondary-parking-tree-trunks"),
+    root.getObjectByName("secondary-parking-tree-crowns"),
+    southDiorama.root.getObjectByName("Vegetation"),
+    westDiorama.root.getObjectByName("Vegetation")
+  ].forEach(o=>{if(o)o.visible=false;});
+
 
   const update = (dt) => {
     updateM1Traffic(dt);
