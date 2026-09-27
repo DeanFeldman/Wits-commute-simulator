@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { addEastDioramaFoliage } from "./ParkingFoliage.js";
 
+const EAST_WALL_TEXTURE="./assets/textures/parking/east-precast-wall-texture.jpg";
+
 // +X is east, -Z is north. The saved camera therefore sees the M1/building on
 // its left, Entrance 9 and overflow parking on its right, and the open green
 // belt directly ahead. One world unit is approximately one metre.
@@ -160,6 +162,8 @@ function createRoadEdge(root, materials) {
   }));
   addInstancedBoxes(group, "east-diorama-road-boundary-posts", posts, materials.concreteDark);
 }
+
+function createPrecastBoundaryWall(root,materials){const r=EAST_DIORAMA_CONFIG.road,len=r.depth+4,g=new THREE.Group();g.name="EastPrecastBoundaryWall";g.position.set(r.fieldEdgeX+.9,0,r.centerZ);g.rotation.y=r.rotation;root.add(g);const t=new THREE.TextureLoader().load(EAST_WALL_TEXTURE);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(len/5.2,1);t.anisotropy=4;const m=new THREE.MeshStandardMaterial({map:t,roughness:.96});m.name="east-precast-wall-material";const wall=addBox(g,[.28,3.25,len],[0,1.625,0],m,{name:"east-precast-boundary-wall",castShadow:true});wall.userData.referenceAsset=EAST_WALL_TEXTURE;const n=Math.floor(len/5.2)+1,posts=Array.from({length:n},(_,i)=>({position:[.04,1.68,-len/2+i*(len/(n-1))],scale:[.42,3.36,.42]}));addInstancedBoxes(g,"east-precast-boundary-wall-posts",posts,materials.concrete);}
 
 export function getEastDioramaMarkerPlacements() {
   const cemetery = EAST_DIORAMA_CONFIG.cemetery;
@@ -370,6 +374,7 @@ export function createEastDiorama({ loadAssets = true } = {}) {
   };
 
 
+  createPrecastBoundaryWall(root, materials);
   const fieldMarkers = createCemetery(root, materials);
   createHighwayAndBridgeDetails(root, materials);
   createLeftBuilding(root, materials);
