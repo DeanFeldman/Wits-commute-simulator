@@ -840,7 +840,7 @@ function createFlowerHall(root, roadMaterial) {
   // Mirror parking access on both sides: road -> asphalt drive aisle -> bays -> walkway.
   const upperAisle=box(root,[48,.1,13],[-88,.01,32.8],asphalt,{name:"flower-hall-upper-drive-aisle"});applyRoadUvs(upperAisle.geometry,48,13);
   box(root,[45.5,.08,.9],[-87.5,.06,30.45],material(COLORS.white,.9),{name:"flower-hall-upper-building-strip"});
-  box(root,[45.5,.08,.9],[-87.5,.06,52.8],material(COLORS.white,.9),{name:"flower-hall-lower-building-strip"});
+  box(root,[45.5,.08,.9],[-87.5,.06,51.55],material(COLORS.white,.9),{name:"flower-hall-lower-building-strip"});
 
   const lowerAisle=box(root,[55,.1,10],[-87,.01,50.5],asphalt,{name:"flower-hall-lower-drive-aisle"});applyRoadUvs(lowerAisle.geometry,55,10);
   const lowerLot=box(root,[55,.1,18],[-87,.01,64.5],asphalt,{name:"flower-hall-lower-parking"});applyRoadUvs(lowerLot.geometry,55,18);
@@ -875,7 +875,7 @@ function createFlowerHall(root, roadMaterial) {
   }));
   parkingSpaces.push(...sideSpaces);
 
-  const barlessSpaces=parkingSpaces.filter(s=>s.rowName==="flower-hall-upper"||s.rowName==="flower-hall-lower-a"),otherSpaces=parkingSpaces.filter(s=>s.rowName!=="flower-hall-upper"&&s.rowName!=="flower-hall-lower-a"),[barlessSideLines]=createParkingBayMarkings(barlessSpaces,{y:.08});
+  const barlessSpaces=parkingSpaces.filter(s=>s.rowName!=="flower-hall-side-row"),otherSpaces=parkingSpaces.filter(s=>s.rowName==="flower-hall-side-row"),[barlessSideLines]=createParkingBayMarkings(barlessSpaces,{y:.08});
   root.add(barlessSideLines,...createParkingBayMarkings(otherSpaces,{y:.08}));
   const random=createSeededRandom(30062026),free=new Set([5,14,23,32,36,43,48]);
   const placements=parkingSpaces.filter((_,i)=>!free.has(i)).map(s=>({spec:pickRandomParkingCar(random),x:s.x,z:s.z,angle:s.angle,y:.06}));
