@@ -32,9 +32,9 @@ export const WEST_DIORAMA_CONFIG = Object.freeze({
   curvedRoofs: Object.freeze([
     // Keep the three halls south of the campus-road pavement. Their previous
     // positions began at Z = 39 and visibly cut through the west road run.
-    Object.freeze({ position: Object.freeze([-116, 0, 59]), size: Object.freeze([30, 11, 18]) }),
-    Object.freeze({ position: Object.freeze([-119, 0, 79]), size: Object.freeze([32, 12, 18]) }),
-    Object.freeze({ position: Object.freeze([-122, 0, 99]), size: Object.freeze([34, 13, 18]) })
+    Object.freeze({ position: Object.freeze([-122, 0, 65]), size: Object.freeze([30, 11, 18]) }),
+    Object.freeze({ position: Object.freeze([-125, 0, 85]), size: Object.freeze([32, 12, 18]) }),
+    Object.freeze({ position: Object.freeze([-128, 0, 105]), size: Object.freeze([34, 13, 18]) })
   ]),
   serviceRoad: Object.freeze({
     // This extends the existing campus road westward. Match its Z centre and
