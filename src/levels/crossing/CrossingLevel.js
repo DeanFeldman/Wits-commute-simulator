@@ -9,7 +9,7 @@ import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
 import { PEDESTRIAN_SOLE_OFFSET, PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
-import { CampusCrowd, createCrowdPlan, standingCells } from "./CampusCrowd.js";
+import { CampusCrowd, CROWD_LINES, createCrowdPlan, pickLine, standingCells } from "./CampusCrowd.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
@@ -48,8 +48,29 @@ const SPEAKER_TITLES = {
   queue: "Vida queue",
   psychQuizzer: "Psych Elective",
   ccduAdvisor: "CCDU",
+  player: "You",
   robot: "Wits Bot"
 };
+
+const COMPLETED_SURVEY_LINES = Object.freeze({
+  psychQuizzer: Object.freeze([
+    "I already did your survey 😭",
+    "I've already contributed to the dataset. Please release me.",
+    "I already clicked Strongly Agree. Let me go!",
+    "Check the spreadsheet — I'm definitely in there."
+  ]),
+  ccduAdvisor: Object.freeze([
+    "I already did the CCDU check-in. I promise!",
+    "You already have my data. Let me get to class.",
+    "I filled it in already — my wellness is declining as we speak.",
+    "My CCDU duty is complete. Please release me."
+  ])
+});
+
+function pickCompletedSurveyLine(kind, random) {
+  const lines = COMPLETED_SURVEY_LINES[kind] ?? ["I've already filled this in!"];
+  return lines[Math.floor(random() * lines.length) % lines.length];
+}
 
 export class CrossingLevel {
   constructor(game) {
@@ -108,6 +129,8 @@ export class CrossingLevel {
     this.speech = null;
     this.quiz = null;
     this.quizPaused = false;
+    this.completedSurveys = new Set();
+    this.surveyConversation = null;
     this.aura = null;
     this.shieldBubble = null;
 
@@ -119,6 +142,9 @@ export class CrossingLevel {
     this.completed = false;
   }
   async load() {
+    // Survey completion belongs to this Level 2 run only.
+    this.completedSurveys.clear();
+    this.surveyConversation = null;
     const scene = this.game.scene;
 
     // Keep Level 2 in the same exterior visual language as Level 1 while
@@ -499,6 +525,8 @@ export class CrossingLevel {
     update(dt) {
     if (this.completed) return;
 
+    this.updateSurveyConversation(dt);
+
     if (this.quizPaused) {
       // A quiz doesn't stop the clock — only player input, movement, and
       // collision checks pause while the overlay is open.
@@ -659,27 +687,83 @@ export class CrossingLevel {
     }
   }
 
-  // Stops the player and opens a quiz for a psychQuizzer/ccduAdvisor person.
-  // The answer is checked for validity only (see quizBank.isValidAnswer) and
-  // is never stored; survey NPCs can ask again later in the same run.
-    startQuiz(person) {
+  // Stops the player for a psychQuizzer/ccduAdvisor person.
+  // Each distinct survey can only be completed once per Level 2 run. After
+  // that, the NPC still chases and catches the player, but gets an "already
+  // done it" response instead of reopening the form.
+  startQuiz(person) {
+    if (this.completedSurveys.has(person.kind)) {
+      this.startCompletedSurveyConversation(person);
+      return;
+    }
+
     if (person.kind === "psychQuizzer") {
       this.quizPaused = true;
       this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
+        this.completedSurveys.add(person.kind);
         this.crowd.sendOff(person);
         this.quizPaused = false;
         this.game.setMessage("Form received. Carry on.");
       });
       return;
     }
+
     const quiz = pickQuiz(person.kind, this.crowd.random);
     if (!quiz) return;
+
     this.quizPaused = true;
     this.quiz.open(quiz, () => {
+      this.completedSurveys.add(person.kind);
       this.crowd.sendOff(person);
       this.quizPaused = false;
       this.game.setMessage("Thanks! Carry on.");
     });
+  }
+
+  startCompletedSurveyConversation(person) {
+    if (this.surveyConversation) return;
+
+    const npcLines = CROWD_LINES[person.kind] ?? ["Quick survey?"];
+    const npcLine = pickLine(npcLines, this.crowd.random);
+    const playerLine = pickCompletedSurveyLine(person.kind, this.crowd.random);
+
+    // Freeze gameplay for a tiny beat so the exchange reads as a conversation:
+    // NPC bubble first, then the player's answer.
+    this.quizPaused = true;
+    person.chasing = false;
+    person.caught = false;
+    person.chaseArmed = false;
+    person.surveyCooldown = Math.max(person.surveyCooldown ?? 0, 1.2);
+
+    this.crowd.say(person, npcLine);
+    this.surveyConversation = {
+      person,
+      playerLine,
+      remaining: 0.9
+    };
+  }
+
+  updateSurveyConversation(dt) {
+    const conversation = this.surveyConversation;
+    if (!conversation) return;
+
+    conversation.remaining -= dt;
+    if (conversation.remaining > 0) return;
+
+    // Use the same dialogue path as every other character so this renders
+    // as a real speech bubble attached to the player, not the floating
+    // pickup-style letters produced by SpeechBubbles.popup().
+    this.crowd.say({
+      kind: "player",
+      mesh: this.player,
+      talkCooldown: 0
+    }, conversation.playerLine, "neutral");
+
+    // Then let the survey NPC jog away and become chaseable again after the
+    // normal cooldown, exactly as after the original completed survey.
+    this.crowd.sendOff(conversation.person);
+    this.surveyConversation = null;
+    this.quizPaused = false;
   }
 
   // NEW — a chasing quiz NPC (CampusCrowd.updateChaser) sets `caught` for
