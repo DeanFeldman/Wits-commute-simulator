@@ -442,6 +442,7 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
 
     for(const [runStart,end] of runs){
       const start=side<0?Math.max(runStart,-64.8):runStart,length=end-start;
+     
       if(length<=.2)continue;
       const centre=(start+end)/2;
       box(root,[length,.16,.42],[centre,.08,kerbZ],kerbMaterial,{name:"campus-road-kerb"});
@@ -840,6 +841,7 @@ function createFlowerHall(root, roadMaterial) {
   // Mirror parking access on both sides: road -> asphalt drive aisle -> bays -> walkway.
   const upperAisle=box(root,[48,.1,13],[-88,.01,32.8],asphalt,{name:"flower-hall-upper-drive-aisle"});applyRoadUvs(upperAisle.geometry,48,13);
   box(root,[45.5,.08,.9],[-87.5,.06,30.45],material(COLORS.white,.9),{name:"flower-hall-upper-building-strip"});
+  box(root,[45.5,.08,.9],[-87.5,.06,51.55],material(COLORS.white,.9),{name:"flower-hall-lower-building-strip"});
 
   const lowerAisle=box(root,[55,.1,10],[-87,.01,50.5],asphalt,{name:"flower-hall-lower-drive-aisle"});applyRoadUvs(lowerAisle.geometry,55,10);
   const lowerLot=box(root,[55,.1,18],[-87,.01,64.5],asphalt,{name:"flower-hall-lower-parking"});applyRoadUvs(lowerLot.geometry,55,18);

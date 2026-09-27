@@ -343,10 +343,10 @@ function createServiceRoad(root, materials) {
   );
   road.receiveShadow = true;
 
-  for(const side of[-1,1]){
-    const left=center[0]-length/2,right=side<0?-110.6:center[0]+length/2,w=right-left;
-    addBox(root,[w,.16,.45],[(left+right)/2,.08,center[1]+side*(depth/2+.23)],materials.concrete,{name:"west-service-road-kerb"});
-  }
+  // for(const side of[-1,1]){
+  //   const left=center[0]-length/2,right=side<0?-110.6:center[0]+length/2,w=right-left;
+  //   addBox(root,[w,.16,.45],[(left+right)/2,.08,center[1]+side*(depth/2+.23)],materials.concrete,{name:"west-service-road-kerb"});
+  // }
 }
 
 function createBackgroundCampus(root, materials) {
