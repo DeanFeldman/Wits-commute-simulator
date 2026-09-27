@@ -444,42 +444,19 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
       side < 0
     );
 
-    for (const [start, end] of runs) {
-      const length = end - start;
-      if (length <= 0.2) continue;
-      const centre = start + length / 2;
-      box(
-        root,
-        [length, 0.16, 0.42],
-        [centre, 0.08, kerbZ],
-        kerbMaterial,
-        { name: "campus-road-kerb" }
-      );
-      addCollider(
-        collisionWorld,
-        root,
-        [centre, 0.22, kerbZ],
-        [length, 0.5, 0.6],
-        "campus-road-kerb"
-      );
+    for(const [runStart,end] of runs){
+      const start=side<0?Math.max(runStart,-64.8):runStart,length=end-start;
+      if(length<=.2)continue;
+      const centre=(start+end)/2;
+      box(root,[length,.16,.42],[centre,.08,kerbZ],kerbMaterial,{name:"campus-road-kerb"});
+      addCollider(collisionWorld,root,[centre,.22,kerbZ],[length,.5,.6],"campus-road-kerb");
 
-      
-      for(const [start,end] of runs){
-          const length=end-start;if(length<=.2)continue;
-          const centre=(start+end)/2,armRun=side<0&&Math.abs(start-(campusRoad.x-halfWidth))<.01;
-          const cut=armRun?27:0,l=length-cut,x=centre+cut/2;
-          //const cut=armRun?18.5:0,l=length-cut,x=centre+cut/2-.25;
-
-          box(root,[l,.16,.42],[x,.08,kerbZ],kerbMaterial,{name:"campus-road-kerb"});
-          addCollider(collisionWorld,root,[x,.22,kerbZ],[l,.5,.6],"campus-road-kerb");
-
-          const flowerHallGap=side>0&&end>-116&&start<-58;
-          if(!flowerHallGap)box(root,[l,.08,1.7],[x,.06,pavementZ],pavementMaterial);
-          else{
-            if(start<-116){const w=-116-start;box(root,[w,.08,1.7],[start+w/2,.06,pavementZ],pavementMaterial);}
-            if(end>-58){const w=end+58;box(root,[w,.08,1.7],[-58+w/2,.06,pavementZ],pavementMaterial);}
-          }
-        }
+      const flowerHallGap=side>0&&end>-116&&start<-58;
+      if(!flowerHallGap)box(root,[length,.08,1.7],[centre,.06,pavementZ],pavementMaterial);
+      else{
+        if(start<-116){const w=-116-start;box(root,[w,.08,1.7],[start+w/2,.06,pavementZ],pavementMaterial);}
+        if(end>-58){const w=end+58;box(root,[w,.08,1.7],[-58+w/2,.06,pavementZ],pavementMaterial);}
+      }
     }
   }
 
@@ -784,7 +761,7 @@ function createArmPedestrianLink(root, collisionWorld) {
   const addLink=(x1,z1,x2,z2,name)=>{const dx=x2-x1,dz=z2-z1;return addPanel(w.width,Math.hypot(dx,dz),(x1+x2)/2,(z1+z2)/2,0.09,0.08,name,Math.atan2(dx,dz));};
   addLink(w.x,walkwayNorth,facadeX,facadeNorth,"amic-level1-walkway-north");
   addPanel(w.width,facadeSouth-facadeNorth,facadeX,(facadeNorth+facadeSouth)/2,0.09,0.08,"amic-level1-walkway-centre");
-  addLink(facadeX,facadeSouth,w.x,walkwaySouth,"amic-level1-walkway-south");
+  addLink(facadeX,facadeSouth,w.x+1.8,walkwaySouth,"amic-level1-walkway-south");
 
   // Fill the open grass apron between the north end of ARM and the bridge.
   const parkingEdge=-61;
@@ -882,7 +859,7 @@ function createFlowerHall(root, roadMaterial) {
   const xStart=-109,xPitch=PARKING_BAY_WIDTH,parkingSpaces=[];
   for(let i=0;i<18;i++){
     const x=xStart+i*xPitch;
-    parkingSpaces.push({x,z:33.8,angle:0,rowName:"flower-hall-upper",rowIndex:i});
+    parkingSpaces.push({x,z:33.5,angle:0,rowName:"flower-hall-upper",rowIndex:i});
     parkingSpaces.push({x,z:48,angle:0,rowName:"flower-hall-lower-a",rowIndex:i});
     
     parkingSpaces.push({x,z:56,angle:0,rowName:"flower-hall-lower-b",rowIndex:i});
@@ -900,7 +877,8 @@ function createFlowerHall(root, roadMaterial) {
   }));
   parkingSpaces.push(...sideSpaces);
 
-  root.add(...createParkingBayMarkings(parkingSpaces,{y:.08}));
+  const upperSpaces=parkingSpaces.filter(s=>s.rowName==="flower-hall-upper"),otherSpaces=parkingSpaces.filter(s=>s.rowName!=="flower-hall-upper"),[upperSideLines]=createParkingBayMarkings(upperSpaces,{y:.08});
+  root.add(upperSideLines,...createParkingBayMarkings(otherSpaces,{y:.08}));
   const random=createSeededRandom(30062026),free=new Set([5,14,23,32,36,43,48]);
   const placements=parkingSpaces.filter((_,i)=>!free.has(i)).map(s=>({spec:pickRandomParkingCar(random),x:s.x,z:s.z,angle:s.angle,y:.06}));
   createInstancedCarField(placements,{variant:"lite"}).then(field=>{field.name="flower-hall-parked-cars";root.add(field);}).catch(error=>console.warn("Flower Hall cars could not be loaded.",error));
