@@ -300,7 +300,7 @@ export function getEastDioramaCanopyPlacements() {
   return Object.freeze(Array.from({ length: 62 }, (_, index) => {
     const band = index % 3;
     const radius = 5.5 + seededValue(index, 511) * 4;
-    const x = 160 + band * 23 + seededValue(index, 512) * 11;
+    const x = 110 + band * 18 + seededValue(index, 512) * 8;
     const z = getEastHighwaySouthLipZAt(x)
       + radius
       + 3
