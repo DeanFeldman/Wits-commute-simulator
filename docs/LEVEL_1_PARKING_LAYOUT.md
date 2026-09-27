@@ -104,6 +104,12 @@ This row follows the narrowing east boundary, which runs from `x = 58.4` at its 
 
 The bays are square to the curb, matching every other row. They were previously angled at `-45 degrees`, which both looked out of place beside the square rows and did not fit: a car turned 45 degrees reaches further along the row, so neighbours only clear each other once the step, measured on the car's own width axis, exceeds the car's width. At `-90 degrees` that measurement is simply the `2.6 m` slot pitch, which clears the widest vehicle in the parking pack. `test/parking-entrance-scenery.test.js` asserts both the rotation and the clearance.
 
+### ARM-side pedestrian link
+
+The pedestrian path between the ARM building and the west parking row is deliberately separate from the parking bays. Its nominal centre is `X = -65` and width is `4.6 m`. It is built as three connected panels: the middle panel shifts `0.5 m` east to clear the facade projection, while the north and south panels bend back toward the pedestrian bridge and road approach. The parking row itself remains at the curb; do not move it onto the path.
+
+The parking-side entrance remains fixed at its asphalt edge but is widened to `6.2 m` (centre `X = -59.1`) so it still meets the narrowed, bent path without leaving a grass gap.
+
 The current generator produces 364 total spaces before seeded vacancies are applied.
 
 ## Drive Aisles
