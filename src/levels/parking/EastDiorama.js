@@ -15,9 +15,6 @@ export const EAST_DIORAMA_CONFIG = Object.freeze({
     fov: 58,
     far: 380
   }),
-  entrance: Object.freeze({
-    checkpointPosition: Object.freeze([81.5, 48.5])
-  }),
   road: Object.freeze({
     // Matches the east edge of the existing Yale/bridge road rather than
     // laying a second road surface on top of it.
@@ -138,34 +135,6 @@ export function getEastHighwaySouthLipZAt(x) {
   const sin = Math.sin(highway.rotation);
   const localX = (x - highway.centerX - sin * localZ) / cos;
   return highway.centerZ - sin * localX + cos * localZ;
-}
-
-function createEntrance(root, materials) {
-  const group = new THREE.Group();
-  group.name = "Entrance";
-  root.add(group);
-  const config = EAST_DIORAMA_CONFIG.entrance;
-  const [gateX, gateZ] = config.checkpointPosition;
-
-  addBox(group, [7.8, 0.5, 6.6], [gateX, 4.15, gateZ], materials.roof, {
-    name: "east-diorama-gatehouse-roof"
-  });
-  for (const z of [gateZ - 2.55, gateZ + 2.55]) {
-    for (const x of [gateX - 3.15, gateX + 3.15]) {
-      addBox(group, [0.34, 4, 0.34], [x, 2, z], materials.metal, {
-        name: "east-diorama-gatehouse-column"
-      });
-    }
-  }
-  addBox(group, [2.8, 2.55, 3.6], [gateX + 1.65, 1.28, gateZ], materials.stone, {
-    name: "east-diorama-gatehouse-booth"
-  });
-  for (const z of [gateZ - 1.84, gateZ + 1.84]) {
-    addBox(group, [2.25, 0.82, 0.08], [gateX + 1.65, 1.65, z], materials.glass, {
-      name: "east-diorama-gatehouse-window",
-      receiveShadow: false
-    });
-  }
 }
 
 function createRoadEdge(root, materials) {
@@ -400,7 +369,6 @@ export function createEastDiorama({ loadAssets = true } = {}) {
     canopy: material(PALETTE.canopy, 0.98)
   };
 
-  createEntrance(root, materials);
 
   const fieldMarkers = createCemetery(root, materials);
   createHighwayAndBridgeDetails(root, materials);
