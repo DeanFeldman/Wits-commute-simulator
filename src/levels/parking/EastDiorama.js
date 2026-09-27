@@ -16,9 +16,7 @@ export const EAST_DIORAMA_CONFIG = Object.freeze({
     far: 380
   }),
   entrance: Object.freeze({
-    checkpointPosition: Object.freeze([81.5, 48.5]),
-    accessCenter: Object.freeze([77, 48.5]),
-    accessLength: 18
+    checkpointPosition: Object.freeze([81.5, 48.5])
   }),
   road: Object.freeze({
     // Matches the east edge of the existing Yale/bridge road rather than
@@ -147,16 +145,7 @@ function createEntrance(root, materials) {
   group.name = "Entrance";
   root.add(group);
   const config = EAST_DIORAMA_CONFIG.entrance;
-  const [accessX, accessZ] = config.accessCenter;
   const [gateX, gateZ] = config.checkpointPosition;
-
-  addBox(
-    group,
-    [config.accessLength, 0.1, 8],
-    [accessX, 0, accessZ],
-    materials.asphaltDark,
-    { name: "east-diorama-parking-access" }
-  );
 
   addBox(group, [7.8, 0.5, 6.6], [gateX, 4.15, gateZ], materials.roof, {
     name: "east-diorama-gatehouse-roof"
