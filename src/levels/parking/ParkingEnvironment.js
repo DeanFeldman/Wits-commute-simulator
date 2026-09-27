@@ -409,14 +409,23 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
   // as one surface. Falls back to flat colour if no texture set was supplied.
   const asphalt = roadMaterial ?? material(COLORS.asphalt, 0.93);
 
-  // Main road between the two parking areas.
+  // Stop the campus road at Yale Road. The previous full-width mesh continued
+  // east into the grass, leaving a visible road stub in the east reference view.
+  const halfWidth = campusRoad.width / 2;
+  const intersectionX = bridgeRoad.x
+    + Math.tan(bridgeRoad.rotation) * (campusRoad.z - bridgeRoad.z);
+  const intersectionWidth = bridgeRoad.width / Math.cos(bridgeRoad.rotation)
+    + yaleCampusIntersection.shoulder * 2;
+  const westRoadEdge = campusRoad.x - halfWidth;
+  const eastRoadEdge = intersectionX + intersectionWidth / 2;
+  const mainRoadWidth = eastRoadEdge - westRoadEdge;
   const mainRoad = box(
     root,
-    [campusRoad.width, 0.12, campusRoad.depth],
-    [campusRoad.x, 0.0, campusRoad.z],
+    [mainRoadWidth, 0.12, campusRoad.depth],
+    [(westRoadEdge + eastRoadEdge) / 2, 0.0, campusRoad.z],
     asphalt
   );
-  applyRoadUvs(mainRoad.geometry, campusRoad.width, campusRoad.depth);
+  applyRoadUvs(mainRoad.geometry, mainRoadWidth, campusRoad.depth);
 
   // Kerbs + pavements along the main road. On the parking side they have to
   // break at every entrance, otherwise a raised kerb and a pavement run
@@ -424,8 +433,6 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
   // the lot.
   const kerbMaterial = material(COLORS.kerb, 0.82);
   const pavementMaterial = material(COLORS.concrete, 0.9);
-  const halfWidth = campusRoad.width / 2;
-
   for (const side of [-1, 1]) {
     const kerbZ = campusRoad.z + side * (campusRoad.depth / 2 + 0.24);
     const pavementZ = campusRoad.z + side * (campusRoad.depth / 2 + 1.28);
@@ -439,7 +446,7 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
     };
     const flowerHallBoomOpening={left:-62.2,right:-53.8};
     const secondaryParkingOpening={left:PARKING_LAYOUT.otherEntrance.x-PARKING_LAYOUT.otherEntrance.width/2-.2,right:PARKING_LAYOUT.otherEntrance.x+PARKING_LAYOUT.otherEntrance.width/2+.2};
-    const runs=kerbRunsBetweenEntrances(campusRoad.x-halfWidth,campusRoad.x+halfWidth,[yaleOpening,...(side>0?[flowerHallBoomOpening,secondaryParkingOpening]:[])],side<0);
+    const runs=kerbRunsBetweenEntrances(westRoadEdge,Math.min(eastRoadEdge,yaleOpening.right),[yaleOpening,...(side>0?[flowerHallBoomOpening,secondaryParkingOpening]:[])],side<0);
 
     for(const [runStart,end] of runs){
       const start=side<0?Math.max(runStart,-64.8):runStart,length=end-start;
@@ -493,10 +500,6 @@ function createCampusRoad(root, collisionWorld, roadMaterial) {
   // A broad, level asphalt apron unifies the crossing. The adjoining kerbs
   // and pavements stop at its shoulders instead of continuing beneath Yale
   // Road, so this reads as a junction rather than one mesh cutting another.
-  const intersectionX = bridgeRoad.x
-    + Math.tan(bridgeRoad.rotation) * (campusRoad.z - bridgeRoad.z);
-  const intersectionWidth = bridgeRoad.width / Math.cos(bridgeRoad.rotation)
-    + yaleCampusIntersection.shoulder * 2;
   const intersection = box(
     root,
     [intersectionWidth, 0.18, yaleCampusIntersection.apronDepth],

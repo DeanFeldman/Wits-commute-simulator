@@ -468,20 +468,20 @@ export async function addNorthDioramaFoliage(root, density = 1, { exclusions = [
 // two staggered background bands that form the cemetery/green-belt horizon.
 const EAST_SCATTERED_TREE_PLACEMENTS = Object.freeze([
   ...createStrip({
-    x: 98,
+    x: 84.5,
     z: -27,
     count: 16,
     stepZ: 8.1,
     scale: 6.4,
     scaleVariance: 0.85,
-    jitterX: 10,
+    jitterX: 2.5,
     jitterZ: 0.9
   })
 ]);
 
 const EAST_DENSE_TREE_PLACEMENTS = Object.freeze([
   ...createForestPatch({
-    x: 150,
+    x: 94,
     z: -17,
     columns: 9,
     rows: 22,
@@ -492,7 +492,7 @@ const EAST_DENSE_TREE_PLACEMENTS = Object.freeze([
     seed: 200
   }),
   ...createForestPatch({
-    x: 204,
+    x: 146,
     z: -12,
     columns: 5,
     rows: 22,
