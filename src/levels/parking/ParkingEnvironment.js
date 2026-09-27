@@ -93,8 +93,8 @@ export const PARKING_LAYOUT = Object.freeze({
   },
 
   armBuilding: { x: -86, z: -7, width: 36, depth: 62, height: 10 },
-  armWalkway: { x: -64.5, z: -9.7, width: 7, depth: 88.4 },
-  armWalkwayEntrance: { x: -58.5, z: -37.95, width: 5, depth: 8.0 },
+  armWalkway: { x: -65, z: -9.7, width: 4.6, depth: 88.4 },
+  armWalkwayEntrance: { x: -59.1, z: -37.95, width: 6.2, depth: 8.0 },
   pedestrianBridge: { x: -64.8, z: -63.3, width: 6.4, depth: 23 },
 
   // Flower Hall occupies the west half of the Entrance 9 foreground. The
@@ -765,15 +765,22 @@ function createArmPedestrianLink(root, collisionWorld) {
     mesh.position.set(x,y-height/2,z);mesh.rotation.y=rotation;mesh.receiveShadow=true;mesh.name=name;root.add(mesh);return mesh;
   };
 
-  // Main ARM walkway.
-  addPanel(w.width,w.depth,w.x,w.z,0.09,0.08,"amic-level1-walkway");
+  // Pull the pedestrian path toward the ARM building and narrow it so the
+  // west parking bays stay clearly on the opposite side. The middle section
+  // steps around the facade projection, while the ends bend back toward the
+  // bridge and road-side approach.
+  const arm=PARKING_LAYOUT.armBuilding;
+  const walkwayNorth=w.z-w.depth/2,walkwaySouth=w.z+w.depth/2;
+  const facadeNorth=arm.z-arm.depth/2+2,facadeSouth=arm.z+arm.depth/2-2,facadeX=w.x+.5;
+  const addLink=(x1,z1,x2,z2,name)=>{const dx=x2-x1,dz=z2-z1;return addPanel(w.width,Math.hypot(dx,dz),(x1+x2)/2,(z1+z2)/2,0.09,0.08,name,Math.atan2(dx,dz));};
+  addLink(w.x,walkwayNorth,facadeX,facadeNorth,"amic-level1-walkway-north");
+  addPanel(w.width,facadeSouth-facadeNorth,facadeX,(facadeNorth+facadeSouth)/2,0.09,0.08,"amic-level1-walkway-centre");
+  addLink(facadeX,facadeSouth,w.x,walkwaySouth,"amic-level1-walkway-south");
 
   // Fill the open grass apron between the north end of ARM and the bridge.
-  const arm=PARKING_LAYOUT.armBuilding;
   const parkingEdge=-61;
   const armWest=arm.x-arm.width/2;
   const armNorth=arm.z-arm.depth/2;
-  const walkwayNorth=w.z-w.depth/2;
   const apronWidth=parkingEdge-armWest;
   const apronDepth=armNorth-walkwayNorth;
 
