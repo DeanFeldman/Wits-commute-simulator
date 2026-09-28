@@ -11,6 +11,8 @@ import {
   SKIN_TONES,
   poseWalk
 } from "./crossing/PedestrianFactory.js";
+import { AnimatedNpcFactory, STUDENT_MODEL_VARIANTS } from "./crossing/AnimatedNpcFactory.js";
+import { createAnimatedTutor } from "./level3/TutorModel.js";
 import {
   QUESTION_BANK,
   buildRoundAnswers,
@@ -62,15 +64,31 @@ const WINDOW_BOTTOM_Y = 1.4;
 const WINDOW_TOP_Y = 4.8;
 const NORMAL_CAMERA_FOV = 62;
 const PEEK_CAMERA_FOV = 30;
+const HOLOGRAM_FONT_FAMILY = "Pencil Pete";
+const HOLOGRAM_TEAR_STYLES = ["bottom", "both", "top", "bottom", "both", "bottom", "top"];
 const DESK_INTERACTION_DISTANCE = 5.25;
-const PAPER_HEIGHT = 0.795;
+// The replacement desk has a lower authored origin than the original prop.
+// Keep its work surface, papers, tablets, and interaction volumes together.
+const DESK_HEIGHT_ADJUSTMENT = 0.28;
+const PAPER_HEIGHT = 0.795 + DESK_HEIGHT_ADJUSTMENT;
+const DESK_SURFACE_HEIGHT = PAPER_HEIGHT - DESK_HEIGHT_ADJUSTMENT;
+const DESK_CONTENT_CLEARANCE = 0.025;
 const PLAYER_PAPER_WIDTH = 0.42;
 const PLAYER_PAPER_HEIGHT = 0.5;
 const PLAYER_DESK_SCALE = 1.15;
 const PLAYER_DESK_LOWERING = 0.1;
 const PLAYER_PAPER_TILT_CLEARANCE = 0.08;
-const PLAYER_PAPER_REST_HEIGHT = PAPER_HEIGHT - PLAYER_DESK_LOWERING + 0.012;
-const PLAYER_PAPER_READING_HEIGHT = PAPER_HEIGHT + PLAYER_PAPER_TILT_CLEARANCE;
+const PLAYER_PAPER_READING_LIFT = 0.06;
+// The answer sheet sits just above the replacement desk rather than hovering
+// at the old prop's work-surface height.
+const PLAYER_PAPER_REST_HEIGHT =
+  DESK_SURFACE_HEIGHT + DESK_CONTENT_CLEARANCE - PLAYER_DESK_LOWERING + 0.012;
+const PLAYER_PAPER_READING_HEIGHT =
+  DESK_SURFACE_HEIGHT +
+  DESK_CONTENT_CLEARANCE -
+  PLAYER_DESK_LOWERING +
+  PLAYER_PAPER_TILT_CLEARANCE +
+  PLAYER_PAPER_READING_LIFT;
 const PLAYER_PAPER_REST_ROTATION = -Math.PI / 2;
 const PLAYER_PAPER_READING_ROTATION = -Math.PI / 3;
 const PLAYER_PAPER_POSE_SPEED = 8;
@@ -78,7 +96,8 @@ const PLAYER_PAPER_SCALE = 0.9;
 const PLAYER_EYE_HEIGHT = 1.09;
 const PLAYER_SEAT_Z = 4;
 const PLAYER_FORWARD_OFFSET = 0.25;
-const HOLOGRAM_HEIGHT = 0.94;
+// Keep the revealed note between the seated student's hands, not at face height.
+const HOLOGRAM_HEIGHT = DESK_SURFACE_HEIGHT + 0.18;
 const HOLOGRAM_WIDTH = 0.58;
 const HOLOGRAM_DISPLAY_HEIGHT = 0.22;
 const TABLET_TARGET_WIDTH = 1.0;
@@ -185,6 +204,8 @@ this.patrolPoints = [
     this.extraPlayerPassesRemaining = 0;
     this.tutorLegs = [];
     this.tutorWalkPhase = 0;
+    this.tutorWalkGrace = 0;
+    this.seatedStudentMixers = [];
 
     this.answerProgress = 0;
     this.suspicion = 0;
@@ -194,6 +215,7 @@ this.patrolPoints = [
 
     this.cheatDesks = [];
     this.decorativeTablets = [];
+    this.hologramTearStyleIndex = 0;
     this.playerDesk = null;
     this.targetCheatDesk = null;
     this.isLookingAtPlayerDesk = false;
@@ -235,6 +257,7 @@ this.patrolPoints = [
 
     scene.background = new THREE.Color(0xb9d8e8);
     void this.loadSkybox(scene);
+    await this.loadHologramFont();
 
     scene.add(this.root);
     if (!this.game.isLevelIntroActive) this.audio.startMusic("level3");
@@ -247,9 +270,17 @@ this.patrolPoints = [
     ceiling.position.set(0, 10, 4);
     this.root.add(ceiling);
 
+    // Weak cool bounce from the window / camera-facing side keeps faces
+    // readable between the warm ceiling fixtures without flattening the room.
+    const windowFill = new THREE.DirectionalLight(0xc7e3ff, 0.65);
+    windowFill.position.set(0, 5, 10);
+    windowFill.target.position.set(0, 1.2, 1.5);
+    windowFill.castShadow = false;
+    this.root.add(windowFill, windowFill.target);
+
     const roomAssets = await this.createRoom();
     this.createLightingIdentity(roomAssets);
-    this.createTutor();
+    await this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
       points: this.patrolPoints, speed: 2.1, pauseAtNodes: LEVEL_THREE_BALANCE.tutorPauseSeconds,
       debugRoot: this.root, debugColor: 0xff7f86
@@ -296,6 +327,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
   }
 
+  async loadHologramFont() {
+    try {
+      const font = new FontFace(
+        HOLOGRAM_FONT_FAMILY,
+        "url('./assets/fonts/pencil-pete-trial.ttf')"
+      );
+      await font.load();
+      document.fonts.add(font);
+    } catch (error) {
+      console.warn("Unable to load the Pencil Pete hologram font", error);
+    }
+  }
+
   async createRoom() {
     const columnXPositions = Array.from(
       { length: DESKS_PER_ROW },
@@ -309,13 +353,31 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     const loader = new GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
     const [deskModel, chairModel, whiteboardModel, tabletModel, floorTexture, brickTexture] = await Promise.all([
-      loader.loadAsync("./assets/models/props/cartoon-desk.glb"),
-      loader.loadAsync("./assets/models/props/plastic-chair.glb"),
+      loader.loadAsync("./assets/models/props/classroom-desk.glb"),
+      loader.loadAsync("./assets/models/props/classroom-plastic-chair.glb"),
       loader.loadAsync("./assets/models/props/whiteboard.glb"),
       loader.loadAsync("./assets/models/props/paper-tablet.glb"),
       textureLoader.loadAsync("./assets/textures/classroom-terrazzo-floor.jpg"),
       textureLoader.loadAsync("./assets/textures/classroom-brick-wall.jpg")
     ]);
+
+    // Give the locally loaded chair template the same subtle preview lift as
+    // male-3. The material clone is shared by the Level 3 chair instances,
+    // so it does not alter another level or allocate a material per chair.
+    const liftChairMaterial = (material) => {
+      const previewMaterial = material.clone();
+      if (previewMaterial.emissive) {
+        previewMaterial.emissive.set(0x2c251f);
+        previewMaterial.emissiveIntensity = 0.18;
+      }
+      return previewMaterial;
+    };
+    chairModel.scene.traverse((object) => {
+      if (!object.isMesh) return;
+      object.material = Array.isArray(object.material)
+        ? object.material.map(liftChairMaterial)
+        : liftChairMaterial(object.material);
+    });
 
     floorTexture.colorSpace = THREE.SRGBColorSpace;
     floorTexture.wrapS = THREE.RepeatWrapping;
@@ -350,7 +412,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         const desk = deskModel.scene.clone(true);
         desk.position.set(
           x,
-          0.1,
+          0.1 + DESK_HEIGHT_ADJUSTMENT,
           rowZ
         );
         desk.rotation.y = Math.PI;
@@ -461,12 +523,26 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
           0.1,
           rowZ + 0.8 - (isPlayerChair ? PLAYER_FORWARD_OFFSET : 0)
         );
-        chair.rotation.y = -Math.PI / 2;
+        chair.rotation.y = Math.PI / 2;
         this.root.add(chair);
         //this.occluders.push(chair);
       }
     }
 
+    await this.createSeatedStudentModels(columnXPositions, deskRowZPositions);
+
+    const studentAisle = new THREE.Mesh(
+      new THREE.BoxGeometry(19, 0.03, 0.55),
+      new THREE.MeshBasicMaterial({ color: 0xd6b24c })
+    );
+    studentAisle.position.set(0, 0.08, -5.1);
+    this.root.add(studentAisle);
+
+    return { whiteboard: whiteboardModel.scene, brickTexture };
+
+    // Retained temporarily as a fallback reference for the old instanced
+    // placeholder students. The live classroom now uses the player-model pool
+    // through createSeatedStudentModels above.
     const studentGeometry = {
       torso: PEDESTRIAN_GEOMETRY.body,
       head: PEDESTRIAN_GEOMETRY.head,
@@ -735,6 +811,70 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     return { whiteboard: whiteboardModel.scene, brickTexture };
   }
 
+  async createSeatedStudentModels(columnXPositions, deskRowZPositions) {
+    const factory = new AnimatedNpcFactory();
+    await factory.load({
+      idlePath: "./assets/models/level3-students/sitting-idle-heightened.fbx"
+    });
+    // The seating export includes scene-root Armature transforms that do not
+    // exist on the reusable player rigs. Keep the bone tracks, but remove the
+    // three unmatched root tracks so each seated student animates cleanly.
+    factory.idleClip.tracks = factory.idleClip.tracks.filter(
+      (track) => !track.name.startsWith("Armature.")
+    );
+    factory.idleClip.resetDuration();
+
+    for (let row = 0; row < deskRowZPositions.length; row += 1) {
+      const seatZ = deskRowZPositions[row] + 0.8;
+      for (let column = 0; column < columnXPositions.length; column += 1) {
+        const x = columnXPositions[column];
+        const isPlayerSeat =
+          Math.abs(x - this.playerPosition.x) < 0.01 &&
+          Math.abs(seatZ - PLAYER_SEAT_Z) < 0.01;
+        if (isPlayerSeat) continue;
+
+        const variant = (row * DESKS_PER_ROW + column) % STUDENT_MODEL_VARIANTS.length;
+        const student = factory.create({
+          variant,
+          scale: 0.75,
+          includeBackpack: false
+        });
+        student.name = `level3-seated-student-${row}-${column}`;
+        student.position.set(x, 0.1, seatZ);
+        student.rotation.y = Math.PI;
+
+        // Preview a lift only on the Level 3 male-3 variant. The factory
+        // shares source materials, so clone first to leave Level 2 and every
+        // other student unchanged.
+        if (STUDENT_MODEL_VARIANTS[variant].id === "male-3") {
+          const liftMaterial = (material) => {
+            const previewMaterial = material.clone();
+            if (previewMaterial.emissive) {
+              previewMaterial.emissive.set(0x2c251f);
+              previewMaterial.emissiveIntensity = 0.18;
+            }
+            return previewMaterial;
+          };
+
+          student.traverse((object) => {
+            if (!object.isMesh) return;
+            object.material = Array.isArray(object.material)
+              ? object.material.map(liftMaterial)
+              : liftMaterial(object.material);
+          });
+        }
+
+        // Each seat owns a mixer; offset its otherwise shared idle clip so
+        // the classroom reads as individual students rather than one loop.
+        const animation = student.userData.animation;
+        const phase = ((row * 37 + column * 17 + 11) % 53) / 53;
+        animation.mixer.setTime(phase * animation.idle.getClip().duration);
+        this.root.add(student);
+        this.seatedStudentMixers.push(animation.mixer);
+      }
+    }
+  }
+
   createDeskPaper(text, x, z, color = 0xfff7d6) {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
@@ -851,7 +991,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     });
 
     tablet.add(visual);
-    tablet.position.set(x, PAPER_HEIGHT + 0.012, z);
+    tablet.position.set(x, DESK_SURFACE_HEIGHT + DESK_CONTENT_CLEARANCE + 0.012, z);
     tablet.rotation.x = -Math.PI / 2;
     tablet.rotation.z = 0;
     tablet.scale.setScalar(1.08);
@@ -866,7 +1006,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     );
     target.position.set(
       x,
-      PAPER_HEIGHT + TABLET_TARGET_HEIGHT / 2,
+      DESK_SURFACE_HEIGHT + DESK_CONTENT_CLEARANCE + TABLET_TARGET_HEIGHT / 2,
       z
     );
     target.visible = false;
@@ -896,6 +1036,18 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     hologram.userData.wordCanvas = canvas;
     hologram.userData.wordContext = context;
     hologram.userData.wordTexture = texture;
+    // Cycle controlled variants so every room includes top-only, bottom-only,
+    // and double-torn notes. Their randomized edges remain stable on redraw.
+    const tearStyle = HOLOGRAM_TEAR_STYLES[
+      this.hologramTearStyleIndex % HOLOGRAM_TEAR_STYLES.length
+    ];
+    this.hologramTearStyleIndex += 1;
+    hologram.userData.topTornEdge = tearStyle === "bottom"
+      ? null
+      : Array.from({ length: 13 }, () => THREE.MathUtils.randInt(16, 39));
+    hologram.userData.bottomTornEdge = tearStyle === "top"
+      ? null
+      : Array.from({ length: 13 }, () => THREE.MathUtils.randInt(145, 169));
     this.root.add(hologram);
     this.drawHologramText(hologram, word);
     return hologram;
@@ -906,18 +1058,61 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     const { width, height } = hologram.userData.wordCanvas;
 
     context.clearRect(0, 0, width, height);
-    context.fillStyle = "rgba(5, 30, 42, 0.82)";
-    context.fillRect(8, 8, width - 16, height - 16);
-    context.strokeStyle = "#53e4ff";
-    context.lineWidth = 8;
-    context.strokeRect(8, 8, width - 16, height - 16);
-    context.shadowColor = "#53e4ff";
-    context.shadowBlur = 18;
-    context.fillStyle = "#d9fbff";
-    context.font = "bold 58px sans-serif";
+    const paperLeft = 16;
+    const paperRight = width - 16;
+    const paperTop = 16;
+    const paperBottom = 168;
+    const topTornEdge = hologram.userData.topTornEdge;
+    const bottomTornEdge = hologram.userData.bottomTornEdge;
+    const tearStep = (paperRight - paperLeft) / 12;
+
+    context.save();
+    context.beginPath();
+    context.moveTo(paperLeft, topTornEdge?.[0] ?? paperTop);
+    if (topTornEdge) {
+      for (let index = 1; index < topTornEdge.length; index += 1) {
+        context.lineTo(paperLeft + index * tearStep, topTornEdge[index]);
+      }
+    } else {
+      context.lineTo(paperRight, paperTop);
+    }
+    context.lineTo(paperRight, bottomTornEdge?.[0] ?? paperBottom);
+    if (bottomTornEdge) {
+      for (let index = 1; index < bottomTornEdge.length; index += 1) {
+        context.lineTo(paperRight - index * tearStep, bottomTornEdge[index]);
+      }
+    } else {
+      context.lineTo(paperLeft, paperBottom);
+    }
+    context.closePath();
+    context.shadowColor = "rgba(53, 39, 25, 0.35)";
+    context.shadowBlur = 10;
+    context.shadowOffsetY = 5;
+    context.fillStyle = "rgba(255, 253, 244, 0.96)";
+    context.fill();
+    context.shadowColor = "transparent";
+    context.clip();
+
+    context.strokeStyle = "rgba(111, 163, 213, 0.65)";
+    context.lineWidth = 2;
+    for (let lineY = 48; lineY < 164; lineY += 24) {
+      context.beginPath();
+      context.moveTo(paperLeft + 12, lineY);
+      context.lineTo(paperRight - 12, lineY);
+      context.stroke();
+    }
+    context.strokeStyle = "rgba(207, 89, 76, 0.65)";
+    context.beginPath();
+    context.moveTo(paperLeft + 44, paperTop + 8);
+    context.lineTo(paperLeft + 44, 166);
+    context.stroke();
+    context.restore();
+
+    context.fillStyle = "#162f4b";
+    context.font = `bold 54px "${HOLOGRAM_FONT_FAMILY}", Georgia, serif`;
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText(word.toUpperCase(), width / 2, height / 2, width - 48);
+    context.fillText(word.toUpperCase(), width / 2 + 12, 103, width - 96);
     hologram.userData.wordTexture.needsUpdate = true;
   }
 
@@ -1108,30 +1303,25 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     projectorGlow.target = projectorTarget;
     this.root.add(projectorGlow);
   }
-  createTutor() {
-    const factory = new PedestrianFactory();
-    this.tutor = factory.create({
-      shirt: 0xe35b66,
-      trousers: 0x273442,
-      skin: 0xd7a47e,
-      hair: "short",
-      hairColor: 0x2b211d,
-      scale: 1
-    });
+  async createTutor() {
+    this.tutor = await createAnimatedTutor();
     this.tutor.position.copy(this.patrolPoints[0]);
     this.tutor.name = "level-3-tutor";
     this.root.add(this.tutor);
     this.collisionWorld.add({
       object: this.tutor,
       size: [0.85, 1.9, 0.85],
-      color: 0xe35b66,
+       color: 0x58708a,
       tag: "tutor"
     });
 
-    this.tutorRig = this.tutor.userData.rig;
-    this.tutorBody = this.tutorRig.upper;
-    this.tutorHead = this.tutorRig.head;
-    this.tutorLegs = this.tutorRig.legs;
+    this.tutorHead = this.tutor.userData.head;
+    // Mixamo's head-bone origin lies at the lower face. Keep the vision
+    // systems on an eye-height child so they follow every head scan cleanly.
+    this.tutorEye = new THREE.Object3D();
+    this.tutorEye.name = "tutor-eye-vision-anchor";
+    this.tutorEye.position.set(0, 0.08, 0.08);
+    this.tutorHead.add(this.tutorEye);
 
     this.visionTarget = new THREE.Object3D();
     this.root.add(this.visionTarget);
@@ -1144,7 +1334,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       1.5
     );
     this.spotlight.castShadow = true;
-    this.tutorHead.add(this.spotlight);
+    this.tutorEye.add(this.spotlight);
     this.spotlight.target = this.visionTarget;
 
     const coneLength = 5.5;
@@ -1166,7 +1356,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     );
     cone.rotation.x = -Math.PI / 2;
     cone.position.z = coneLength / 2;
-    this.tutorHead.add(cone);
+    this.tutorEye.add(cone);
   }
 
   update(dt) {
@@ -1174,6 +1364,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return;
     }
 
+    for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
     this.audio.updateClock(dt);
     this.updateMouseLook();
@@ -1264,6 +1455,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       .setY(0);
 
     const isWalking = movement.lengthSq() > 0.0001;
+    if (isWalking) {
+      this.tutorWalkGrace = 0.12;
+    } else {
+      this.tutorWalkGrace = Math.max(0, this.tutorWalkGrace - dt);
+    }
+    const animateWalking = isWalking || this.tutorWalkGrace > 0;
     const isScanning = this.tutorMover.pauseTimer > 0;
 
     if (isWalking) {
@@ -1308,7 +1505,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.stateTimer = this.tutorMover.pauseTimer;
     this.tutorTime += dt;
 
-    this.updateTutorAnimation(dt, isWalking);
+    this.updateTutorAnimation(dt, animateWalking);
 
     this.audio.updateTutorFootsteps(
       dt,
@@ -1318,24 +1515,24 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     );
 
     const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(
-      this.tutorHead.getWorldQuaternion(new THREE.Quaternion())
+      this.tutorEye.getWorldQuaternion(new THREE.Quaternion())
     );
 
     this.visionTarget.position
-      .copy(this.tutorHead.getWorldPosition(new THREE.Vector3()))
+      .copy(this.tutorEye.getWorldPosition(new THREE.Vector3()))
       .addScaledVector(headForward, 10);
   }
 
   updateTutorAnimation(dt, isWalking) {
-    if (isWalking) {
-      this.tutorWalkPhase += dt * 11;
+    const animation = this.tutor.userData.animation;
+    const next = isWalking ? animation.walk : animation.idle;
+    if (next !== animation.active) {
+      next.reset().play();
+      animation.active.crossFadeTo(next, 0.18, false);
+      animation.active = next;
     }
-
-    poseWalk(
-      this.tutorRig,
-      this.tutorWalkPhase,
-      isWalking ? 0.72 : 0
-    );
+    animation.walk.timeScale = 1.35;
+    animation.mixer.update(dt);
 
     if (this.patrolState === "scan") {
       // Keep the Level 3 gameplay cue: the head, spotlight and vision cone
@@ -1666,7 +1863,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   }
 
 canTutorSeePlayer() {
-  const eye = this.tutorHead.getWorldPosition(new THREE.Vector3());
+  const eye = this.tutorEye.getWorldPosition(new THREE.Vector3());
   const toPlayer = this.playerPosition.clone().sub(eye);
   const distance = toPlayer.length();
 
@@ -1675,7 +1872,7 @@ canTutorSeePlayer() {
   const direction = toPlayer.normalize();
 
   const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
-    this.tutorHead.getWorldQuaternion(new THREE.Quaternion())
+    this.tutorEye.getWorldQuaternion(new THREE.Quaternion())
   );
 
   if (
