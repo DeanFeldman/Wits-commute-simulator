@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { addEastDioramaFoliage } from "./ParkingFoliage.js";
 
+const EAST_WALL_TEXTURE="./assets/textures/parking/east-precast-wall-texture.jpg";
+
 // +X is east, -Z is north. The saved camera therefore sees the M1/building on
 // its left, Entrance 9 and overflow parking on its right, and the open green
 // belt directly ahead. One world unit is approximately one metre.
@@ -14,11 +16,6 @@ export const EAST_DIORAMA_CONFIG = Object.freeze({
     target: Object.freeze([155, 3.2, 0]),
     fov: 58,
     far: 380
-  }),
-  entrance: Object.freeze({
-    checkpointPosition: Object.freeze([81.5, 48.5]),
-    accessCenter: Object.freeze([77, 48.5]),
-    accessLength: 18
   }),
   road: Object.freeze({
     // Matches the east edge of the existing Yale/bridge road rather than
@@ -142,43 +139,6 @@ export function getEastHighwaySouthLipZAt(x) {
   return highway.centerZ - sin * localX + cos * localZ;
 }
 
-function createEntrance(root, materials) {
-  const group = new THREE.Group();
-  group.name = "Entrance";
-  root.add(group);
-  const config = EAST_DIORAMA_CONFIG.entrance;
-  const [accessX, accessZ] = config.accessCenter;
-  const [gateX, gateZ] = config.checkpointPosition;
-
-  addBox(
-    group,
-    [config.accessLength, 0.1, 8],
-    [accessX, 0, accessZ],
-    materials.asphaltDark,
-    { name: "east-diorama-parking-access" }
-  );
-
-  addBox(group, [7.8, 0.5, 6.6], [gateX, 4.15, gateZ], materials.roof, {
-    name: "east-diorama-gatehouse-roof"
-  });
-  for (const z of [gateZ - 2.55, gateZ + 2.55]) {
-    for (const x of [gateX - 3.15, gateX + 3.15]) {
-      addBox(group, [0.34, 4, 0.34], [x, 2, z], materials.metal, {
-        name: "east-diorama-gatehouse-column"
-      });
-    }
-  }
-  addBox(group, [2.8, 2.55, 3.6], [gateX + 1.65, 1.28, gateZ], materials.stone, {
-    name: "east-diorama-gatehouse-booth"
-  });
-  for (const z of [gateZ - 1.84, gateZ + 1.84]) {
-    addBox(group, [2.25, 0.82, 0.08], [gateX + 1.65, 1.65, z], materials.glass, {
-      name: "east-diorama-gatehouse-window",
-      receiveShadow: false
-    });
-  }
-}
-
 function createRoadEdge(root, materials) {
   const group = new THREE.Group();
   group.name = "Roads";
@@ -202,6 +162,8 @@ function createRoadEdge(root, materials) {
   }));
   addInstancedBoxes(group, "east-diorama-road-boundary-posts", posts, materials.concreteDark);
 }
+
+function createPrecastBoundaryWall(root,materials){const r=EAST_DIORAMA_CONFIG.road,start=-r.depth/2-2,end=306,len=end-start,mid=(start+end)/2,g=new THREE.Group();g.name="EastPrecastBoundaryWall";g.position.set(r.fieldEdgeX+.9,0,r.centerZ);g.rotation.y=r.rotation;root.add(g);const t=new THREE.TextureLoader().load(EAST_WALL_TEXTURE);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(len/5.2,1);t.anisotropy=4;const m=new THREE.MeshStandardMaterial({map:t,roughness:.94,emissive:0xffffff,emissiveMap:t,emissiveIntensity:.28});m.name="east-precast-wall-material";const wall=addBox(g,[.28,3.25,len],[0,1.625,mid],m,{name:"east-precast-boundary-wall",castShadow:true});wall.userData.referenceAsset=EAST_WALL_TEXTURE;const n=Math.floor(len/5.2)+1,posts=Array.from({length:n},(_,i)=>({position:[.04,1.68,start+i*(len/(n-1))],scale:[.42,3.36,.42]}));addInstancedBoxes(g,"east-precast-boundary-wall-posts",posts,materials.concrete);}
 
 export function getEastDioramaMarkerPlacements() {
   const cemetery = EAST_DIORAMA_CONFIG.cemetery;
@@ -311,7 +273,7 @@ export function getEastDioramaCanopyPlacements() {
   return Object.freeze(Array.from({ length: 62 }, (_, index) => {
     const band = index % 3;
     const radius = 5.5 + seededValue(index, 511) * 4;
-    const x = 160 + band * 23 + seededValue(index, 512) * 11;
+    const x = 110 + band * 18 + seededValue(index, 512) * 8;
     const z = getEastHighwaySouthLipZAt(x)
       + radius
       + 3
@@ -411,8 +373,8 @@ export function createEastDiorama({ loadAssets = true } = {}) {
     canopy: material(PALETTE.canopy, 0.98)
   };
 
-  createEntrance(root, materials);
-  createRoadEdge(root, materials);
+
+  createPrecastBoundaryWall(root, materials);
   const fieldMarkers = createCemetery(root, materials);
   createHighwayAndBridgeDetails(root, materials);
   createLeftBuilding(root, materials);

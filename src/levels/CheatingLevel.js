@@ -237,7 +237,7 @@ this.patrolPoints = [
     void this.loadSkybox(scene);
 
     scene.add(this.root);
-    this.audio.startDrone(39, 0.004);
+    if (!this.game.isLevelIntroActive) this.audio.startMusic("level3");
     this.collisionWorld = new CollisionWorld(this.root);
 
     const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 1.35);

@@ -145,7 +145,6 @@ function createForestPatch({
 const TREE_PLACEMENTS = Object.freeze([
   // Sparse, irregular trees in the grass strip between the lot and diagonal
   // Yale Road. This starts south of the M1 bridge where the strip is wide.
-  ...createStrip({ x: 60.2, z: 4, count: 8, stepZ: 3.7, scale: 0.48, scaleVariance: 0.09, jitterX: 0.5, jitterZ: 0.7 }),
   // Woodland beyond Yale Road fills the open east field without interfering
   // with the lot, lower highway, checkpoint, or bridge deck.
   ...createForestPatch({ x: 81, z: -46, columns: 9, rows: 14, stepX: 3.5, stepZ: 5.3, scale: 0.54, seed: 10 })
@@ -469,20 +468,20 @@ export async function addNorthDioramaFoliage(root, density = 1, { exclusions = [
 // two staggered background bands that form the cemetery/green-belt horizon.
 const EAST_SCATTERED_TREE_PLACEMENTS = Object.freeze([
   ...createStrip({
-    x: 98,
+    x: 84.5,
     z: -27,
     count: 16,
     stepZ: 8.1,
     scale: 6.4,
     scaleVariance: 0.85,
-    jitterX: 10,
+    jitterX: 2.5,
     jitterZ: 0.9
   })
 ]);
 
 const EAST_DENSE_TREE_PLACEMENTS = Object.freeze([
   ...createForestPatch({
-    x: 150,
+    x: 94,
     z: -17,
     columns: 9,
     rows: 22,
@@ -493,7 +492,7 @@ const EAST_DENSE_TREE_PLACEMENTS = Object.freeze([
     seed: 200
   }),
   ...createForestPatch({
-    x: 204,
+    x: 146,
     z: -12,
     columns: 5,
     rows: 22,
@@ -769,106 +768,11 @@ export async function addWestDioramaFoliage(
 // with a lighter rear band preventing the scene from ending behind the roofs.
 // The generic tree pack has no authored Acer LOD names; TREE_VARIANTS_FAR is
 // its measured lowest-cost true 3D tier and fills the same LOD2 role here.
-const SOUTH_TREE_PLACEMENTS = Object.freeze([
-  ...createForestPatch({
-    x: -116,
-    z: 84,
-    columns: 4,
-    rows: 6,
-    stepX: 7.1,
-    stepZ: 8.2,
-    scale: 8.1,
-    scaleVariance: 1.05,
-    seed: 300
-  }),
-  ...createStrip({
-    x: -98,
-    z: 80.5,
-    count: 6,
-    stepX: 10,
-    scale: 8.7,
-    scaleVariance: 0.95,
-    jitterX: 0.85,
-    jitterZ: 0.45
-  }),
-  ...createStrip({
-    x: -41,
-    z: 80.2,
-    count: 6,
-    stepX: 12.7,
-    scale: 9.1,
-    scaleVariance: 1.05,
-    jitterX: 1.1,
-    jitterZ: 0.4
-  }),
-  ...createStrip({
-    x: 31,
-    z: 79.8,
-    count: 7,
-    stepX: 10.8,
-    scale: 8.8,
-    scaleVariance: 1,
-    jitterX: 0.9,
-    jitterZ: 0.5
-  }),
-  ...createForestPatch({
-    x: -109,
-    z: 198,
-    columns: 12,
-    rows: 2,
-    stepX: 19.5,
-    stepZ: 9.2,
-    scale: 7.4,
-    scaleVariance: 0.9,
-    seed: 340
-  })
-]);
+const SOUTH_TREE_PLACEMENTS = Object.freeze([]);
 
-const SOUTH_BUSH_PLACEMENTS = Object.freeze([
-  ...createStrip({
-    x: -112,
-    z: 79.2,
-    count: 55,
-    stepX: 4.05,
-    scale: 0.42,
-    scaleVariance: 0.07,
-    jitterX: 0.5,
-    jitterZ: 0.48
-  }),
-  ...createStrip({
-    x: -105,
-    z: 190,
-    count: 32,
-    stepX: 7.1,
-    scale: 0.38,
-    scaleVariance: 0.06,
-    jitterX: 0.75,
-    jitterZ: 4.8
-  })
-]);
+const SOUTH_BUSH_PLACEMENTS = Object.freeze([]);
 
-const SOUTH_GRASS_PLACEMENTS = Object.freeze([
-  ...createStrip({
-    x: -110,
-    z: 78.6,
-    count: 44,
-    stepX: 5.05,
-    scale: 0.45,
-    scaleVariance: 0.08,
-    jitterX: 0.7,
-    jitterZ: 0.45
-  }),
-  ...createStrip({
-    x: -103,
-    z: 188,
-    count: 18,
-    stepX: 11.1,
-    scale: 0.42,
-    scaleVariance: 0.07,
-    jitterX: 0.8,
-    jitterZ: 3.6
-  })
-]);
+const SOUTH_GRASS_PLACEMENTS = Object.freeze([]);
 
 export function getSouthDioramaFoliageLayout(density = 1, roadSegments = []) {
   // Trees need canopy clearance as well as trunk clearance. Smaller foliage

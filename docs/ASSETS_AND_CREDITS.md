@@ -379,6 +379,26 @@ Used for:
 
 The pre-Level 1 story and asset-loading screen.
 
+### Original Level Soundtrack
+
+Type:
+Music / pre-rendered WAV soundtrack
+
+Source:
+Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/` and played directly by `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+
+Files:
+`menu-commute-theme.wav`, `level1-dusk-drive.wav`, `level2-empire-rush.wav`, `level3-dont-get-caught.wav`.
+
+Author:
+OpenAI-assisted composition generated for the Wits Commute Simulator team.
+
+Licence:
+Generated output - no third-party licence attaches. Note that the generating model was trained on third-party data.
+
+Used for:
+"Commute Theme" on the home page and level loading/story screens, Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
+
 ### Classroom Brick Wall / Classroom Terrazzo Floor
 
 Type: Texture

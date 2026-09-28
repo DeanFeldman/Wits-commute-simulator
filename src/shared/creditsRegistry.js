@@ -24,6 +24,9 @@ export const CREDITS = [
     { name: "Asphalt 02 PBR set", detail: `Rob Tuytel / Poly Haven ? ${CC0}. Level 1 and 2 asphalt shader.`, url: "https://polyhaven.com/a/asphalt_02" },
     { name: "Joburg Central Sunset HDRI", detail: `Dimitrios Savva and Greg Zaal / Poly Haven ? ${CC0}. Level 3 lighting and background.`, url: "https://polyhaven.com/a/sunset_jhbcentral" }
   ] },
+  { heading: "Original music", entries: [
+    { name: "Original level soundtrack", detail: `Commute Theme, Dusk Drive, Empire Rush and Don't Get Caught - OpenAI-assisted original compositions generated for this project on 2026-09-25 and used as pre-rendered WAV soundtrack files. ${GENERATED}. No third-party samples.` }
+  ] },
   { heading: "AI-generated assets", entries: [
     { name: "Level 1 story loading screen", detail: `OpenAI image generation (2026-09-08) ? ${GENERATED}.` },
     { name: "Level 2 and Level 3 story screens; main-menu art", detail: `Team-provided/generated artwork ? ${GENERATED}; provenance review recorded in the asset ledger.` },

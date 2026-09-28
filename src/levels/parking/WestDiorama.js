@@ -32,9 +32,9 @@ export const WEST_DIORAMA_CONFIG = Object.freeze({
   curvedRoofs: Object.freeze([
     // Keep the three halls south of the campus-road pavement. Their previous
     // positions began at Z = 39 and visibly cut through the west road run.
-    Object.freeze({ position: Object.freeze([-116, 0, 59]), size: Object.freeze([30, 11, 18]) }),
-    Object.freeze({ position: Object.freeze([-119, 0, 79]), size: Object.freeze([32, 12, 18]) }),
-    Object.freeze({ position: Object.freeze([-122, 0, 99]), size: Object.freeze([34, 13, 18]) })
+    Object.freeze({ position: Object.freeze([-122, 0, 65]), size: Object.freeze([30, 11, 18]) }),
+    Object.freeze({ position: Object.freeze([-125, 0, 85]), size: Object.freeze([32, 12, 18]) }),
+    Object.freeze({ position: Object.freeze([-128, 0, 105]), size: Object.freeze([34, 13, 18]) })
   ]),
   serviceRoad: Object.freeze({
     // This extends the existing campus road westward. Match its Z centre and
@@ -343,15 +343,10 @@ function createServiceRoad(root, materials) {
   );
   road.receiveShadow = true;
 
-  for (const side of [-1, 1]) {
-    addBox(
-      root,
-      [length, 0.16, 0.45],
-      [center[0], 0.08, center[1] + side * (depth / 2 + 0.23)],
-      materials.concrete,
-      { name: "west-service-road-kerb" }
-    );
-  }
+  // for(const side of[-1,1]){
+  //   const left=center[0]-length/2,right=side<0?-110.6:center[0]+length/2,w=right-left;
+  //   addBox(root,[w,.16,.45],[(left+right)/2,.08,center[1]+side*(depth/2+.23)],materials.concrete,{name:"west-service-road-kerb"});
+  // }
 }
 
 function createBackgroundCampus(root, materials) {
