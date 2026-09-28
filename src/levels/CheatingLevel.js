@@ -139,6 +139,13 @@ const DESK_INTERACTION_DISTANCE = 5.25;
 const VISION_CONE_LENGTH = 5.5;
 const VISION_CONE_HALF_ANGLE = THREE.MathUtils.degToRad(32);
 const VISION_CONE_OPACITY = 0.075;
+const SUSPICION_PARTICLE_CAPACITY = 44;
+const SUSPICION_PARTICLE_GLYPHS = ["#", "@", "$", "%", "!"];
+// The narrow upper chamber cannot physically pack 48 large disks. Keep the
+// collision footprint compact so a full meter can settle instead of jittering.
+const SUSPICION_PARTICLE_RADIUS = 5;
+const SUSPICION_PARTICLE_DISPLAY_RADIUS = 5;
+const SUSPICION_PARTICLE_GRAVITY = 220;
 // The replacement desk has a lower authored origin than the original prop.
 // Keep its work surface, papers, tablets, and interaction volumes together.
 const DESK_HEIGHT_ADJUSTMENT = 0.28;
@@ -290,6 +297,8 @@ this.patrolPoints = [
     this.cheatDesks = [];
     this.decorativeTablets = [];
     this.hologramTearStyleIndex = 0;
+    this.levelThreeHud = null;
+    this.suspicionParticles = [];
     this.playerDesk = null;
     this.targetCheatDesk = null;
     this.isLookingAtPlayerDesk = false;
@@ -1453,20 +1462,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.feedbackMessage = "";
     }
 
-    const instruction = this.getContextInstruction();
-    const typedLine = this.isLookingAtPlayerDesk
-      ? `<br><span class="gap-hint">&gt; ${this.typedAnswer}_</span>`
-      : "";
-
-    this.game.setHUD(`
-      <div class="game-hud l3-hud">
-        <div class="hud-split"><span>Time <strong>${Math.ceil(this.timeRemaining)}s</strong></span><span>Answers <strong>${Math.round(this.answerProgress)}%</strong></span></div>
-        <div class="meter progress"><i style="width: ${this.answerProgress}%"></i></div>
-        <div class="hud-metric"><span class="hud-label">Suspicion</span><strong>${Math.round(this.suspicion)}%</strong></div>
-        <div class="meter suspicion"><i style="width: ${this.suspicion}%"></i></div>
-        <div class="hud-tip l3-context">${instruction}${typedLine}</div>
-      </div>
-    `, "level3");
+    this.updateLevelThreeHUD(dt);
 
     if (this.answerProgress >= 100) {
       this.completed = true;
@@ -1496,6 +1492,244 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         next: `Retry restarts the test with a fresh ${LEVEL_THREE_TIME_LIMIT} seconds.`
       });
     }
+  }
+
+  updateLevelThreeHUD(dt) {
+    if (!this.levelThreeHud?.root?.isConnected) {
+      this.game.setHUD(`
+        <div class="game-hud l3-hud">
+          <div class="hud-split"><span>Time <strong data-l3-time></strong></span><span>Answers <strong data-l3-answers></strong></span></div>
+          <div class="meter progress"><i data-l3-progress></i></div>
+          <div class="hud-tip l3-context" data-l3-context></div>
+          <section class="l3-suspicion-vessel" aria-label="Suspicion meter">
+            <div class="l3-suspicion-label">Suspicion</div>
+            <div class="l3-suspicion-mark" aria-hidden="true">
+              <div class="l3-suspicion-well" data-l3-particle-well></div>
+              <div class="l3-suspicion-dot"></div>
+              <img class="l3-suspicion-art" src="./assets/images/ui/suspicion-meter.png" alt="" />
+            </div>
+            <output class="l3-suspicion-value" data-l3-suspicion-value>0%</output>
+          </section>
+        </div>
+      `, "level3");
+      const root = this.game.hudElement.querySelector(".l3-hud");
+      this.levelThreeHud = {
+        root,
+        time: root.querySelector("[data-l3-time]"),
+        answers: root.querySelector("[data-l3-answers]"),
+        progress: root.querySelector("[data-l3-progress]"),
+        context: root.querySelector("[data-l3-context]"),
+        suspicionValue: root.querySelector("[data-l3-suspicion-value]"),
+        particleWell: root.querySelector("[data-l3-particle-well]")
+      };
+      this.suspicionParticles = [];
+    }
+
+    const hud = this.levelThreeHud;
+    hud.time.textContent = `${Math.ceil(this.timeRemaining)}s`;
+    hud.answers.textContent = `${Math.round(this.answerProgress)}%`;
+    hud.progress.style.width = `${this.answerProgress}%`;
+    hud.context.textContent = this.getContextInstruction();
+    if (this.isLookingAtPlayerDesk) {
+      const typed = document.createElement("span");
+      typed.className = "gap-hint";
+      typed.textContent = ` > ${this.typedAnswer}_`;
+      hud.context.append(document.createElement("br"), typed);
+    }
+    hud.suspicionValue.value = `${Math.round(this.suspicion)}%`;
+    hud.suspicionValue.textContent = `${Math.round(this.suspicion)}%`;
+
+    this.syncSuspicionParticles();
+    this.updateSuspicionParticlePhysics(dt);
+  }
+
+  syncSuspicionParticles() {
+    const targetCount = Math.round(
+      (this.suspicion / 100) * SUSPICION_PARTICLE_CAPACITY
+    );
+    const well = this.levelThreeHud.particleWell;
+
+    while (this.suspicionParticles.length < targetCount) {
+      const slotIndex = this.suspicionParticles.length;
+      const isLowerCubeSlot = slotIndex < 6;
+      const element = document.createElement("span");
+      element.className = "l3-suspicion-particle";
+      element.textContent = SUSPICION_PARTICLE_GLYPHS[
+        Math.floor(Math.random() * SUSPICION_PARTICLE_GLYPHS.length)
+      ];
+      well.append(element);
+      const [targetX, targetY] = this.getSuspicionParticleSlots(
+        well.clientWidth,
+        well.clientHeight
+      )[slotIndex];
+      this.suspicionParticles.push({
+        element,
+        x: well.clientWidth * (0.36 + Math.random() * 0.28),
+        // Dot glyphs begin in the hidden transfer gap, so the lower cube
+        // visibly fills before glyphs have time to settle in the upper body.
+        y: isLowerCubeSlot
+          ? well.clientHeight * (0.75 + Math.random() * 0.04)
+          : -18 - Math.random() * 32,
+        vx: (Math.random() - 0.5) * 42,
+        vy: isLowerCubeSlot ? 55 + Math.random() * 20 : Math.random() * 30,
+        rotation: (Math.random() - 0.5) * 50,
+        angularVelocity: (Math.random() - 0.5) * 280,
+        radius: SUSPICION_PARTICLE_RADIUS,
+        targetX,
+        targetY
+      });
+    }
+
+    while (this.suspicionParticles.length > targetCount) {
+      this.suspicionParticles.pop().element.remove();
+    }
+  }
+
+  updateSuspicionParticlePhysics(dt) {
+    const particles = this.suspicionParticles;
+    const well = this.levelThreeHud.particleWell;
+    const width = well.clientWidth;
+    const height = well.clientHeight;
+    if (!width || !height) return;
+
+    const step = Math.min(dt, 1 / 30);
+    for (const particle of particles) {
+      particle.vy += SUSPICION_PARTICLE_GRAVITY * step;
+      const drag = Math.pow(0.16, step);
+      particle.vx *= drag;
+      particle.vy *= drag;
+      particle.angularVelocity *= drag;
+      particle.x += particle.vx * step;
+      particle.y += particle.vy * step;
+      particle.rotation += particle.angularVelocity * step;
+      particle.x = THREE.MathUtils.damp(
+        particle.x,
+        particle.targetX,
+        14,
+        step
+      );
+      if (particle.y >= particle.targetY) {
+        particle.y = particle.targetY;
+        particle.vy = 0;
+        particle.vx = 0;
+        particle.angularVelocity = 0;
+      }
+      this.keepSuspicionParticleInside(particle, width, height);
+    }
+
+    for (const particle of particles) {
+      particle.element.style.transform = `translate3d(${particle.x - SUSPICION_PARTICLE_DISPLAY_RADIUS}px, ${particle.y - SUSPICION_PARTICLE_DISPLAY_RADIUS}px, 0) rotate(${particle.rotation}deg)`;
+      particle.element.style.opacity = this.getSuspicionParticleVisibility(
+        particle.y,
+        height
+      );
+    }
+  }
+
+  getSuspicionParticleSlots(width, height) {
+    const center = width / 2;
+    const slots = [
+      [0.38, 0.85], [0.62, 0.85],
+      [0.38, 0.91], [0.62, 0.91],
+      [0.38, 0.97], [0.62, 0.97]
+    ];
+    const upperRows = [
+      [0.59, [0.5]],
+      [0.54, [0.4, 0.6]],
+      [0.49, [0.32, 0.5, 0.68]],
+      [0.44, [0.32, 0.5, 0.68]],
+      [0.39, [0.32, 0.5, 0.68]],
+      [0.34, [0.32, 0.5, 0.68]],
+      [0.29, [0.32, 0.5, 0.68]],
+      [0.24, [0.2, 0.4, 0.6, 0.8]],
+      [0.19, [0.2, 0.4, 0.6, 0.8]],
+      [0.14, [0.2, 0.4, 0.6, 0.8]],
+      [0.09, [0.2, 0.4, 0.6, 0.8]],
+      [0.04, [0.2, 0.4, 0.6, 0.8]]
+    ];
+
+    for (const [y, xPositions] of upperRows) {
+      for (const x of xPositions) slots.push([x, y]);
+    }
+    return slots.map(([x, y]) => [center + (x - 0.5) * width, y * height]);
+  }
+
+  getSuspicionParticleVisibility(y, height) {
+    // The artwork intentionally separates the exclamation dot from the
+    // vessel. Physics stays continuous between them, while this render mask
+    // prevents glyphs from appearing in the illustrated air gap.
+    const gapStart = height * 0.68;
+    const gapEnd = height * 0.81;
+    const fadeDistance = 7;
+    if (y <= gapStart - fadeDistance || y >= gapEnd + fadeDistance) return 1;
+    if (y < gapStart) return (gapStart - y) / fadeDistance;
+    if (y <= gapEnd) return 0;
+    return (y - gapEnd) / fadeDistance;
+  }
+
+  keepSuspicionParticleInside(particle, width, height) {
+    const yProgress = THREE.MathUtils.clamp(particle.y / height, 0, 1);
+    let halfWidthFraction;
+    if (yProgress < 0.08) {
+      halfWidthFraction = 0.35 + (yProgress / 0.08) * 0.15;
+    } else if (yProgress < 0.62) {
+      halfWidthFraction = 0.5 - ((yProgress - 0.08) / 0.54) * 0.24;
+    } else if (yProgress < 0.69) {
+      halfWidthFraction = 0.26 - ((yProgress - 0.62) / 0.07) * 0.01;
+    } else if (yProgress < 0.79) {
+      // The narrow neck connecting the upper vessel to the dot.
+      halfWidthFraction = 0.25;
+    } else {
+      // The separate-looking square at the bottom is part of the fill volume.
+      halfWidthFraction = 0.34;
+    }
+    const halfWidth = width * halfWidthFraction;
+    const center = width / 2;
+    const minX = center - halfWidth + particle.radius;
+    const maxX = center + halfWidth - particle.radius;
+    if (particle.x < minX || particle.x > maxX) {
+      particle.x = THREE.MathUtils.clamp(particle.x, minX, maxX);
+      particle.vx *= -0.38;
+    }
+    if (particle.y > height - particle.radius) {
+      particle.y = height - particle.radius;
+      particle.vy *= -0.2;
+      particle.vx *= 0.65;
+      particle.angularVelocity *= 0.5;
+      if (Math.abs(particle.vy) < 12) particle.vy = 0;
+      if (Math.abs(particle.vx) < 4) particle.vx = 0;
+      if (Math.abs(particle.angularVelocity) < 8) particle.angularVelocity = 0;
+    }
+  }
+
+  resolveSuspicionParticleCollision(first, second) {
+    const dx = second.x - first.x;
+    const dy = second.y - first.y;
+    const minimumDistance = first.radius + second.radius;
+    const distanceSq = dx * dx + dy * dy;
+    if (!distanceSq || distanceSq >= minimumDistance * minimumDistance) return;
+
+    const distance = Math.sqrt(distanceSq);
+    const normalX = dx / distance;
+    const normalY = dy / distance;
+    const overlap = (minimumDistance - distance) / 2;
+    first.x -= normalX * overlap;
+    first.y -= normalY * overlap;
+    second.x += normalX * overlap;
+    second.y += normalY * overlap;
+
+    const relativeVelocity =
+      (second.vx - first.vx) * normalX + (second.vy - first.vy) * normalY;
+    if (relativeVelocity >= 0) return;
+    // Nearly inelastic glyph contacts prevent a crowded meter from endlessly
+    // passing momentum through the entire stack.
+    const impulse = relativeVelocity * -0.3;
+    first.vx -= impulse * normalX;
+    first.vy -= impulse * normalY;
+    second.vx += impulse * normalX;
+    second.vy += impulse * normalY;
+    first.angularVelocity *= 0.76;
+    second.angularVelocity *= 0.76;
   }
   handleTutorPatrolArrival(reachedIndex) {
   if (reachedIndex === TUTOR_PLAYER_APPROACH_INDEX) {
@@ -2018,6 +2252,8 @@ canTutorSeePlayer() {
 
   dispose() {
     this.audio.dispose();
+    this.suspicionParticles = [];
+    this.levelThreeHud = null;
     this.backgroundTexture?.dispose();
     this.zoomOverlay?.classList.remove("visible");
     if (this.zoomOverlay) {

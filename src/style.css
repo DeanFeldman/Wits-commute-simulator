@@ -80,7 +80,7 @@ body.level-2 #level2-vignette{opacity:1}
 #hud:empty { display: none; }
 #hud[data-variant="level1"] { width: min(250px, calc(100vw - 2rem)); }
 #hud[data-variant="level2"] { width: min(230px, calc(100vw - 2rem)); }
-#hud[data-variant="level3"] { width: min(255px, calc(100vw - 2rem)); }
+#hud[data-variant="level3"] { width: min(255px, calc(100vw - 2rem)); backdrop-filter: none; }
 
 #message {
   position: fixed;
@@ -1041,6 +1041,158 @@ body.level-2 #level2-vignette{opacity:1}
 .parking-checks span { padding: 0.3rem 0.25rem; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #87919f; font-size: 0.66rem; text-align: center; white-space: nowrap; }
 .parking-checks span.pass { border-color: rgba(111,213,154,0.45); color: #9ce4b9; background: rgba(111,213,154,0.08); }
 .hud-confirm { color: #ffcf8a; font-size: 0.72rem; font-weight: 800; text-align: center; }
+
+/* Level 3: the suspicion meter is a physical-looking exclamation vessel. */
+.l3-suspicion-vessel {
+  position: fixed;
+  right: clamp(1rem, 3vw, 2.4rem);
+  top: clamp(1rem, 3vh, 2rem);
+  transform: scale(1.5);
+  transform-origin: right top;
+  width: 126px;
+  height: 282px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  color: #f3f6fb;
+  font-family: "Pixelify Sans", monospace;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.36));
+  pointer-events: none;
+}
+
+.l3-suspicion-label {
+  margin-bottom: 5px;
+  color: #f6d8da;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-shadow: 2px 2px 0 #343944;
+  text-transform: uppercase;
+}
+
+.l3-suspicion-mark {
+  position: relative;
+  width: 104px;
+  height: 220px;
+}
+
+.l3-suspicion-mark::before {
+  position: absolute;
+  display: block;
+  content: "";
+  background: linear-gradient(90deg, #eff3f7 0 14%, #8f99a7 15% 28%, #414953 29% 70%, #aeb8c5 71% 86%, #f8fbff 87%);
+  clip-path: polygon(12% 0, 88% 0, 100% 8%, 86% 17%, 86% 82%, 67% 100%, 33% 100%, 14% 82%, 14% 17%, 0 8%);
+  box-shadow: inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.32);
+}
+
+.l3-suspicion-mark::before {
+  inset: 16px 8px 45px;
+}
+
+.l3-suspicion-mark::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 8px;
+  width: 88px;
+  height: 40px;
+  content: "";
+  background: linear-gradient(135deg, #fafdff 0 18%, #b8c0cb 19% 35%, #48515d 36% 68%, #9da8b5 69% 84%, #f9fbff 85%);
+  clip-path: polygon(20% 0, 80% 0, 100% 24%, 84% 100%, 16% 100%, 0 24%);
+  box-shadow: inset 0 7px 0 #202630, inset 0 12px 0 #11151b, inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.28);
+}
+
+.l3-suspicion-well {
+  position: absolute;
+  z-index: 1;
+  inset: 27px 27px 53px;
+  overflow: hidden;
+  background: linear-gradient(90deg, #202630, #11151b 50%, #303844);
+  clip-path: polygon(11% 0, 89% 0, 100% 6%, 84% 88%, 66% 100%, 34% 100%, 16% 88%, 0 6%);
+}
+
+.l3-suspicion-well::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, rgba(255,255,255,0.14), transparent 28%, transparent 70%, rgba(255,255,255,0.08));
+  pointer-events: none;
+}
+
+.l3-suspicion-dot {
+  position: absolute;
+  display: block;
+  content: "";
+  right: 25px;
+  bottom: 0;
+  width: 50px;
+  height: 42px;
+  background: linear-gradient(135deg, #fbfdff 0 19%, #9faab6 20% 36%, #444d58 37% 72%, #cbd3dc 73% 88%, #f9fbff 89%);
+  clip-path: polygon(18% 0, 82% 0, 100% 18%, 79% 100%, 21% 100%, 0 18%);
+  box-shadow: inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.28);
+}
+
+/* The supplied art is the visible vessel; the glyph chamber sits behind it. */
+.l3-suspicion-mark {
+  width: 146px;
+  height: 268px;
+  overflow: hidden;
+}
+
+.l3-suspicion-mark::before,
+.l3-suspicion-mark::after,
+.l3-suspicion-dot {
+  display: none;
+}
+
+.l3-suspicion-well {
+  z-index: 1;
+  inset: 33px auto auto 36px;
+  width: 50px;
+  height: 218px;
+  /* Upper vessel, connecting neck, and the lower exclamation dot. */
+  clip-path: polygon(15% 0, 85% 0, 100% 6%, 86% 62%, 67% 69%, 60% 75%, 84% 79%, 90% 83%, 90% 100%, 10% 100%, 10% 83%, 16% 79%, 40% 75%, 33% 69%, 14% 62%, 0 6%);
+}
+
+.l3-suspicion-art {
+  position: absolute;
+  z-index: 2;
+  top: -18px;
+  left: -165px;
+  width: 468px;
+  height: 312px;
+  max-width: none;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  user-select: none;
+}
+
+.l3-suspicion-particle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  display: grid;
+  place-items: center;
+  color: #ff5963;
+  font: 800 12px/1 "Pixelify Sans", monospace;
+  text-shadow: 1px 1px 0 #5d1018, 0 0 5px rgba(255, 61, 74, 0.5);
+  will-change: transform;
+}
+
+.l3-suspicion-value {
+  min-width: 3.6em;
+  margin-top: 2px;
+  padding: 0.1rem 0.38rem;
+  border: 2px solid #d8dfe8;
+  border-radius: 4px;
+  background: #252b34;
+  color: #ff7c84;
+  font: 800 0.9rem/1.2 "Pixelify Sans", monospace;
+  text-align: center;
+  text-shadow: 1px 1px 0 #5d1018;
+}
 
 #instruction-card { position: fixed; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgba(5, 8, 14, 0.58); z-index: 24; }
 #instruction-card[hidden] { display: none; }
