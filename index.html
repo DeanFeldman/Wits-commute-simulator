@@ -72,7 +72,7 @@
     </button>
     <aside id="level1-dev-menu" aria-label="Level 1 developer controls" hidden>
       <label for="level1-sky-zoom">Sky view zoom out <output id="level1-sky-zoom-value">1.05×</output></label>
-      <input id="level1-sky-zoom" type="range" min="0.7" max="2.5" step="0.05" value="1.05" />
+      <input id="level1-sky-zoom" type="range" min="0.7" max="4" step="0.05" value="1.05" />
       <button id="level1-north-reference-toggle" class="level1-reference-toggle" type="button" aria-pressed="false" hidden>
         North reference view
       </button>
@@ -86,6 +86,55 @@
         West reference view
       </button>
     </aside>
+    <button id="level2-dev-toggle" type="button" aria-expanded="false" hidden>
+      Dev
+    </button>
+    <aside id="level2-dev-menu" aria-label="Level 2 developer controls" hidden>
+      <button id="level2-map-toggle" type="button" aria-pressed="false">
+        Bird's-eye map
+      </button>
+      <button id="level2-walkable-toggle" type="button" aria-pressed="true">
+        Hide walkable area
+      </button>
+      <button id="level2-player-model-toggle" type="button">
+        Player model
+      </button>
+      <label for="level2-map-zoom">Map zoom <output id="level2-map-zoom-value">1.00×</output></label>
+      <input id="level2-map-zoom" type="range" min="0.55" max="2" step="0.05" value="1" />
+    </aside>
+
+    <section id="level2-character-select" hidden aria-label="Level 2 character selection" role="dialog" aria-modal="true" aria-labelledby="level2-character-select-title">
+      <div class="level2-select-scanlines" aria-hidden="true"></div>
+      <div class="level2-character-select-card">
+        <header class="level2-select-header">
+          <div>
+            <p class="level2-select-eyebrow">WITS CAMPUS CLASH</p>
+            <h2 id="level2-character-select-title">Choose your commuter</h2>
+          </div>
+          <span class="level2-select-round">LEVEL 02</span>
+        </header>
+        <div class="level2-select-layout">
+          <section class="level2-roster" aria-label="Character roster">
+            <p class="level2-select-instruction"><span>01</span> Select a fighter</p>
+            <div id="level2-character-options" class="level2-character-options"></div>
+            <p class="level2-select-equal-stats">Same speed · Same hitbox · Pure style</p>
+          </section>
+          <section class="level2-fighter-stage" aria-live="polite">
+            <div class="level2-stage-burst" aria-hidden="true"></div>
+            <canvas id="level2-character-preview" aria-label="Selected character preview"></canvas>
+            <div class="level2-fighter-identity">
+              <span id="level2-character-code">M-01</span>
+              <strong id="level2-character-name">Male1</strong>
+              <small>THE CAMPUS CONTENDER</small>
+            </div>
+          </section>
+        </div>
+        <footer class="level2-select-actions">
+          <button id="level2-character-select-close" class="level2-character-select-close" type="button">Back</button>
+          <button id="level2-character-confirm" class="level2-character-confirm" type="button"><span>Ready</span> Confirm fighter</button>
+        </footer>
+      </div>
+    </section>
 
     <main id="menu" aria-live="polite">
       <section class="menu-card" aria-labelledby="menu-title">

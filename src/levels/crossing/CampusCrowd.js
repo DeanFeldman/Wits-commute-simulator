@@ -9,8 +9,8 @@ import { PEDESTRIAN_SOLE_OFFSET, poseWalk, poseChase } from "./PedestrianFactory
 // they leave their spot and jog after the player with their hands up until
 // they either catch them (see updateChaser / CrossingLevel.handleChaseCatches)
 // or the player moves back out of range. Once caught and the quiz finishes,
-// CrossingLevel calls sendOff(), which has the NPC jog on past the player and
-// settle back into a normal walking pose (see updateLeaving) rather than
+// CrossingLevel calls sendOff(), which has the NPC walk on past the player
+// (see updateLeaving) rather than
 // freezing mid-chase. Each NPC's state lives on the person object, so the
 // two run independently of one another.
 const CHASE_KINDS = new Set(["psychQuizzer", "ccduAdvisor"]);
@@ -129,9 +129,10 @@ const OCCUPY_X = 0.6;
 const OCCUPY_Z = 0.95;
 
 export class CampusCrowd {
-  constructor({ root, factory, random, onSay = null }) {
+  constructor({ root, factory, animatedFactory = null, random, onSay = null }) {
     this.root = root;
     this.factory = factory;
+    this.animatedFactory = animatedFactory;
     this.random = random;
     this.onSay = onSay;
     this.people = [];
@@ -148,9 +149,11 @@ export class CampusCrowd {
   add(entry, index = this.people.length) {
     const pick = (list, salt) => list[(index * salt + Math.floor(this.random() * list.length)) % list.length];
     const kind = entry.kind;
-    const scale = kind === "robot" ? 0.9 : 0.92 + ((index * 7) % 5) * 0.03;
+    // Imported human variants are already normalized to the same height.
+    // Keep them at a uniform scale so model selection changes appearance only.
+    const scale = kind === "robot" ? 0.9 : 1;
     const robot = kind === "robot";
-    const mesh = this.factory.create({
+    const appearance = {
       shirt: robot ? 0xc7d0d6 : kind === "tutor" ? 0x2a2f3a : pick(SHIRTS, 3),
       trousers: robot ? 0x39454d : pick(TROUSERS, 5),
       skin: robot ? 0xaebbc4 : pick(SKINS, 7),
@@ -161,11 +164,15 @@ export class CampusCrowd {
       holding: robot ? null : entry.holding ?? (kind === "phone" ? "phone" : null),
       robot,
       scale
-    });
+    };
+    const mesh = robot || !this.animatedFactory
+      ? this.factory.create(appearance)
+      : this.animatedFactory.create({ variant: index, holding: appearance.holding, scale });
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
-    mesh.position.set(entry.x, entry.y ?? (0.19 + PEDESTRIAN_SOLE_OFFSET * scale + 0.025), z);
+    const soleOffset = mesh.userData.soleOffset ?? PEDESTRIAN_SOLE_OFFSET * scale;
+    mesh.position.set(entry.x, entry.y ?? (0.19 + soleOffset + 0.025), z);
     const yaw = walking ? (entry.toZ < entry.fromZ ? Math.PI : 0) : (entry.yaw ?? 0);
     mesh.rotation.y = yaw;
     this.root.add(mesh);
@@ -175,6 +182,7 @@ export class CampusCrowd {
       name: entry.name ?? (robot ? `Wits Bot ${index + 1}` : NAMES[index % NAMES.length]),
       mesh,
       rig: mesh.userData.rig,
+      animation: mesh.userData.animation ?? null,
       walking,
       x: entry.x,
       fromZ: entry.fromZ,
@@ -225,10 +233,10 @@ export class CampusCrowd {
 
     let droppedCup = null;
     let line;
-    const heldCup = person.rig.holding && person.rig.holding !== "phone" ? person.rig.holding : null;
-    if (heldCup && person.rig.heldItem.visible) {
+    const heldCup = person.rig?.holding && person.rig.holding !== "phone" ? person.rig.holding : null;
+    if (heldCup && person.rig.heldItem?.visible) {
       person.rig.heldItem.visible = false;
-      person.rig.arms[1].rotation.x = 0;
+      if (person.rig.arms) person.rig.arms[1].rotation.x = 0;
       person.rig.holding = null;
       droppedCup = heldCup;
       line = pickLine(CROWD_LINES.cupDrop, this.random);
@@ -246,7 +254,7 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
-  // After a survey, jog past the player, then become chaseable again.
+  // After a survey, walk past the player, then become chaseable again.
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
@@ -422,6 +430,14 @@ export class CampusCrowd {
   }
 
   animate(person, dt) {
+    if (person.animation) {
+      const moving = person.reactTimer === 0 && Boolean(person.moving || person.chasing || person.leaving);
+      const speed = person.chasing ? CHASE_SPEED : person.leaving ? LEAVE_SPEED : person.speed;
+      this.animatedFactory.setMoving(person.animation, moving, speed, person.chasing);
+      person.animation.mixer.update(dt);
+      return;
+    }
+
     const rig = person.rig;
 
     if (CHASE_KINDS.has(person.kind) && person.chasing) {
@@ -467,6 +483,14 @@ export class CampusCrowd {
     // Recoil leans the body back after a bump; reacting shakes the head.
     rig.upper.rotation.x = -0.28 * person.recoil;
     rig.head.rotation.y = person.reactTimer > 0.6 ? Math.sin(this.time * 18) * 0.25 : 0;
+  }
+
+  dispose() {
+    for (const person of this.people) {
+      if (!person.animation) continue;
+      person.animation.mixer.stopAllAction();
+      person.animation.mixer.uncacheRoot(person.mesh.children[0]);
+    }
   }
 }
 

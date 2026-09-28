@@ -259,3 +259,41 @@ test("a walker waits for the player instead of walking through them", () => {
   for (let frame = 0; frame < 300; frame++) crowd.update(1 / 60, player);
   assert.ok(walker.mesh.position.z < 0, "once the player steps aside the walker carries on");
 });
+
+test("survey NPCs run only while chasing and walk away after completion", () => {
+  const animation = { mixer: { update() {} } };
+  const animationStates = [];
+  const animatedFactory = {
+    create() {
+      const mesh = new THREE.Group();
+      mesh.userData.animation = animation;
+      mesh.userData.rig = {};
+      mesh.userData.soleOffset = 0;
+      return mesh;
+    },
+    setMoving(activeAnimation, moving, speed, running) {
+      assert.equal(activeAnimation, animation);
+      animationStates.push({ moving, speed, running });
+    }
+  };
+  const crowd = new CampusCrowd({
+    root: new THREE.Group(),
+    factory: new PedestrianFactory(),
+    animatedFactory,
+    random: () => 0
+  });
+  const person = crowd.add({ kind: "ccduAdvisor", x: 0, z: 0, yaw: 0 });
+  person.chasing = true;
+  person.chaseArmed = false;
+
+  crowd.animate(person, 1 / 60);
+  assert.equal(animationStates.at(-1).running, true, "the chase uses the run animation");
+
+  crowd.sendOff(person);
+  crowd.animate(person, 1 / 60);
+  assert.deepEqual(
+    { moving: animationStates.at(-1).moving, running: animationStates.at(-1).running },
+    { moving: true, running: false },
+    "the post-survey departure switches back to walking"
+  );
+});

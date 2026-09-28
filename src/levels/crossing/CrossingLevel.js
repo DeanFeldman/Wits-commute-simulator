@@ -10,6 +10,8 @@ import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
 import { PEDESTRIAN_SOLE_OFFSET, PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, CROWD_LINES, createCrowdPlan, pickLine, standingCells } from "./CampusCrowd.js";
+import { AnimatedNpcFactory, STUDENT_MODEL_VARIANTS } from "./AnimatedNpcFactory.js";
+import { attachBackpack, loadBackpackTemplate } from "./BackpackAsset.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
@@ -112,6 +114,45 @@ export class CrossingLevel {
     this.cameraPositionTarget = new THREE.Vector3();
     this.cameraLookTarget = new THREE.Vector3();
     this.cameraLookGoal = new THREE.Vector3();
+    this.chaseCamera = null;
+    this.mapCamera = null;
+    this.mapViewActive = false;
+    this.mapViewScale = 1;
+    this.walkableOverlayVisible = true;
+    this.walkableCellOverlay = null;
+    this.devToggle = null;
+    this.devMenu = null;
+    this.mapToggle = null;
+    this.walkableToggle = null;
+    this.mapZoomInput = null;
+    this.mapZoomValue = null;
+    this.playerModelToggle = null;
+    this.characterSelect = null;
+    this.characterOptions = null;
+    this.characterSelectClose = null;
+    this.characterConfirm = null;
+    this.characterPreviewCanvas = null;
+    this.characterName = null;
+    this.characterCode = null;
+    this.selectedPlayerVariant = null;
+    this.pendingPlayerVariant = 0;
+    this.playerModelCache = new Map();
+    this.playerModelStorage = null;
+    this.characterPreviewRenderer = null;
+    this.characterPreviewScene = null;
+    this.characterPreviewCamera = null;
+    this.characterPreviewVisual = null;
+    this.characterPreviewModels = new Map();
+    this.onDevToggle = this.toggleDevMenu.bind(this);
+    this.onMapToggle = this.toggleMapView.bind(this);
+    this.onWalkableToggle = this.toggleWalkableOverlay.bind(this);
+    this.onMapZoomInput = this.setMapZoom.bind(this);
+    this.onPlayerModelToggle = this.openCharacterSelect.bind(this);
+    this.onCharacterOptionClick = this.selectPlayerModel.bind(this);
+    this.onCharacterSelectClose = this.closeCharacterSelect.bind(this);
+    this.onCharacterConfirm = this.confirmPlayerModel.bind(this);
+    this.onCharacterSelectBackdrop = this.handleCharacterSelectBackdrop.bind(this);
+    this.onCharacterSelectKeydown = this.handleCharacterSelectKeydown.bind(this);
     this.playerCollisionBox = new THREE.Box3();
     this.vehicleCollisionBox = new THREE.Box3();
     this.walkwayMaterial = createAmicDeckMaterial();
@@ -198,6 +239,13 @@ export class CrossingLevel {
 
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
+    this.animatedNpcs = new AnimatedNpcFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
+    try {
+      await this.animatedNpcs.load();
+    } catch (error) {
+      console.warn("Animated Level 2 NPCs could not load; using procedural pedestrians.", error);
+      this.animatedNpcs = null;
+    }
     this.speech = new SpeechBubbles();
     this.quiz = new QuizOverlay();
     await this.createPlayer();
@@ -222,7 +270,9 @@ export class CrossingLevel {
     camera.position.set(this.player.position.x + 5.2, 6.5, this.player.position.z + 7.5);
     this.cameraLookTarget.set(this.player.position.x, 0.9, this.player.position.z - 3);
     camera.lookAt(this.cameraLookTarget);
-
+    this.chaseCamera = camera;
+    this.createMapCamera();
+    this.createWalkableCellOverlay();
     this.game.setCamera(camera);
 
     this.controls = this.game.input.registerBindings({
@@ -234,6 +284,7 @@ export class CrossingLevel {
     this.game.setMessage(
       "Collect every Vida cup and reach Engineering as fast as you can."
     );
+    this.setupDevControls();
   }
 
 
@@ -323,6 +374,7 @@ export class CrossingLevel {
     this.crowd = new CampusCrowd({
       root: this.root,
       factory: this.pedestrians,
+      animatedFactory: this.animatedNpcs,
       random: createSeededRandom(this.seed ^ 0x51ab1e),
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
@@ -344,6 +396,278 @@ export class CrossingLevel {
     this.cups.spawn(spots);
   }
 
+  createMapCamera() {
+    const centerZ = (this.startZ + this.finishZ) / 2;
+    this.mapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
+    this.mapCamera.position.set(0, 100, centerZ);
+    this.mapCamera.up.set(0, 0, -1);
+    this.mapCamera.lookAt(0, 0, centerZ);
+    this.updateMapCameraFrustum();
+  }
+
+  updateMapCameraFrustum() {
+    if (!this.mapCamera) return;
+    const aspect = window.innerWidth / window.innerHeight;
+    const routeDepth = this.startZ - this.finishZ + WALK_STEP * 3;
+    const routeWidth = this.gridSize * 2 + WALK_STEP * 3;
+    this.mapCamera.userData.viewHeight = this.mapViewScale * Math.max(routeDepth, routeWidth / aspect);
+  }
+
+  createWalkableCellOverlay() {
+    const cells = this.reachableCells();
+    const geometry = new THREE.PlaneGeometry(WALK_STEP * 0.9, WALK_STEP * 0.9);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xff1f1f,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const overlay = new THREE.InstancedMesh(geometry, material, cells.length);
+    const matrix = new THREE.Matrix4();
+    for (const [index, cell] of cells.entries()) {
+      const surfaceY = this.stripInside(cell.z)?.definition.type === "yale-road" ? 0.075 : 0.305;
+      matrix.makeRotationX(-Math.PI / 2);
+      matrix.setPosition(cell.x, surfaceY, cell.z);
+      overlay.setMatrixAt(index, matrix);
+    }
+    overlay.instanceMatrix.needsUpdate = true;
+    overlay.name = "level2-walkable-cell-overlay";
+    this.walkableCellOverlay = overlay;
+    this.root.add(overlay);
+  }
+
+  setupDevControls() {
+    this.devToggle = document.querySelector("#level2-dev-toggle");
+    this.devMenu = document.querySelector("#level2-dev-menu");
+    this.mapToggle = document.querySelector("#level2-map-toggle");
+    this.walkableToggle = document.querySelector("#level2-walkable-toggle");
+    this.mapZoomInput = document.querySelector("#level2-map-zoom");
+    this.mapZoomValue = document.querySelector("#level2-map-zoom-value");
+    this.playerModelToggle = document.querySelector("#level2-player-model-toggle");
+    this.characterSelect = document.querySelector("#level2-character-select");
+    this.characterOptions = document.querySelector("#level2-character-options");
+    this.characterSelectClose = document.querySelector("#level2-character-select-close");
+    this.characterConfirm = document.querySelector("#level2-character-confirm");
+    this.characterPreviewCanvas = document.querySelector("#level2-character-preview");
+    this.characterName = document.querySelector("#level2-character-name");
+    this.characterCode = document.querySelector("#level2-character-code");
+    this.devToggle.hidden = false;
+    this.mapZoomInput.value = String(this.mapViewScale);
+    this.mapZoomValue.value = `${this.mapViewScale.toFixed(2)}×`;
+    this.devToggle.addEventListener("click", this.onDevToggle);
+    this.mapToggle.addEventListener("click", this.onMapToggle);
+    this.walkableToggle.addEventListener("click", this.onWalkableToggle);
+    this.mapZoomInput.addEventListener("input", this.onMapZoomInput);
+    this.playerModelToggle.addEventListener("click", this.onPlayerModelToggle);
+    this.characterOptions.addEventListener("click", this.onCharacterOptionClick);
+    this.characterSelectClose.addEventListener("click", this.onCharacterSelectClose);
+    this.characterConfirm.addEventListener("click", this.onCharacterConfirm);
+    this.characterSelect.addEventListener("click", this.onCharacterSelectBackdrop);
+    document.addEventListener("keydown", this.onCharacterSelectKeydown);
+    this.renderCharacterOptions();
+  }
+
+  toggleDevMenu() {
+    const opening = this.devMenu.hidden;
+    this.devMenu.hidden = !opening;
+    this.devToggle.setAttribute("aria-expanded", String(opening));
+  }
+
+  setMapZoom(event) {
+    this.mapViewScale = Number(event.target.value);
+    this.mapZoomValue.value = `${this.mapViewScale.toFixed(2)}×`;
+    this.updateMapCameraFrustum();
+    if (this.mapViewActive) this.game.onResize();
+  }
+
+  toggleMapView() {
+    this.mapViewActive = !this.mapViewActive;
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.chaseCamera);
+    this.mapToggle.textContent = this.mapViewActive ? "Return to chase view" : "Bird's-eye map";
+    this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
+  }
+
+  toggleWalkableOverlay() {
+    this.walkableOverlayVisible = !this.walkableOverlayVisible;
+    this.walkableCellOverlay.visible = this.walkableOverlayVisible;
+    this.walkableToggle.textContent = this.walkableOverlayVisible ? "Hide walkable area" : "Show walkable area";
+    this.walkableToggle.setAttribute("aria-pressed", String(this.walkableOverlayVisible));
+  }
+
+  renderCharacterOptions() {
+    this.characterOptions.replaceChildren(...STUDENT_MODEL_VARIANTS.map((variant, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "level2-character-option";
+      button.dataset.variant = String(index);
+      button.dataset.number = String(index + 1).padStart(2, "0");
+      button.dataset.current = String(index === this.selectedPlayerVariant);
+      button.style.setProperty("--fighter-color", index < 3 ? "#147f83" : "#a72f5a");
+      button.innerHTML = `<span class="fighter-name">${variant.label}</span><span class="fighter-type">${index < 3 ? "Male student" : "Female student"}</span>`;
+      button.setAttribute("aria-label", `${variant.label}${index === this.selectedPlayerVariant ? ", current player" : ""}`);
+      button.setAttribute("aria-pressed", String(index === this.pendingPlayerVariant));
+      return button;
+    }));
+  }
+
+  openCharacterSelect() {
+    if (!this.animatedNpcs) {
+      this.game.setMessage("Animated student models are unavailable in this load.");
+      return;
+    }
+    this.devMenu.hidden = true;
+    this.devToggle.setAttribute("aria-expanded", "false");
+    this.characterSelect.hidden = false;
+    this.pendingPlayerVariant = this.selectedPlayerVariant ?? 0;
+    this.setupCharacterPreview();
+    this.showCharacterPreview(this.pendingPlayerVariant);
+    this.characterOptions.querySelector("button")?.focus();
+  }
+
+  closeCharacterSelect() {
+    if (!this.characterSelect || this.characterSelect.hidden) return;
+    this.characterSelect.hidden = true;
+    this.playerModelToggle?.focus();
+  }
+
+  handleCharacterSelectBackdrop(event) {
+    if (event.target === this.characterSelect) this.closeCharacterSelect();
+  }
+
+  handleCharacterSelectKeydown(event) {
+    if (this.characterSelect?.hidden) return;
+    if (event.key === "Escape") {
+      this.closeCharacterSelect();
+      return;
+    }
+    const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1
+      : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    const next = (this.pendingPlayerVariant + direction + STUDENT_MODEL_VARIANTS.length) % STUDENT_MODEL_VARIANTS.length;
+    this.showCharacterPreview(next);
+    this.characterOptions.querySelector(`[data-variant="${next}"]`)?.focus();
+  }
+
+  selectPlayerModel(event) {
+    const button = event.target.closest("[data-variant]");
+    if (!button || !this.characterOptions.contains(button)) return;
+    const variant = Number(button.dataset.variant);
+    if (!Number.isInteger(variant) || !STUDENT_MODEL_VARIANTS[variant]) return;
+    this.showCharacterPreview(variant);
+  }
+
+  confirmPlayerModel() {
+    this.applyPlayerModel(this.pendingPlayerVariant);
+    this.closeCharacterSelect();
+  }
+
+  setupCharacterPreview() {
+    if (this.characterPreviewRenderer) return;
+    const renderer = new THREE.WebGLRenderer({ canvas: this.characterPreviewCanvas, alpha: true, antialias: false });
+    renderer.setPixelRatio(1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.18;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(29, 1, 0.1, 20);
+    camera.position.set(0, 1.02, 4.35);
+    camera.lookAt(0, 0.9, 0);
+    scene.add(new THREE.HemisphereLight(0xe8fbff, 0x11262f, 3.1));
+    const key = new THREE.DirectionalLight(0xffe784, 5.2);
+    key.position.set(-2.5, 4, 3);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x35e0d1, 4.4);
+    rim.position.set(3, 2, -2);
+    scene.add(rim);
+    const platform = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.88, 1.08, 0.08, 8),
+      new THREE.MeshStandardMaterial({ color: 0x102b33, emissive: 0x0b5c61, emissiveIntensity: 0.7, roughness: 0.7 })
+    );
+    platform.position.y = -0.06;
+    scene.add(platform);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.85, 0.025, 4, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffd22d })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -0.005;
+    scene.add(ring);
+    this.characterPreviewRenderer = renderer;
+    this.characterPreviewScene = scene;
+    this.characterPreviewCamera = camera;
+  }
+
+  showCharacterPreview(variant) {
+    const definition = STUDENT_MODEL_VARIANTS[variant];
+    if (!definition || !this.characterPreviewScene) return;
+    if (this.characterPreviewVisual) this.characterPreviewScene.remove(this.characterPreviewVisual);
+    let visual = this.characterPreviewModels.get(variant);
+    if (!visual) {
+      visual = this.animatedNpcs.create({ variant });
+      visual.rotation.y = 0;
+      this.characterPreviewModels.set(variant, visual);
+    }
+    this.characterPreviewScene.add(visual);
+    const animation = visual.userData.animation;
+    animation.mixer.stopAllAction();
+    animation.selection.reset();
+    animation.selection.setLoop(THREE.LoopOnce, 1);
+    animation.selection.clampWhenFinished = true;
+    animation.selection.play();
+    animation.mixer.update(0);
+    this.characterPreviewVisual = visual;
+    this.pendingPlayerVariant = variant;
+    this.characterName.textContent = definition.label;
+    this.characterCode.textContent = `${variant < 3 ? "M" : "F"}-${String((variant % 3) + 1).padStart(2, "0")}`;
+    this.renderCharacterOptions();
+  }
+
+  updateCharacterPreview(dt) {
+    const visual = this.characterPreviewVisual;
+    if (!visual || !this.characterPreviewRenderer) return;
+    visual.userData.animation.mixer.update(dt);
+    const width = Math.max(1, this.characterPreviewCanvas.clientWidth);
+    const height = Math.max(1, this.characterPreviewCanvas.clientHeight);
+    const renderWidth = Math.max(1, Math.round(width * 0.62));
+    const renderHeight = Math.max(1, Math.round(height * 0.62));
+    if (this.characterPreviewCanvas.width !== renderWidth || this.characterPreviewCanvas.height !== renderHeight) {
+      this.characterPreviewRenderer.setSize(renderWidth, renderHeight, false);
+      this.characterPreviewCamera.aspect = width / height;
+      this.characterPreviewCamera.updateProjectionMatrix();
+    }
+    this.characterPreviewRenderer.render(this.characterPreviewScene, this.characterPreviewCamera);
+  }
+
+  applyPlayerModel(variant) {
+    if (variant === this.selectedPlayerVariant) return;
+    let visual = this.playerModelCache.get(variant);
+    if (!visual) {
+      visual = this.animatedNpcs.create({ variant });
+      // AnimatedNpcFactory grounds its visual at local Y=0. Level 2's stable
+      // player root retains the procedural sole offset used by grid movement.
+      visual.position.y = -PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
+      this.playerModelCache.set(variant, visual);
+    }
+
+    const previousVisual = this.player.children[0];
+    if (previousVisual && previousVisual !== visual) this.playerModelStorage.add(previousVisual);
+    this.player.add(visual);
+
+    this.playerMixer?.stopAllAction();
+    const animation = visual.userData.animation;
+    this.playerMixer = animation.mixer;
+    this.playerActions = { idle: animation.idle, running: animation.run };
+    this.activePlayerAction = this.playerActions.idle;
+    this.activePlayerAction.reset().play();
+    this.playerMixer.update(0);
+    this.playerRig = null;
+    this.selectedPlayerVariant = variant;
+    this.game.setMessage(`${STUDENT_MODEL_VARIANTS[variant].label} selected as the Level 2 player.`);
+  }
+
   async createPlayer() {
     try {
       await this.createAnimatedPlayer();
@@ -358,6 +682,10 @@ export class CrossingLevel {
     this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
     this.player.rotation.y = this.level2PlayerSpawn.rotationY;
     this.root.add(this.player);
+    this.playerModelStorage = new THREE.Group();
+    this.playerModelStorage.name = "level2-player-model-cache";
+    this.playerModelStorage.visible = false;
+    this.root.add(this.playerModelStorage);
     this.playerRig = this.player.userData.rig ?? null;
     this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
   }
@@ -365,11 +693,12 @@ export class CrossingLevel {
   async createAnimatedPlayer() {
     const loader = new FBXLoader();
     const textureLoader = new GLTFLoader();
-    const [model, idleSource, runningSource, texturedSource] = await Promise.all([
+    const [model, idleSource, runningSource, texturedSource, backpackTemplate] = await Promise.all([
       loader.loadAsync("./assets/models/level2-player/level2-player-rig.fbx"),
       loader.loadAsync("./assets/models/level2-player/injured-idle.fbx"),
       loader.loadAsync("./assets/models/level2-player/running.fbx"),
-      textureLoader.loadAsync("./assets/models/level2-player/student-model-textured.glb")
+      textureLoader.loadAsync("./assets/models/level2-player/student-model-textured.glb"),
+      loadBackpackTemplate()
     ]);
     const idleClip = idleSource.animations[0];
     const runningClip = runningSource.animations[0];
@@ -440,6 +769,7 @@ export class CrossingLevel {
 
     this.player = new THREE.Group();
     this.player.add(model);
+    this.player.userData.backpack = attachBackpack(model, backpackTemplate);
     this.playerMixer = new THREE.AnimationMixer(model);
     this.playerActions = {
       idle: this.playerMixer.clipAction(idleClip),
@@ -524,8 +854,12 @@ export class CrossingLevel {
 
     update(dt) {
     if (this.completed) return;
+    if (this.characterSelect && !this.characterSelect.hidden) {
+      this.updateCharacterPreview(dt);
+      return;
+    }
 
-    this.updateSurveyConversation(dt);
+    this.updateSurveyConversation?.(dt);
 
     if (this.quizPaused) {
       // A quiz doesn't stop the clock — only player input, movement, and
@@ -951,6 +1285,12 @@ checkFinish() {
   }
 
   updateCamera(dt) {
+    if (this.mapViewActive) {
+      const previousViewHeight = this.mapCamera.userData.viewHeight;
+      this.updateMapCameraFrustum();
+      if (this.mapCamera.userData.viewHeight !== previousViewHeight) this.game.onResize();
+      return;
+    }
     const camera = this.game.camera;
     const shake = this.cameraShakeTime > 0 ? (this.cameraShakeTime / 0.34) * this.cameraShakeStrength : 0;
     this.cameraShakeTime = Math.max(0, this.cameraShakeTime - dt);
@@ -978,7 +1318,35 @@ checkFinish() {
     this.controls?.dispose();
     this.speech?.dispose();
     this.quiz?.dispose();
+    this.crowd?.dispose();
+    this.devToggle?.removeEventListener("click", this.onDevToggle);
+    this.mapToggle?.removeEventListener("click", this.onMapToggle);
+    this.walkableToggle?.removeEventListener("click", this.onWalkableToggle);
+    this.mapZoomInput?.removeEventListener("input", this.onMapZoomInput);
+    this.playerModelToggle?.removeEventListener("click", this.onPlayerModelToggle);
+    this.characterOptions?.removeEventListener("click", this.onCharacterOptionClick);
+    this.characterSelectClose?.removeEventListener("click", this.onCharacterSelectClose);
+    this.characterConfirm?.removeEventListener("click", this.onCharacterConfirm);
+    this.characterSelect?.removeEventListener("click", this.onCharacterSelectBackdrop);
+    document.removeEventListener("keydown", this.onCharacterSelectKeydown);
+    if (this.devToggle) {
+      this.devToggle.hidden = true;
+      this.devToggle.setAttribute("aria-expanded", "false");
+    }
+    if (this.devMenu) this.devMenu.hidden = true;
+    if (this.characterSelect) this.characterSelect.hidden = true;
+    if (this.mapToggle) {
+      this.mapToggle.textContent = "Bird's-eye map";
+      this.mapToggle.setAttribute("aria-pressed", "false");
+    }
+    if (this.walkableToggle) {
+      this.walkableToggle.textContent = "Hide walkable area";
+      this.walkableToggle.setAttribute("aria-pressed", "true");
+    }
     this.playerMixer?.stopAllAction();
+    for (const visual of this.playerModelCache.values()) visual.userData.animation?.mixer.stopAllAction();
+    for (const visual of this.characterPreviewModels.values()) visual.userData.animation?.mixer.stopAllAction();
+    this.characterPreviewRenderer?.dispose();
     this.playerMixer?.uncacheRoot(this.player?.children[0]);
     disposeObject3D(this.root);
   }
