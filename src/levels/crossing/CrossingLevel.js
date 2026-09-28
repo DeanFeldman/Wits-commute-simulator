@@ -134,8 +134,10 @@ export class CrossingLevel {
     this.characterPreviewCanvas = null;
     this.characterName = null;
     this.characterCode = null;
-    this.selectedPlayerVariant = null;
-    this.pendingPlayerVariant = 0;
+    this.selectedPlayerVariant = Number.isInteger(this.game.selectedPlayerVariant)
+      ? this.game.selectedPlayerVariant
+      : 0;
+    this.pendingPlayerVariant = this.selectedPlayerVariant;
     this.playerModelCache = new Map();
     this.playerModelStorage = null;
     this.characterPreviewRenderer = null;
@@ -248,6 +250,10 @@ export class CrossingLevel {
     }
     this.speech = new SpeechBubbles();
     this.quiz = new QuizOverlay();
+    this.selectedPlayerVariant = Number.isInteger(this.game.selectedPlayerVariant)
+      ? this.game.selectedPlayerVariant
+      : this.selectedPlayerVariant ?? 0;
+    this.pendingPlayerVariant = this.selectedPlayerVariant;
     await this.createPlayer();
     const crowdPlan = this.createCrowd();
     this.createCups(crowdPlan);
@@ -445,6 +451,8 @@ export class CrossingLevel {
     this.mapZoomInput = document.querySelector("#level2-map-zoom");
     this.mapZoomValue = document.querySelector("#level2-map-zoom-value");
     this.playerModelToggle = document.querySelector("#level2-player-model-toggle");
+    // Character selection now belongs to the game start flow.
+    if (this.playerModelToggle) this.playerModelToggle.hidden = true;
     this.characterSelect = document.querySelector("#level2-character-select");
     this.characterOptions = document.querySelector("#level2-character-options");
     this.characterSelectClose = document.querySelector("#level2-character-select-close");

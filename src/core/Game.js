@@ -14,6 +14,7 @@ import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
   savePersonalBests,
@@ -207,6 +208,15 @@ export class Game {
     this.instructionElement.addEventListener("click", this.onInstructionClick);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
+    this.selectedPlayerVariant = 0;
+    this.characterSelectFlow = new CharacterSelectFlow({
+      onContinue: (variantIndex) => {
+        this.selectedPlayerVariant = variantIndex;
+        this.startJourney();
+      },
+      onBack: () => this.showMenu()
+    });
+
   
   
     
@@ -229,6 +239,7 @@ export class Game {
   }
 
   showMenu() {
+    this.characterSelectFlow?.hide();
     this.cancelTransition();
     this.uiAudio.startMusic("menu");
     this.uiAudio.setMusicEnabled(this.isMusicEnabled);
@@ -463,6 +474,17 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
+  }
+
+  showCharacterSelect() {
+    this.cancelTransition();
+    this.hideLevelIntro();
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
+    this.menuElement.hidden = true;
+    this.setHUD("");
+    this.setMessage("");
+    this.characterSelectFlow.show(this.selectedPlayerVariant);
   }
 
   startJourney() {
@@ -857,7 +879,7 @@ export class Game {
     if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
-      this.startJourney();
+      this.showCharacterSelect();
       return;
     }
 
