@@ -67,6 +67,9 @@ const PEEK_CAMERA_FOV = 30;
 const HOLOGRAM_FONT_FAMILY = "Pencil Pete";
 const HOLOGRAM_TEAR_STYLES = ["bottom", "both", "top", "bottom", "both", "bottom", "top"];
 const DESK_INTERACTION_DISTANCE = 5.25;
+const VISION_CONE_LENGTH = 5.5;
+const VISION_CONE_HALF_ANGLE = THREE.MathUtils.degToRad(32);
+const VISION_CONE_OPACITY = 0.075;
 // The replacement desk has a lower authored origin than the original prop.
 // Keep its work surface, papers, tablets, and interaction volumes together.
 const DESK_HEIGHT_ADJUSTMENT = 0.28;
@@ -206,6 +209,8 @@ this.patrolPoints = [
     this.tutorWalkPhase = 0;
     this.tutorWalkGrace = 0;
     this.seatedStudentMixers = [];
+    this.visionEyePosition = new THREE.Vector3();
+    this.visionCameraOffset = new THREE.Vector3();
 
     this.answerProgress = 0;
     this.suspicion = 0;
@@ -1337,11 +1342,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.tutorEye.add(this.spotlight);
     this.spotlight.target = this.visionTarget;
 
-    const coneLength = 5.5;
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(
-        Math.tan(THREE.MathUtils.degToRad(32)) * coneLength,
-        coneLength,
+        Math.tan(VISION_CONE_HALF_ANGLE) * VISION_CONE_LENGTH,
+        VISION_CONE_LENGTH,
         24,
         1,
         true
@@ -1349,13 +1353,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       new THREE.MeshBasicMaterial({
         color: 0xff8a8f,
         transparent: true,
-        opacity: 0.075,
+        opacity: VISION_CONE_OPACITY,
         depthWrite: false,
         side: THREE.DoubleSide
       })
     );
     cone.rotation.x = -Math.PI / 2;
-    cone.position.z = coneLength / 2;
+    cone.position.z = VISION_CONE_LENGTH / 2;
+    this.visionConeMaterial = cone.material;
     this.tutorEye.add(cone);
   }
 
@@ -1518,9 +1523,32 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.tutorEye.getWorldQuaternion(new THREE.Quaternion())
     );
 
-    this.visionTarget.position
-      .copy(this.tutorEye.getWorldPosition(new THREE.Vector3()))
-      .addScaledVector(headForward, 10);
+    const eyePosition = this.tutorEye.getWorldPosition(this.visionEyePosition);
+    this.visionTarget.position.copy(eyePosition).addScaledVector(headForward, 10);
+    this.updateVisionConeFade(eyePosition, headForward);
+  }
+
+  updateVisionConeFade(eyePosition, forward) {
+    this.visionCameraOffset.copy(this.camera.position).sub(eyePosition);
+    const forwardDistance = this.visionCameraOffset.dot(forward);
+    const lateralDistanceSq = Math.max(
+      0,
+      this.visionCameraOffset.lengthSq() - forwardDistance * forwardDistance
+    );
+    const coneRadius = Math.tan(VISION_CONE_HALF_ANGLE) * forwardDistance;
+    const cameraIsInsideCone =
+      forwardDistance > 0 &&
+      forwardDistance < VISION_CONE_LENGTH &&
+      lateralDistanceSq <= coneRadius * coneRadius;
+
+    let opacity = VISION_CONE_OPACITY;
+    if (cameraIsInsideCone) {
+      const progress = forwardDistance / VISION_CONE_LENGTH;
+      const nearFade = THREE.MathUtils.smoothstep(progress, 0.12, 0.32);
+      const farFade = 1 - THREE.MathUtils.smoothstep(progress, 0.5, 0.82);
+      opacity *= nearFade * farFade;
+    }
+    this.visionConeMaterial.opacity = opacity;
   }
 
   updateTutorAnimation(dt, isWalking) {
