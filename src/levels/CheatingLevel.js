@@ -13,13 +13,82 @@ import {
 } from "./crossing/PedestrianFactory.js";
 import {
   QUESTION_BANK,
-  buildRoundAnswers,
   normaliseAnswer,
   shuffle,
   validateQuestion
 } from "./cheatingQuestions.js";
 
 export const LEVEL_THREE_TIME_LIMIT = 100;
+
+export const LEVEL_THREE_DUMMY_WORDS = Object.freeze([
+  "banana",
+  "toaster",
+  "giraffe",
+  "shoelace",
+  "cupcake",
+  "penguin",
+  "toothbrush",
+  "marshmallow",
+  "wheelbarrow",
+  "pineapple",
+  "slipper",
+  "dinosaur",
+  "teapot",
+  "jellybean",
+  "umbrella",
+  "hamster",
+  "pancake",
+  "suitcase",
+  "cactus",
+  "meatball",
+  "trampoline",
+  "snowman",
+  "avocado",
+  "kangaroo",
+  "doorbell",
+  "muffin",
+  "lollipop",
+  "flamingo",
+  "popcorn",
+  "sock"
+]);
+
+export function buildVariedRoundAnswers(
+  questionData,
+  _baseAnswers,
+  roundIndex = 0
+) {
+  const correctAnswer = questionData?.correctAnswer;
+  if (!correctAnswer) {
+    return [];
+  }
+
+  const correctKey = normaliseAnswer(correctAnswer);
+  const distractorPool = LEVEL_THREE_DUMMY_WORDS.filter(
+    (answer) => normaliseAnswer(answer) !== correctKey
+  );
+
+  const distractorCount = 6;
+  if (distractorPool.length < distractorCount) {
+    throw new Error(
+      "Level 3 needs at least six obviously-wrong dummy answers."
+    );
+  }
+
+  // Rotate through a deliberately silly pool so every question gets
+  // different rubbish answers while the real answer remains easy to spot.
+  const start =
+    ((roundIndex + 1) * distractorCount) % distractorPool.length;
+  const distractors = [];
+
+  for (let offset = 0; distractors.length < distractorCount; offset += 1) {
+    distractors.push(
+      distractorPool[(start + offset) % distractorPool.length]
+    );
+  }
+
+  return shuffle([correctAnswer, ...distractors]);
+}
 
 export const LEVEL_THREE_BALANCE = Object.freeze({
   answerGainPerCorrectWord: 20,
@@ -1639,7 +1708,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       throw new Error("Level 3 needs at least five valid cheating questions.");
     }
 
-    const answers = buildRoundAnswers(this.activeQuestion);
+    const answers = buildVariedRoundAnswers(
+      this.activeQuestion,
+      null,
+      this.questionIndex - 1
+    );
+
     if (answers.length !== this.cheatDesks.length) {
       throw new Error("Level 3 question rounds need exactly seven unique answers.");
     }
