@@ -1196,7 +1196,7 @@ body.level-2 #level2-vignette{opacity:1}
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: #8bc0f2 url("/assets/images/ui/main-menu-background.png") center/100% auto no-repeat;
+  background: #8bc0f2 url("../assets/images/ui/main-menu-background.png") center/100% auto no-repeat;
   box-shadow: none;
 }
 
@@ -1387,7 +1387,7 @@ body.level-2 #level2-vignette{opacity:1}
       rgba(255,255,255,.35),
       rgba(255,255,255,.55)
     ),
-    url("/assets/images/ui/main-menu-background.png") center/cover no-repeat;
+    url("../assets/images/ui/main-menu-background.png") center/cover no-repeat;
 }
 
 /* Pixelify Sans is kept for the big display text - titles, buttons and the
@@ -1442,7 +1442,7 @@ body.level-2 #level2-vignette{opacity:1}
 #pause-menu {
   background:
     linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.55)),
-    url("/assets/images/ui/main-menu-background.png") center/cover no-repeat;
+    url("../assets/images/ui/main-menu-background.png") center/cover no-repeat;
 }
 
 #pause-menu .pause-card {
@@ -1758,7 +1758,7 @@ body.level-2 #level2-vignette{opacity:1}
   padding: clamp(12px, 2.4vw, 28px);
   background:
     linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.3)),
-    url("/assets/images/ui/main-menu-background.png") center/cover no-repeat;
+    url("../assets/images/ui/main-menu-background.png") center/cover no-repeat;
   image-rendering: pixelated;
   color: #243556;
 }
