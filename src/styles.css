@@ -68,7 +68,7 @@
       rgba(255,255,255,.45),
       rgba(255,255,255,.65)
     ),
-    url("/assets/images/ui/main-menu-background.png");
+    url("../assets/images/ui/main-menu-background.png");
   background-size: cover;
   background-position: center;
   image-rendering: pixelated;
