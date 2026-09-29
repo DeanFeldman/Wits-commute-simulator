@@ -172,6 +172,7 @@ export class Game {
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
+    this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
@@ -278,6 +279,7 @@ export class Game {
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuMusicAction.hidden = false;
     this.updateMenuMusicAction();
+    this.menuHomeAction.hidden = true;
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
@@ -322,11 +324,12 @@ export class Game {
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
-    this.menuCreditsAction.hidden = false;
-    this.menuCreditsAction.textContent = "Back to home";
-    this.menuCreditsAction.dataset.gameAction = "menu";
-    this.menuElement.classList.remove("menu-home");
     this.menuMusicAction.hidden = true;
+    this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Credits & licences";
+    this.menuCreditsAction.dataset.gameAction = "credits";
+    this.menuHomeAction.hidden = false;
+    this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
@@ -938,6 +941,7 @@ export class Game {
     `).join("");
     this.menuElement.classList.add("menu-credits");
     this.menuCreditsAction.hidden = true;
+    this.menuHomeAction.hidden = true;
     this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
