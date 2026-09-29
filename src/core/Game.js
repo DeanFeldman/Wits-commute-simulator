@@ -277,6 +277,7 @@ export class Game {
     this.menuCreditsAction.textContent = "Credits & licences";
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuMusicAction.hidden = false;
+    this.menuMusicAction.dataset.gameAction = "music";
     this.updateMenuMusicAction();
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
@@ -322,11 +323,13 @@ export class Game {
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
+    this.menuMusicAction.hidden = false;
+    this.menuMusicAction.textContent = "Credits & licences";
+    this.menuMusicAction.dataset.gameAction = "credits";
     this.menuCreditsAction.hidden = false;
     this.menuCreditsAction.textContent = "Back to home";
     this.menuCreditsAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
-    this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
