@@ -1629,8 +1629,11 @@ loadPotholeShark() {
   return new Promise(resolve => {
     if (potholeSharkModel) return resolve();
 
-    potholeSharkLoader.load("/assets/models/characters/wits-shark.glb", g => {
+    potholeSharkLoader.load("./assets/models/characters/wits-shark.glb", g => {
       potholeSharkModel = g.scene;
+      resolve();
+    }, undefined, error => {
+      console.warn("Pothole shark failed to load; continuing without it.", error);
       resolve();
     });
   });
