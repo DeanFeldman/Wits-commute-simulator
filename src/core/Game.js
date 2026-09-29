@@ -322,6 +322,9 @@ export class Game {
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
+    this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Back to home";
+    this.menuCreditsAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");
     this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
