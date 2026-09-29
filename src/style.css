@@ -1240,6 +1240,15 @@ body.level-2 #level2-vignette{opacity:1}
   background: #7be6df;
 }
 
+#menu.menu-home #menu-primary-action:disabled,
+#menu.menu-home #menu-primary-action:disabled:hover {
+  cursor: wait;
+  opacity: .72;
+  transform: none;
+  box-shadow: 8px 8px 0 #243556;
+  background: #a7d8d5;
+}
+
 /* Anchored top AND bottom with equal rows, so all three levels always fit
    inside the card no matter how short the window is. */
 #menu.menu-home #dev-level-select {

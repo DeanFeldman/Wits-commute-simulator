@@ -245,6 +245,18 @@ export class CharacterSelectFlow {
     this.previewScene.add(ring);
   }
 
+  preload() {
+    return this.ensureFactory();
+  }
+
+  get isReady() {
+    return this.factoryReady;
+  }
+
+  get didFail() {
+    return Boolean(this.factoryError);
+  }
+
   ensureFactory() {
     if (this.factoryPromise) return this.factoryPromise;
 
