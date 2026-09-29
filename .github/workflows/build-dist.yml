@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: deployment-latest
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,5 +27,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete deployment-latest -y --cleanup-tag || true
-          gh release create deployment-latest dist.zip --target "$GITHUB_SHA" --title "Latest deployment build" --notes "Automatically built from main."
+          gh release view deployment-latest >/dev/null 2>&1 || gh release create deployment-latest --target "$GITHUB_SHA" --title "Latest deployment build" --notes "Automatically built from main."
+          gh release upload deployment-latest dist.zip --clobber
+          gh release edit deployment-latest --target "$GITHUB_SHA" --notes "Automatically built from main at $GITHUB_SHA."
