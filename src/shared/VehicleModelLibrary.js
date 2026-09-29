@@ -20,8 +20,10 @@ const PLAYER_CAR_PROP_NAMES = new Set([
 // four wheel assemblies and one body assembly (or the body followed by wheels).
 // Keeping these definitions here lets Level 1 reuse one downloaded GLB while
 // still cloning only the selected vehicle, rather than the entire nine-car pack.
+// Collision dimensions hug the visible body rather than tyres or mirrors.
+// The modest inset keeps near-miss parking manoeuvres from feeling unfair.
 export const PARKING_CAR_SPECS = Object.freeze([
-  { id: "pack-compact", name: "Compact", packBodyChild: 4, packRootChildren: [0, 1, 2, 3, 4], collider: [2.0, 1.55, 4.5] },
+  { id: "pack-compact", name: "Compact", packBodyChild: 4, packRootChildren: [0, 1, 2, 3, 4], collider: [1.86, 1.45, 4.1], hitboxBevel: 0.3 },
   {
     id: "pack-coupe",
     name: "Coupe",
@@ -30,16 +32,20 @@ export const PARKING_CAR_SPECS = Object.freeze([
     // Its mesh geometry is baked 17.657 degrees off the node's local X axis.
     packHeadingOffset: -THREE.MathUtils.degToRad(17.657),
     packRootChildren: [5, 6, 7, 8, 9],
-    collider: [2.05, 1.45, 4.5]
+    collider: [1.91, 1.35, 4.1],
+    hitboxBevel: 0.36
   },
-  { id: "pack-hatchback", name: "Hatchback", packBodyChild: 10, packRootChildren: [10, 11, 12, 13, 14], collider: [2.0, 1.65, 4.5] },
-  { id: "pack-minivan", name: "Minivan", packBodyChild: 16, packRootChildren: [15, 16, 17, 18, 19], collider: [2.1, 1.9, 4.5] },
-  { id: "pack-offroad", name: "Off-road", packBodyChild: 21, packRootChildren: [20, 21, 22, 23, 24], collider: [2.15, 1.85, 4.5] },
-  { id: "pack-pickup", name: "Pickup", packBodyChild: 26, packRootChildren: [25, 26, 27, 28, 29], collider: [2.15, 1.85, 4.5] },
-  { id: "pack-sedan", name: "Sedan", packBodyChild: 30, packRootChildren: [30, 31, 32, 33, 34], collider: [2.05, 1.55, 4.5] },
-  { id: "pack-sport", name: "Sport", packBodyChild: 39, packRootChildren: [35, 36, 37, 38, 39], collider: [2.05, 1.35, 4.5] },
-  { id: "pack-suv", name: "SUV", packBodyChild: 41, packRootChildren: [40, 41, 42, 43, 44], collider: [2.15, 1.9, 4.5] },
-  { id: "pack-wagon", name: "Wagon", packBodyChild: 45, packRootChildren: [45, 46, 47, 48, 49], collider: [2.05, 1.65, 4.5] }
+  { id: "pack-hatchback", name: "Hatchback", packBodyChild: 10, packRootChildren: [10, 11, 12, 13, 14], collider: [1.88, 1.55, 4.12], hitboxBevel: 0.32 },
+  { id: "pack-minivan", name: "Minivan", packBodyChild: 16, packRootChildren: [15, 16, 17, 18, 19], collider: [1.96, 1.82, 4.12], hitboxBevel: 0.24 },
+  { id: "pack-offroad", name: "Off-road", packBodyChild: 21, packRootChildren: [20, 21, 22, 23, 24], collider: [1.98, 1.78, 4.12], hitboxBevel: 0.26 },
+  // Pickups are intentionally a little larger than passenger cars: their
+  // high bonnet, bed and wider arches remain meaningful parking obstacles.
+  { id: "pack-pickup", name: "Pickup", packBodyChild: 26, packRootChildren: [25, 26, 27, 28, 29], collider: [2.12, 1.85, 4.35], hitboxBevel: 0.2 },
+  { id: "pack-sedan", name: "Sedan", packBodyChild: 30, packRootChildren: [30, 31, 32, 33, 34], collider: [1.91, 1.45, 4.12], hitboxBevel: 0.34 },
+  { id: "pack-sport", name: "Sport", packBodyChild: 39, packRootChildren: [35, 36, 37, 38, 39], collider: [1.88, 1.25, 4.1], hitboxBevel: 0.42 },
+  { id: "pack-suv", name: "SUV", packBodyChild: 41, packRootChildren: [40, 41, 42, 43, 44], collider: [2.0, 1.82, 4.12], hitboxBevel: 0.3 },
+  // The long rear cargo section needs more coverage than a sedan profile.
+  { id: "pack-wagon", name: "Wagon", packBodyChild: 45, packRootChildren: [45, 46, 47, 48, 49], collider: [1.92, 1.55, 4.28], hitboxBevel: 0.32 }
 ].map((spec) => Object.freeze({ ...spec, packRootChildren: Object.freeze(spec.packRootChildren) })));
 
 export const CAR_SPECS = Object.freeze([

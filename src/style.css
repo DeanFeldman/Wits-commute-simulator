@@ -170,6 +170,26 @@ body.level-2 #level2-vignette{opacity:1}
   margin-top: 0.6rem;
 }
 
+#level1-dev-menu button {
+  width: 100%;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(53, 224, 209, 0.65);
+  border-radius: 6px;
+  background: rgba(5, 8, 14, 0.72);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+#level1-dev-menu button:hover,
+#level1-dev-menu button:focus-visible,
+#level1-dev-menu button[aria-pressed="true"] {
+  background: #35e0d1;
+  color: #071111;
+}
+
 #level2-dev-toggle {
   position: fixed;
   top: 4.5rem;
