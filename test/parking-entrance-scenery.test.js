@@ -11,6 +11,7 @@ import {
   generateLevelOnePotholes,
   getPotholeImpact,
   isPointInsideLevelOneLot,
+  isPotholeClearOfParkingPaint,
   parkingBayKey,
   pickFreeParkingBays
 } from "../src/levels/ParkingLevel.js";
@@ -231,6 +232,10 @@ test("potholes are generated on drivable asphalt with fair spacing and clearance
     assert.ok(isPointInsideLevelOneLot(pothole.x, pothole.z), "pothole centre stays inside the lot outline");
     assert.ok(pothole.radius >= layout.potholeRadiusMin);
     assert.ok(pothole.radius <= layout.potholeRadiusMax);
+    assert.ok(
+      isPotholeClearOfParkingPaint(pothole, spaces),
+      "potholes do not damage parking-bay paint"
+    );
 
     assert.ok(
       Math.hypot(pothole.x - layout.playerSpawn.x, pothole.z - layout.playerSpawn.z) >=

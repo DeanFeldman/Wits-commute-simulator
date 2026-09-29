@@ -5,8 +5,10 @@ import {
   LEVEL_ONE_DAMAGE,
   applyLevelOneDamage,
   getLevelOneCollisionDamage,
+  largeCarsFaceEachOther,
   parkingAxisAngleError
 } from "../src/levels/ParkingLevel.js";
+import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 
 const degrees = (value) => value * Math.PI / 180;
 
@@ -89,4 +91,15 @@ test("condition damage never drops below zero", () => {
     applyLevelOneDamage(5, "parked-car"),
     0
   );
+});
+
+test("large vehicles are recognised when they face each other across an aisle", () => {
+  const pickup = PARKING_CAR_SPECS.find((spec) => spec.id === "pack-pickup");
+  const suv = PARKING_CAR_SPECS.find((spec) => spec.id === "pack-suv");
+  const sedan = PARKING_CAR_SPECS.find((spec) => spec.id === "pack-sedan");
+  const eastFacing = { spec: pickup, x: -5, z: 0, angle: -Math.PI / 2 };
+  const westFacing = { spec: suv, x: 5, z: 0, angle: Math.PI / 2 };
+
+  assert.equal(largeCarsFaceEachOther(eastFacing, westFacing), true);
+  assert.equal(largeCarsFaceEachOther({ ...eastFacing, spec: sedan }, westFacing), false);
 });

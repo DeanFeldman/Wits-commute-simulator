@@ -697,7 +697,15 @@ export function createNorthDiorama({ loadVegetation = true } = {}) {
   const materials = {
     asphalt: standardMaterial(PALETTE.asphalt, 0.98),
     metal: standardMaterial(PALETTE.metal, 0.58, { metalness: 0.55 }),
-    paint: new THREE.MeshBasicMaterial({ color: PALETTE.parkingPaint }),
+    // The distant parking lines sit close to the asphalt. Bias them slightly
+    // toward the camera so depth-buffer precision cannot make them shimmer
+    // while the player drives past the M1 cutting.
+    paint: new THREE.MeshBasicMaterial({
+      color: PALETTE.parkingPaint,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
+    }),
     campusStone: standardMaterial(PALETTE.campusStone, 0.9),
     darkConcrete: standardMaterial(PALETTE.campusShadow, 0.93),
     roof: standardMaterial(PALETTE.roof, 0.72, { metalness: 0.16 }),

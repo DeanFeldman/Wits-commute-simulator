@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clamp } from "../shared/math.js";
 import { VehicleController } from "../shared/VehicleController.js";
-import { CollisionWorld } from "../shared/CollisionWorld.js";
+import { CollisionWorld, createColliderDebugGeometry } from "../shared/CollisionWorld.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import {
   ROAD_TILE_METRES,
@@ -30,6 +30,7 @@ import {
 import {
   attachPlayerCarModel,
   createSeededRandom,
+  PARKING_CAR_SPECS,
   pickRandomParkingCar
 } from "../shared/VehicleModelLibrary.js";
 import {
@@ -48,8 +49,63 @@ const POTHOLE_WATER_DEPTH_RATIO = 0.42;
 
 const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
+const PLAYER_CAR_COLLIDER_SIZE = [2.1, 1.1, 4];
+const PLAYER_CAR_HITBOX_BEVEL = 0.35;
+const LARGE_PARKING_CAR_IDS = new Set([
+  "pack-minivan",
+  "pack-offroad",
+  "pack-pickup",
+  "pack-suv"
+]);
+const SMALL_PARKING_CAR_SPECS = PARKING_CAR_SPECS.filter(
+  (spec) => !LARGE_PARKING_CAR_IDS.has(spec.id)
+);
 const potholeSharkLoader = new GLTFLoader();
 let potholeSharkModel = null;
+
+export function getCompoundVehicleHitboxes([width, height, length], bevel = 0) {
+  const bodyHeight = height * 0.55;
+  const cabinHeight = height - bodyHeight;
+
+  return [
+    {
+      localY: bodyHeight / 2,
+      size: [width, bodyHeight, length],
+      bevel
+    },
+    {
+      localY: bodyHeight + cabinHeight / 2,
+      size: [width * 0.78, cabinHeight, length * 0.58],
+      bevel: Math.min(bevel * 0.75, width * 0.39, length * 0.29)
+    }
+  ];
+}
+
+function isLargeParkingCar(spec) {
+  return LARGE_PARKING_CAR_IDS.has(spec.id);
+}
+
+export function largeCarsFaceEachOther(candidate, parkedCar) {
+  if (!isLargeParkingCar(candidate.spec) || !isLargeParkingCar(parkedCar.spec)) {
+    return false;
+  }
+
+  const dx = parkedCar.x - candidate.x;
+  const dz = parkedCar.z - candidate.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < 0.001 || distance > 12) return false;
+
+  const towardParkedX = dx / distance;
+  const towardParkedZ = dz / distance;
+  const candidateForwardX = -Math.sin(candidate.angle);
+  const candidateForwardZ = -Math.cos(candidate.angle);
+  const parkedForwardX = -Math.sin(parkedCar.angle);
+  const parkedForwardZ = -Math.cos(parkedCar.angle);
+  const candidateFacing = candidateForwardX * towardParkedX + candidateForwardZ * towardParkedZ;
+  const parkedFacing = parkedForwardX * -towardParkedX + parkedForwardZ * -towardParkedZ;
+
+  return candidateFacing > 0.8 && parkedFacing > 0.8;
+}
 
 export { PARKING_AISLE_WIDTH, PARKING_BAY_LENGTH, PARKING_BAY_WIDTH, PARKING_LINE_WIDTH };
 
@@ -926,6 +982,44 @@ export function isPointInsideLevelOneLot(x, z, outline = PARKING_LAYOUT.mainLot.
   return inside;
 }
 
+function pointToParkingLineDistance(x, z, x0, z0, x1, z1) {
+  const dx = x1 - x0;
+  const dz = z1 - z0;
+  const lengthSquared = dx * dx + dz * dz;
+  const progress = lengthSquared === 0
+    ? 0
+    : THREE.MathUtils.clamp(((x - x0) * dx + (z - z0) * dz) / lengthSquared, 0, 1);
+  return Math.hypot(x - (x0 + dx * progress), z - (z0 + dz * progress));
+}
+
+// Potholes deform the asphalt past their nominal radius, so their painted-line
+// exclusion zone includes the irregular outer lip as well as the line width.
+export function isPotholeClearOfParkingPaint(
+  pothole,
+  spaces = getLevelOneParkingSpaces(),
+  clearance = 0.18
+) {
+  const exclusionRadius = pothole.radius * 1.16 + PARKING_LINE_WIDTH / 2 + clearance;
+
+  return spaces.every((space) => {
+    const dx = pothole.x - space.x;
+    const dz = pothole.z - space.z;
+    const cosine = Math.cos(space.angle);
+    const sine = Math.sin(space.angle);
+    const localX = cosine * dx - sine * dz;
+    const localZ = sine * dx + cosine * dz;
+    const halfWidth = PARKING_BAY_WIDTH / 2;
+    const halfLength = PARKING_BAY_LENGTH / 2;
+    const nearestLine = Math.min(
+      pointToParkingLineDistance(localX, localZ, -halfWidth, -halfLength, -halfWidth, halfLength),
+      pointToParkingLineDistance(localX, localZ, halfWidth, -halfLength, halfWidth, halfLength),
+      pointToParkingLineDistance(localX, localZ, -halfWidth, -halfLength, halfWidth, -halfLength),
+      pointToParkingLineDistance(localX, localZ, -halfWidth, halfLength, halfWidth, halfLength)
+    );
+    return nearestLine >= exclusionRadius;
+  });
+}
+
 function levelOnePotholeRegions(layout = LEVEL_ONE_PARKING_LAYOUT) {
   const radiusMargin = layout.potholeRadiusMax + 0.2;
   const mouthInset = 2.25;
@@ -1011,6 +1105,7 @@ export function generateLevelOnePotholes({
   const fallbackCandidates = [];
   const maxAttempts = Math.max(1200, count * 220);
   const entrancePoints = [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit];
+  const parkingSpaces = getLevelOneParkingSpaces();
 
   const clearOf = (candidate, point, clearance) =>
     Math.hypot(candidate.x - point.x, candidate.z - point.z) >= clearance + candidate.radius;
@@ -1020,6 +1115,7 @@ export function generateLevelOnePotholes({
     if (!clearOf(candidate, layout.playerSpawn, layout.potholeSpawnClearance)) return false;
     if (entrancePoints.some((point) => !clearOf(candidate, point, layout.potholeEntranceClearance))) return false;
     if (freeBays.some((bay) => !clearOf(candidate, bay, layout.potholeFreeBayClearance))) return false;
+    if (!isPotholeClearOfParkingPaint(candidate, parkingSpaces)) return false;
     return true;
   };
 
@@ -1207,6 +1303,10 @@ export class ParkingLevel {
     this.devMenu = null;
     this.skyZoomInput = null;
     this.skyZoomValue = null;
+    this.vehicleHitboxesToggle = null;
+    this.vehicleHitboxesVisible = false;
+    this.playerCollisionVolumes = [];
+    this.vehicleHitboxHelpers = [];
     this.northReferenceToggle = null;
     this.eastReferenceToggle = null;
     this.southReferenceToggle = null;
@@ -1217,6 +1317,7 @@ export class ParkingLevel {
     this.onViewToggle = this.toggleSkyView.bind(this);
     this.onDevToggle = this.toggleDevMenu.bind(this);
     this.onSkyZoomInput = this.setSkyZoom.bind(this);
+    this.onVehicleHitboxesToggle = this.toggleVehicleHitboxes.bind(this);
     this.onNorthReferenceToggle = this.toggleNorthReferenceView.bind(this);
     this.onEastReferenceToggle = this.toggleEastReferenceView.bind(this);
     this.onSouthReferenceToggle = this.toggleSouthReferenceView.bind(this);
@@ -1340,6 +1441,7 @@ async load() {
 
 
   this.collisionWorld.rebuild();
+  this.createVehicleHitboxHelpers();
 
   const camera = new THREE.PerspectiveCamera(
     58,
@@ -1434,6 +1536,7 @@ async load() {
   this.devMenu = document.querySelector("#level1-dev-menu");
   this.skyZoomInput = document.querySelector("#level1-sky-zoom");
   this.skyZoomValue = document.querySelector("#level1-sky-zoom-value");
+  this.vehicleHitboxesToggle = document.querySelector("#level1-vehicle-hitboxes-toggle");
   this.northReferenceToggle = document.querySelector("#level1-north-reference-toggle");
   this.eastReferenceToggle = document.querySelector("#level1-east-reference-toggle");
   this.southReferenceToggle = document.querySelector("#level1-south-reference-toggle");
@@ -1443,6 +1546,7 @@ async load() {
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
   this.devToggle.addEventListener("click", this.onDevToggle);
   this.skyZoomInput.addEventListener("input", this.onSkyZoomInput);
+  this.vehicleHitboxesToggle?.addEventListener("click", this.onVehicleHitboxesToggle);
   if (this.northReferenceToggle) {
     this.northReferenceToggle.hidden = !import.meta.env.DEV;
     this.northReferenceToggle.addEventListener("click", this.onNorthReferenceToggle);
@@ -1690,19 +1794,28 @@ createParkingSurface(potholes = []) {
       // Every vehicle in the pack is modelled at its own heading. The loader
       // normalises each one to a 4.2 m length, grounds it and turns it to +Z
       // forward, so a bay only has to supply its own rotation here.
-      const spec = pickRandomParkingCar(random);
+      let spec = pickRandomParkingCar(random);
+      const candidate = { spec, x: space.x, z: space.z, angle: space.angle };
+
+      // Two high, long vehicles nose-to-nose make a drive aisle look blocked.
+      // Swap the later car for a passenger vehicle; normal cars may still use
+      // opposing bays, so the lot remains visually dense.
+      if (placements.some((parkedCar) => largeCarsFaceEachOther(candidate, parkedCar))) {
+        spec = SMALL_PARKING_CAR_SPECS[
+          Math.floor(random() * SMALL_PARKING_CAR_SPECS.length)
+        ];
+      }
       placements.push({ spec, x: space.x, z: space.z, angle: space.angle });
 
-      const [colliderWidth, colliderHeight, colliderLength] = spec.collider;
-      const collider = new THREE.Object3D();
-      collider.position.set(space.x, colliderHeight / 2, space.z);
-      collider.rotation.y = space.angle;
-      this.root.add(collider);
-      this.collisionWorld.add({
-        object: collider,
-        size: [colliderWidth, colliderHeight, colliderLength],
+      this.createVehicleCollisionVolumes({
+        x: space.x,
+        z: space.z,
+        angle: space.angle,
+        size: spec.collider,
+        bevel: spec.hitboxBevel,
+        tag: "parked-car",
         color: 0xff6b6b,
-        tag: "parked-car"
+        addToCollisionWorld: true
       });
     }
 
@@ -1714,6 +1827,108 @@ createParkingSurface(potholes = []) {
       .catch((error) => {
         console.warn("Parked car models could not be loaded.", error);
       });
+  }
+
+  createVehicleCollisionVolumes({
+    x,
+    z,
+    angle,
+    size,
+    bevel,
+    tag,
+    color,
+    addToCollisionWorld
+  }) {
+    return getCompoundVehicleHitboxes(size, bevel).map(({ localY, size: volumeSize, bevel: volumeBevel }) => {
+      const object = new THREE.Object3D();
+      object.position.set(x, localY, z);
+      object.rotation.y = angle;
+      this.root.add(object);
+
+      if (addToCollisionWorld) {
+        this.collisionWorld.add({
+          object,
+          size: volumeSize,
+          color,
+          tag,
+          bevel: volumeBevel
+        });
+      }
+
+      return { object, localY, size: volumeSize, bevel: volumeBevel, tag, color };
+    });
+  }
+
+  createPlayerCollisionVolumes() {
+    const spawn = LEVEL_ONE_PARKING_LAYOUT.playerSpawn;
+    this.playerCollisionVolumes = this.createVehicleCollisionVolumes({
+      x: spawn.x,
+      z: spawn.z,
+      angle: spawn.angle,
+      size: PLAYER_CAR_COLLIDER_SIZE,
+      bevel: PLAYER_CAR_HITBOX_BEVEL,
+      tag: "player-car",
+      color: 0x35e0d1,
+      addToCollisionWorld: false
+    });
+  }
+
+  syncPlayerCollisionVolumes() {
+    for (const volume of this.playerCollisionVolumes) {
+      volume.object.position.set(
+        this.car.position.x,
+        this.car.position.y + volume.localY,
+        this.car.position.z
+      );
+      volume.object.rotation.y = this.car.rotation.y;
+    }
+  }
+
+  createVehicleHitboxHelpers() {
+    const geometryCache = new Map();
+    const getGeometry = (size, bevel) => {
+      const key = `${size.join(":")}:${bevel}`;
+      if (!geometryCache.has(key)) {
+        geometryCache.set(key, createColliderDebugGeometry(new THREE.Vector3(...size), bevel));
+      }
+      return geometryCache.get(key);
+    };
+    const parkedCarMaterial = new THREE.LineBasicMaterial({
+      color: 0xff6b6b,
+      transparent: true,
+      opacity: 0.75,
+      depthTest: false
+    });
+    const playerCarMaterial = new THREE.LineBasicMaterial({
+      color: 0x35e0d1,
+      transparent: true,
+      opacity: 0.85,
+      depthTest: false
+    });
+
+    for (const collider of this.collisionWorld.colliders) {
+      if (collider.tag !== "parked-car") continue;
+
+      const helper = new THREE.LineSegments(
+        getGeometry(collider.size.toArray(), collider.bevel),
+        parkedCarMaterial
+      );
+      helper.renderOrder = 1;
+      helper.visible = false;
+      collider.object.add(helper);
+      this.vehicleHitboxHelpers.push(helper);
+    }
+
+    for (const volume of this.playerCollisionVolumes) {
+      const helper = new THREE.LineSegments(
+        getGeometry(volume.size, volume.bevel),
+        playerCarMaterial
+      );
+      helper.renderOrder = 1;
+      helper.visible = false;
+      volume.object.add(helper);
+      this.vehicleHitboxHelpers.push(helper);
+    }
   }
 
   createPotholes() {
@@ -1975,6 +2190,7 @@ createParkingSurface(potholes = []) {
     this.car = carRoot;
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
+    this.createPlayerCollisionVolumes();
     return modelReady.then((model) => {
       // Start the recorded idle loop only once the player car is visible.
       // This level is entered from a user interaction, so playback can begin
@@ -2107,11 +2323,17 @@ this.car.position.z = clamp(
   44.5
 );
 
-const hit = this.collisionWorld.firstHit(
-  this.car,
-  [2.1, 1.1, 4],
-  (collider) => collider.tag !== "pothole"
-);
+this.syncPlayerCollisionVolumes();
+let hit = null;
+for (const volume of this.playerCollisionVolumes) {
+  hit = this.collisionWorld.firstHit(
+    volume.object,
+    volume.size,
+    (collider) => collider.tag !== "pothole",
+    volume.bevel
+  );
+  if (hit) break;
+}
 
 if (hit) {
   // Read the speed before revertToSafePose() stops the vehicle.
@@ -3233,6 +3455,17 @@ if (hit) {
       this.potholePitch;
   }
 
+  toggleVehicleHitboxes() {
+    this.vehicleHitboxesVisible = !this.vehicleHitboxesVisible;
+    for (const helper of this.vehicleHitboxHelpers) {
+      helper.visible = this.vehicleHitboxesVisible;
+    }
+    this.vehicleHitboxesToggle.textContent = this.vehicleHitboxesVisible
+      ? "Hide vehicle hitboxes"
+      : "Show vehicle hitboxes";
+    this.vehicleHitboxesToggle.setAttribute("aria-pressed", String(this.vehicleHitboxesVisible));
+  }
+
   toggleCollisionDebug(visible) {
     this.collisionWorld.setDebugVisible(visible);
   }
@@ -3369,6 +3602,7 @@ if (hit) {
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
     this.devToggle?.removeEventListener("click", this.onDevToggle);
     this.skyZoomInput?.removeEventListener("input", this.onSkyZoomInput);
+    this.vehicleHitboxesToggle?.removeEventListener("click", this.onVehicleHitboxesToggle);
     this.northReferenceToggle?.removeEventListener("click", this.onNorthReferenceToggle);
     this.eastReferenceToggle?.removeEventListener("click", this.onEastReferenceToggle);
     this.southReferenceToggle?.removeEventListener("click", this.onSouthReferenceToggle);
@@ -3383,6 +3617,10 @@ if (hit) {
       this.devToggle.setAttribute("aria-expanded", "false");
     }
     if (this.devMenu) this.devMenu.hidden = true;
+    if (this.vehicleHitboxesToggle) {
+      this.vehicleHitboxesToggle.textContent = "Show vehicle hitboxes";
+      this.vehicleHitboxesToggle.setAttribute("aria-pressed", "false");
+    }
     if (this.northReferenceToggle) {
       this.northReferenceToggle.hidden = true;
       this.northReferenceToggle.textContent = "North reference view";

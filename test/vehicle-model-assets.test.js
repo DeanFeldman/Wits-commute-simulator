@@ -31,6 +31,13 @@ test("the shared Level 1 parking pack contains all ten complete vehicle groups",
   }
 });
 
+test("each parked-car variant has a tight beveled collision profile", () => {
+  for (const spec of PARKING_CAR_SPECS) {
+    assert.ok(spec.hitboxBevel > 0, `${spec.id} has rounded-off collision corners`);
+    assert.ok(spec.collider[2] <= 4.35, `${spec.id} stays close to the normalised 4.2 m model length`);
+  }
+});
+
 test("vehicle hierarchy cloning preserves nested wheel and body transforms", () => {
   const prototype = new THREE.Group();
   const body = new THREE.Group();

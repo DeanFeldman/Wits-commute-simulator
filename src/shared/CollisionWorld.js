@@ -1,5 +1,57 @@
 import * as THREE from "three";
 
+function beveledFootprintVertices(size, bevel = 0) {
+  const halfWidth = size.x / 2;
+  const halfLength = size.z / 2;
+  const corner = Math.min(bevel, halfWidth, halfLength);
+
+  if (corner <= 0) {
+    return [
+      [-halfWidth, -halfLength],
+      [halfWidth, -halfLength],
+      [halfWidth, halfLength],
+      [-halfWidth, halfLength]
+    ];
+  }
+
+  return [
+    [-halfWidth + corner, -halfLength],
+    [halfWidth - corner, -halfLength],
+    [halfWidth, -halfLength + corner],
+    [halfWidth, halfLength - corner],
+    [halfWidth - corner, halfLength],
+    [-halfWidth + corner, halfLength],
+    [-halfWidth, halfLength - corner],
+    [-halfWidth, -halfLength + corner]
+  ];
+}
+
+export function createColliderDebugGeometry(size, bevel = 0) {
+  if (bevel <= 0) {
+    return new THREE.EdgesGeometry(new THREE.BoxGeometry(size.x, size.y, size.z));
+  }
+
+  const footprint = beveledFootprintVertices(size, bevel);
+  const positions = [];
+  const addEdge = (from, to) => {
+    positions.push(...from, ...to);
+  };
+  const bottom = footprint.map(([x, z]) => [x, -size.y / 2, z]);
+  const top = footprint.map(([x, z]) => [x, size.y / 2, z]);
+
+  for (let index = 0; index < footprint.length; index++) {
+    const next = (index + 1) % footprint.length;
+    addEdge(bottom[index], bottom[next]);
+    addEdge(top[index], top[next]);
+    addEdge(bottom[index], top[index]);
+  }
+
+  return new THREE.BufferGeometry().setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3)
+  );
+}
+
 export class CollisionWorld {
   constructor(root, cellSize = 5) {
     this.root = root;
@@ -11,8 +63,8 @@ export class CollisionWorld {
     root.add(this.debugGroup);
   }
 
-  add({ object, size, type = "aabb", color = 0xff4d6d, tag = "world" }) {
-    const collider = { object, size: new THREE.Vector3(...size), type, color, tag };
+  add({ object, size, type = "aabb", color = 0xff4d6d, tag = "world", bevel = 0 }) {
+    const collider = { object, size: new THREE.Vector3(...size), type, color, tag, bevel };
     this.colliders.push(collider);
     return collider;
   }
@@ -46,8 +98,8 @@ export class CollisionWorld {
   }
 }
 
-  firstHit(object, size, filter = () => true) {
-    const subject = { object, size: new THREE.Vector3(...size), type: "obb" };
+  firstHit(object, size, filter = () => true, bevel = 0) {
+    const subject = { object, size: new THREE.Vector3(...size), type: "obb", bevel };
     for (const collider of this.nearby(object)) {
       if (filter(collider) && this.intersects(subject, collider)) return collider;
     }
@@ -85,10 +137,35 @@ export class CollisionWorld {
 
   axesFor(collider) {
     const angle = collider.object.rotation.y;
+    if (collider.bevel > 0) {
+      const points = beveledFootprintVertices(collider.size, collider.bevel);
+      return points.map(([x, z], index) => {
+        const [nextX, nextZ] = points[(index + 1) % points.length];
+        const edgeX = nextX - x;
+        const edgeZ = nextZ - z;
+        return new THREE.Vector2(
+          Math.cos(angle) * -edgeZ + Math.sin(angle) * edgeX,
+          -Math.sin(angle) * -edgeZ + Math.cos(angle) * edgeX
+        ).normalize();
+      });
+    }
     return [new THREE.Vector2(Math.cos(angle), -Math.sin(angle)), new THREE.Vector2(Math.sin(angle), Math.cos(angle))];
   }
 
   project(collider, axis) {
+    if (collider.bevel > 0) {
+      const angle = collider.object.rotation.y;
+      let minimum = Infinity;
+      let maximum = -Infinity;
+      for (const [x, z] of beveledFootprintVertices(collider.size, collider.bevel)) {
+        const worldX = collider.object.position.x + Math.cos(angle) * x + Math.sin(angle) * z;
+        const worldZ = collider.object.position.z - Math.sin(angle) * x + Math.cos(angle) * z;
+        const projection = worldX * axis.x + worldZ * axis.y;
+        minimum = Math.min(minimum, projection);
+        maximum = Math.max(maximum, projection);
+      }
+      return [minimum, maximum];
+    }
     const center = new THREE.Vector2(collider.object.position.x, collider.object.position.z).dot(axis);
     const [localX, localZ] = this.axesFor(collider);
     const radius = Math.abs(axis.dot(localX)) * collider.size.x / 2 + Math.abs(axis.dot(localZ)) * collider.size.z / 2;
@@ -100,9 +177,9 @@ export class CollisionWorld {
     if (!visible) return;
     this.debugGroup.clear();
     for (const collider of this.colliders) {
-      const helper = new THREE.Mesh(
-        new THREE.BoxGeometry(collider.size.x, collider.size.y, collider.size.z),
-        new THREE.MeshBasicMaterial({ color: collider.color, transparent: true, opacity: 0.3, wireframe: true })
+      const helper = new THREE.LineSegments(
+        createColliderDebugGeometry(collider.size, collider.bevel),
+        new THREE.LineBasicMaterial({ color: collider.color, transparent: true, opacity: 0.5, depthTest: false })
       );
       helper.position.copy(collider.object.position);
       helper.rotation.copy(collider.object.rotation);
