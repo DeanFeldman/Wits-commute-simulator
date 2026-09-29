@@ -132,6 +132,11 @@ const GRASS_TEXTURES = Object.freeze({
   ao: "./assets/textures/ground/stylized-grass-ao.png"
 });
 
+// Retaining walls overlap the terrain slightly on the grass side. This avoids
+// a visible grass seam when looking down into the M1 cutting, while their road
+// face stays fixed at the carriageway lip.
+const M1_RETAINING_WALL_THICKNESS = 1.0;
+
 let parkingGrassMaterial = null;
 
 function material(color, roughness = 0.9, extras = {}) {
@@ -284,14 +289,18 @@ function createSeparatedGround(root) {
   const terrainEdge = terrainConfig.edge;
   const terrainWidth = terrainConfig.width;
   const halfRoadDepth = m1.depth / 2;
+  // Stop the grass at the outer edge of each retaining wall. Letting the
+  // terrain slab continue under the wall causes its top face to show through
+  // the vertical concrete face from shallow chase-camera angles.
+  const terrainWallClearance = M1_RETAINING_WALL_THICKNESS + 0.05;
   const cos = Math.cos(m1.rotation);
   const sin = Math.sin(m1.rotation);
 
   // Build terrain in the motorway's rotated coordinate frame. Its inner edges
   // now run parallel to the M1 instead of remaining as two horizontal slabs.
   for (const [localStart, localEnd] of [
-    [halfRoadDepth, terrainEdge],
-    [-terrainEdge, -halfRoadDepth]
+    [halfRoadDepth + terrainWallClearance, terrainEdge],
+    [-terrainEdge, -halfRoadDepth - terrainWallClearance]
   ]) {
     const localCentreZ = (localStart + localEnd) / 2;
     const terrain = box(root, [terrainWidth, 0.14, localEnd - localStart], [
@@ -346,7 +355,7 @@ function createNorthM1Ledge(root) {
   const wallHeight = Math.abs(m1.y) + 0.25;
   const ledgeWall = box(
     root,
-    [length, wallHeight, 0.72],
+    [length, wallHeight, M1_RETAINING_WALL_THICKNESS],
     [(northWest[0] + northEast[0]) / 2, m1.y + wallHeight / 2, (northWest[1] + northEast[1]) / 2],
     material(0x81878a, 0.88),
     { castShadow: true, name: "m1-north-retaining-wall" }
@@ -528,7 +537,7 @@ function createM1(root, roadMaterial) {
   // from the trench floor to the lip, so the face of the wall is what you see
   // when you look over the edge from the lot.
   const wallMat = material(0x8f9498, 0.86);
-  const wallThickness = 0.7;
+  const wallThickness = M1_RETAINING_WALL_THICKNESS;
   const wallHeight = Math.abs(m1.y) + 0.2;
   const lips = [m1.depth / 2 + wallThickness / 2, -m1.depth / 2 - wallThickness / 2];
   const m1Cos = Math.cos(m1.rotation);
