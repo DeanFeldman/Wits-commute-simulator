@@ -134,8 +134,10 @@ export class CrossingLevel {
     this.characterPreviewCanvas = null;
     this.characterName = null;
     this.characterCode = null;
-    this.selectedPlayerVariant = null;
-    this.pendingPlayerVariant = 0;
+    this.selectedPlayerVariant = Number.isInteger(this.game.selectedPlayerVariant)
+      ? this.game.selectedPlayerVariant
+      : 0;
+    this.pendingPlayerVariant = this.selectedPlayerVariant;
     this.playerModelCache = new Map();
     this.playerModelStorage = null;
     this.characterPreviewRenderer = null;
@@ -248,6 +250,10 @@ export class CrossingLevel {
     }
     this.speech = new SpeechBubbles();
     this.quiz = new QuizOverlay();
+    // game.selectedPlayerVariant is the source of truth. Direct developer
+    // launches never set it beyond Game's default, so they get variant 0.
+    this.selectedPlayerVariant = this.resolveSelectedPlayerVariant();
+    this.pendingPlayerVariant = this.selectedPlayerVariant;
     await this.createPlayer();
     const crowdPlan = this.createCrowd();
     this.createCups(crowdPlan);
@@ -445,6 +451,8 @@ export class CrossingLevel {
     this.mapZoomInput = document.querySelector("#level2-map-zoom");
     this.mapZoomValue = document.querySelector("#level2-map-zoom-value");
     this.playerModelToggle = document.querySelector("#level2-player-model-toggle");
+    // Character selection now belongs to the game start flow.
+    if (this.playerModelToggle) this.playerModelToggle.hidden = true;
     this.characterSelect = document.querySelector("#level2-character-select");
     this.characterOptions = document.querySelector("#level2-character-options");
     this.characterSelectClose = document.querySelector("#level2-character-select-close");
@@ -665,18 +673,36 @@ export class CrossingLevel {
     this.playerMixer.update(0);
     this.playerRig = null;
     this.selectedPlayerVariant = variant;
+    this.game.selectedPlayerVariant = variant;
     this.game.setMessage(`${STUDENT_MODEL_VARIANTS[variant].label} selected as the Level 2 player.`);
   }
 
+  resolveSelectedPlayerVariant() {
+    const variant = this.game.selectedPlayerVariant;
+    return Number.isInteger(variant) && STUDENT_MODEL_VARIANTS[variant] ? variant : 0;
+  }
+
   async createPlayer() {
-    try {
-      await this.createAnimatedPlayer();
-    } catch (error) {
-      // Keep Level 2 playable if an exported FBX is missing or cannot be read.
-      // The model paths are relative so this also works from the production
-      // subdirectory deployment.
-      console.warn("Level 2 player FBX could not load; using the fallback pedestrian.", error);
-      this.createFallbackPlayer();
+    let created = false;
+    if (this.animatedNpcs) {
+      try {
+        // Build the chosen student directly; no default player is created first.
+        this.createSelectedPlayer(this.selectedPlayerVariant);
+        created = true;
+      } catch (error) {
+        console.warn("Selected Level 2 student could not be created; trying the legacy player.", error);
+      }
+    }
+    if (!created) {
+      try {
+        await this.createAnimatedPlayer();
+      } catch (error) {
+        // Keep Level 2 playable if an exported FBX is missing or cannot be read.
+        // The model paths are relative so this also works from the production
+        // subdirectory deployment.
+        console.warn("Level 2 player FBX could not load; using the fallback pedestrian.", error);
+        this.createFallbackPlayer();
+      }
     }
     this.player.name = "level2-player";
     this.player.position.set(this.level2PlayerSpawn.x, this.level2PlayerSpawn.y, this.level2PlayerSpawn.z);
@@ -688,6 +714,27 @@ export class CrossingLevel {
     this.root.add(this.playerModelStorage);
     this.playerRig = this.player.userData.rig ?? null;
     this.collisionWorld.add({ object: this.player, size: [0.9, 1.7, 0.9], color: 0x35e0d1, tag: "player" });
+  }
+
+  createSelectedPlayer(variant) {
+    const visual = this.animatedNpcs.create({ variant });
+    // AnimatedNpcFactory grounds its visual at local Y=0. The stable player
+    // root keeps the procedural sole offset used by grid movement.
+    visual.position.y = -PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
+    this.playerModelCache.set(variant, visual);
+
+    // The Group is what GridHopController and collisions move; the model is
+    // its only child so applyPlayerModel() can swap visuals later.
+    this.player = new THREE.Group();
+    this.player.add(visual);
+    this.player.userData.backpack = visual.userData.rig?.backpack ?? null;
+
+    const animation = visual.userData.animation;
+    this.playerMixer = animation.mixer;
+    this.playerActions = { idle: animation.idle, running: animation.run };
+    this.activePlayerAction = this.playerActions.idle;
+    this.activePlayerAction.reset().play();
+    this.playerMixer.update(0);
   }
 
   async createAnimatedPlayer() {
