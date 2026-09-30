@@ -36,11 +36,11 @@ export class AnimatedNpcFactory {
     this.backpackTemplate = null;
   }
 
-  async load() {
+  async load({ idlePath = `${ASSET_ROOT}/standing-idle.fbx` } = {}) {
     const fbx = new FBXLoader();
     const gltf = new GLTFLoader();
     const [idleSource, walkSource, runSource, selectionSource, backpackTemplate, ...variantSources] = await Promise.all([
-      fbx.loadAsync(`${ASSET_ROOT}/standing-idle.fbx`),
+      fbx.loadAsync(idlePath),
       fbx.loadAsync(`${ASSET_ROOT}/walk.fbx`),
       fbx.loadAsync(RUN_ANIMATION_PATH),
       fbx.loadAsync(SELECTION_ANIMATION_PATH),
@@ -206,7 +206,7 @@ export class AnimatedNpcFactory {
     return this.prepareTemplate(model, texturedScene, true);
   }
 
-  create({ variant = 0, holding = null, scale = 1 } = {}) {
+  create({ variant = 0, holding = null, scale = 1, includeBackpack = true } = {}) {
     if (this.templates.length === 0) throw new Error("AnimatedNpcFactory.load() must finish before create().");
     const model = SkeletonUtils.clone(this.templates[variant % this.templates.length]);
     const root = new THREE.Group();
@@ -232,7 +232,7 @@ export class AnimatedNpcFactory {
     }
 
     const rightHand = model.getObjectByName("mixamorigRightHand");
-    const backpack = attachBackpack(model, this.backpackTemplate);
+    const backpack = includeBackpack ? attachBackpack(model, this.backpackTemplate) : null;
     const heldItem = this.createHeldItem(holding);
     if (heldItem && rightHand) {
       // FBXLoader has already converted the Mixamo skeleton to metres. Keep
