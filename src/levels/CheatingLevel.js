@@ -183,6 +183,13 @@ const TABLET_TARGET_WIDTH = 1.0;
 const TABLET_TARGET_HEIGHT = 0.28;
 const TABLET_TARGET_DEPTH = 0.65;
 const MAX_TYPED_ANSWER_LENGTH = 24;
+export const TUTOR_OPENING_START_INDEX = 7;
+export const TUTOR_OPENING_TARGET_INDEX = 8;
+export function getTutorOpeningYaw(points) {
+  const start = points[TUTOR_OPENING_START_INDEX];
+  const target = points[TUTOR_OPENING_TARGET_INDEX];
+  return Math.atan2(target.x - start.x, target.z - start.z);
+}
 const TUTOR_PLAYER_APPROACH_INDEX = 9;
 const TUTOR_PLAYER_NEAR_INDEX = 12;
 const TUTOR_PLAYER_RECHECK_INDEX = 11;
@@ -366,6 +373,7 @@ this.patrolPoints = [
     await this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
       points: this.patrolPoints, speed: 2.1, pauseAtNodes: LEVEL_THREE_BALANCE.tutorPauseSeconds,
+      startIndex: TUTOR_OPENING_TARGET_INDEX,
       debugRoot: this.root, debugColor: 0xff7f86
     });
     this.collisionWorld.rebuild();
@@ -1388,7 +1396,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   }
   async createTutor() {
     this.tutor = await createAnimatedTutor();
-    this.tutor.position.copy(this.patrolPoints[0]);
+    this.tutor.position.copy(this.patrolPoints[TUTOR_OPENING_START_INDEX]);
+    this.tutor.rotation.y = getTutorOpeningYaw(this.patrolPoints);
     this.tutor.name = "level-3-tutor";
     this.root.add(this.tutor);
     this.collisionWorld.add({
