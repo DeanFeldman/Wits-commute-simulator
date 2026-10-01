@@ -142,7 +142,7 @@ Suspicion is tied to exposed peeking, not typing:
 
 Reaching 100 suspicion fails the level. The timer starts at 100 seconds, and reaching zero also fails. Answer progress reaching 100 completes the level.
 
-The tutor uses `WaypointMover` to patrol the front, centre aisle, side aisles, and rear of the room. At pauses, the tutor turns toward the player's side and sweeps their head. Detection combines distance, view angle, player peeking state, and raycast visibility. Substantial classroom geometry can block sight; chairs and nearby students are intentionally excluded so they do not make the player permanently safe.
+The tutor uses `WaypointMover` to patrol the front, centre aisle, side aisles, and rear of the room. Each attempt opens with a lateral sweep across the front row before the tutor enters the centre aisle, so the tutor does not spawn facing or immediately pathing toward the player. At pauses, the tutor turns toward the player's side and sweeps their head. Detection combines distance, view angle, player peeking state, and raycast visibility. Substantial classroom geometry can block sight; chairs and nearby students are intentionally excluded so they do not make the player permanently safe.
 
 ## Hand-Zoom Overlay
 
