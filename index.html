@@ -152,6 +152,9 @@
         <button id="menu-credits-action" data-game-action="credits" type="button">
           Credits &amp; licences
         </button>
+        <button id="menu-preview-action" data-game-action="preview-menu" type="button">
+          Test new Menu
+        </button>
         <button id="menu-home-action" data-game-action="menu" type="button" hidden>
           Back to home
         </button>
@@ -169,6 +172,23 @@
             <span class="menu-level-title">Level 3</span>
             <span class="menu-level-subtitle">Stealth Challenge</span>
           </button>
+        </div>
+      </section>
+    </main>
+
+    <main id="menu-preview" aria-label="New main menu preview" hidden>
+      <section class="menu-preview-card">
+        <img
+          class="menu-preview-logo"
+          src="./assets/images/ui/at-wits-end-logo-v2.png"
+          alt="7:55 AM at Wits End — Park. Cross. Cheat."
+          draggable="false"
+        />
+        <div class="menu-preview-actions">
+          <button data-game-action="start" type="button">Start journey</button>
+          <button id="menu-preview-music-action" data-game-action="music" type="button">Pause music</button>
+            <button data-game-action="credits" type="button">Licences and Registrations</button>
+          <button data-game-action="menu" type="button">Back to current menu</button>
         </div>
       </section>
     </main>

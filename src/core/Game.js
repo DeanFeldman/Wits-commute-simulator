@@ -176,6 +176,9 @@ export class Game {
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
+    this.menuPreviewAction = document.querySelector("#menu-preview-action");
+    this.menuPreviewElement = document.querySelector("#menu-preview");
+    this.menuPreviewMusicAction = document.querySelector("#menu-preview-music-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
     this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
@@ -206,6 +209,7 @@ export class Game {
 
     window.addEventListener("resize", this.onResize);
     this.menuElement.addEventListener("click", this.onMenuClick);
+    this.menuPreviewElement.addEventListener("click", this.onMenuClick);
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
@@ -290,6 +294,7 @@ export class Game {
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
+    this.menuPreviewElement.hidden = true;
     document.body.classList.remove("level-2");
     this.updateStartAvailability();
   }
@@ -332,6 +337,14 @@ export class Game {
     } else {
       this.menuPrimaryAction.removeAttribute("title");
     }
+  }
+
+  showMenuPreview() {
+    this.menuElement.hidden = true;
+    this.menuPreviewElement.style.backgroundImage =
+      'url("./assets/images/ui/main-menu-v3-background.png")';
+    this.menuPreviewElement.hidden = false;
+    this.updateMenuMusicAction();
   }
 
   showResults(keepFade = false) {
@@ -378,6 +391,7 @@ export class Game {
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
+    this.menuPreviewElement.hidden = true;
     document.body.classList.remove("level-2");
   }
 
@@ -464,6 +478,7 @@ export class Game {
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.menuElement.hidden = true;
+    this.menuPreviewElement.hidden = true;
     this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -1026,6 +1041,7 @@ export class Game {
     }
 
     if (action === "credits") {
+      this.menuPreviewElement.hidden = true;
       this.showCredits();
       return;
     }
@@ -1040,6 +1056,11 @@ export class Game {
       return;
     }
 
+    if (action === "preview-menu") {
+      this.showMenuPreview();
+      return;
+    }
+
     if (action?.startsWith("level-")) {
       this.startPracticeLevel(Number(action.at(-1)));
     }
@@ -1048,6 +1069,8 @@ export class Game {
   updateMenuMusicAction() {
     this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
     this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
+    this.menuPreviewMusicAction.textContent = this.menuMusicAction.textContent;
+    this.menuPreviewMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   updatePauseMusicAction() {
@@ -1078,6 +1101,7 @@ export class Game {
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
+    this.menuPreviewElement.hidden = true;
   }
 
   showInstruction(level) {
