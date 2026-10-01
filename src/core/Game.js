@@ -14,6 +14,7 @@ import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
   savePersonalBests,
@@ -143,6 +144,8 @@ export class Game {
     this.isLevelIntroReady = false;
     this.levelIntroStoryIndex = 0;
     this.levelIntroConfig = null;
+    this.levelIntroArtPreloads = new Map();
+    this.levelIntroArtRequest = 0;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -171,6 +174,7 @@ export class Game {
     this.menuPrimaryAction = document.querySelector("#menu-primary-action");
     this.devLevelSelect = document.querySelector("#dev-level-select");
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
+    this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
     this.menuPreviewAction = document.querySelector("#menu-preview-action");
     this.menuPreviewElement = document.querySelector("#menu-preview");
@@ -211,6 +215,15 @@ export class Game {
     this.instructionElement.addEventListener("click", this.onInstructionClick);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
+    this.selectedPlayerVariant = 0;
+    this.characterSelectFlow = new CharacterSelectFlow({
+      onContinue: (variantIndex) => {
+        this.selectedPlayerVariant = variantIndex;
+        this.startJourney();
+      },
+      onBack: () => this.showMenu()
+    });
+
   
   
     
@@ -229,10 +242,12 @@ export class Game {
 
   start() {
     this.showMenu();
+    this.preloadCharacterAssets();
     this.animationFrameId = requestAnimationFrame(this.animate);
   }
 
   showMenu() {
+    this.characterSelectFlow?.hide();
     this.cancelTransition();
     this.uiAudio.startMusic("menu");
     this.uiAudio.setMusicEnabled(this.isMusicEnabled);
@@ -271,6 +286,7 @@ export class Game {
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuMusicAction.hidden = false;
     this.updateMenuMusicAction();
+    this.menuHomeAction.hidden = true;
     this.menuElement.classList.remove("menu-credits");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
@@ -280,6 +296,47 @@ export class Game {
     this.menuElement.hidden = false;
     this.menuPreviewElement.hidden = true;
     document.body.classList.remove("level-2");
+    this.updateStartAvailability();
+  }
+
+  preloadCharacterAssets() {
+    this.updateStartAvailability();
+
+    void this.characterSelectFlow
+      .preload()
+      .then(() => {
+        this.updateStartAvailability();
+        // Story art is presentation-only, so it starts only after the required
+        // character assets are ready and never blocks the Start button.
+        void this.preloadLevelIntroArt(1);
+      })
+      .catch((error) => {
+        // Do not trap the player on the menu forever if the character bundle
+        // cannot be fetched. Level 2 already has a procedural/legacy fallback.
+        console.warn("Character assets could not be preloaded; continuing with fallback loading.", error);
+        this.updateStartAvailability();
+        void this.preloadLevelIntroArt(1);
+      });
+  }
+
+  updateStartAvailability() {
+    if (this.state !== "menu") return;
+
+    const waitingForCharacters =
+      !this.characterSelectFlow.isReady && !this.characterSelectFlow.didFail;
+
+    this.menuPrimaryAction.disabled = waitingForCharacters;
+    this.menuPrimaryAction.setAttribute("aria-busy", String(waitingForCharacters));
+    this.menuPrimaryAction.textContent = waitingForCharacters
+      ? "Loading characters…"
+      : "Start journey";
+
+    if (this.characterSelectFlow.didFail) {
+      this.menuPrimaryAction.title =
+        "Character previews could not be preloaded; fallback loading will be used.";
+    } else {
+      this.menuPrimaryAction.removeAttribute("title");
+    }
   }
 
   showMenuPreview() {
@@ -324,8 +381,12 @@ export class Game {
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
     this.menuPrimaryAction.textContent = "Play again";
     this.menuPrimaryAction.dataset.gameAction = "start";
-    this.menuElement.classList.remove("menu-home");
     this.menuMusicAction.hidden = true;
+    this.menuCreditsAction.hidden = false;
+    this.menuCreditsAction.textContent = "Credits & licences";
+    this.menuCreditsAction.dataset.gameAction = "credits";
+    this.menuHomeAction.hidden = false;
+    this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
@@ -480,6 +541,17 @@ export class Game {
     }
   }
 
+  showCharacterSelect() {
+    this.cancelTransition();
+    this.hideLevelIntro();
+    this.pauseMenuElement.hidden = true;
+    this.instructionElement.hidden = true;
+    this.menuElement.hidden = true;
+    this.setHUD("");
+    this.setMessage("");
+    this.characterSelectFlow.show(this.selectedPlayerVariant);
+  }
+
   startJourney() {
     this.journeyScore = 0;
     this.journeyTime = 0;
@@ -498,6 +570,85 @@ export class Game {
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = false;
     this.startLevel(levelNumber);
+  }
+
+  preloadLevelIntroArt(levelNumber) {
+    const config = LEVEL_INTRO_CONFIG.get(levelNumber);
+    if (!config?.art) return Promise.resolve(null);
+
+    const existing = this.levelIntroArtPreloads.get(levelNumber);
+    if (existing) return existing;
+
+    const preload = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.fetchPriority = "low";
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error(`Unable to load intro art for Level ${levelNumber}.`));
+      image.src = config.art;
+    })
+      .then(async (image) => {
+        // Decode off-screen so the visible <img> never paints progressively in
+        // horizontal strips on slower LAMP connections.
+        try {
+          await image.decode();
+        } catch {
+          // A completed image is still usable even if decode() is unsupported
+          // or the browser chooses not to expose the decode result.
+        }
+        return image;
+      })
+      .catch((error) => {
+        this.levelIntroArtPreloads.delete(levelNumber);
+        console.warn(`Intro art for Level ${levelNumber} could not be preloaded.`, error);
+        return null;
+      });
+
+    this.levelIntroArtPreloads.set(levelNumber, preload);
+    return preload;
+  }
+
+  async revealLevelIntroArt(levelNumber, config) {
+    const request = ++this.levelIntroArtRequest;
+
+    // Keep the real image hidden until its bytes are present and decoded. The
+    // existing placeholder gives us a clean fallback instead of a striped load.
+    this.levelIntroArt.hidden = true;
+    this.levelIntroPlaceholder.hidden = false;
+    this.levelIntroPlaceholderIcon.textContent = config.placeholderIcon ?? "";
+
+    const image = await this.preloadLevelIntroArt(levelNumber);
+    if (
+      !image ||
+      request !== this.levelIntroArtRequest ||
+      !this.isLevelIntroActive ||
+      this.levelIntroConfig !== config
+    ) {
+      return;
+    }
+
+    this.levelIntroArt.src = image.currentSrc || image.src;
+    this.levelIntroArt.alt = config.artAlt ?? "";
+
+    try {
+      await this.levelIntroArt.decode();
+    } catch {
+      // If the resource is already complete, showing it is safe even when a
+      // browser rejects decode() for implementation-specific reasons.
+    }
+
+    if (
+      request !== this.levelIntroArtRequest ||
+      !this.isLevelIntroActive ||
+      this.levelIntroConfig !== config ||
+      !this.levelIntroArt.complete ||
+      this.levelIntroArt.naturalWidth === 0
+    ) {
+      return;
+    }
+
+    this.levelIntroArt.hidden = false;
+    this.levelIntroPlaceholder.hidden = true;
   }
 
   showLevelIntro(levelNumber) {
@@ -528,11 +679,9 @@ export class Game {
     this.levelIntroStatus.textContent = `Loading Level ${levelNumber}...`;
 
     if (config.art) {
-      this.levelIntroArt.src = config.art;
-      this.levelIntroArt.alt = config.artAlt ?? "";
-      this.levelIntroArt.hidden = false;
-      this.levelIntroPlaceholder.hidden = true;
+      void this.revealLevelIntroArt(levelNumber, config);
     } else {
+      this.levelIntroArtRequest += 1;
       this.levelIntroArt.hidden = true;
       this.levelIntroPlaceholder.hidden = false;
       this.levelIntroPlaceholderIcon.textContent = config.placeholderIcon ?? "";
@@ -544,6 +693,7 @@ export class Game {
   hideLevelIntro() {
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
+    this.levelIntroArtRequest += 1;
     this.levelIntroElement.hidden = true;
   }
 
@@ -580,7 +730,9 @@ export class Game {
 
     if (!this.isLevelIntroReady) return;
 
+    const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
+    if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
     this.uiAudio.stopMusic();
     this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     // The Continue click is a user gesture, so it can immediately return
@@ -872,7 +1024,14 @@ export class Game {
     if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
-      this.startJourney();
+      if (
+        this.state === "menu" &&
+        !this.characterSelectFlow.isReady &&
+        !this.characterSelectFlow.didFail
+      ) {
+        return;
+      }
+      this.showCharacterSelect();
       return;
     }
 
@@ -936,6 +1095,7 @@ export class Game {
     `).join("");
     this.menuElement.classList.add("menu-credits");
     this.menuCreditsAction.hidden = true;
+    this.menuHomeAction.hidden = true;
     this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
     this.menuElement.classList.remove("menu-home");

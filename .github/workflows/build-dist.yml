@@ -1,0 +1,32 @@
+name: Build deployment ZIP
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deployment-latest
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: cd dist && zip -qr ../dist.zip .
+      - name: Publish latest deployment ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view deployment-latest >/dev/null 2>&1 || gh release create deployment-latest --target "$GITHUB_SHA" --title "Latest deployment build" --notes "Automatically built from main."
+          gh release upload deployment-latest dist.zip --clobber
+          gh release edit deployment-latest --target "$GITHUB_SHA" --notes "Automatically built from main at $GITHUB_SHA."
