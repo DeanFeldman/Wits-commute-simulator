@@ -2262,6 +2262,18 @@ body.level-2 #level2-vignette{opacity:1}
   }
 }
 
+/* Keep character-select lettering distinct at every scale; Pixelify can merge c/o and H/W. */
+.character-start h1,
+.character-start__badge,
+.character-start__option::before,
+.character-start__option strong,
+.character-start__selection,
+.character-start__identity span,
+.character-start__identity strong,
+.character-start__button {
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 @media (max-width: 500px) {
   .character-start__header {
     align-items: flex-start;

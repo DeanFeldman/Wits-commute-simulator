@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const gameSource = readFileSync(new URL("../src/core/Game.js", import.meta.url), "utf8");
+const styleSource = readFileSync(new URL("../src/style.css", import.meta.url), "utf8");
 const flowSource = readFileSync(
   new URL("../src/core/CharacterSelectFlow.js", import.meta.url),
   "utf8"
@@ -63,4 +64,11 @@ test("start-flow character selector includes a live 3D preview", () => {
 test("start selector reuses the Level 2 textured character factory", () => {
   assert.match(flowSource, /AnimatedNpcFactory/);
   assert.match(flowSource, /factory\.create\(\{ variant \}\)/);
+});
+
+test("character selector uses a readable UI font for ambiguous glyphs", () => {
+  assert.match(
+    styleSource,
+    /Keep character-select lettering distinct[\s\S]*?\.character-start__button\s*\{[\s\S]*?font-family:\s*Inter/
+  );
 });
