@@ -13,6 +13,7 @@ import {
   LEVEL_THREE_BALANCE,
   TUTOR_OPENING_START_INDEX,
   TUTOR_OPENING_TARGET_INDEX,
+  getTutorOpeningYaw,
   isCopiedAnswerCorrect,
   updateSuspicionMeter
 } from "../src/levels/CheatingLevel.js";
@@ -323,6 +324,7 @@ test("tutor starts with a front-row sweep instead of moving toward the player", 
 
   assert.equal(start.z, target.z);
   assert.notEqual(start.x, target.x);
+  assert.ok(Math.abs(getTutorOpeningYaw(level.patrolPoints)) > Math.PI / 4);
   assert.ok(
     Math.abs(start.distanceTo(level.playerPosition) - target.distanceTo(level.playerPosition)) < 1e-9,
     "opening patrol should stay the same distance from the player"
