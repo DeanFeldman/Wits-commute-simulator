@@ -10,6 +10,7 @@ import {
 } from "../src/levels/ParkingLevel.js";
 import { PARKING_CAR_SPECS } from "../src/shared/VehicleModelLibrary.js";
 
+const gameSource = readFileSync(new URL("../src/core/Game.js", import.meta.url), "utf8");
 const degrees = (value) => value * Math.PI / 180;
 
 test("parking treats positive and negative 180 degrees as equivalent", () => {
@@ -102,4 +103,9 @@ test("large vehicles are recognised when they face each other across an aisle", 
 
   assert.equal(largeCarsFaceEachOther(eastFacing, westFacing), true);
   assert.equal(largeCarsFaceEachOther({ ...eastFacing, spec: sedan }, westFacing), false);
+});
+
+
+test("Level 1 opening instructions warn that potholes slow and damage the car", () => {
+  assert.match(gameSource, /Watch out for potholes — they slow the car and reduce its condition/);
 });
