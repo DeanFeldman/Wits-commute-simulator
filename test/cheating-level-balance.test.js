@@ -11,6 +11,8 @@ import {
 import {
   CheatingLevel,
   LEVEL_THREE_BALANCE,
+  TUTOR_OPENING_START_INDEX,
+  TUTOR_OPENING_TARGET_INDEX,
   isCopiedAnswerCorrect,
   updateSuspicionMeter
 } from "../src/levels/CheatingLevel.js";
@@ -311,6 +313,19 @@ test("after peeking, the HUD tells the player to look down and type", () => {
   assert.equal(
     level.getContextInstruction(),
     "Look down at your own desk to type the answer."
+  );
+});
+
+test("tutor starts with a front-row sweep instead of moving toward the player", () => {
+  const level = new CheatingLevel({});
+  const start = level.patrolPoints[TUTOR_OPENING_START_INDEX];
+  const target = level.patrolPoints[TUTOR_OPENING_TARGET_INDEX];
+
+  assert.equal(start.z, target.z);
+  assert.notEqual(start.x, target.x);
+  assert.ok(
+    Math.abs(start.distanceTo(level.playerPosition) - target.distanceTo(level.playerPosition)) < 1e-9,
+    "opening patrol should stay the same distance from the player"
   );
 });
 
