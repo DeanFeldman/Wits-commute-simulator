@@ -1651,7 +1651,7 @@ async load() {
     if (!this.minimapCamera) return;
     const rect = this.minimapElement?.getBoundingClientRect();
     const mapAspect = aspect ?? (rect?.width && rect?.height ? rect.width / rect.height : 4 / 3);
-    const viewHeight = 42;
+    const viewHeight = 28;
     const viewWidth = viewHeight * mapAspect;
     this.minimapCamera.left = -viewWidth / 2;
     this.minimapCamera.right = viewWidth / 2;
@@ -1668,7 +1668,9 @@ async load() {
 
     this.updateMinimapCameraFrustum(rect.width / rect.height);
     const { x: carX, z: carZ } = this.car.position;
+    const carAngle = this.car.rotation.y;
     this.minimapCamera.position.set(carX, 110, carZ);
+    this.minimapCamera.up.set(-Math.sin(carAngle), 0, -Math.cos(carAngle));
     this.minimapCamera.lookAt(carX, 0, carZ);
     const x = Math.round(rect.left - canvasRect.left);
     const y = Math.round(canvasRect.bottom - rect.bottom);
