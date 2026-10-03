@@ -1649,10 +1649,9 @@ async load() {
 
   updateMinimapCameraFrustum(aspect = null) {
     if (!this.minimapCamera) return;
-    const lot = PARKING_LAYOUT.mainLot;
     const rect = this.minimapElement?.getBoundingClientRect();
     const mapAspect = aspect ?? (rect?.width && rect?.height ? rect.width / rect.height : 4 / 3);
-    const viewHeight = Math.max(lot.depth + 12, (lot.width + 12) / mapAspect);
+    const viewHeight = 42;
     const viewWidth = viewHeight * mapAspect;
     this.minimapCamera.left = -viewWidth / 2;
     this.minimapCamera.right = viewWidth / 2;
@@ -1662,12 +1661,15 @@ async load() {
   }
 
   renderOverlay(renderer) {
-    if (this.skyViewActive || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    if (this.skyViewActive || !this.car || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
     const rect = this.minimapElement.getBoundingClientRect();
     const canvasRect = renderer.domElement.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
 
     this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x: carX, z: carZ } = this.car.position;
+    this.minimapCamera.position.set(carX, 110, carZ);
+    this.minimapCamera.lookAt(carX, 0, carZ);
     const x = Math.round(rect.left - canvasRect.left);
     const y = Math.round(canvasRect.bottom - rect.bottom);
     const width = Math.round(rect.width);
