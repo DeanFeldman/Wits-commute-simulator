@@ -1252,6 +1252,7 @@ export class Game {
         u.uDensity.value=1.5;
       }
       this.roadFogComposer.render();
+      this.currentLevel.renderOverlay?.(this.renderer);
       return;
     }
 
@@ -1260,10 +1261,12 @@ export class Game {
       this.suspicionRenderPass.camera=this.camera;
       this.suspicionPass.uniforms.uSuspicion.value=THREE.MathUtils.clamp((this.currentLevel.suspicion??0)/100,0,1);
       this.suspicionComposer.render();
+      this.currentLevel.renderOverlay?.(this.renderer);
       return;
     }
 
     this.renderer.render(this.scene,this.camera);
+    this.currentLevel?.renderOverlay?.(this.renderer);
   }
 
   onResize() {
