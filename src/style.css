@@ -123,6 +123,54 @@ body.level-2 #level2-vignette{opacity:1}
   display: none;
 }
 
+#level1-minimap {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(240px, 32vw);
+  aspect-ratio: 4 / 3;
+  z-index: 11;
+  overflow: hidden;
+  pointer-events: none;
+  border: 2px solid rgba(53, 224, 209, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+#level1-minimap[hidden] {
+  display: none;
+}
+
+.level1-minimap-label,
+.level1-minimap-north {
+  position: absolute;
+  z-index: 1;
+  padding: 0.22rem 0.42rem;
+  border-radius: 5px;
+  background: rgba(5, 8, 14, 0.78);
+  color: #f4f4f5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.level1-minimap-label {
+  left: 0.45rem;
+  top: 0.45rem;
+}
+
+.level1-minimap-north {
+  right: 0.45rem;
+  top: 0.45rem;
+  color: #35e0d1;
+}
+
+@media (max-width: 720px) {
+  #level1-minimap {
+    width: min(190px, 42vw);
+  }
+}
+
 #level1-dev-toggle {
   position: fixed;
   top: 8.4rem;
