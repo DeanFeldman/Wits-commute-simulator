@@ -1288,12 +1288,16 @@ export class ParkingLevel {
     this.potholePitchVelocity = 0;
     this.activePothole = null;
     this.chaseCamera = null;
+    this.hoodCamera = null;
     this.skyCamera = null;
+    this.minimapCamera = null;
     this.northReferenceCamera = null;
     this.eastReferenceCamera = null;
     this.southReferenceCamera = null;
     this.westReferenceCamera = null;
+    this.cameraMode = "chase";
     this.skyViewActive = false;
+    this.minimapElement = null;
     this.northReferenceActive = false;
     this.eastReferenceActive = false;
     this.southReferenceActive = false;
@@ -1314,7 +1318,7 @@ export class ParkingLevel {
     this.skyViewScale = LEVEL_ONE_PARKING_LAYOUT.skyViewScale;
     this.chaseFog = null;
     this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
-    this.onViewToggle = this.toggleSkyView.bind(this);
+    this.onViewToggle = this.cycleCameraMode.bind(this);
     this.onDevToggle = this.toggleDevMenu.bind(this);
     this.onSkyZoomInput = this.setSkyZoom.bind(this);
     this.onVehicleHitboxesToggle = this.toggleVehicleHitboxes.bind(this);
@@ -1466,6 +1470,10 @@ async load() {
   camera.lookAt(initialLookTarget);
   this.chaseCamera = camera;
 
+  this.hoodCamera = new THREE.PerspectiveCamera(72, 1, 0.05, camera.far);
+  this.hoodCamera.position.copy(this.car.position).add(new THREE.Vector3(0, 1.35, 0));
+  this.hoodCamera.lookAt(initialLookTarget);
+
   const reference = NORTH_DIORAMA_CONFIG.referenceCamera;
   this.northReferenceCamera = new THREE.PerspectiveCamera(
     reference.fov,
@@ -1516,21 +1524,31 @@ async load() {
   this.skyCamera.lookAt(PARKING_LAYOUT.mainLot.x, 0, PARKING_LAYOUT.mainLot.z);
   this.updateSkyCameraFrustum();
 
+  this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
+  this.minimapCamera.position.set(PARKING_LAYOUT.mainLot.x, 110, PARKING_LAYOUT.mainLot.z);
+  this.minimapCamera.up.set(0, 0, -1);
+  this.minimapCamera.lookAt(PARKING_LAYOUT.mainLot.x, 0, PARKING_LAYOUT.mainLot.z);
+
   this.game.setCamera(camera);
 
   this.controls = this.game.input.registerBindings({
     accelerate: ["KeyW", "ArrowUp"],
     brake: ["KeyS", "ArrowDown"],
     steerLeft: ["KeyA", "ArrowLeft"],
-    steerRight: ["KeyD", "ArrowRight"]
+    steerRight: ["KeyD", "ArrowRight"],
+    cycleCamera: ["KeyC"]
   });
 
   this.game.setMessage(
-    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, Ctrl+R = restart."
+    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, C = camera, Ctrl+R = restart."
   );
 
   this.viewToggle = document.querySelector("#level1-view-toggle");
+  this.minimapElement = document.querySelector("#level1-minimap");
   this.viewToggle.hidden = false;
+  if (this.minimapElement) this.minimapElement.hidden = false;
+  this.updateCameraModeButton();
+  this.updateMinimapCameraFrustum();
   this.viewToggle.addEventListener("click", this.onViewToggle);
   this.devToggle = document.querySelector("#level1-dev-toggle");
   this.devMenu = document.querySelector("#level1-dev-menu");
@@ -1596,19 +1614,79 @@ async load() {
     if (this.skyViewActive) this.game.onResize();
   }
 
-  toggleSkyView() {
+  updateCameraModeButton() {
+    if (!this.viewToggle) return;
+    const labels = { chase: "Chase", hood: "Hood", sky: "Sky" };
+    this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "sky"));
+  }
+
+  setCameraMode(mode) {
+    if (!["chase", "hood", "sky"].includes(mode)) return;
     this.resetReferenceViews();
-    this.skyViewActive = !this.skyViewActive;
+    this.cameraMode = mode;
+    this.skyViewActive = mode === "sky";
+    if (this.minimapElement) this.minimapElement.hidden = this.skyViewActive;
 
     if (this.skyViewActive) {
       this.updateSkyCameraFrustum();
       this.game.setCamera(this.skyCamera);
     } else {
-      this.game.setCamera(this.chaseCamera);
+      this.game.setCamera(mode === "hood" ? this.hoodCamera : this.chaseCamera);
     }
 
-    this.viewToggle.textContent = this.skyViewActive ? "Chase view" : "Sky view";
-    this.viewToggle.setAttribute("aria-pressed", String(this.skyViewActive));
+    this.updateCameraModeButton();
+  }
+
+  cycleCameraMode() {
+    const modes = ["chase", "hood", "sky"];
+    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+  }
+
+  toggleSkyView() {
+    this.setCameraMode(this.skyViewActive ? "chase" : "sky");
+  }
+
+  updateMinimapCameraFrustum(aspect = null) {
+    if (!this.minimapCamera) return;
+    const rect = this.minimapElement?.getBoundingClientRect();
+    const mapAspect = aspect ?? (rect?.width && rect?.height ? rect.width / rect.height : 4 / 3);
+    const viewHeight = 28;
+    const viewWidth = viewHeight * mapAspect;
+    this.minimapCamera.left = -viewWidth / 2;
+    this.minimapCamera.right = viewWidth / 2;
+    this.minimapCamera.top = viewHeight / 2;
+    this.minimapCamera.bottom = -viewHeight / 2;
+    this.minimapCamera.updateProjectionMatrix();
+  }
+
+  renderOverlay(renderer) {
+    if (this.skyViewActive || !this.car || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    const rect = this.minimapElement.getBoundingClientRect();
+    const canvasRect = renderer.domElement.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+
+    this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x: carX, z: carZ } = this.car.position;
+    const carAngle = this.car.rotation.y;
+    this.minimapCamera.position.set(carX, 110, carZ);
+    this.minimapCamera.up.set(-Math.sin(carAngle), 0, -Math.cos(carAngle));
+    this.minimapCamera.lookAt(carX, 0, carZ);
+    const x = Math.round(rect.left - canvasRect.left);
+    const y = Math.round(canvasRect.bottom - rect.bottom);
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+    const autoClear = renderer.autoClear;
+
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(x, y, width, height);
+    renderer.setViewport(x, y, width, height);
+    renderer.clear(true, true, true);
+    renderer.render(this.game.scene, this.minimapCamera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    renderer.autoClear = autoClear;
   }
 
   toggleNorthReferenceView() {
@@ -1619,9 +1697,10 @@ async load() {
     }
     this.northReferenceActive = !this.northReferenceActive;
     if (this.northReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.northReferenceCamera);
       this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1642,9 +1721,10 @@ async load() {
     }
     this.eastReferenceActive = !this.eastReferenceActive;
     if (this.eastReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.eastReferenceCamera);
       this.roadFogConfig = EAST_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1666,9 +1746,10 @@ async load() {
     }
     this.southReferenceActive = !this.southReferenceActive;
     if (this.southReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.southReferenceCamera);
       this.roadFogConfig = SOUTH_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1690,9 +1771,10 @@ async load() {
     }
     this.westReferenceActive = !this.westReferenceActive;
     if (this.westReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.westReferenceCamera);
       this.roadFogConfig = WEST_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -2243,6 +2325,7 @@ createParkingSurface(potholes = []) {
 
   update(dt) {
     if(!this.car)return;
+    if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     this.potholeSharks?.forEach((shark,index)=>{
       const dx=shark.userData.worldX-this.car.position.x;
@@ -3497,23 +3580,17 @@ if (hit) {
       || this.westReferenceActive
     ) return;
 
-    const camera =
-      this.game.camera;
+    const camera = this.cameraMode === "hood" ? this.hoodCamera : this.chaseCamera;
+    const carAngle = this.car.rotation.y;
+    const forward = new THREE.Vector3(-Math.sin(carAngle), 0, -Math.cos(carAngle));
+    const targetPosition = this.car.position.clone();
 
-    const carAngle =
-      this.car.rotation.y;
-
-    const behind =
-      new THREE.Vector3(
-        Math.sin(carAngle) * 8,
-        5,
-        Math.cos(carAngle) * 8
-      );
-
-    const targetPosition =
-      this.car.position
-        .clone()
-        .add(behind);
+    if (this.cameraMode === "hood") {
+      targetPosition.addScaledVector(forward, 0.85);
+      targetPosition.y += 1.35;
+    } else {
+      targetPosition.add(new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8));
+    }
 
     camera.position.lerp(
       targetPosition,
@@ -3577,14 +3654,16 @@ if (hit) {
         0.035;
     }
 
-    const lookTarget =
-      this.car.position.clone();
+    const lookTarget = this.car.position.clone();
 
-    lookTarget.y += 1;
+    if (this.cameraMode === "hood") {
+      lookTarget.addScaledVector(forward, 12);
+      lookTarget.y += 1.2;
+    } else {
+      lookTarget.y += 1;
+    }
 
-    camera.lookAt(
-      lookTarget
-    );
+    camera.lookAt(lookTarget);
 
     // lookAt resets orientation each frame, so this cannot drift.
     camera.rotation.z +=
@@ -3609,9 +3688,10 @@ if (hit) {
     this.westReferenceToggle?.removeEventListener("click", this.onWestReferenceToggle);
     if (this.viewToggle) {
       this.viewToggle.hidden = true;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.cameraMode = "chase";
+      this.updateCameraModeButton();
     }
+    if (this.minimapElement) this.minimapElement.hidden = true;
     if (this.devToggle) {
       this.devToggle.hidden = true;
       this.devToggle.setAttribute("aria-expanded", "false");
