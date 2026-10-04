@@ -1015,7 +1015,8 @@ export class CrossingLevel {
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardSteps += 1;
     if (landedDirection) this.updateCheckpoint();
-    if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
+    // Footstep oscillator removed. Real pavement samples are wired in once
+    // the cleared Level 2 footstep set is supplied.
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
@@ -1143,7 +1144,8 @@ export class CrossingLevel {
     this.hopController.bump(direction);
     this.cameraShakeTime = 0.18;
     this.cameraShakeStrength = 0.35;
-    this.audio.cue(120, 0.09, 0.09);
+    // Avoid an arcade-style low beep for a physical person-to-person bump.
+    // The visual bump remains until the clothing/shuffle SFX is supplied.
     const { droppedCup } = this.crowd.bump(person, this.player.position);
     if (droppedCup) {
       // They drop their coffee straight into your hands, after a little bounce.
@@ -1329,8 +1331,10 @@ checkFinish() {
 
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
-    this.audio.cue(880, 0.18, 0.1);
-    this.audio.cue(wasTaxi ? 110 : 165, 0.12, 0.08);
+    this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
+      volume: 0.42,
+      playbackRate: wasTaxi ? 0.92 : 1
+    });
     this.impactTimer = 0.25;
     this.cameraShakeTime = 0.3;
     this.cameraShakeStrength = 0.8;
@@ -1381,7 +1385,10 @@ checkFinish() {
   failAtCheckpoint(wasTaxi) {
     this.attempts += 1;
     this.game.flashHUD();
-    this.audio.cue(wasTaxi ? 110 : 165, 0.2, 0.12);
+    this.audio.playSample("./assets/audio/level1/car-crash.mp3", {
+      volume: 0.7,
+      playbackRate: wasTaxi ? 0.94 : 1.02
+    });
 
     if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
       this.game.setCheckpoint("start");
