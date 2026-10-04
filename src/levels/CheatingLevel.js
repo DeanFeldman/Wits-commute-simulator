@@ -229,6 +229,12 @@ export class CheatingLevel {
     this.root = new THREE.Group();
 
     this.camera = null;
+    this.tutorCamera = null;
+    this.skyCamera = null;
+    this.minimapCamera = null;
+    this.cameraMode = "seated";
+    this.viewToggle = null;
+    this.minimapElement = null;
     this.backgroundTexture = null;
 
     this.playerPosition = new THREE.Vector3(
@@ -340,6 +346,7 @@ this.patrolPoints = [
     this.onMouseUp = this.onMouseUp.bind(this);
     this.onPointerLockChange = this.onPointerLockChange.bind(this);
     this.onTypingKeyDown = this.onTypingKeyDown.bind(this);
+    this.onViewToggle = this.cycleCameraMode.bind(this);
   }
 
   async load() {
@@ -382,7 +389,27 @@ this.patrolPoints = [
     this.camera.position.copy(this.playerPosition);
     this.resetCameraToWhiteboard();
 
+    this.tutorCamera = new THREE.PerspectiveCamera(66, 1, 0.1, 100);
+    this.skyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 120);
+    this.skyCamera.position.set(0, 24, 2);
+    this.skyCamera.up.set(0, 0, -1);
+    this.skyCamera.lookAt(0, 0, 2);
+    this.skyCamera.userData.viewHeight = 26;
+
+    this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 120);
+    this.minimapCamera.position.set(this.tutor.position.x, 22, this.tutor.position.z);
+    this.minimapCamera.lookAt(this.tutor.position.x, 0, this.tutor.position.z);
+    this.updateMinimapCameraFrustum();
+
     this.game.setCamera(this.camera);
+    this.viewToggle = document.querySelector("#level3-view-toggle");
+    this.minimapElement = document.querySelector("#level3-minimap");
+    if (this.viewToggle) {
+      this.viewToggle.hidden = false;
+      this.viewToggle.addEventListener("click", this.onViewToggle);
+      this.updateCameraModeButton();
+    }
+    if (this.minimapElement) this.minimapElement.hidden = false;
     this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
     if (this.zoomOverlay) {
       this.zoomOverlay.classList.remove("visible");
@@ -394,7 +421,7 @@ this.patrolPoints = [
     window.addEventListener("keydown", this.onTypingKeyDown, true);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
     this.game.setMessage(
-      "Hold LEFT CLICK to zoom and reveal a tablet's answer. Then look down at your own desk to type your answer."
+      "Hold LEFT CLICK to zoom and reveal a tablet's answer. Then look down at your own desk to type your answer. Press C to change camera."
     );
   }
 
@@ -1459,10 +1486,21 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
     this.audio.updateClock(dt);
-    this.updateMouseLook();
-    this.updateDeskTargeting();
-    this.updatePlayerPaperPose(dt);
-    this.updatePeek(dt);
+
+    if (this.game.input.wasPressed("KeyC") && !this.isLookingAtPlayerDesk) this.cycleCameraMode();
+    this.updateCameraMode(dt);
+
+    if (this.cameraMode === "seated") {
+      this.updateMouseLook();
+      this.updateDeskTargeting();
+      this.updatePlayerPaperPose(dt);
+      this.updatePeek(dt);
+    } else {
+      if (this.peekActive || this.zoomActive || this.leftMouseDown) this.endPeek();
+      this.targetCheatDesk = null;
+      this.isLookingAtPlayerDesk = false;
+    }
+
     this.updateSuspicion(dt);
     this.timeRemaining = Math.max(0, this.timeRemaining - dt);
     this.feedbackTime = Math.max(0, this.feedbackTime - dt);
@@ -1887,6 +1925,78 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
   }
 
+  updateCameraMode(dt) {
+    if (this.cameraMode === "tutor" && this.tutorCamera && this.tutor) {
+      const angle = this.tutor.rotation.y;
+      const forward = new THREE.Vector3(Math.sin(angle), 0, Math.cos(angle));
+      const target = this.tutor.position.clone().addScaledVector(forward, -3.8);
+      target.y += 2.8;
+      const follow = 1 - Math.exp(-8 * dt);
+      this.tutorCamera.position.lerp(target, follow);
+      const look = this.tutor.position.clone().addScaledVector(forward, 2.2);
+      look.y += 1.15;
+      this.tutorCamera.lookAt(look);
+    }
+  }
+
+  updateCameraModeButton() {
+    if (!this.viewToggle) return;
+    const labels = { seated: "Seated", tutor: "Tutor", sky: "Sky" };
+    this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Seated"} (C)`;
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "sky"));
+  }
+
+  setCameraMode(mode) {
+    if (!["seated", "tutor", "sky"].includes(mode)) return;
+    this.cameraMode = mode;
+    if (mode !== "seated") {
+      this.endPeek();
+      if (document.pointerLockElement === this.game.renderer.domElement) document.exitPointerLock?.();
+    }
+    if (this.minimapElement) this.minimapElement.hidden = mode === "sky";
+    this.game.setCamera(mode === "tutor" ? this.tutorCamera : mode === "sky" ? this.skyCamera : this.camera);
+    this.updateCameraModeButton();
+  }
+
+  cycleCameraMode() {
+    const modes = ["seated", "tutor", "sky"];
+    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+  }
+
+  updateMinimapCameraFrustum(aspect = 4 / 3) {
+    if (!this.minimapCamera) return;
+    const viewHeight = 10, viewWidth = viewHeight * aspect;
+    this.minimapCamera.left = -viewWidth / 2;
+    this.minimapCamera.right = viewWidth / 2;
+    this.minimapCamera.top = viewHeight / 2;
+    this.minimapCamera.bottom = -viewHeight / 2;
+    this.minimapCamera.updateProjectionMatrix();
+  }
+
+  renderOverlay(renderer) {
+    if (this.cameraMode === "sky" || !this.tutor || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    const rect = this.minimapElement.getBoundingClientRect(), canvasRect = renderer.domElement.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+
+    this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x, z } = this.tutor.position, angle = this.tutor.rotation.y;
+    this.minimapCamera.position.set(x, 22, z);
+    this.minimapCamera.up.set(Math.sin(angle), 0, Math.cos(angle));
+    this.minimapCamera.lookAt(x, 0, z);
+
+    const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
+    const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(vx, vy, width, height);
+    renderer.setViewport(vx, vy, width, height);
+    renderer.clear(true, true, true);
+    renderer.render(this.game.scene, this.minimapCamera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    renderer.autoClear = autoClear;
+  }
+
   updateMouseLook() {
     if (!this.game.input.isPointerLocked()) return;
 
@@ -2050,6 +2160,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   onMouseDown(event) {
     if (
       event.button === 0 &&
+      this.cameraMode === "seated" &&
       this.game.input.isPointerLocked() &&
       !this.completed
     ) {
@@ -2070,7 +2181,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   }
 
   onTypingKeyDown(event) {
-    if (this.completed || !this.isLookingAtPlayerDesk) {
+    if (this.completed || this.cameraMode !== "seated" || !this.isLookingAtPlayerDesk) {
       return;
     }
 
@@ -2269,6 +2380,13 @@ canTutorSeePlayer() {
       this.zoomOverlay.hidden = true;
     }
     this.zoomOverlay = null;
+    this.viewToggle?.removeEventListener("click", this.onViewToggle);
+    if (this.viewToggle) {
+      this.viewToggle.hidden = true;
+      this.cameraMode = "seated";
+      this.updateCameraModeButton();
+    }
+    if (this.minimapElement) this.minimapElement.hidden = true;
     window.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("keydown", this.onTypingKeyDown, true);
