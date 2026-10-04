@@ -1559,7 +1559,7 @@ async load() {
   this.eastReferenceToggle = document.querySelector("#level1-east-reference-toggle");
   this.southReferenceToggle = document.querySelector("#level1-south-reference-toggle");
   this.westReferenceToggle = document.querySelector("#level1-west-reference-toggle");
-  this.devToggle.hidden = false;
+  // this.devToggle.hidden = false; // Keep Level 1 dev controls available in code, but hidden in normal play.
   this.skyZoomInput.value = String(this.skyViewScale);
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
   this.devToggle.addEventListener("click", this.onDevToggle);
