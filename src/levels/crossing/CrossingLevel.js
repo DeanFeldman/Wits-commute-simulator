@@ -493,7 +493,7 @@ export class CrossingLevel {
     this.viewToggle.hidden = false;
     if (this.minimapElement) this.minimapElement.hidden = false;
     this.updateCameraModeButton();
-    this.devToggle.hidden = false;
+    // this.devToggle.hidden = false; // Keep Level 2 dev controls available in code, but hidden in normal play.
     this.mapZoomInput.value = String(this.mapViewScale);
     this.mapZoomValue.value = `${this.mapViewScale.toFixed(2)}×`;
     this.viewToggle.addEventListener("click", this.onViewToggle);
