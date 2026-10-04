@@ -123,7 +123,7 @@ export class CrossingLevel {
     this.minimapElement = null;
     this.viewToggle = null;
     this.mapViewScale = 1;
-    this.walkableOverlayVisible = true;
+    this.walkableOverlayVisible = false;
     this.walkableCellOverlay = null;
     this.devToggle = null;
     this.devMenu = null;
@@ -467,6 +467,7 @@ export class CrossingLevel {
     }
     overlay.instanceMatrix.needsUpdate = true;
     overlay.name = "level2-walkable-cell-overlay";
+    overlay.visible = this.walkableOverlayVisible;
     this.walkableCellOverlay = overlay;
     this.root.add(overlay);
   }
@@ -1476,8 +1477,8 @@ checkFinish() {
       this.mapToggle.setAttribute("aria-pressed", "false");
     }
     if (this.walkableToggle) {
-      this.walkableToggle.textContent = "Hide walkable area";
-      this.walkableToggle.setAttribute("aria-pressed", "true");
+      this.walkableToggle.textContent = "Show walkable area";
+      this.walkableToggle.setAttribute("aria-pressed", "false");
     }
     this.playerMixer?.stopAllAction();
     for (const visual of this.playerModelCache.values()) visual.userData.animation?.mixer.stopAllAction();
