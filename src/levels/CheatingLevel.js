@@ -1467,7 +1467,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
-    this.audio.updateClock(dt);
+    // The old once-per-second oscillator tick was intentionally removed.
+    // A real clock sample will be introduced only once the cleared asset is
+    // supplied, with urgency increasing near the end of the test.
     this.updateMouseLook();
     this.updateDeskTargeting();
     this.updatePlayerPaperPose(dt);
@@ -2065,6 +2067,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       seen,
       dt
     });
+
+    // Keep the soundtrack behind the information-rich classroom sounds.
+    // As suspicion rises (or the timer becomes critical) the score ducks
+    // rather than becoming louder and more fatiguing.
+    const suspicionMix = THREE.MathUtils.lerp(
+      0.9,
+      0.58,
+      this.suspicion / 100
+    );
+    const urgencyMix = this.timeRemaining < 15
+      ? THREE.MathUtils.lerp(0.55, 0.78, this.timeRemaining / 15)
+      : 1;
+    this.audio.setMusicScale(Math.min(suspicionMix, urgencyMix));
   }
 
   getContextInstruction() {
@@ -2177,7 +2192,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    this.audio.cue(680, 0.08, 0.035);
+    // Do not use a generic sine beep for a correct answer. Text/visual
+    // feedback remains until the short paper/check confirmation SFX arrives.
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
