@@ -506,6 +506,14 @@ export function applyLevelOneDamage(condition, tag) {
   );
 }
 
+export function getLevelOneDamageStage(condition) {
+  if (condition <= 20) return 4;
+  if (condition <= 40) return 3;
+  if (condition <= 60) return 2;
+  if (condition <= 80) return 1;
+  return 0;
+}
+
 const DOUBLE_ROW_CONFIGS = Object.freeze([
   Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 32 }),
   Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 32 }),
@@ -1311,6 +1319,9 @@ export class ParkingLevel {
     this.vehicleHitboxesVisible = false;
     this.playerCollisionVolumes = [];
     this.vehicleHitboxHelpers = [];
+    this.parkedCars = [];
+    this.parkedCarField = null;
+    this.damageVisuals = null;
     this.northReferenceToggle = null;
     this.eastReferenceToggle = null;
     this.southReferenceToggle = null;
@@ -1870,26 +1881,23 @@ createParkingSurface(potholes = []) {
     const placements = [];
 
     for (const space of getLevelOneParkingSpaces()) {
-      // The lot is full apart from the bays the player is being sent to.
       if (this.freeBayKeys.has(parkingBayKey(space))) continue;
-
-      // Every vehicle in the pack is modelled at its own heading. The loader
-      // normalises each one to a 4.2 m length, grounds it and turns it to +Z
-      // forward, so a bay only has to supply its own rotation here.
       let spec = pickRandomParkingCar(random);
       const candidate = { spec, x: space.x, z: space.z, angle: space.angle };
-
-      // Two high, long vehicles nose-to-nose make a drive aisle look blocked.
-      // Swap the later car for a passenger vehicle; normal cars may still use
-      // opposing bays, so the lot remains visually dense.
       if (placements.some((parkedCar) => largeCarsFaceEachOther(candidate, parkedCar))) {
-        spec = SMALL_PARKING_CAR_SPECS[
-          Math.floor(random() * SMALL_PARKING_CAR_SPECS.length)
-        ];
+        spec = SMALL_PARKING_CAR_SPECS[Math.floor(random() * SMALL_PARKING_CAR_SPECS.length)];
       }
-      placements.push({ spec, x: space.x, z: space.z, angle: space.angle });
 
-      this.createVehicleCollisionVolumes({
+      const placement = { spec, x: space.x, z: space.z, angle: space.angle };
+      const parkedCar = {
+        placement,
+        origin: new THREE.Vector2(space.x, space.z),
+        velocity: new THREE.Vector2(),
+        angularVelocity: 0,
+        volumes: []
+      };
+      placements.push(placement);
+      parkedCar.volumes = this.createVehicleCollisionVolumes({
         x: space.x,
         z: space.z,
         angle: space.angle,
@@ -1899,11 +1907,14 @@ createParkingSurface(potholes = []) {
         color: 0xff6b6b,
         addToCollisionWorld: true
       });
+      for (const volume of parkedCar.volumes) volume.object.userData.parkedCar = parkedCar;
+      this.parkedCars.push(parkedCar);
     }
 
     return createInstancedCarField(placements, { variant: "lite" })
       .then((field) => {
         field.name = "level-one-parked-cars";
+        this.parkedCarField = field;
         this.root.add(field);
       })
       .catch((error) => {
@@ -2230,6 +2241,7 @@ createParkingSurface(potholes = []) {
     suspension.position.y = 0.04;
     carRoot.add(suspension);
     this.suspension = suspension;
+    this.createDamageVisuals();
 
     const modelReady = attachPlayerCarModel(suspension)
       .then((model) => {
@@ -2282,6 +2294,94 @@ createParkingSurface(potholes = []) {
     });
   }
 
+  createDamageVisuals() {
+    const group = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: 0x241a16, roughness: 1, metalness: 0.05 });
+    const add = (geometry, position, stage, rotation = null) => {
+      const mesh = new THREE.Mesh(geometry, material.clone());
+      mesh.position.set(...position);
+      if (rotation) mesh.rotation.set(...rotation);
+      mesh.userData.damageStage = stage;
+      mesh.visible = false;
+      group.add(mesh);
+      return mesh;
+    };
+    add(new THREE.BoxGeometry(1.45, 0.16, 0.045), [0, 0.62, -2.12], 1);
+    add(new THREE.BoxGeometry(0.045, 0.17, 1.25), [-1.02, 0.66, -0.2], 2);
+    add(new THREE.BoxGeometry(0.045, 0.17, 1.05), [1.02, 0.7, 0.35], 3);
+    add(new THREE.BoxGeometry(1.25, 0.045, 0.85), [0, 1.02, -1.15], 3, [-0.08, 0, 0]);
+    for (let index = 0; index < 5; index++) {
+      const smoke = add(
+        new THREE.SphereGeometry(0.12 + index * 0.018, 7, 5),
+        [-0.28 + index * 0.14, 1.18 + index * 0.08, -1.25],
+        4
+      );
+      smoke.material.color.setHex(0x454545);
+      smoke.material.transparent = true;
+      smoke.material.opacity = 0.48;
+      smoke.userData.smoke = true;
+      smoke.userData.base = smoke.position.clone();
+      smoke.userData.phase = index * 0.9;
+    }
+    this.damageVisuals = group;
+    this.suspension.add(group);
+  }
+
+  updateDamageVisuals(dt) {
+    if (!this.damageVisuals) return;
+    const stage = getLevelOneDamageStage(this.condition);
+    const time = performance.now() * 0.001;
+    for (const mesh of this.damageVisuals.children) {
+      mesh.visible = stage >= mesh.userData.damageStage;
+      if (!mesh.visible || !mesh.userData.smoke) continue;
+      const base = mesh.userData.base;
+      const phase = (time * 0.75 + mesh.userData.phase) % 1;
+      mesh.position.set(base.x + Math.sin(time * 3 + mesh.userData.phase) * 0.09, base.y + phase * 0.75, base.z);
+      mesh.material.opacity = 0.48 * (1 - phase);
+    }
+  }
+
+  pushParkedCar(hit, speedFactor) {
+    const parkedCar = hit?.object?.userData?.parkedCar;
+    if (!parkedCar) return;
+    const dx = parkedCar.placement.x - this.car.position.x;
+    const dz = parkedCar.placement.z - this.car.position.z;
+    const length = Math.hypot(dx, dz) || 1;
+    const impulse = THREE.MathUtils.lerp(0.7, 2.4, speedFactor);
+    parkedCar.velocity.x += dx / length * impulse;
+    parkedCar.velocity.y += dz / length * impulse;
+    const localSide = Math.cos(parkedCar.placement.angle) * dx - Math.sin(parkedCar.placement.angle) * dz;
+    parkedCar.angularVelocity += (Math.sign(localSide) || 1) * THREE.MathUtils.lerp(0.18, 0.65, speedFactor);
+  }
+
+  updateParkedCars(dt) {
+    let moved = false;
+    for (const parkedCar of this.parkedCars) {
+      if (parkedCar.velocity.lengthSq() < 0.0004 && Math.abs(parkedCar.angularVelocity) < 0.002) continue;
+      const placement = parkedCar.placement;
+      placement.x += parkedCar.velocity.x * dt;
+      placement.z += parkedCar.velocity.y * dt;
+      placement.angle += parkedCar.angularVelocity * dt;
+      const offset = new THREE.Vector2(placement.x - parkedCar.origin.x, placement.z - parkedCar.origin.y);
+      if (offset.length() > 1.15) {
+        offset.setLength(1.15);
+        placement.x = parkedCar.origin.x + offset.x;
+        placement.z = parkedCar.origin.y + offset.y;
+        parkedCar.velocity.multiplyScalar(0.25);
+      }
+      const damping = Math.exp(-4.2 * dt);
+      parkedCar.velocity.multiplyScalar(damping);
+      parkedCar.angularVelocity *= damping;
+      for (const volume of parkedCar.volumes) {
+        volume.object.position.set(placement.x, volume.localY, placement.z);
+        volume.object.rotation.y = placement.angle;
+      }
+      this.parkedCarField?.userData.updatePlacement?.(placement);
+      moved = true;
+    }
+    if (moved) this.collisionWorld.rebuild();
+  }
+
   startCarIdleAudio() {
     if (this.carIdleAudio) return;
 
@@ -2302,7 +2402,7 @@ createParkingSurface(potholes = []) {
   playCollisionSound(speedFactor = 1) {
     if (this.game.isSoundMuted) return;
     if (!this.collisionHitAudio) {
-      this.collisionHitAudio = new Audio("./assets/audio/level1/collision-hit.mp3");
+      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash-impact.wav");
       this.collisionHitAudio.preload = "auto";
     }
 
@@ -2374,6 +2474,8 @@ this.impactCooldown = Math.max(
   0,
   this.impactCooldown - dt
 );
+this.updateParkedCars(dt);
+this.updateDamageVisuals(dt);
 
 const previousPosition = this.car.position.clone();
 const previousRotationY = this.car.rotation.y;
@@ -2432,11 +2534,12 @@ if (hit) {
     );
 
     this.game.flashHUD();
-    this.audio.cue(78, 0.12, 0.15);
 
-    // Crashing into a parked car only; kerbs, fences and signs stay silent.
     if (hit.tag === "parked-car") {
+      this.pushParkedCar(hit, crashSpeedFactor);
       this.playCollisionSound(crashSpeedFactor);
+    } else {
+      this.audio.cue(78, 0.12, 0.15);
     }
 
     this.impactCooldown = 0.55;
