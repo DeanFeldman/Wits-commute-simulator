@@ -36,6 +36,10 @@ const WALKWAY_SURFACE_Y = 0.19;
 const YALE_SURFACE_Y = 0.01;
 const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
 
+const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
+const LEVEL2_SHIELD_CUE = Object.freeze({ start: 0, duration: 0.717 });
+const LEVEL2_VEHICLE_IMPACT_AUDIO = "./assets/audio/level2/vehicle-impact.opus";
+
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
   down: Object.freeze({ x: 0, z: 1 }),
@@ -254,7 +258,7 @@ export class CrossingLevel {
       this.animatedNpcs = null;
     }
     this.speech = new SpeechBubbles();
-    this.quiz = new QuizOverlay();
+    this.quiz = new QuizOverlay({ audio: this.audio });
     // game.selectedPlayerVariant is the source of truth. Direct developer
     // launches never set it beyond Game's default, so they get variant 0.
     this.selectedPlayerVariant = this.resolveSelectedPlayerVariant();
@@ -1319,9 +1323,10 @@ checkFinish() {
 
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
-    this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
-      volume: 0.42,
-      playbackRate: wasTaxi ? 0.92 : 1
+    this.audio.playSegment(LEVEL2_INTERACTION_AUDIO, {
+      ...LEVEL2_SHIELD_CUE,
+      volume: 0.58,
+      playbackRate: wasTaxi ? 0.96 : 1
     });
     this.impactTimer = 0.25;
     this.cameraShakeTime = 0.3;
@@ -1373,9 +1378,9 @@ checkFinish() {
   failAtCheckpoint(wasTaxi) {
     this.attempts += 1;
     this.game.flashHUD();
-    this.audio.playSample("./assets/audio/level1/car-crash.mp3", {
-      volume: 0.7,
-      playbackRate: wasTaxi ? 0.94 : 1.02
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+      volume: 0.68,
+      playbackRate: wasTaxi ? 0.96 : 1.02
     });
 
     if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {

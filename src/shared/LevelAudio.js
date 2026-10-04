@@ -238,6 +238,80 @@ export class LevelAudio {
     return audio;
   }
 
+  playSegment(path, {
+    start = 0,
+    duration = 0.5,
+    volume = 1,
+    pan = 0,
+    playbackRate = 1,
+    bus = "sfx"
+  } = {}) {
+    if (!path || this.isMuted || duration <= 0) return null;
+
+    const audio = new Audio(path);
+    audio.preload = "auto";
+    audio.playbackRate = playbackRate;
+
+    let source = null;
+    let gain = null;
+    let panner = null;
+    let stopTimer = null;
+    let cleaned = false;
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (stopTimer) clearTimeout(stopTimer);
+      audio.pause();
+      source?.disconnect();
+      gain?.disconnect();
+      panner?.disconnect();
+      this.oneShots.delete(handle);
+    };
+
+    const handle = { audio, cleanup };
+    this.oneShots.add(handle);
+
+    const begin = () => {
+      if (cleaned) return;
+      try {
+        audio.currentTime = Math.max(0, start);
+      } catch {
+        cleanup();
+        return;
+      }
+
+      if (this.ensure()) {
+        source = this.context.createMediaElementSource(audio);
+        gain = this.context.createGain();
+        panner = this.context.createStereoPanner?.();
+        gain.gain.value = Math.max(0, volume);
+        source.connect(gain);
+        if (panner) {
+          panner.pan.value = Math.max(-1, Math.min(1, pan));
+          gain.connect(panner).connect(this.getBus(bus));
+        } else {
+          gain.connect(this.getBus(bus));
+        }
+      } else {
+        audio.volume = clamp01(volume);
+      }
+
+      audio.play().then(() => {
+        stopTimer = setTimeout(
+          cleanup,
+          Math.ceil((duration / Math.max(0.25, playbackRate)) * 1000)
+        );
+      }).catch(cleanup);
+    };
+
+    audio.addEventListener("error", cleanup, { once: true });
+    if (audio.readyState >= 1) begin();
+    else audio.addEventListener("loadedmetadata", begin, { once: true });
+
+    return audio;
+  }
+
   startLoop(name, path, {
     volume = 1,
     playbackRate = 1,
@@ -347,18 +421,33 @@ export class LevelAudio {
     oscillator.stop(this.context.currentTime + duration);
   }
 
-  updateTutorFootsteps(dt, walking, tutorX, playerX, samples = []) {
+  updateTutorFootsteps(dt, walking, tutorX, playerX, samples = [], distance = null) {
     this.stepTimer -= dt;
     if (!walking || this.stepTimer > 0 || samples.length === 0) return;
     this.stepTimer = 0.42;
 
-    const pan = (tutorX - playerX) / 8;
-    const proximity = Math.max(0.12, 0.72 - Math.abs(tutorX - playerX) * 0.06);
+    const lateralDistance = tutorX - playerX;
+    const audibleDistance = Number.isFinite(distance)
+      ? Math.max(0, distance)
+      : Math.abs(lateralDistance);
+    const pan = lateralDistance / 8;
+    const proximity = Math.max(0.08, 0.72 - audibleDistance * 0.055);
     const sample = samples[Math.floor(Math.random() * samples.length)];
-    this.playSample(sample, {
+    const options = {
       volume: proximity,
       pan,
       playbackRate: 0.96 + Math.random() * 0.08
+    };
+
+    if (typeof sample === "string") {
+      this.playSample(sample, options);
+      return;
+    }
+
+    this.playSegment(sample.path, {
+      ...options,
+      start: sample.start,
+      duration: sample.duration
     });
   }
 
@@ -389,11 +478,14 @@ export class LevelAudio {
   dispose() {
     this.stopMusic({ fadeSeconds: 0, reset: true });
     for (const name of [...this.loops.keys()]) this.stopLoop(name);
-    for (const handle of this.oneShots) {
-      handle.audio.pause();
-      handle.source?.disconnect();
-      handle.gain?.disconnect();
-      handle.panner?.disconnect();
+    for (const handle of [...this.oneShots]) {
+      if (handle.cleanup) handle.cleanup();
+      else {
+        handle.audio.pause();
+        handle.source?.disconnect();
+        handle.gain?.disconnect();
+        handle.panner?.disconnect();
+      }
     }
     this.oneShots.clear();
 

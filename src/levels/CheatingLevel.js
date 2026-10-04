@@ -183,6 +183,22 @@ const TABLET_TARGET_WIDTH = 1.0;
 const TABLET_TARGET_HEIGHT = 0.28;
 const TABLET_TARGET_DEPTH = 0.65;
 const MAX_TYPED_ANSWER_LENGTH = 24;
+
+const LEVEL3_TUTOR_STEP_AUDIO = "./assets/audio/level3/tutor-steps.opus";
+const LEVEL3_TUTOR_STEPS = Object.freeze([
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 0, duration: 0.54 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 0.64, duration: 0.508 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.248, duration: 0.539 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.888, duration: 0.571 })
+]);
+
+const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus";
+const LEVEL3_INTERACTION_CUES = Object.freeze({
+  peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
+  peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 }),
+  answerCorrect: Object.freeze({ start: 1.944, duration: 2 }),
+  answerIncorrect: Object.freeze({ start: 4.044, duration: 0.747 })
+});
 export const TUTOR_OPENING_START_INDEX = 7;
 export const TUTOR_OPENING_TARGET_INDEX = 8;
 export function getTutorOpeningYaw(points) {
@@ -313,6 +329,8 @@ this.patrolPoints = [
     this.isLookingAtPlayerDesk = false;
     this.zoomActive = false;
     this.peekActive = false;
+    this.wasPeekActive = false;
+    this.peekRustleVariant = 0;
     this.leftMouseDown = false;
     this.zoomOverlay = null;
     this.currentCopiedWord = null;
@@ -1839,7 +1857,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       dt,
       isWalking,
       this.tutor.position.x,
-      this.playerPosition.x
+      this.playerPosition.x,
+      LEVEL3_TUTOR_STEPS,
+      Math.hypot(
+        this.tutor.position.x - this.playerPosition.x,
+        this.tutor.position.z - this.playerPosition.z
+      )
     );
 
     const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(
@@ -2036,6 +2059,20 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.peekActive = Boolean(this.zoomActive && this.targetCheatDesk);
     this.zoomOverlay?.classList.toggle("visible", this.zoomActive);
 
+    if (this.peekActive !== this.wasPeekActive) {
+      const cueName = this.peekRustleVariant % 2 === 0 ? "peekRustle1" : "peekRustle2";
+      this.peekRustleVariant += 1;
+      this.audio.playSegment(
+        LEVEL3_INTERACTION_AUDIO,
+        {
+          ...LEVEL3_INTERACTION_CUES[cueName],
+          volume: this.peekActive ? 0.2 : 0.14,
+          playbackRate: 0.96 + Math.random() * 0.08
+        }
+      );
+      this.wasPeekActive = this.peekActive;
+    }
+
     for (const desk of this.cheatDesks) {
       desk.hologram.visible = this.peekActive && desk === this.targetCheatDesk;
     }
@@ -2180,6 +2217,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
+      this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
+        ...LEVEL3_INTERACTION_CUES.answerIncorrect,
+        volume: 0.42
+      });
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
       this.feedbackTime = 1.8;
@@ -2192,8 +2233,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    // Do not use a generic sine beep for a correct answer. Text/visual
-    // feedback remains until the short paper/check confirmation SFX arrives.
+    this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
+      ...LEVEL3_INTERACTION_CUES.answerCorrect,
+      volume: 0.36
+    });
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";

@@ -24,6 +24,15 @@ export const CREDITS = [
     { name: "Asphalt 02 PBR set", detail: `Rob Tuytel / Poly Haven ? ${CC0}. Level 1 and 2 asphalt shader.`, url: "https://polyhaven.com/a/asphalt_02" },
     { name: "Joburg Central Sunset HDRI", detail: `Dimitrios Savva and Greg Zaal / Poly Haven ? ${CC0}. Level 3 lighting and background.`, url: "https://polyhaven.com/a/sunset_jhbcentral" }
   ] },
+  { heading: "Sound effects", entries: [
+    { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
+    { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
+    { name: "Level 2 pencil mark", detail: "NoisyRedFox — CC0. Used for questionnaire selections.", url: "https://freesound.org/people/NoisyRedFox/sounds/742353/" },
+    { name: "Level 3 tutor footsteps", detail: "Yin_Yang_Jake007 and derjuli (Freesound) — Pixabay Content License. Cropped into positional tutor-step cues.", url: "https://pixabay.com/sound-effects/film-special-effects-indoor-footsteps-100664/" },
+    { name: "Level 3 desk/chair foley", detail: "Anakronizm — CC0. Cropped from Classroom Deskchair Walk up Slide and Sit for peek movement.", url: "https://freesound.org/people/Anakronizm/sounds/494616/" },
+    { name: "Level 3 correct answer", detail: "craigscottuk — CC0. Used for correct-answer confirmation.", url: "https://freesound.org/people/craigscottuk/sounds/644963/" },
+    { name: "Level 3 incorrect answer", detail: "Bertrof — CC BY 3.0. Used for incorrect-answer feedback.", url: "https://freesound.org/people/Bertrof/sounds/351565/" }
+  ] },
   { heading: "Original music", entries: [
     { name: "Original level soundtrack", detail: `Commute Theme, Dusk Drive, Empire Rush and Don't Get Caught - OpenAI-assisted original compositions generated for this project on 2026-09-25 and used as pre-rendered WAV soundtrack files. ${GENERATED}. No third-party samples.` }
   ] },

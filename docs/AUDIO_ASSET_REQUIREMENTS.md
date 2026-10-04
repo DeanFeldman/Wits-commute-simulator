@@ -1,101 +1,118 @@
 # Audio Asset Requirements — Issue #233
 
-The audio code now supports separate music, ambience and SFX buses and avoids using
-oscillator beeps as substitutes for physical sounds. The remaining work depends on
-cleared audio assets.
+The core audio refactor is implemented on `feat/233-audio-overhaul`: music,
+ambience and SFX use separate buses; the old synthetic gameplay beeps are being
+replaced with contextual recordings; and Level 3 music ducks as tension rises.
+
+## Integrated from the first supplied batch
+
+### Level 2
+
+- [x] Vehicle-to-player impact — avakas / Freesound
+- [x] Shield pop — DRAGON-STUDIO / Pixabay
+- [x] Pencil mark — NoisyRedFox / Freesound
+
+The shield and pencil sounds are packed into
+`public/assets/audio/level2/interaction-sprite.opus`. The collision sound is
+`public/assets/audio/level2/vehicle-impact.opus`.
+
+### Level 3
+
+- [x] Tutor footsteps — supplied Pixabay indoor/hallway recordings
+- [x] Desk/chair movement for entering and leaving a peek — Anakronizm
+- [x] Correct-answer cue — craigscottuk
+- [x] Incorrect-answer cue — Bertrof
+
+These are packed into:
+- `public/assets/audio/level3/tutor-steps.opus`
+- `public/assets/audio/level3/interaction-sprite.opus`
+
+The tutor footsteps are cropped into individual steps, randomly varied, stereo
+panned, and attenuated using the tutor's actual classroom distance from the
+player.
+
+## Supplied candidate held pending licence confirmation
+
+The supplied paper recording is not currently included in runtime assets:
+
+- https://freesound.org/people/ssugg/sounds/588320/
+
+Please confirm the licence displayed on that Freesound page before it is used.
+Once cleared, it can cover paper movement and potentially form submission with
+separate cropped sections.
+
+## Files still needed
+
+### Level 1 — Parking
+
+The existing files below are still used but have incomplete provenance. Please
+either find their original source/author/licence or supply cleared replacements:
+
+- `idle-car.wav`
+- `car-crash.mp3`
+- `collision-hit.mp3`
+- `car-door-shut.mp3`
+
+Additional sounds still wanted:
+
+- 2 short pothole / tyre-water splashes
+- ideally 2 suspension or pothole thumps
+- parking-brake / parking-confirmation sound
+
+### Level 2 — Walking
+
+You have already identified candidates for the first three groups below, but the
+actual audio files still need to be uploaded so they can be trimmed, normalised
+and added to the branch.
+
+**Pavement footsteps**
+- https://freesound.org/people/Reikun/sounds/220335/
+- https://freesound.org/people/Stevious42/sounds/259639/
+- https://freesound.org/people/PeteBarry/sounds/647403/
+
+**Traffic ambience**
+- https://freesound.org/people/pawsound/sounds/154858/
+
+**Vehicle pass-bys**
+- https://freesound.org/people/Bakstad/sounds/823549/
+- https://freesound.org/people/gadesound/sounds/697044/
+
+Also still needed:
+- taxi horn
+- person/clothing bump or shoe shuffle
+- 1–2 cup pickup / cup-lid / ice sounds
+- form-submit sound if the paper source is not cleared
+- optional checkpoint sound
+
+### Level 3 — Cheating
+
+Still needed:
+
+- real classroom ambience loop: quiet HVAC/projector room tone with light
+  paper/pencil/chair activity and no intelligible speech
+- real clock tick
+- clean heartbeat loop
+- caught/failure sting
+- test-complete sting
+
+The supplied Anakronizm recording is useful classroom **foley**, but it is not
+ambient room tone: it contains a person approaching a desk, moving the
+desk/chair/writing surface, and sitting. It is therefore used for peek movement
+rather than looped as ambience.
 
 ## Delivery rules
 
 - Prefer team-recorded, CC0, or otherwise clearly licensed audio.
-- For every downloaded sound, retain the source URL, author/uploader and licence.
-- Short one-shots may be WAV or MP3.
-- Loops should preferably be clean, seamless WAV files.
-- Keep files mono when stereo information is not useful; positional sounds are
-  panned by the game.
-- Avoid heavily mastered/compressed sounds. The game mix should control loudness.
-- Do not bake music into ambience recordings.
-
-## Existing Level 1 audio that must be cleared or replaced
-
-The following files already exist but have incomplete provenance:
-
-- `public/assets/audio/level1/idle-car.wav`
-- `public/assets/audio/level1/car-crash.mp3`
-- `public/assets/audio/level1/collision-hit.mp3`
-- `public/assets/audio/level1/car-door-shut.mp3`
-
-For each one, either provide its original source/author/licence or replace it with a
-cleared equivalent.
-
-### Additional Level 1 sound
-
-Required:
-
-- `public/assets/audio/level1/pothole-splash-1.wav`
-- `public/assets/audio/level1/pothole-splash-2.wav`
-
-These should be short tyre/water splashes without music or voices.
-
-Optional but useful:
-
-- `public/assets/audio/level1/pothole-thump-1.wav`
-- `public/assets/audio/level1/pothole-thump-2.wav`
-- `public/assets/audio/level1/parking-brake.wav`
-
-## Level 2 — Walking
-
-Required:
-
-- `public/assets/audio/level2/footstep-pavement-1.wav`
-- `public/assets/audio/level2/footstep-pavement-2.wav`
-- `public/assets/audio/level2/footstep-pavement-3.wav`
-- `public/assets/audio/level2/footstep-pavement-4.wav`
-- `public/assets/audio/level2/traffic-ambience.wav`
-- `public/assets/audio/level2/vehicle-passby-1.wav`
-- `public/assets/audio/level2/vehicle-passby-2.wav`
-- `public/assets/audio/level2/vehicle-impact.wav`
-- `public/assets/audio/level2/taxi-horn.wav`
-- `public/assets/audio/level2/person-bump.wav`
-- `public/assets/audio/level2/cup-pickup-1.wav`
-- `public/assets/audio/level2/cup-pickup-2.wav`
-- `public/assets/audio/level2/shield-pop.wav`
-- `public/assets/audio/level2/pencil-mark.wav`
-- `public/assets/audio/level2/paper-move.wav`
-- `public/assets/audio/level2/form-submit.wav`
-
-Optional:
-
-- `public/assets/audio/level2/checkpoint.wav`
-
-## Level 3 — Cheating
-
-Required:
-
-- `public/assets/audio/level3/classroom-ambience.wav`
-- `public/assets/audio/level3/tutor-step-1.wav`
-- `public/assets/audio/level3/tutor-step-2.wav`
-- `public/assets/audio/level3/tutor-step-3.wav`
-- `public/assets/audio/level3/tutor-step-4.wav`
-- `public/assets/audio/level3/clock-tick.wav`
-- `public/assets/audio/level3/peek-rustle-1.wav`
-- `public/assets/audio/level3/peek-rustle-2.wav`
-- `public/assets/audio/level3/heartbeat.wav`
-- `public/assets/audio/level3/answer-correct.wav`
-- `public/assets/audio/level3/answer-incorrect.wav`
-- `public/assets/audio/level3/caught-sting.wav`
-- `public/assets/audio/level3/test-complete.wav`
-
-The classroom ambience should be restrained: projector/HVAC room tone with very
-light paper/pencil/chair activity is ideal. It should not contain intelligible
-speech.
-
-The heartbeat should be a clean loop that can be varied in volume and playback
-rate as suspicion increases.
+- Keep the source URL, author/uploader and licence for every downloaded file.
+- Upload the original file; runtime conversion/cropping will be done in-project.
+- Avoid music baked into ambience/effect recordings.
+- Mono is preferred for sounds that the game will position itself.
+- Do not heavily normalise/compress before supplying the file.
 
 ## Music
 
-No new music is required yet.
+No replacement music is required yet.
 
-Issue #233 deliberately rebalances the existing soundtrack before deciding whether
-the four compositions themselves need replacement. Once the environmental/SFX mix
-is in place, reassess the menu and three level tracks in context.
+The existing soundtrack should be reassessed after the environmental and
+interaction soundscape is complete. This avoids replacing the music before we
+know how it sits in the corrected mix.

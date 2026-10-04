@@ -8,8 +8,15 @@ import {
   isQuestionnaireComplete
 } from "./psychologyQuestionnaire.js";
 
+const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
+const LEVEL2_UI_CUES = Object.freeze({
+  shieldPop: { start: 0, duration: 0.717 },
+  pencilMark: { start: 0.817, duration: 0.393 }
+});
+
 export class QuizOverlay {
-  constructor() {
+  constructor({ audio = null } = {}) {
+    this.audio = audio;
     this.root = document.querySelector("#quiz-overlay");
     this.titleEl = document.querySelector("#quiz-title");
     this.introEl = document.querySelector("#quiz-intro");
@@ -39,6 +46,15 @@ export class QuizOverlay {
   }
 
   releasePointer() { document.exitPointerLock?.(); document.body.style.cursor = "default"; }
+
+  playCue(name, volume = 0.5) {
+    const cue = LEVEL2_UI_CUES[name];
+    if (!cue || !this.audio) return;
+    this.audio.playSegment(LEVEL2_INTERACTION_AUDIO, {
+      ...cue,
+      volume
+    });
+  }
 
   open(quiz, onComplete) {
     this.releasePointer();
@@ -155,6 +171,7 @@ export class QuizOverlay {
     button.textContent = answer;
     button.addEventListener("click", () => {
       this.questionnaireSession.responses.set(question.id, answer);
+      this.playCue("pencilMark", 0.32);
       button.parentElement.querySelectorAll(".psychology-answer").forEach((choice) => choice.classList.remove("pencil-circled"));
       button.classList.add("pencil-circled");
       this.errorEl.textContent = "";

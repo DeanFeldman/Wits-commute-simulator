@@ -350,6 +350,199 @@ Shayna Unterslak
 
 ---
 
+## Sound Effects
+
+### Level 2 Vehicle Impact
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/avakas/sounds/144113/
+
+Author:
+avakas
+
+Licence:
+CC BY 4.0
+
+Used for:
+Level 2 vehicle-to-player collision feedback.
+
+Runtime file:
+`public/assets/audio/level2/vehicle-impact.opus`
+
+Modified:
+Yes — converted from the supplied recording to Opus for runtime delivery and
+gain-controlled by the game's SFX bus.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Shield Pop
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-pop-402324/
+
+Author:
+DRAGON-STUDIO
+
+Licence:
+Pixabay Content License
+
+Used for:
+Level 2 shield consumption feedback.
+
+Runtime file:
+`public/assets/audio/level2/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into a short interaction audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Pencil Mark
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/NoisyRedFox/sounds/742353/
+
+Author:
+NoisyRedFox
+
+Licence:
+CC0 (creator states their uploaded sounds are released under CC0)
+
+Used for:
+Level 2 psychology questionnaire answer selections.
+
+Runtime file:
+`public/assets/audio/level2/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into a short interaction audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Tutor Footsteps
+
+Type:
+Sound effects
+
+Sources:
+- https://pixabay.com/sound-effects/film-special-effects-indoor-footsteps-100664/
+- https://pixabay.com/sound-effects/household-footsteps-in-a-hallway-47842/
+
+Authors:
+- Yin_Yang_Jake007 (Freesound)
+- derjuli (Freesound)
+
+Licence:
+Pixabay Content License
+
+Used for:
+Level 3 tutor footsteps. Individual step events are selected randomly and panned
+according to the tutor's position relative to the player.
+
+Runtime file:
+`public/assets/audio/level3/tutor-steps.opus`
+
+Modified:
+Yes — individual footsteps were cropped from the supplied sequences, normalised
+for gameplay use and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Desk / Chair Foley
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Anakronizm/sounds/494616/
+
+Author:
+Anakronizm
+
+Licence:
+CC0
+
+Used for:
+Subtle Level 3 peek-enter / peek-exit desk and chair movement. The source is a
+short walk-to-desk / chair / writing-surface foley sequence; it is not used as
+classroom ambience.
+
+Runtime file:
+`public/assets/audio/level3/interaction-sprite.opus`
+
+Modified:
+Yes — two short foley moments were cropped and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Correct Answer
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/craigscottuk/sounds/644963/
+
+Author:
+craigscottuk
+
+Licence:
+CC0
+
+Used for:
+Level 3 correct-answer confirmation.
+
+Runtime file:
+`public/assets/audio/level3/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into the Level 3 interaction sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Incorrect Answer
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Bertrof/sounds/351565/
+
+Author:
+Bertrof
+
+Licence:
+CC BY 3.0
+
+Used for:
+Level 3 incorrect-answer feedback.
+
+Runtime file:
+`public/assets/audio/level3/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into the Level 3 interaction sprite.
+
+Added by:
+Nadav Sundy
+
+---
+
 ## AI-Generated Assets
 
 > Generated rather than downloaded. Recorded here because they are not
