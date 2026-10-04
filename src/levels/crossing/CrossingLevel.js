@@ -525,31 +525,35 @@ export class CrossingLevel {
 
   updateCameraModeButton() {
     if (!this.viewToggle) return;
-    const labels = { chase: "Chase", close: "Close", sky: "Sky" };
+    const labels = { chase: "Chase", close: "Close" };
     this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
-    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "sky"));
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "close"));
   }
 
   setCameraMode(mode) {
-    if (!["chase", "close", "sky"].includes(mode)) return;
+    if (!["chase", "close"].includes(mode)) return;
     this.cameraMode = mode;
-    this.mapViewActive = mode === "sky";
-    if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
-    this.game.setCamera(this.mapViewActive ? this.mapCamera : mode === "close" ? this.closeCamera : this.chaseCamera);
+    this.mapViewActive = false;
+    if (this.minimapElement) this.minimapElement.hidden = false;
+    this.game.setCamera(mode === "close" ? this.closeCamera : this.chaseCamera);
     this.updateCameraModeButton();
     if (this.mapToggle) {
-      this.mapToggle.textContent = this.mapViewActive ? "Return to chase view" : "Bird's-eye map";
-      this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
+      this.mapToggle.textContent = "Bird's-eye map";
+      this.mapToggle.setAttribute("aria-pressed", "false");
     }
   }
 
   cycleCameraMode() {
-    const modes = ["chase", "close", "sky"];
+    const modes = ["chase", "close"];
     this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
   }
 
   toggleMapView() {
-    this.setCameraMode(this.mapViewActive ? "chase" : "sky");
+    this.mapViewActive = !this.mapViewActive;
+    if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera);
+    this.mapToggle.textContent = this.mapViewActive ? "Return to camera" : "Bird's-eye map";
+    this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
   }
 
   renderOverlay(renderer) {
