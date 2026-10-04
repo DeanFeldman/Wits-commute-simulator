@@ -1342,9 +1342,6 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
-    this.carIdleAudio = null;
-    this.collisionHitAudio = null;
-    this.collisionHitPlaying = new Set();
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -2383,43 +2380,27 @@ createParkingSurface(potholes = []) {
   }
 
   startCarIdleAudio() {
-    if (this.carIdleAudio) return;
-
-    const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
-    idleAudio.loop = true;
-    idleAudio.volume = 0.15;
-    idleAudio.muted = this.game.isSoundMuted;
-    this.carIdleAudio = idleAudio;
-    idleAudio.play().catch(() => {
-      // A browser can still refuse playback if the level was not started from
-      // a trusted user gesture. Keep the level playable in that case.
-    });
+    this.audio.startEngineLoop("./assets/audio/level1/idle-car.wav");
   }
 
-  // Level 1 only: one-shot crunch for parked-car impacts.
-  // The source element is kept for preloading; each hit plays a clone so
-  // back-to-back impacts can overlap instead of cutting each other off.
+  // Parked-car impacts are deliberately heavier than kerb/barrier contacts.
   playCollisionSound(speedFactor = 1) {
-    if (this.game.isSoundMuted) return;
-    if (!this.collisionHitAudio) {
-      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash.mp3");
-      this.collisionHitAudio.preload = "auto";
-    }
-
-    const hit = this.collisionHitAudio.cloneNode();
-    hit.volume = THREE.MathUtils.lerp(0.45, 1, THREE.MathUtils.clamp(speedFactor, 0, 1));
-    this.collisionHitPlaying.add(hit);
-    hit.addEventListener("ended", () => this.collisionHitPlaying.delete(hit), { once: true });
-    hit.play().catch(() => {
-      // Playback can be refused without a user gesture; keep the level playable.
-      this.collisionHitPlaying.delete(hit);
+    this.audio.playSample("./assets/audio/level1/car-crash.mp3", {
+      volume: THREE.MathUtils.lerp(
+        0.48,
+        0.95,
+        THREE.MathUtils.clamp(speedFactor, 0, 1)
+      ),
+      playbackRate: THREE.MathUtils.lerp(
+        0.94,
+        1.04,
+        THREE.MathUtils.clamp(speedFactor, 0, 1)
+      )
     });
   }
 
   setMuted(muted) {
     this.audio.setMuted(muted);
-    if (this.carIdleAudio) this.carIdleAudio.muted = muted;
-    this.collisionHitPlaying.forEach((hit) => { hit.muted = muted; });
   }
 
 
@@ -2539,7 +2520,10 @@ if (hit) {
       this.pushParkedCar(hit, crashSpeedFactor);
       this.playCollisionSound(crashSpeedFactor);
     } else {
-      this.audio.cue(78, 0.12, 0.15);
+      this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
+        volume: THREE.MathUtils.lerp(0.28, 0.72, crashSpeedFactor),
+        playbackRate: THREE.MathUtils.lerp(0.9, 1.05, crashSpeedFactor)
+      });
     }
 
     this.impactCooldown = 0.55;
@@ -3431,6 +3415,15 @@ if (hit) {
       );
     }
 
+    // Reuse the recorded impact as a grounded suspension/body thump. A
+    // dedicated splash layer is added when the cleared wet-pothole asset is
+    // supplied; keeping it separate avoids replacing one generic cue with
+    // another.
+    this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
+      volume: THREE.MathUtils.clamp(0.24 + feedbackScale * 0.38, 0, 0.72),
+      playbackRate: THREE.MathUtils.lerp(0.84, 1.03, speedFactor)
+    });
+
     const travelDirection =
       Math.sign(
         this.vehicle.speed
@@ -3760,11 +3753,6 @@ if (hit) {
   }
 
   dispose() {
-    this.carIdleAudio?.pause();
-    this.carIdleAudio = null;
-    this.collisionHitPlaying.forEach((hit) => hit.pause());
-    this.collisionHitPlaying.clear();
-    this.collisionHitAudio = null;
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
