@@ -123,7 +123,7 @@ export class CrossingLevel {
     this.minimapElement = null;
     this.viewToggle = null;
     this.mapViewScale = 1;
-    this.walkableOverlayVisible = true;
+    this.walkableOverlayVisible = false;
     this.walkableCellOverlay = null;
     this.devToggle = null;
     this.devMenu = null;
@@ -387,7 +387,7 @@ export class CrossingLevel {
   }
 
   createCrowd() {
-    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP });
+    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP, random: Math.random });
     this.crowd = new CampusCrowd({
       root: this.root,
       factory: this.pedestrians,
@@ -467,6 +467,7 @@ export class CrossingLevel {
     }
     overlay.instanceMatrix.needsUpdate = true;
     overlay.name = "level2-walkable-cell-overlay";
+    overlay.visible = this.walkableOverlayVisible;
     this.walkableCellOverlay = overlay;
     this.root.add(overlay);
   }
@@ -493,7 +494,7 @@ export class CrossingLevel {
     this.viewToggle.hidden = false;
     if (this.minimapElement) this.minimapElement.hidden = false;
     this.updateCameraModeButton();
-    this.devToggle.hidden = false;
+    // this.devToggle.hidden = false; // Keep Level 2 dev controls available in code, but hidden in normal play.
     this.mapZoomInput.value = String(this.mapViewScale);
     this.mapZoomValue.value = `${this.mapViewScale.toFixed(2)}×`;
     this.viewToggle.addEventListener("click", this.onViewToggle);
@@ -525,31 +526,35 @@ export class CrossingLevel {
 
   updateCameraModeButton() {
     if (!this.viewToggle) return;
-    const labels = { chase: "Chase", close: "Close", sky: "Sky" };
+    const labels = { chase: "Chase", close: "Close" };
     this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
-    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "sky"));
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "close"));
   }
 
   setCameraMode(mode) {
-    if (!["chase", "close", "sky"].includes(mode)) return;
+    if (!["chase", "close"].includes(mode)) return;
     this.cameraMode = mode;
-    this.mapViewActive = mode === "sky";
-    if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
-    this.game.setCamera(this.mapViewActive ? this.mapCamera : mode === "close" ? this.closeCamera : this.chaseCamera);
+    this.mapViewActive = false;
+    if (this.minimapElement) this.minimapElement.hidden = false;
+    this.game.setCamera(mode === "close" ? this.closeCamera : this.chaseCamera);
     this.updateCameraModeButton();
     if (this.mapToggle) {
-      this.mapToggle.textContent = this.mapViewActive ? "Return to chase view" : "Bird's-eye map";
-      this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
+      this.mapToggle.textContent = "Bird's-eye map";
+      this.mapToggle.setAttribute("aria-pressed", "false");
     }
   }
 
   cycleCameraMode() {
-    const modes = ["chase", "close", "sky"];
+    const modes = ["chase", "close"];
     this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
   }
 
   toggleMapView() {
-    this.setCameraMode(this.mapViewActive ? "chase" : "sky");
+    this.mapViewActive = !this.mapViewActive;
+    if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera);
+    this.mapToggle.textContent = this.mapViewActive ? "Return to camera" : "Bird's-eye map";
+    this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
   }
 
   renderOverlay(renderer) {
@@ -1472,8 +1477,8 @@ checkFinish() {
       this.mapToggle.setAttribute("aria-pressed", "false");
     }
     if (this.walkableToggle) {
-      this.walkableToggle.textContent = "Hide walkable area";
-      this.walkableToggle.setAttribute("aria-pressed", "true");
+      this.walkableToggle.textContent = "Show walkable area";
+      this.walkableToggle.setAttribute("aria-pressed", "false");
     }
     this.playerMixer?.stopAllAction();
     for (const visual of this.playerModelCache.values()) visual.userData.animation?.mixer.stopAllAction();

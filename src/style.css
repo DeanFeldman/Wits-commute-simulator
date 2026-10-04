@@ -129,7 +129,8 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 #level1-minimap,
-#level2-minimap {
+#level2-minimap,
+#level3-minimap {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
@@ -144,7 +145,8 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 #level1-minimap[hidden],
-#level2-minimap[hidden] {
+#level2-minimap[hidden],
+#level3-minimap[hidden] {
   display: none;
 }
 
@@ -174,7 +176,8 @@ body.level-2 #level2-vignette{opacity:1}
 
 @media (max-width: 720px) {
   #level1-minimap,
-  #level2-minimap {
+  #level2-minimap,
+  #level3-minimap {
     width: min(190px, 42vw);
   }
 }

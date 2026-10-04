@@ -249,14 +249,14 @@ void main() {
 vec3 liftedAsphalt =
   pow(
     max(textureColour, vec3(0.001)),
-    vec3(0.90)
-  ) * 0.48;
+    vec3(0.84)
+  ) * 0.62;
 
 vec3 dryAsphalt =
   liftedAsphalt *
   mix(
-    0.88,
-    0.98,
+    0.92,
+    1.02,
     microRelief
   );
 

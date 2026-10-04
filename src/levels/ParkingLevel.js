@@ -564,7 +564,7 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   potholeEntranceClearance: 5.5,
   potholeFreeBayClearance: 4.5,
   playerSpawn: Object.freeze({ x: -34.5, z: 41, angle: 0 }),
-  skyViewScale: 1.05
+  skyViewScale: 1.10
 });
 
 export function createParkingRow({ name, start, count, step, rotation }) {
@@ -1401,16 +1401,15 @@ async load() {
   // here reaches it, and it was measured separately and needed no change.
   // See docs/DECISIONS.md, 2026-09-08.
   const hemi = new THREE.HemisphereLight(
-    0x5e7898,
-    0x170d09,
-    1.63
+    0xc7e4f2,
+    0x53634a,
+    2.25
   );
   this.root.add(hemi);
 
   const duskSun = new THREE.DirectionalLight(
-    0xffb56a,
-    // 1.8 before ACES. Same 2.172 scale as the hemisphere above.
-    3.91
+    0xffe1b0,
+    3.6
   );
 
   duskSun.position.set(-18, 11, 8);
@@ -1471,8 +1470,9 @@ async load() {
   this.chaseCamera = camera;
 
   this.hoodCamera = new THREE.PerspectiveCamera(72, 1, 0.05, camera.far);
-  this.hoodCamera.position.copy(this.car.position).add(new THREE.Vector3(0, 1.35, 0));
-  this.hoodCamera.lookAt(initialLookTarget);
+  this.hoodCamera.position.set(0, 1.55, -0.65);
+  this.hoodCamera.rotation.set(0, 0, 0);
+  this.suspension.add(this.hoodCamera);
 
   const reference = NORTH_DIORAMA_CONFIG.referenceCamera;
   this.northReferenceCamera = new THREE.PerspectiveCamera(
@@ -1559,7 +1559,7 @@ async load() {
   this.eastReferenceToggle = document.querySelector("#level1-east-reference-toggle");
   this.southReferenceToggle = document.querySelector("#level1-south-reference-toggle");
   this.westReferenceToggle = document.querySelector("#level1-west-reference-toggle");
-  this.devToggle.hidden = false;
+  // this.devToggle.hidden = false; // Keep Level 1 dev controls available in code, but hidden in normal play.
   this.skyZoomInput.value = String(this.skyViewScale);
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
   this.devToggle.addEventListener("click", this.onDevToggle);
@@ -3580,25 +3580,18 @@ if (hit) {
       || this.westReferenceActive
     ) return;
 
-    const camera = this.cameraMode === "hood" ? this.hoodCamera : this.chaseCamera;
-    const carAngle = this.car.rotation.y;
-    const forward = new THREE.Vector3(-Math.sin(carAngle), 0, -Math.cos(carAngle));
-    const targetPosition = this.car.position.clone();
-
-    if (this.cameraMode === "hood") {
-      targetPosition.addScaledVector(forward, 0.85);
-      targetPosition.y += 1.35;
-    } else {
-      targetPosition.add(new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8));
+    const isHood = this.cameraMode === "hood";
+    if (isHood) {
+      this.cameraShake = Math.max(0, this.cameraShake - dt * 0.78);
+      return;
     }
 
-    camera.position.lerp(
-      targetPosition,
-      1 -
-        Math.exp(
-          -5 * dt
-        )
+    const camera = this.chaseCamera;
+    const carAngle = this.car.rotation.y;
+    const targetPosition = this.car.position.clone().add(
+      new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8)
     );
+    camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
 
     let cameraRoll = 0;
 
@@ -3655,14 +3648,7 @@ if (hit) {
     }
 
     const lookTarget = this.car.position.clone();
-
-    if (this.cameraMode === "hood") {
-      lookTarget.addScaledVector(forward, 12);
-      lookTarget.y += 1.2;
-    } else {
-      lookTarget.y += 1;
-    }
-
+    lookTarget.y += 1;
     camera.lookAt(lookTarget);
 
     // lookAt resets orientation each frame, so this cannot drift.
