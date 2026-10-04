@@ -497,14 +497,13 @@ export class CampusCrowd {
 // Where everybody stands and walks, relative to the strips of the route.
 // `zones` maps strip type -> { z, depth }. `step` is the player grid step, and
 // every position is snapped to the player's grid so people occupy real cells.
-export function createCrowdPlan({ zones, startZ, step }) {
+export function createCrowdPlan({ zones, startZ, step, random = () => 0.5 }) {
   const snap = (z) => startZ - Math.round((startZ - z) / step) * step;
-  // The first cell fully inside a strip, counted in from its far or near edge.
   const top = (zone, rows = 0) => snap(zone.z + zone.depth / 2 - step - rows * step);
   const bottom = (zone, rows = 0) => snap(zone.z - zone.depth / 2 + step + rows * step);
   const { start, "bridge-entry": entry, bridge, "bridge-exit": exit, finish } = zones;
 
-  return [
+  const plan = [
     // Walkers each own one column, so they never have to pass each other.
     { kind: "commuter", x: -step, fromZ: top(start, 1), toZ: snap(exit.z), speed: 1.35 },
     { kind: "student", x: step, fromZ: bottom(exit), toZ: snap(start.z), speed: 1.1, holding: "flatWhite" },
@@ -528,11 +527,21 @@ export function createCrowdPlan({ zones, startZ, step }) {
     { kind: "tutor", x: step * 2, z: snap(finish.z), yaw: 0 },
     { kind: "phone", x: -step * 2, z: snap(finish.z) + step, yaw: Math.PI },
 
-    // Someone doing a psych-elective survey, right at the bridge entrance.
-    { kind: "psychQuizzer", x: step * 2, z: snap(entry.z), yaw: -Math.PI / 2 },
-    // A CCDU volunteer near the far landing, before the Vida queue.
-    { kind: "ccduAdvisor", x: step * 2, z: snap(exit.z) + step, yaw: -Math.PI / 2 }
   ];
+
+  const blocked = (x, z) => plan.some((p) => Math.abs(p.x - x) < 0.1 && (p.z !== undefined ? Math.abs(p.z - z) < 0.1 : z >= Math.min(p.fromZ, p.toZ) - step && z <= Math.max(p.fromZ, p.toZ) + step));
+  const candidates = [entry, bridge, exit].flatMap((zone) => {
+    const cells = [];
+    for (let z = top(zone); z >= bottom(zone) - 0.01; z -= step) for (const x of [-2, 0, 2].map((n) => n * step)) if (!blocked(x, z)) cells.push({ x, z });
+    return cells;
+  });
+  candidates.sort(() => random() - 0.5);
+  const [psych, ccdu] = candidates;
+  plan.push(
+    { kind: "psychQuizzer", ...psych, yaw: -Math.PI / 2 },
+    { kind: "ccduAdvisor", ...ccdu, yaw: -Math.PI / 2 }
+  );
+  return plan;
 }
 
 // Cells that standing people occupy, so cups are never placed underneath them.
