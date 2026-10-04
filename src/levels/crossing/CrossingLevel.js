@@ -167,7 +167,6 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
-    this.chimes = [];
    // this.roadFogMaterials = [];
 
     this.cupKit = null;
@@ -1002,7 +1001,6 @@ export class CrossingLevel {
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
-    this.updateChimes(dt);
     this.crossingTime += dt;
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
@@ -1253,19 +1251,9 @@ export class CrossingLevel {
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
     this.game.setMessage(`${type.label}! ${type.blurb}.`);
-    // A rising three-note chime; faster types get a higher one.
-    const base = type.id === "doubleShot" ? 660 : type.id === "icedLatte" ? 520 : type.id === "shield" ? 440 : 590;
-    this.chimes.push({ delay: 0, frequency: base }, { delay: 0.07, frequency: base * 1.25 }, { delay: 0.14, frequency: base * 1.5 });
-  }
-
-  updateChimes(dt) {
-    for (let index = this.chimes.length - 1; index >= 0; index--) {
-      const chime = this.chimes[index];
-      chime.delay -= dt;
-      if (chime.delay > 0) continue;
-      this.audio.cue(chime.frequency, 0.12, 0.07);
-      this.chimes.splice(index, 1);
-    }
+    // The old synthesized three-note pickup chime was removed. A physical
+    // cup/lid/ice layer plus a short musical accent will replace it once the
+    // cleared pickup assets are supplied.
   }
 
   updatePlayerEffects(dt) {
