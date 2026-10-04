@@ -2402,7 +2402,7 @@ createParkingSurface(potholes = []) {
   playCollisionSound(speedFactor = 1) {
     if (this.game.isSoundMuted) return;
     if (!this.collisionHitAudio) {
-      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash-impact.wav");
+      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash.mp3");
       this.collisionHitAudio.preload = "auto";
     }
 
