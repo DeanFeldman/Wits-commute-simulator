@@ -387,7 +387,7 @@ export class CrossingLevel {
   }
 
   createCrowd() {
-    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP });
+    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP, random: Math.random });
     this.crowd = new CampusCrowd({
       root: this.root,
       factory: this.pedestrians,
