@@ -819,12 +819,7 @@ export class Game {
 
   playOneShotAudio(path, volume = 1) {
     if (this.isSoundMuted) return;
-    const audio = new Audio(path);
-    audio.volume = volume;
-    audio.play().catch(() => {
-      // Browsers can block this if the game's initial click did not count as
-      // a user activation. The level transition remains usable in that case.
-    });
+    this.uiAudio.playSample(path, { volume, bus: "sfx" });
   }
 
   // `failure` is a { title, reason, next } description from the level; a
