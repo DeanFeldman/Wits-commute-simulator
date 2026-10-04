@@ -1471,8 +1471,9 @@ async load() {
   this.chaseCamera = camera;
 
   this.hoodCamera = new THREE.PerspectiveCamera(72, 1, 0.05, camera.far);
-  this.hoodCamera.position.copy(this.car.position).add(new THREE.Vector3(0, 1.35, 0));
-  this.hoodCamera.lookAt(initialLookTarget);
+  this.hoodCamera.position.set(0, 1.55, -0.65);
+  this.hoodCamera.rotation.set(0, 0, 0);
+  this.suspension.add(this.hoodCamera);
 
   const reference = NORTH_DIORAMA_CONFIG.referenceCamera;
   this.northReferenceCamera = new THREE.PerspectiveCamera(
@@ -3581,19 +3582,17 @@ if (hit) {
     ) return;
 
     const isHood = this.cameraMode === "hood";
-    const camera = isHood ? this.hoodCamera : this.chaseCamera;
-    const carAngle = this.car.rotation.y;
-    const forward = new THREE.Vector3(-Math.sin(carAngle), 0, -Math.cos(carAngle));
-    const targetPosition = this.car.position.clone();
-
     if (isHood) {
-      targetPosition.addScaledVector(forward, 0.65);
-      targetPosition.y += 1.45;
-      camera.position.copy(targetPosition);
-    } else {
-      targetPosition.add(new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8));
-      camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
+      this.cameraShake = Math.max(0, this.cameraShake - dt * 0.78);
+      return;
     }
+
+    const camera = this.chaseCamera;
+    const carAngle = this.car.rotation.y;
+    const targetPosition = this.car.position.clone().add(
+      new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8)
+    );
+    camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
 
     let cameraRoll = 0;
 
@@ -3650,14 +3649,7 @@ if (hit) {
     }
 
     const lookTarget = this.car.position.clone();
-
-    if (isHood) {
-      lookTarget.addScaledVector(forward, 12);
-      lookTarget.y += 1.25;
-    } else {
-      lookTarget.y += 1;
-    }
-
+    lookTarget.y += 1;
     camera.lookAt(lookTarget);
 
     // lookAt resets orientation each frame, so this cannot drift.
