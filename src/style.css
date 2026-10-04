@@ -97,8 +97,7 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 #level1-view-toggle,
-#level2-view-toggle,
-#level3-view-toggle {
+#level2-view-toggle {
   position: fixed;
   top: 4.5rem;
   right: 1rem;
@@ -119,17 +118,13 @@ body.level-2 #level2-vignette{opacity:1}
 #level1-view-toggle[aria-pressed="true"],
 #level2-view-toggle:hover,
 #level2-view-toggle:focus-visible,
-#level2-view-toggle[aria-pressed="true"],
-#level3-view-toggle:hover,
-#level3-view-toggle:focus-visible,
-#level3-view-toggle[aria-pressed="true"] {
+#level2-view-toggle[aria-pressed="true"] {
   background: #35e0d1;
   color: #071111;
 }
 
 #level1-view-toggle[hidden],
-#level2-view-toggle[hidden],
-#level3-view-toggle[hidden] {
+#level2-view-toggle[hidden] {
   display: none;
 }
 
