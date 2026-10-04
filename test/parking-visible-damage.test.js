@@ -7,6 +7,6 @@ test("visible damage increases as condition falls",()=>{assert.deepEqual([100,80
 
 test("Level 1 references a real crash audio asset",()=>{
   const source=readFileSync(new URL("../src/levels/ParkingLevel.js",import.meta.url),"utf8");
-  assert.match(source,/assets\/audio\/level1\/car-crash-impact\.wav/);
-  assert.equal(existsSync(new URL("../public/assets/audio/level1/car-crash-impact.wav",import.meta.url)),true);
+  assert.match(source,/assets\/audio\/level1\/car-crash\.mp3/);
+  assert.equal(existsSync(new URL("../public/assets/audio/level1/car-crash.mp3",import.meta.url)),true);
 });
