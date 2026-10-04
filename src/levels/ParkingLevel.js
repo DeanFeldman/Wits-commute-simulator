@@ -1401,16 +1401,15 @@ async load() {
   // here reaches it, and it was measured separately and needed no change.
   // See docs/DECISIONS.md, 2026-09-08.
   const hemi = new THREE.HemisphereLight(
-    0x5e7898,
-    0x170d09,
-    1.63
+    0xc7e4f2,
+    0x53634a,
+    2.25
   );
   this.root.add(hemi);
 
   const duskSun = new THREE.DirectionalLight(
-    0xffb56a,
-    // 1.8 before ACES. Same 2.172 scale as the hemisphere above.
-    3.91
+    0xffe1b0,
+    3.6
   );
 
   duskSun.position.set(-18, 11, 8);
