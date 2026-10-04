@@ -3580,25 +3580,20 @@ if (hit) {
       || this.westReferenceActive
     ) return;
 
-    const camera = this.cameraMode === "hood" ? this.hoodCamera : this.chaseCamera;
+    const isHood = this.cameraMode === "hood";
+    const camera = isHood ? this.hoodCamera : this.chaseCamera;
     const carAngle = this.car.rotation.y;
     const forward = new THREE.Vector3(-Math.sin(carAngle), 0, -Math.cos(carAngle));
     const targetPosition = this.car.position.clone();
 
-    if (this.cameraMode === "hood") {
-      targetPosition.addScaledVector(forward, 0.85);
-      targetPosition.y += 1.35;
+    if (isHood) {
+      targetPosition.addScaledVector(forward, 0.65);
+      targetPosition.y += 1.45;
+      camera.position.copy(targetPosition);
     } else {
       targetPosition.add(new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8));
+      camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
     }
-
-    camera.position.lerp(
-      targetPosition,
-      1 -
-        Math.exp(
-          -5 * dt
-        )
-    );
 
     let cameraRoll = 0;
 
@@ -3656,9 +3651,9 @@ if (hit) {
 
     const lookTarget = this.car.position.clone();
 
-    if (this.cameraMode === "hood") {
+    if (isHood) {
       lookTarget.addScaledVector(forward, 12);
-      lookTarget.y += 1.2;
+      lookTarget.y += 1.25;
     } else {
       lookTarget.y += 1;
     }
