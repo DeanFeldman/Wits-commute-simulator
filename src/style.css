@@ -96,7 +96,8 @@ body.level-2 #level2-vignette{opacity:1}
   text-align: center;
 }
 
-#level1-view-toggle {
+#level1-view-toggle,
+#level2-view-toggle {
   position: fixed;
   top: 4.5rem;
   right: 1rem;
@@ -114,16 +115,21 @@ body.level-2 #level2-vignette{opacity:1}
 
 #level1-view-toggle:hover,
 #level1-view-toggle:focus-visible,
-#level1-view-toggle[aria-pressed="true"] {
+#level1-view-toggle[aria-pressed="true"],
+#level2-view-toggle:hover,
+#level2-view-toggle:focus-visible,
+#level2-view-toggle[aria-pressed="true"] {
   background: #35e0d1;
   color: #071111;
 }
 
-#level1-view-toggle[hidden] {
+#level1-view-toggle[hidden],
+#level2-view-toggle[hidden] {
   display: none;
 }
 
-#level1-minimap {
+#level1-minimap,
+#level2-minimap {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
@@ -137,7 +143,8 @@ body.level-2 #level2-vignette{opacity:1}
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-#level1-minimap[hidden] {
+#level1-minimap[hidden],
+#level2-minimap[hidden] {
   display: none;
 }
 
@@ -166,7 +173,8 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 @media (max-width: 720px) {
-  #level1-minimap {
+  #level1-minimap,
+  #level2-minimap {
     width: min(190px, 42vw);
   }
 }
@@ -240,7 +248,7 @@ body.level-2 #level2-vignette{opacity:1}
 
 #level2-dev-toggle {
   position: fixed;
-  top: 4.5rem;
+  top: 8.4rem;
   right: 1rem;
   z-index: 12;
   padding: 0.45rem 0.7rem;
@@ -261,7 +269,7 @@ body.level-2 #level2-vignette{opacity:1}
 
 #level2-dev-menu {
   position: fixed;
-  top: 7.4rem;
+  top: 11.3rem;
   right: 1rem;
   z-index: 12;
   width: 210px;
