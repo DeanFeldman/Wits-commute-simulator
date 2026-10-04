@@ -402,7 +402,7 @@ this.patrolPoints = [
     this.skyCamera.userData.viewHeight = 26;
 
     this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 120);
-    this.minimapCamera.position.set(this.tutor.position.x, 22, this.tutor.position.z);
+    this.minimapCamera.position.set(this.tutor.position.x, 5.5, this.tutor.position.z);
     this.minimapCamera.lookAt(this.tutor.position.x, 0, this.tutor.position.z);
     this.updateMinimapCameraFrustum();
 
@@ -1993,7 +1993,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     const spanZ = Math.abs(fx) * halfW + Math.abs(fz) * halfH;
     const mapX = THREE.MathUtils.clamp(x, -CLASSROOM_HALF_WIDTH + spanX, CLASSROOM_HALF_WIDTH - spanX);
     const mapZ = THREE.MathUtils.clamp(z, CLASSROOM_FRONT_Z + spanZ, CLASSROOM_BACK_Z - spanZ);
-    this.minimapCamera.position.set(mapX, 22, mapZ);
+    this.minimapCamera.position.set(mapX, 5.5, mapZ);
     this.minimapCamera.lookAt(mapX, 0, mapZ);
 
     const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
