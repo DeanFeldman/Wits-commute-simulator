@@ -31,6 +31,7 @@ export class LevelAudio {
 
     this.loops = new Map();
     this.oneShots = new Set();
+    this.sampleCache = new Map();
     this.tickTimer = 0;
     this.stepTimer = 0;
 
@@ -192,6 +193,25 @@ export class LevelAudio {
     );
   }
 
+  preload(paths = []) {
+    for (const path of paths) {
+      if (!path || this.sampleCache.has(path)) continue;
+      const audio = new Audio(path);
+      audio.preload = "auto";
+      audio.load?.();
+      this.sampleCache.set(path, audio);
+    }
+  }
+
+  createSampleElement(path) {
+    const cached = this.sampleCache.get(path);
+    if (cached) return cached.cloneNode(true);
+
+    const audio = new Audio(path);
+    audio.preload = "auto";
+    return audio;
+  }
+
   playSample(path, {
     volume = 1,
     pan = 0,
@@ -200,7 +220,7 @@ export class LevelAudio {
   } = {}) {
     if (!path || this.isMuted) return null;
 
-    const audio = new Audio(path);
+    const audio = this.createSampleElement(path);
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
 
@@ -248,7 +268,7 @@ export class LevelAudio {
   } = {}) {
     if (!path || this.isMuted || duration <= 0) return null;
 
-    const audio = new Audio(path);
+    const audio = this.createSampleElement(path);
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
 
@@ -488,6 +508,7 @@ export class LevelAudio {
       }
     }
     this.oneShots.clear();
+    this.sampleCache.clear();
 
     if (this.unlockAudio) {
       globalThis.removeEventListener?.("pointerdown", this.unlockAudio);
