@@ -1,52 +1,93 @@
 # Audio Asset Requirements — Issue #233
 
 The core audio refactor is implemented on `feat/233-audio-overhaul`: music,
-ambience and SFX use separate buses; the old synthetic gameplay beeps are being
-replaced with contextual recordings; and Level 3 music ducks as tension rises.
+ambience and SFX use separate buses; synthetic gameplay beeps are being replaced
+with contextual recordings; and Level 3 music ducks as tension rises.
 
-## Integrated from the first supplied batch
+## Integrated
 
-### Level 2
+### Level 2 — Walking
 
+- [x] Pavement footsteps — PeteBarry / Freesound
+- [x] Traffic ambience — pawsound / Freesound
+- [x] Two directional vehicle pass-bys — Bakstad / Freesound
 - [x] Vehicle-to-player impact — avakas / Freesound
 - [x] Shield pop — DRAGON-STUDIO / Pixabay
 - [x] Pencil mark — NoisyRedFox / Freesound
+- [x] Paper movement — ssugg / Freesound
 
-The shield and pencil sounds are packed into
-`public/assets/audio/level2/interaction-sprite.opus`. The collision sound is
-`public/assets/audio/level2/vehicle-impact.opus`.
+Runtime assets:
+- `public/assets/audio/level2/footsteps-pavement.opus`
+- `public/assets/audio/level2/traffic-ambience.opus`
+- `public/assets/audio/level2/vehicle-passbys.opus`
+- `public/assets/audio/level2/vehicle-impact.opus`
+- `public/assets/audio/level2/interaction-sprite.opus`
+- `public/assets/audio/level2/paper-sprite.opus`
 
-### Level 3
+Implementation details:
+- footsteps trigger only after a completed grid step and rotate through cropped
+  samples with small playback-rate variation;
+- traffic ambience is deliberately quiet and sits on the ambience bus;
+- pass-by sounds trigger only when a nearby car crosses the player, are
+  rate-limited, and are stereo-panned so every traffic vehicle is not noisy;
+- the old synthetic taxi beep has been removed;
+- questionnaire selections use the pencil mark and opening/submission uses paper
+  foley.
+
+### Level 3 — Cheating
 
 - [x] Tutor footsteps — supplied Pixabay indoor/hallway recordings
 - [x] Desk/chair movement for entering and leaving a peek — Anakronizm
 - [x] Correct-answer cue — craigscottuk
 - [x] Incorrect-answer cue — Bertrof
+- [x] Classroom/hall room tone — klankbeeld
+- [x] Adaptive heartbeat — Cloud-10
 
-These are packed into:
+Runtime assets:
 - `public/assets/audio/level3/tutor-steps.opus`
 - `public/assets/audio/level3/interaction-sprite.opus`
+- `public/assets/audio/level3/classroom-ambience.opus`
+- `public/assets/audio/level3/heartbeat.opus`
 
-The tutor footsteps are cropped into individual steps, randomly varied, stereo
-panned, and attenuated using the tutor's actual classroom distance from the
-player.
+Implementation details:
+- tutor footsteps are cropped into individual steps, randomly varied, panned,
+  and attenuated using the tutor's actual classroom distance from the player;
+- classroom room tone is a quiet continuous ambience layer;
+- the heartbeat starts silent and fades in as suspicion rises above 20%, or as
+  the final 15 seconds become urgent;
+- heartbeat volume and playback rate both increase with tension while the music
+  is ducked, keeping gameplay information more readable.
 
-## Supplied candidate held pending licence confirmation
+## Supplied but not yet integrated
 
-The supplied paper recording is not currently included in runtime assets:
+### Level 3 clock
 
-- https://freesound.org/people/ssugg/sounds/588320/
+Candidate:
+https://freesound.org/people/giddster/sounds/434841/
 
-Please confirm the licence displayed on that Freesound page before it is used.
-Once cleared, it can cover paper movement and potentially form submission with
-separate cropped sections.
+The uploaded clock recording sounds suitable, but the exact licence for sound
+434841 has not yet been verified. A different giddster kitchen-clock recording
+is CC0, but that does not prove this specific file has the same licence.
 
-## Files still needed
+Please confirm the licence displayed on sound 434841 before it is added.
+
+### Unused candidates
+
+The following supplied recordings are currently not needed because the chosen
+sources are cleaner or have clearer licence records:
+
+- gadesound vehicle pass-by 697044
+- Reikun footsteps 220335
+- Stevious42 footsteps 259639
+
+They remain source options if the current mix needs a different character.
+
+## Still needed
 
 ### Level 1 — Parking
 
-The existing files below are still used but have incomplete provenance. Please
-either find their original source/author/licence or supply cleared replacements:
+The existing files below are still used but have incomplete provenance. Either
+find their original source/author/licence or supply cleared replacements:
 
 - `idle-car.wav`
 - `car-crash.mp3`
@@ -59,54 +100,33 @@ Additional sounds still wanted:
 - ideally 2 suspension or pothole thumps
 - parking-brake / parking-confirmation sound
 
-### Level 2 — Walking
+### Level 2
 
-You have already identified candidates for the first three groups below, but the
-actual audio files still need to be uploaded so they can be trimmed, normalised
-and added to the branch.
+Still useful:
 
-**Pavement footsteps**
-- https://freesound.org/people/Reikun/sounds/220335/
-- https://freesound.org/people/Stevious42/sounds/259639/
-- https://freesound.org/people/PeteBarry/sounds/647403/
-
-**Traffic ambience**
-- https://freesound.org/people/pawsound/sounds/154858/
-
-**Vehicle pass-bys**
-- https://freesound.org/people/Bakstad/sounds/823549/
-- https://freesound.org/people/gadesound/sounds/697044/
-
-Also still needed:
 - taxi horn
 - person/clothing bump or shoe shuffle
 - 1–2 cup pickup / cup-lid / ice sounds
-- form-submit sound if the paper source is not cleared
 - optional checkpoint sound
 
-### Level 3 — Cheating
+### Level 3
 
 Still needed:
 
-- real classroom ambience loop: quiet HVAC/projector room tone with light
-  paper/pencil/chair activity and no intelligible speech
-- real clock tick
-- clean heartbeat loop
 - caught/failure sting
 - test-complete sting
 
-The supplied Anakronizm recording is useful classroom **foley**, but it is not
-ambient room tone: it contains a person approaching a desk, moving the
-desk/chair/writing surface, and sitting. It is therefore used for peek movement
-rather than looped as ambience.
+Optional:
+- a subtle additional pencil/writing bed could be layered very quietly into
+  the classroom if the current room tone feels too empty.
 
 ## Delivery rules
 
 - Prefer team-recorded, CC0, or otherwise clearly licensed audio.
 - Keep the source URL, author/uploader and licence for every downloaded file.
-- Upload the original file; runtime conversion/cropping will be done in-project.
+- Upload the original file; runtime conversion/cropping is done in-project.
 - Avoid music baked into ambience/effect recordings.
-- Mono is preferred for sounds that the game will position itself.
+- Mono is preferred for sounds the game positions itself.
 - Do not heavily normalise/compress before supplying the file.
 
 ## Music
