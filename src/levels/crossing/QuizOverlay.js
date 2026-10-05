@@ -9,9 +9,15 @@ import {
 } from "./psychologyQuestionnaire.js";
 
 const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
+const LEVEL2_PAPER_AUDIO = "./assets/audio/level2/paper-sprite.opus";
 const LEVEL2_UI_CUES = Object.freeze({
   shieldPop: { start: 0, duration: 0.717 },
   pencilMark: { start: 0.817, duration: 0.393 }
+});
+const LEVEL2_PAPER_CUES = Object.freeze({
+  open: Object.freeze({ start: 0.08, duration: 0.75 }),
+  page: Object.freeze({ start: 0.91, duration: 0.8 }),
+  submit: Object.freeze({ start: 1.79, duration: 0.8 })
 });
 
 export class QuizOverlay {
@@ -56,8 +62,19 @@ export class QuizOverlay {
     });
   }
 
+  playPaperCue(name, volume = 0.2) {
+    const cue = LEVEL2_PAPER_CUES[name];
+    if (!cue || !this.audio) return;
+    this.audio.playSegment(LEVEL2_PAPER_AUDIO, {
+      ...cue,
+      volume,
+      playbackRate: 0.97 + Math.random() * 0.06
+    });
+  }
+
   open(quiz, onComplete) {
     this.releasePointer();
+    this.playPaperCue("open", 0.17);
     this.mode = "quiz";
     this.onComplete = onComplete;
     this.selected = null;
@@ -96,6 +113,7 @@ export class QuizOverlay {
   }
 
   openPsychologyQuestionnaire(random, onComplete) {
+    this.playPaperCue("open", 0.2);
     this.mode = "psychology-questionnaire";
     this.onComplete = onComplete;
     this.currentQuiz = null;
@@ -192,6 +210,7 @@ export class QuizOverlay {
         this.errorEl.textContent = "PLEASE COMPLETE ALL REQUIRED FIELDS.";
         return;
       }
+      this.playPaperCue("submit", 0.22);
       this.close();
       this.onComplete?.();
       return;
@@ -204,6 +223,7 @@ export class QuizOverlay {
       this.errorEl.textContent = quiz.type === "choice" ? "Pick an option to continue." : "Just a sentence or two is fine!";
       return;
     }
+    this.playPaperCue("submit", 0.2);
     this.close();
     this.onComplete?.();
   }
