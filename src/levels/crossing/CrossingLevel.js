@@ -54,6 +54,12 @@ const LEVEL2_PASSBY_CUES = Object.freeze([
   Object.freeze({ start: 0.10, duration: 5.2 }),
   Object.freeze({ start: 5.40, duration: 5.2 })
 ]);
+const LEVEL2_EXTRA_AUDIO = "./assets/audio/level2/extra-sprite.opus";
+const LEVEL2_EXTRA_CUES = Object.freeze({
+  horn: Object.freeze({ start: 0, duration: 1.09 }),
+  personBump: Object.freeze({ start: 1.19, duration: 1.3 }),
+  cupCollect: Object.freeze({ start: 2.59, duration: 1.5 })
+});
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
@@ -186,6 +192,12 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
+    this.audio.preload([
+      LEVEL2_VEHICLE_IMPACT_AUDIO,
+      LEVEL2_EXTRA_AUDIO,
+      LEVEL2_PASSBY_AUDIO,
+      LEVEL2_FOOTSTEP_AUDIO
+    ]);
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
     this.trafficPassCooldown = 0;
@@ -1133,6 +1145,17 @@ export class CrossingLevel {
   updateTraffic(dt) {
     for (const strip of this.strips) strip.update(dt);
 
+    const nearestRoadDistance = this.lanes
+      .filter((lane) => !lane.isHighway)
+      .reduce(
+        (nearest, lane) => Math.min(nearest, Math.abs(lane.z - this.player.position.z)),
+        Infinity
+      );
+    const roadProximity = 1 - THREE.MathUtils.clamp(nearestRoadDistance / 9, 0, 1);
+    this.audio.setLoopParameters("level2-traffic", {
+      volume: THREE.MathUtils.lerp(0.2, 0.62, roadProximity)
+    });
+
     this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
     for (const vehicle of this.traffic) {
       if (vehicle.lane.isHighway) continue;
@@ -1142,14 +1165,14 @@ export class CrossingLevel {
       const absX = Math.abs(dx);
       const absZ = Math.abs(dz);
 
-      if (absX > 7.5) vehicle.audioPassArmed = true;
+      if (absX > 7) vehicle.audioPassArmed = true;
       if (vehicle.audioPassArmed === undefined) vehicle.audioPassArmed = absX > 4;
 
       if (
         !vehicle.audioPassArmed ||
         this.trafficPassCooldown > 0 ||
-        absZ > 4.5 ||
-        absX > 3.1
+        absZ > 6 ||
+        absX > 4.5
       ) {
         continue;
       }
@@ -1157,12 +1180,12 @@ export class CrossingLevel {
       const cue = vehicle.lane.direction > 0
         ? LEVEL2_PASSBY_CUES[0]
         : LEVEL2_PASSBY_CUES[1];
-      const laneProximity = 1 - THREE.MathUtils.clamp(absZ / 4.5, 0, 1);
+      const laneProximity = 1 - THREE.MathUtils.clamp(absZ / 6, 0, 1);
 
       this.audio.playSegment(LEVEL2_PASSBY_AUDIO, {
         ...cue,
-        volume: THREE.MathUtils.lerp(0.13, 0.34, laneProximity),
-        pan: THREE.MathUtils.clamp(dx / 5, -0.85, 0.85),
+        volume: THREE.MathUtils.lerp(0.28, 0.62, laneProximity),
+        pan: THREE.MathUtils.clamp(dx / 5, -0.9, 0.9),
         playbackRate: THREE.MathUtils.clamp(
           (vehicle.controller?.speed ?? vehicle.cruiseSpeed ?? 5) /
             Math.max(0.1, vehicle.cruiseSpeed ?? 5),
@@ -1172,7 +1195,7 @@ export class CrossingLevel {
       });
 
       vehicle.audioPassArmed = false;
-      this.trafficPassCooldown = 1.35;
+      this.trafficPassCooldown = 0.85;
       break;
     }
   }
@@ -1226,8 +1249,11 @@ export class CrossingLevel {
     this.hopController.bump(direction);
     this.cameraShakeTime = 0.18;
     this.cameraShakeStrength = 0.35;
-    // Avoid an arcade-style low beep for a physical person-to-person bump.
-    // The visual bump remains until the clothing/shuffle SFX is supplied.
+    this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
+      ...LEVEL2_EXTRA_CUES.personBump,
+      volume: 0.52,
+      playbackRate: 0.97 + Math.random() * 0.06
+    });
     const { droppedCup } = this.crowd.bump(person, this.player.position);
     if (droppedCup) {
       // They drop their coffee straight into your hands, after a little bounce.
@@ -1335,9 +1361,11 @@ export class CrossingLevel {
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
     this.game.setMessage(`${type.label}! ${type.blurb}.`);
-    // The old synthesized three-note pickup chime was removed. A physical
-    // cup/lid/ice layer plus a short musical accent will replace it once the
-    // cleared pickup assets are supplied.
+    this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
+      ...LEVEL2_EXTRA_CUES.cupCollect,
+      volume: 0.48,
+      playbackRate: 0.97 + Math.random() * 0.06
+    });
   }
 
   updatePlayerEffects(dt) {
@@ -1403,6 +1431,10 @@ checkFinish() {
 
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+      volume: 0.62,
+      playbackRate: wasTaxi ? 0.96 : 1.02
+    });
     this.audio.playSegment(LEVEL2_INTERACTION_AUDIO, {
       ...LEVEL2_SHIELD_CUE,
       volume: 0.58,
@@ -1459,7 +1491,7 @@ checkFinish() {
     this.attempts += 1;
     this.game.flashHUD();
     this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
-      volume: 0.68,
+      volume: 0.96,
       playbackRate: wasTaxi ? 0.96 : 1.02
     });
 
