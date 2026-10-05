@@ -495,48 +495,23 @@ Type:
 Sound effect
 
 Source:
-https://freesound.org/people/craigscottuk/sounds/644963/
+https://pixabay.com/sound-effects/film-special-effects-game-show-correct-tick-sound-416167/
 
 Author:
-craigscottuk
+DRAGON-STUDIO
 
 Licence:
-CC0
+Pixabay Content License
 
 Used for:
-Level 3 correct-answer confirmation.
+Immediate Level 3 correct-answer confirmation.
 
 Runtime file:
-`public/assets/audio/level3/interaction-sprite.opus`
+`public/assets/audio/level3/correct-tick.opus`
 
 Modified:
-Yes — converted to Opus and packed into the Level 3 interaction sprite.
-
-Added by:
-Nadav Sundy
-
-### Level 3 Incorrect Answer
-
-Type:
-Sound effect
-
-Source:
-https://freesound.org/people/Bertrof/sounds/351565/
-
-Author:
-Bertrof
-
-Licence:
-CC BY 3.0
-
-Used for:
-Level 3 incorrect-answer feedback.
-
-Runtime file:
-`public/assets/audio/level3/interaction-sprite.opus`
-
-Modified:
-Yes — converted to Opus and packed into the Level 3 interaction sprite.
+Yes — the supplied MP3 was trimmed by 10 ms, downmixed to mono, normalised with
+headroom and encoded to Opus. The runtime file is preloaded before gameplay.
 
 Added by:
 Nadav Sundy
