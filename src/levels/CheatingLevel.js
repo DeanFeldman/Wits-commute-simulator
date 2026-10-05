@@ -196,6 +196,7 @@ const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus"
 const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
 const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
 const LEVEL3_CLOCK_AUDIO = "./assets/audio/level3/clock-tick.opus";
+const LEVEL3_CORRECT_AUDIO = "./assets/audio/level3/correct-tick.opus";
 const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
 const LEVEL3_INTERACTION_CUES = Object.freeze({
   peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
@@ -325,6 +326,7 @@ this.patrolPoints = [
     this.audio = new LevelAudio();
     this.audio.preload([
       RESULT_AUDIO,
+      LEVEL3_CORRECT_AUDIO,
       LEVEL3_INTERACTION_AUDIO,
       LEVEL3_TUTOR_STEP_AUDIO
     ]);
@@ -2287,9 +2289,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    // The previous correct-answer cue was removed because it did not fit
-    // the level. The replacement Pixabay tick is wired once its audio file
-    // is supplied; visual feedback remains immediate in the meantime.
+    this.audio.playSample(LEVEL3_CORRECT_AUDIO, {
+      volume: 0.58
+    });
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
