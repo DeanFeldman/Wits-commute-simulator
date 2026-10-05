@@ -702,6 +702,33 @@ Yes — converted to mono Opus for runtime looping.
 Added by:
 Nadav Sundy
 
+### Level 3 Classroom Clock
+
+Type:
+Sound effect / ambience loop
+
+Source:
+https://freesound.org/people/giddster/sounds/434841/
+
+Author:
+giddster
+
+Licence:
+CC0
+
+Used for:
+Subtle Level 3 wall-clock ticking. It stays almost inaudible early in the test
+and becomes more noticeable during the final 30, 15 and 5 seconds.
+
+Runtime file:
+`public/assets/audio/level3/clock-tick.opus`
+
+Modified:
+Yes — a clean section was cropped, downmixed and encoded to Opus for looping.
+
+Added by:
+Nadav Sundy
+
 ---
 
 ## AI-Generated Assets
