@@ -763,22 +763,46 @@ The pre-Level 1 story and asset-loading screen.
 ### Original Level Soundtrack
 
 Type:
-Music / pre-rendered WAV soundtrack
+Music / project-authored procedural composition rendered to WAV
 
 Source:
-Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/` and played directly by `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+Recomposed with OpenAI/ChatGPT on 2026-10-05 for Issue #233. The replacement
+score was generated specifically for Wits Commute Simulator from a shared
+D-major / B-minor commute motif. No downloaded music, third-party samples, or
+external loops are used.
 
 Files:
-`menu-commute-theme.wav`, `level1-dusk-drive.wav`, `level2-empire-rush.wav`, `level3-dont-get-caught.wav`.
+- `menu-commute-theme.wav` — **"Commute Motif"**, 84 BPM
+- `level1-dusk-drive.wav` — **"After Class"**, 76 BPM
+- `level2-empire-rush.wav` — **"Crossing Rush"**, 116 BPM
+- `level3-dont-get-caught.wav` — **"Eyes Down"**, 88 BPM
 
 Author:
-OpenAI-assisted composition generated for the Wits Commute Simulator team.
+OpenAI-assisted original composition generated for the Wits Commute Simulator
+team.
 
 Licence:
-Generated output - no third-party licence attaches. Note that the generating model was trained on third-party data.
+Project-created generated output — no third-party audio licence attaches.
 
 Used for:
-"Commute Theme" on the home page and level loading/story screens, Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
+A single musical identity carried across the menu and all three levels:
+
+- **Menu:** warm electric-piano statement of the main commute motif.
+- **Level 1 / Parking:** slower, warmer and more spacious interpretation with
+  soft pads, restrained bass and very light percussion.
+- **Level 2 / Walking:** quicker plucked interpretation with syncopated chord
+  stabs and a clearer rhythmic pulse.
+- **Level 3 / Cheating:** sparse fragmented interpretation designed to leave
+  room for tutor footsteps, classroom ambience, heartbeat and clock audio.
+
+Mix direction:
+The tracks intentionally avoid the previous loud, continuously dense
+"game soundtrack" feel. They are designed to sit behind environmental audio,
+with the Level 3 score additionally ducked as suspicion and time pressure rise.
+
+Modified:
+The original 2026-09-25 soundtrack was completely replaced on 2026-10-05 as
+part of Issue #233.
 
 ### Classroom Brick Wall / Classroom Terrazzo Floor
 
