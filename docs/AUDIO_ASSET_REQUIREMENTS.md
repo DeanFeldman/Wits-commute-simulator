@@ -38,8 +38,8 @@ Implementation details:
 
 - [x] Tutor footsteps — supplied Pixabay indoor/hallway recordings
 - [x] Desk/chair movement for entering and leaving a peek — Anakronizm
-- [x] Correct-answer cue — craigscottuk
-- [x] Incorrect-answer cue — Bertrof
+- [x] Replacement correct-answer tick — DRAGON-STUDIO / Pixabay
+- [x] Replacement incorrect-answer cue — TheBuilder15 / Pixabay
 - [x] Classroom/hall room tone — klankbeeld
 - [x] Adaptive heartbeat — Cloud-10
 - [x] Real classroom clock tick — giddster
@@ -50,6 +50,7 @@ Runtime assets:
 - `public/assets/audio/level3/classroom-ambience.opus`
 - `public/assets/audio/level3/heartbeat.opus`
 - `public/assets/audio/level3/clock-tick.opus`
+- `public/assets/audio/level3/correct-tick.opus`
 
 Implementation details:
 - tutor footsteps are cropped into individual steps, randomly varied, panned,
@@ -115,11 +116,7 @@ Integrated in the latest pass:
 - [x] caught / failure sting;
 - [x] test-complete / success sting.
 
-Still required:
-- **new correct-answer tick** — the selected Pixabay source is
-  https://pixabay.com/sound-effects/film-special-effects-game-show-correct-tick-sound-416167/
-  but its MP3 has not yet been supplied. The previous correct-answer sound has
-  been removed so the disliked cue is no longer heard.
+- [x] replacement correct-answer tick supplied, processed, preloaded and wired.
 
 Optional:
 - a subtle additional pencil/writing bed could be layered very quietly into
