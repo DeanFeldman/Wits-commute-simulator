@@ -26,6 +26,12 @@ import {
 // How long a checkpoint setback banner lingers while play continues.
 const SETBACK_DISPLAY_TIME = 2600;
 
+const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
+const RESULT_CUES = Object.freeze({
+  fail: Object.freeze({ start: 0, duration: 2.85 }),
+  success: Object.freeze({ start: 2.95, duration: 1.76 })
+});
+
 const LEVEL_STATES = new Map([
   [1, "level1"],
   [2, "level2"],
@@ -159,6 +165,7 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
+    this.uiAudio.preload([RESULT_AUDIO]);
     this.isMusicEnabled = true;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
@@ -784,6 +791,13 @@ export class Game {
     this.isTransitioning = true;
     this.setMessage(message);
 
+    if (completedLevel === 3) {
+      this.uiAudio.playSegment(RESULT_AUDIO, {
+        ...RESULT_CUES.success,
+        volume: 0.62
+      });
+    }
+
     if (completedLevel === 1) {
       // ParkingLevel is disposed before the Level 2 intro appears, so this
       // completion cue is owned by the game rather than the parking level.
@@ -829,6 +843,12 @@ export class Game {
 
     if (this.isScoredJourney) {
       this.recordFailedAttempt(this.currentLevelNumber);
+    }
+    if (this.currentLevelNumber === 3) {
+      this.uiAudio.playSegment(RESULT_AUDIO, {
+        ...RESULT_CUES.fail,
+        volume: 0.68
+      });
     }
     this.isTransitioning = true;
     this.setMessage(describeFailure(failure).title);
