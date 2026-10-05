@@ -38,7 +38,16 @@ export const CREDITS = [
     { name: "Level 2 paper foley", detail: "ssugg — CC0. Cropped for survey and quiz paper movement.", url: "https://freesound.org/people/ssugg/sounds/588320/" },
     { name: "Level 3 classroom room tone", detail: "klankbeeld — CC BY 4.0. Used as the classroom/hall ambience loop.", url: "https://freesound.org/people/klankbeeld/sounds/212137/" },
     { name: "Level 3 heartbeat", detail: "Cloud-10 — CC0. Adaptive heartbeat loop for suspicion and time pressure.", url: "https://freesound.org/people/Cloud-10/sounds/688735/" },
-    { name: "Level 3 classroom clock", detail: "giddster — CC0. Subtle wall-clock loop that becomes more audible near the end of the test.", url: "https://freesound.org/people/giddster/sounds/434841/" }
+    { name: "Level 3 classroom clock", detail: "giddster — CC0. Subtle wall-clock loop that becomes more audible near the end of the test.", url: "https://freesound.org/people/giddster/sounds/434841/" },
+    { name: "Level 1 collision impact", detail: "Universfield — Pixabay Content License. Trimmed for immediate car and barrier impacts.", url: "https://pixabay.com/sound-effects/film-special-effects-combat-impact-352458/" },
+    { name: "Level 1 pothole thump", detail: "Black_Kumizhi — Pixabay Content License. Low suspension/body thump for potholes.", url: "https://pixabay.com/sound-effects/technology-low-thumpy-kick-reverb-hit-494833/" },
+    { name: "Level 1 puddle splash", detail: "cookies+policy — CC0. Wet-pothole tyre splash.", url: "https://freesound.org/people/cookies%2Bpolicy/sounds/563021/" },
+    { name: "Level 2 taxi horn", detail: "Universfield — Pixabay Content License. Used when taxis stop.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
+    { name: "Level 2 person bump", detail: "freesound_community — Pixabay Content License. Used for pedestrian collisions.", url: "https://pixabay.com/sound-effects/film-special-effects-people-colliding-43479/" },
+    { name: "Level 2 Vida pickup", detail: "Vadim_Makes_Sound — Pixabay Content License; Pixabay marks the source AI modified/generated. Used for Vida cup collection.", url: "https://pixabay.com/sound-effects/film-special-effects-achievement-badge-pop-sound-1-547860/" },
+    { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
+    { name: "Level 3 failure sting", detail: "Universfield — Pixabay Content License. Used for Level 3 game-over transition.", url: "https://pixabay.com/sound-effects/film-special-effects-fail-trombone-229173/" },
+    { name: "Level 3 completion sting", detail: "Universfield — Pixabay Content License. Used on successful Level 3 completion.", url: "https://pixabay.com/sound-effects/film-special-effects-level-up-191997/" }
   ] },
   { heading: "Original music", entries: [
     { name: "Original level soundtrack", detail: `Commute Theme, Dusk Drive, Empire Rush and Don't Get Caught - OpenAI-assisted original compositions generated for this project on 2026-09-25 and used as pre-rendered WAV soundtrack files. ${GENERATED}. No third-party samples.` }
