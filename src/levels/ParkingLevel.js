@@ -49,6 +49,13 @@ const POTHOLE_WATER_DEPTH_RATIO = 0.42;
 
 const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
+
+const LEVEL1_IMPACT_AUDIO = "./assets/audio/level1/impact-sprite.opus";
+const LEVEL1_IMPACT_CUES = Object.freeze({
+  collision: Object.freeze({ start: 0, duration: 0.94 }),
+  pothole: Object.freeze({ start: 1.04, duration: 1.25 }),
+  puddle: Object.freeze({ start: 2.39, duration: 1.8 })
+});
 const PLAYER_CAR_COLLIDER_SIZE = [2.1, 1.1, 4];
 const PLAYER_CAR_HITBOX_BEVEL = 0.35;
 const LARGE_PARKING_CAR_IDS = new Set([
@@ -1342,6 +1349,7 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
+    this.audio.preload([LEVEL1_IMPACT_AUDIO, "./assets/audio/level1/idle-car.wav"]);
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -2383,11 +2391,13 @@ createParkingSurface(potholes = []) {
     this.audio.startEngineLoop("./assets/audio/level1/idle-car.wav");
   }
 
-  // Parked-car impacts are deliberately heavier than kerb/barrier contacts.
+  // The impact sprite is preloaded so the transient lands on the collision
+  // frame instead of waiting for a cold media element to buffer.
   playCollisionSound(speedFactor = 1) {
-    this.audio.playSample("./assets/audio/level1/car-crash.mp3", {
+    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      ...LEVEL1_IMPACT_CUES.collision,
       volume: THREE.MathUtils.lerp(
-        0.48,
+        0.58,
         0.95,
         THREE.MathUtils.clamp(speedFactor, 0, 1)
       ),
@@ -2520,9 +2530,10 @@ if (hit) {
       this.pushParkedCar(hit, crashSpeedFactor);
       this.playCollisionSound(crashSpeedFactor);
     } else {
-      this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
-        volume: THREE.MathUtils.lerp(0.28, 0.72, crashSpeedFactor),
-        playbackRate: THREE.MathUtils.lerp(0.9, 1.05, crashSpeedFactor)
+      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+        ...LEVEL1_IMPACT_CUES.collision,
+        volume: THREE.MathUtils.lerp(0.42, 0.78, crashSpeedFactor),
+        playbackRate: THREE.MathUtils.lerp(0.92, 1.04, crashSpeedFactor)
       });
     }
 
@@ -3415,14 +3426,19 @@ if (hit) {
       );
     }
 
-    // Reuse the recorded impact as a grounded suspension/body thump. A
-    // dedicated splash layer is added when the cleared wet-pothole asset is
-    // supplied; keeping it separate avoids replacing one generic cue with
-    // another.
-    this.audio.playSample("./assets/audio/level1/collision-hit.mp3", {
-      volume: THREE.MathUtils.clamp(0.24 + feedbackScale * 0.38, 0, 0.72),
-      playbackRate: THREE.MathUtils.lerp(0.84, 1.03, speedFactor)
+    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      ...LEVEL1_IMPACT_CUES.pothole,
+      volume: THREE.MathUtils.clamp(0.34 + feedbackScale * 0.34, 0, 0.78),
+      playbackRate: THREE.MathUtils.lerp(0.92, 1.05, speedFactor)
     });
+
+    if (contactedPothole.userData.isWet) {
+      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+        ...LEVEL1_IMPACT_CUES.puddle,
+        volume: THREE.MathUtils.clamp(0.22 + speedFactor * 0.38, 0, 0.62),
+        playbackRate: THREE.MathUtils.lerp(0.94, 1.06, speedFactor)
+      });
+    }
 
     const travelDirection =
       Math.sign(
