@@ -122,8 +122,31 @@ Optional:
 
 ## Music
 
-No replacement music is required yet.
+The soundtrack has now been fully rewritten on this branch.
 
-The existing soundtrack should be reassessed after the environmental and
-interaction soundscape is complete. This avoids replacing the music before we
-know how it sits in the corrected mix.
+The four tracks share one recognisable D-major / B-minor commute motif instead
+of behaving like unrelated pieces:
+
+- **Menu — "Commute Motif" (84 BPM):** warm, calm statement of the theme.
+- **Level 1 — "After Class" (76 BPM):** slower dusk interpretation with lots of
+  space for engine, collision and pothole audio.
+- **Level 2 — "Crossing Rush" (116 BPM):** brighter rhythmic version designed
+  to support movement without covering footsteps and traffic.
+- **Level 3 — "Eyes Down" (88 BPM):** deliberately sparse fragmented version;
+  suspicion/time pressure is carried primarily by heartbeat, clock and tutor
+  footsteps rather than by making the music increasingly loud.
+
+All music is project-created/generated specifically for this game and contains
+no downloaded loops or third-party samples.
+
+### Test before finalising
+
+Listen for:
+
+- whether the shared motif is recognisable without becoming repetitive;
+- whether music remains behind SFX at normal game volume;
+- whether Level 2 feels energetic without becoming tiring;
+- whether Level 3 leaves enough room to locate the tutor by sound;
+- whether any loop boundary is noticeable;
+- whether any track should be slightly louder/quieter before the final SFX pass.
+
