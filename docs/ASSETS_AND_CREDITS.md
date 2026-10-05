@@ -541,6 +541,167 @@ Yes — converted to Opus and packed into the Level 3 interaction sprite.
 Added by:
 Nadav Sundy
 
+### Level 2 Pavement Footsteps
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/PeteBarry/sounds/647403/
+
+Author:
+PeteBarry
+
+Licence:
+CC BY 4.0
+
+Used for:
+Level 2 player footsteps on pavement.
+
+Runtime file:
+`public/assets/audio/level2/footsteps-pavement.opus`
+
+Modified:
+Yes — individual steps were cropped, downmixed and packed into an Opus audio
+sprite; playback rate is varied slightly at runtime.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Traffic Ambience
+
+Type:
+Ambience
+
+Source:
+https://freesound.org/people/pawsound/sounds/154858/
+
+Author:
+pawsound
+
+Licence:
+CC0
+
+Used for:
+Quiet continuous exterior road ambience in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/traffic-ambience.opus`
+
+Modified:
+Yes — the supplied multichannel recording was downmixed and shortened into a
+lightweight runtime loop.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Vehicle Pass-bys
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Bakstad/sounds/823549/
+
+Author:
+Bakstad
+
+Licence:
+CC0
+
+Used for:
+Nearby Level 2 traffic pass-bys. The source contains one left-to-right and one
+right-to-left pass; the game rate-limits and pans them based on nearby traffic.
+
+Runtime file:
+`public/assets/audio/level2/vehicle-passbys.opus`
+
+Modified:
+Yes — the two pass-bys were isolated, downmixed and packed into one Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Paper Foley
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/ssugg/sounds/588320/
+
+Author:
+ssugg
+
+Licence:
+CC0
+
+Used for:
+Opening and submitting Level 2 survey/quiz forms.
+
+Runtime file:
+`public/assets/audio/level2/paper-sprite.opus`
+
+Modified:
+Yes — short paper movements were cropped and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Classroom Room Tone
+
+Type:
+Ambience
+
+Source:
+https://freesound.org/people/klankbeeld/sounds/212137/
+
+Author:
+klankbeeld
+
+Licence:
+CC BY 4.0
+
+Used for:
+Continuous Level 3 classroom ambience / hall air-conditioning room tone.
+
+Runtime file:
+`public/assets/audio/level3/classroom-ambience.opus`
+
+Modified:
+Yes — a clean speech-free section was downmixed and shortened into a lightweight
+runtime loop.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Heartbeat
+
+Type:
+Sound effect / ambience loop
+
+Source:
+https://freesound.org/people/Cloud-10/sounds/688735/
+
+Author:
+Cloud-10
+
+Licence:
+CC0
+
+Used for:
+Adaptive Level 3 tension. Heartbeat gain and playback rate increase with
+suspicion and late-test urgency.
+
+Runtime file:
+`public/assets/audio/level3/heartbeat.opus`
+
+Modified:
+Yes — converted to mono Opus for runtime looping.
+
+Added by:
+Nadav Sundy
+
 ---
 
 ## AI-Generated Assets
