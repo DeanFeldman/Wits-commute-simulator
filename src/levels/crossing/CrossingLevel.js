@@ -39,6 +39,21 @@ const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.0
 const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
 const LEVEL2_SHIELD_CUE = Object.freeze({ start: 0, duration: 0.717 });
 const LEVEL2_VEHICLE_IMPACT_AUDIO = "./assets/audio/level2/vehicle-impact.opus";
+const LEVEL2_FOOTSTEP_AUDIO = "./assets/audio/level2/footsteps-pavement.opus";
+const LEVEL2_FOOTSTEP_CUES = Object.freeze([
+  Object.freeze({ start: 0.08, duration: 0.52 }),
+  Object.freeze({ start: 0.69, duration: 0.52 }),
+  Object.freeze({ start: 1.30, duration: 0.52 }),
+  Object.freeze({ start: 1.91, duration: 0.52 }),
+  Object.freeze({ start: 2.52, duration: 0.52 }),
+  Object.freeze({ start: 3.13, duration: 0.52 })
+]);
+const LEVEL2_TRAFFIC_AMBIENCE_AUDIO = "./assets/audio/level2/traffic-ambience.opus";
+const LEVEL2_PASSBY_AUDIO = "./assets/audio/level2/vehicle-passbys.opus";
+const LEVEL2_PASSBY_CUES = Object.freeze([
+  Object.freeze({ start: 0.10, duration: 5.2 }),
+  Object.freeze({ start: 5.40, duration: 5.2 })
+]);
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
@@ -171,6 +186,9 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
+    this.gameplayAudioStarted = false;
+    this.footstepIndex = 0;
+    this.trafficPassCooldown = 0;
    // this.roadFogMaterials = [];
 
     this.cupKit = null;
@@ -992,6 +1010,7 @@ export class CrossingLevel {
       return;
     }
 
+    this.ensureGameplayAudio();
     this.updateSurveyConversation?.(dt);
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
@@ -1017,8 +1036,7 @@ export class CrossingLevel {
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardSteps += 1;
     if (landedDirection) this.updateCheckpoint();
-    // Footstep oscillator removed. Real pavement samples are wired in once
-    // the cleared Level 2 footstep set is supplied.
+    if (landedDirection) this.playPlayerFootstep();
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
@@ -1093,8 +1111,70 @@ export class CrossingLevel {
       || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
   }
 
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+    this.audio.startLoop("level2-traffic", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.2
+    });
+  }
+
+  playPlayerFootstep() {
+    const cue = LEVEL2_FOOTSTEP_CUES[this.footstepIndex % LEVEL2_FOOTSTEP_CUES.length];
+    this.footstepIndex += 1;
+    this.audio.playSegment(LEVEL2_FOOTSTEP_AUDIO, {
+      ...cue,
+      volume: 0.34,
+      playbackRate: 0.95 + Math.random() * 0.1
+    });
+  }
+
   updateTraffic(dt) {
     for (const strip of this.strips) strip.update(dt);
+
+    this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
+    for (const vehicle of this.traffic) {
+      if (vehicle.lane.isHighway) continue;
+
+      const dx = vehicle.root.position.x - this.player.position.x;
+      const dz = vehicle.lane.z - this.player.position.z;
+      const absX = Math.abs(dx);
+      const absZ = Math.abs(dz);
+
+      if (absX > 7.5) vehicle.audioPassArmed = true;
+      if (vehicle.audioPassArmed === undefined) vehicle.audioPassArmed = absX > 4;
+
+      if (
+        !vehicle.audioPassArmed ||
+        this.trafficPassCooldown > 0 ||
+        absZ > 4.5 ||
+        absX > 3.1
+      ) {
+        continue;
+      }
+
+      const cue = vehicle.lane.direction > 0
+        ? LEVEL2_PASSBY_CUES[0]
+        : LEVEL2_PASSBY_CUES[1];
+      const laneProximity = 1 - THREE.MathUtils.clamp(absZ / 4.5, 0, 1);
+
+      this.audio.playSegment(LEVEL2_PASSBY_AUDIO, {
+        ...cue,
+        volume: THREE.MathUtils.lerp(0.13, 0.34, laneProximity),
+        pan: THREE.MathUtils.clamp(dx / 5, -0.85, 0.85),
+        playbackRate: THREE.MathUtils.clamp(
+          (vehicle.controller?.speed ?? vehicle.cruiseSpeed ?? 5) /
+            Math.max(0.1, vehicle.cruiseSpeed ?? 5),
+          0.9,
+          1.1
+        )
+      });
+
+      vehicle.audioPassArmed = false;
+      this.trafficPassCooldown = 1.35;
+      break;
+    }
   }
 
   capturePlayerInput() {
