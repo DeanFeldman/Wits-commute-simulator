@@ -77,35 +77,49 @@ They remain source options if the current mix needs a different character.
 
 ### Level 1 — Parking
 
-The existing files below are still used but have incomplete provenance. Either
-find their original source/author/licence or supply cleared replacements:
+Integrated in the latest pass:
 
-- `idle-car.wav`
-- `car-crash.mp3`
-- `collision-hit.mp3`
-- `car-door-shut.mp3`
+- [x] immediate licensed collision impact;
+- [x] dedicated low pothole thump;
+- [x] wet-pothole water splash layered over the thump.
 
-Additional sounds still wanted:
+The old undocumented `car-crash.mp3` and `collision-hit.mp3` files have been
+removed from the branch because they are no longer used.
 
-- 2 short pothole / tyre-water splashes
-- ideally 2 suspension or pothole thumps
-- parking-brake / parking-confirmation sound
+Still required before submission:
+
+- provenance or a cleared replacement for `idle-car.wav`;
+- provenance or a cleared replacement for `car-door-shut.mp3`.
+
+Still optional:
+- parking-brake / parking-confirmation sound.
 
 ### Level 2
 
-Still useful:
+Integrated in the latest pass:
 
-- taxi horn
-- person/clothing bump or shoe shuffle
-- 1–2 cup pickup / cup-lid / ice sounds
-- optional checkpoint sound
+- [x] taxi horn;
+- [x] person collision / bump;
+- [x] Vida cup collection cue;
+- [x] stronger road-proximity traffic ambience;
+- [x] louder, preloaded vehicle collision feedback.
+
+Optional:
+- checkpoint confirmation sound.
 
 ### Level 3
 
-Still needed:
+Integrated in the latest pass:
 
-- caught/failure sting
-- test-complete sting
+- [x] louder replacement incorrect-answer cue;
+- [x] caught / failure sting;
+- [x] test-complete / success sting.
+
+Still required:
+- **new correct-answer tick** — the selected Pixabay source is
+  https://pixabay.com/sound-effects/film-special-effects-game-show-correct-tick-sound-416167/
+  but its MP3 has not yet been supplied. The previous correct-answer sound has
+  been removed so the disliked cue is no longer heard.
 
 Optional:
 - a subtle additional pencil/writing bed could be layered very quietly into
