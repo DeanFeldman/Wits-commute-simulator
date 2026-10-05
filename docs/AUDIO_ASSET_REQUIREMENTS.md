@@ -42,12 +42,14 @@ Implementation details:
 - [x] Incorrect-answer cue — Bertrof
 - [x] Classroom/hall room tone — klankbeeld
 - [x] Adaptive heartbeat — Cloud-10
+- [x] Real classroom clock tick — giddster
 
 Runtime assets:
 - `public/assets/audio/level3/tutor-steps.opus`
 - `public/assets/audio/level3/interaction-sprite.opus`
 - `public/assets/audio/level3/classroom-ambience.opus`
 - `public/assets/audio/level3/heartbeat.opus`
+- `public/assets/audio/level3/clock-tick.opus`
 
 Implementation details:
 - tutor footsteps are cropped into individual steps, randomly varied, panned,
@@ -56,22 +58,11 @@ Implementation details:
 - the heartbeat starts silent and fades in as suspicion rises above 20%, or as
   the final 15 seconds become urgent;
 - heartbeat volume and playback rate both increase with tension while the music
-  is ducked, keeping gameplay information more readable.
+  is ducked, keeping gameplay information more readable;
+- the real wall clock stays extremely quiet during normal play, then steps up
+  subtly at 30, 15 and 5 seconds remaining instead of beeping every second.
 
-## Supplied but not yet integrated
-
-### Level 3 clock
-
-Candidate:
-https://freesound.org/people/giddster/sounds/434841/
-
-The uploaded clock recording sounds suitable, but the exact licence for sound
-434841 has not yet been verified. A different giddster kitchen-clock recording
-is CC0, but that does not prove this specific file has the same licence.
-
-Please confirm the licence displayed on sound 434841 before it is added.
-
-### Unused candidates
+## Supplied but not used
 
 The following supplied recordings are currently not needed because the chosen
 sources are cleaner or have clearer licence records:
