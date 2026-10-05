@@ -729,6 +729,224 @@ Yes — a clean section was cropped, downmixed and encoded to Opus for looping.
 Added by:
 Nadav Sundy
 
+### Level 1 Collision / Pothole Impact
+
+Type:
+Sound effects
+
+Sources:
+- https://pixabay.com/sound-effects/film-special-effects-combat-impact-352458/
+- https://pixabay.com/sound-effects/technology-low-thumpy-kick-reverb-hit-494833/
+
+Authors:
+- Universfield
+- Black_Kumizhi
+
+Licence:
+Pixabay Content License
+
+Used for:
+Immediate Level 1 car/kerb impacts and the low suspension thump when entering a
+pothole.
+
+Runtime file:
+`public/assets/audio/level1/impact-sprite.opus`
+
+Modified:
+Yes — leading silence was removed, the useful transients were cropped and the
+effects were packed into a preloaded Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Puddle Splash
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/cookies%2Bpolicy/sounds/563021/
+
+Author:
+cookies+policy
+
+Licence:
+CC0
+
+Used for:
+Wet-pothole tyre splash layered over the pothole suspension impact.
+
+Runtime file:
+`public/assets/audio/level1/impact-sprite.opus`
+
+Modified:
+Yes — substantial leading silence was removed and a short useful splash section
+was packed into the Level 1 impact sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Taxi Horn
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/
+
+Author:
+Universfield
+
+Licence:
+Pixabay Content License
+
+Used for:
+Taxi stops in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/extra-sprite.opus`
+
+Modified:
+Yes — leading silence was removed and the cue was packed into an Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Person Bump
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-people-colliding-43479/
+
+Author:
+freesound_community
+
+Licence:
+Pixabay Content License
+
+Used for:
+Player-to-pedestrian bumps in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/extra-sprite.opus`
+
+Modified:
+Yes — the useful collision section was cropped and packed into an Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Vida Cup Pickup
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-achievement-badge-pop-sound-1-547860/
+
+Author:
+Vadim_Makes_Sound
+
+Licence:
+Pixabay Content License
+
+Source disclosure:
+Pixabay marks this source as AI modified or generated.
+
+Used for:
+Vida cup collection in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/extra-sprite.opus`
+
+Modified:
+Yes — cropped and packed into an Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Incorrect Answer
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-wrong-47985/
+
+Author:
+TheBuilder15 (Freesound), distributed via Pixabay freesound_community
+
+Licence:
+Pixabay Content License
+
+Used for:
+Audible incorrect-answer feedback in Level 3.
+
+Runtime file:
+`public/assets/audio/shared/result-sprite.opus`
+
+Modified:
+Yes — cropped to the useful error cue, encoded to Opus and played at a stronger
+gain than the previous incorrect sound.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Failure Sting
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-fail-trombone-229173/
+
+Author:
+Universfield
+
+Licence:
+Pixabay Content License
+
+Used for:
+Level 3 failure / game-over transition.
+
+Runtime file:
+`public/assets/audio/shared/result-sprite.opus`
+
+Modified:
+Yes — leading silence was removed and the useful sting was packed into an Opus
+sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Completion Sting
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-level-up-191997/
+
+Author:
+Universfield
+
+Licence:
+Pixabay Content License
+
+Used for:
+Successful completion of Level 3.
+
+Runtime file:
+`public/assets/audio/shared/result-sprite.opus`
+
+Modified:
+Yes — leading silence was removed and the cue was packed into an Opus sprite.
+
+Added by:
+Nadav Sundy
+
 ---
 
 ## AI-Generated Assets
