@@ -31,7 +31,13 @@ export const CREDITS = [
     { name: "Level 3 tutor footsteps", detail: "Yin_Yang_Jake007 and derjuli (Freesound) — Pixabay Content License. Cropped into positional tutor-step cues.", url: "https://pixabay.com/sound-effects/film-special-effects-indoor-footsteps-100664/" },
     { name: "Level 3 desk/chair foley", detail: "Anakronizm — CC0. Cropped from Classroom Deskchair Walk up Slide and Sit for peek movement.", url: "https://freesound.org/people/Anakronizm/sounds/494616/" },
     { name: "Level 3 correct answer", detail: "craigscottuk — CC0. Used for correct-answer confirmation.", url: "https://freesound.org/people/craigscottuk/sounds/644963/" },
-    { name: "Level 3 incorrect answer", detail: "Bertrof — CC BY 3.0. Used for incorrect-answer feedback.", url: "https://freesound.org/people/Bertrof/sounds/351565/" }
+    { name: "Level 3 incorrect answer", detail: "Bertrof — CC BY 3.0. Used for incorrect-answer feedback.", url: "https://freesound.org/people/Bertrof/sounds/351565/" },
+    { name: "Level 2 pavement footsteps", detail: "PeteBarry — CC BY 4.0. Cropped into varied pavement steps.", url: "https://freesound.org/people/PeteBarry/sounds/647403/" },
+    { name: "Level 2 traffic ambience", detail: "pawsound — CC0. Downmixed into the Level 2 road ambience loop.", url: "https://freesound.org/people/pawsound/sounds/154858/" },
+    { name: "Level 2 vehicle pass-bys", detail: "Bakstad — CC0. Two directional vehicle pass-bys used for nearby traffic.", url: "https://freesound.org/people/Bakstad/sounds/823549/" },
+    { name: "Level 2 paper foley", detail: "ssugg — CC0. Cropped for survey and quiz paper movement.", url: "https://freesound.org/people/ssugg/sounds/588320/" },
+    { name: "Level 3 classroom room tone", detail: "klankbeeld — CC BY 4.0. Used as the classroom/hall ambience loop.", url: "https://freesound.org/people/klankbeeld/sounds/212137/" },
+    { name: "Level 3 heartbeat", detail: "Cloud-10 — CC0. Adaptive heartbeat loop for suspicion and time pressure.", url: "https://freesound.org/people/Cloud-10/sounds/688735/" }
   ] },
   { heading: "Original music", entries: [
     { name: "Original level soundtrack", detail: `Commute Theme, Dusk Drive, Empire Rush and Don't Get Caught - OpenAI-assisted original compositions generated for this project on 2026-09-25 and used as pre-rendered WAV soundtrack files. ${GENERATED}. No third-party samples.` }
