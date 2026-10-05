@@ -196,11 +196,13 @@ const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus"
 const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
 const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
 const LEVEL3_CLOCK_AUDIO = "./assets/audio/level3/clock-tick.opus";
+const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
 const LEVEL3_INTERACTION_CUES = Object.freeze({
   peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
-  peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 }),
-  answerCorrect: Object.freeze({ start: 1.944, duration: 2 }),
-  answerIncorrect: Object.freeze({ start: 4.044, duration: 0.747 })
+  peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 })
+});
+const LEVEL3_RESULT_CUES = Object.freeze({
+  incorrect: Object.freeze({ start: 4.81, duration: 1.47 })
 });
 export const TUTOR_OPENING_START_INDEX = 7;
 export const TUTOR_OPENING_TARGET_INDEX = 8;
@@ -321,6 +323,11 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
+    this.audio.preload([
+      RESULT_AUDIO,
+      LEVEL3_INTERACTION_AUDIO,
+      LEVEL3_TUTOR_STEP_AUDIO
+    ]);
     this.gameplayAudioStarted = false;
 
     this.cheatDesks = [];
@@ -2264,9 +2271,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
-      this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
-        ...LEVEL3_INTERACTION_CUES.answerIncorrect,
-        volume: 0.42
+      this.audio.playSegment(RESULT_AUDIO, {
+        ...LEVEL3_RESULT_CUES.incorrect,
+        volume: 0.82
       });
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
@@ -2280,10 +2287,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
-      ...LEVEL3_INTERACTION_CUES.answerCorrect,
-      volume: 0.36
-    });
+    // The previous correct-answer cue was removed because it did not fit
+    // the level. The replacement Pixabay tick is wired once its audio file
+    // is supplied; visual feedback remains immediate in the meantime.
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
