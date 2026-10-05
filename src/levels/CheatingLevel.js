@@ -195,6 +195,7 @@ const LEVEL3_TUTOR_STEPS = Object.freeze([
 const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus";
 const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
 const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
+const LEVEL3_CLOCK_AUDIO = "./assets/audio/level3/clock-tick.opus";
 const LEVEL3_INTERACTION_CUES = Object.freeze({
   peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
   peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 }),
@@ -1549,6 +1550,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       volume: 0,
       playbackRate: 0.88
     });
+    this.audio.startLoop("level3-clock", LEVEL3_CLOCK_AUDIO, {
+      bus: "ambience",
+      volume: 0.006
+    });
   }
 
   updateLevelThreeHUD(dt) {
@@ -2150,6 +2155,14 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.audio.setLoopParameters("level3-heartbeat", {
       volume: tension > 0 ? 0.04 + tension * 0.24 : 0,
       playbackRate: 0.88 + tension * 0.34
+    });
+
+    let clockVolume = 0.006;
+    if (this.timeRemaining <= 30) clockVolume = 0.014;
+    if (this.timeRemaining <= 15) clockVolume = 0.026;
+    if (this.timeRemaining <= 5) clockVolume = 0.045;
+    this.audio.setLoopParameters("level3-clock", {
+      volume: clockVolume
     });
   }
 
