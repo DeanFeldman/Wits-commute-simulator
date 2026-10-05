@@ -2938,12 +2938,8 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
     vehicle.passenger.visible = false;
   }
 
-  this.audio?.cue(
-    520,
-    0.13,
-    0.1,
-    vehicle.root.position.x / 12
-  );
+  // No synthetic taxi beep: a recorded horn will be added only when a
+  // cleared taxi-horn asset is supplied.
 }
 
   scheduleTaxiStop(vehicle) {
