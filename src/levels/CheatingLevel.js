@@ -193,6 +193,8 @@ const LEVEL3_TUTOR_STEPS = Object.freeze([
 ]);
 
 const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus";
+const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
+const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
 const LEVEL3_INTERACTION_CUES = Object.freeze({
   peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
   peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 }),
@@ -318,6 +320,7 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
+    this.gameplayAudioStarted = false;
 
     this.cheatDesks = [];
     this.decorativeTablets = [];
@@ -1483,6 +1486,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return;
     }
 
+    this.ensureGameplayAudio();
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
     // The old once-per-second oscillator tick was intentionally removed.
@@ -1530,6 +1534,21 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         next: `Retry restarts the test with a fresh ${LEVEL_THREE_TIME_LIMIT} seconds.`
       });
     }
+  }
+
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+
+    this.audio.startLoop("level3-classroom", LEVEL3_CLASSROOM_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.16
+    });
+    this.audio.startLoop("level3-heartbeat", LEVEL3_HEARTBEAT_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 0.88
+    });
   }
 
   updateLevelThreeHUD(dt) {
@@ -2117,6 +2136,21 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       ? THREE.MathUtils.lerp(0.55, 0.78, this.timeRemaining / 15)
       : 1;
     this.audio.setMusicScale(Math.min(suspicionMix, urgencyMix));
+
+    const suspicionTension = THREE.MathUtils.clamp(
+      (this.suspicion - 20) / 80,
+      0,
+      1
+    );
+    const timeTension = this.timeRemaining < 15
+      ? (15 - this.timeRemaining) / 15
+      : 0;
+    const tension = Math.max(suspicionTension, timeTension * 0.72);
+
+    this.audio.setLoopParameters("level3-heartbeat", {
+      volume: tension > 0 ? 0.04 + tension * 0.24 : 0,
+      playbackRate: 0.88 + tension * 0.34
+    });
   }
 
   getContextInstruction() {
