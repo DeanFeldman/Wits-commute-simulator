@@ -433,6 +433,7 @@ export class CrossingLevel {
   createMinimapCamera() {
     this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
     this.minimapCamera.position.set(0, 100, this.startZ);
+    this.minimapCamera.up.set(0, 0, 1);
     this.minimapCamera.lookAt(0, 0, this.startZ);
     this.updateMinimapCameraFrustum();
   }
@@ -562,9 +563,9 @@ export class CrossingLevel {
     const rect = this.minimapElement.getBoundingClientRect(), canvasRect = renderer.domElement.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
     this.updateMinimapCameraFrustum(rect.width / rect.height);
-    const { x, z } = this.player.position, angle = this.player.rotation.y;
+    const { x, z } = this.player.position;
     this.minimapCamera.position.set(x, 100, z);
-    this.minimapCamera.up.set(Math.sin(angle), 0, Math.cos(angle));
+    this.minimapCamera.up.set(0, 0, 1);
     this.minimapCamera.lookAt(x, 0, z);
     const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
     const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
