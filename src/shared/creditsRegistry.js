@@ -104,19 +104,17 @@ export const CREDITS = [
     { name: "Level 1 collision impact", detail: "Universfield — Pixabay Content License. Trimmed for immediate car and barrier impacts.", url: "https://pixabay.com/sound-effects/film-special-effects-combat-impact-352458/" },
     { name: "Level 1 pothole thump", detail: "Black_Kumizhi — Pixabay Content License. Low suspension/body thump for potholes.", url: "https://pixabay.com/sound-effects/technology-low-thumpy-kick-reverb-hit-494833/" },
     { name: "Level 1 puddle splash", detail: "cookies+policy — CC0. Wet-pothole tyre splash.", url: "https://freesound.org/people/cookies%2Bpolicy/sounds/563021/" },
-    { name: "Level 2 taxi horn", detail: "Universfield — Pixabay Content License. Used when taxis stop.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
+    { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
     { name: "Level 2 person bump", detail: "freesound_community — Pixabay Content License. Used for pedestrian collisions.", url: "https://pixabay.com/sound-effects/film-special-effects-people-colliding-43479/" },
     { name: "Level 2 Vida pickup", detail: "Vadim_Makes_Sound — Pixabay Content License; Pixabay marks the source AI modified/generated. Used for Vida cup collection.", url: "https://pixabay.com/sound-effects/film-special-effects-achievement-badge-pop-sound-1-547860/" },
     { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
-    { name: "Level 3 failure sting", detail: "Universfield — Pixabay Content License. Used for Level 3 game-over transition.", url: "https://pixabay.com/sound-effects/film-special-effects-fail-trombone-229173/" },
-    { name: "Level 3 completion sting", detail: "Universfield — Pixabay Content License. Used on successful Level 3 completion.", url: "https://pixabay.com/sound-effects/film-special-effects-level-up-191997/" }
   ] },
   {
     heading: "Original music",
     entries: [
       {
         name: "Commute Theme / Dusk Drive / Empire Rush / Don't Get Caught",
-        detail: `OpenAI-assisted original compositions generated for this project on 2026-09-25 and stored as pre-rendered WAV files. ${GENERATED}. No third-party samples are recorded as used.`
+        detail: `OpenAI-assisted original compositions generated for this project on 2026-09-25 and stored as pre-rendered WAV files. ${GENERATED}. Continuous level music is disabled; music is retained for menu/story presentation.`
       }
     ]
   },
@@ -154,7 +152,7 @@ export const CREDITS = [
       },
       {
         name: "Level 1 recorded audio",
-        detail: "car-door-shut.mp3 and idle-car.wav still need complete source/author/licence records or replacement. The old undocumented car-crash.mp3 and collision-hit.mp3 files were removed after licensed replacements were integrated."
+        detail: "idle-car.wav still needs complete source/author/licence records or replacement. The old crash/collision files and the end-of-level car-door cue are no longer used."
       },
       {
         name: "Pencil Pete trial font",
