@@ -168,6 +168,14 @@ export class InputManager {
     this.keysReleased.clear();
   }
 
+  clearTransientState() {
+    this.keysDown.clear();
+    this.keysPressed.clear();
+    this.keysReleased.clear();
+    this.bufferedKeys.clear();
+    this.clearMouseDelta();
+  }
+
   dispose() {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
