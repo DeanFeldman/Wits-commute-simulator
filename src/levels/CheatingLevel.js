@@ -380,6 +380,13 @@ this.patrolPoints = [
   }
 
   async load() {
+    await this.audio.waitForPreload([
+      RESULT_AUDIO,
+      LEVEL3_CORRECT_AUDIO,
+      LEVEL3_INTERACTION_AUDIO,
+      LEVEL3_TUTOR_STEP_AUDIO
+    ]);
+
     const scene = this.game.scene;
 
     scene.background = new THREE.Color(0xb9d8e8);
