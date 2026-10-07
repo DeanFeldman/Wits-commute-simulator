@@ -90,7 +90,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     kicker: "LEVEL 02 // CROSS",
     title: "Campus Crossing",
     objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
-    controls: [["WASD / ARROWS", "Move across the route"], ["P", "Pause / settings"], ["C", "Change camera"]],
+    controls: [["WASD / ARROWS", "Move across the route"], ["C", "Camera view"], ["P", "Pause / settings"]],
     tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
     previewLabel: "Actual Level 2 crossing view"
   }],
