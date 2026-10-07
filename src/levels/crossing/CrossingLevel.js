@@ -1006,6 +1006,7 @@ export class CrossingLevel {
     this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
+    this.cups?.update(dt);
     this.updateCamera(dt);
   }
 
