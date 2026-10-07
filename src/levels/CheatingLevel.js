@@ -139,13 +139,6 @@ const DESK_INTERACTION_DISTANCE = 5.25;
 const VISION_CONE_LENGTH = 5.5;
 const VISION_CONE_HALF_ANGLE = THREE.MathUtils.degToRad(32);
 const VISION_CONE_OPACITY = 0.075;
-const SUSPICION_PARTICLE_CAPACITY = 44;
-const SUSPICION_PARTICLE_GLYPHS = ["#", "@", "$", "%", "!"];
-// The narrow upper chamber cannot physically pack 48 large disks. Keep the
-// collision footprint compact so a full meter can settle instead of jittering.
-const SUSPICION_PARTICLE_RADIUS = 5;
-const SUSPICION_PARTICLE_DISPLAY_RADIUS = 5;
-const SUSPICION_PARTICLE_GRAVITY = 220;
 // The replacement desk has a lower authored origin than the original prop.
 // Keep its work surface, papers, tablets, and interaction volumes together.
 const DESK_HEIGHT_ADJUSTMENT = 0.28;
@@ -337,7 +330,6 @@ this.patrolPoints = [
     this.decorativeTablets = [];
     this.hologramTearStyleIndex = 0;
     this.levelThreeHud = null;
-    this.suspicionParticles = [];
     this.playerDesk = null;
     this.targetCheatDesk = null;
     this.isLookingAtPlayerDesk = false;
@@ -369,6 +361,7 @@ this.patrolPoints = [
     this.pitch = 0;
 
     this.completed = false;
+    this.tutorialPose = null;
 
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
@@ -1069,7 +1062,11 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     context.textAlign = "left";
     context.textBaseline = "top";
     context.font = "bold 30px sans-serif";
-    context.fillText("QUESTION", 38, 42);
+    const totalQuestions = Math.ceil(100 / LEVEL_THREE_BALANCE.answerGainPerCorrectWord);
+    const answeredQuestions = Math.min(totalQuestions,
+      Math.round(this.answerProgress / LEVEL_THREE_BALANCE.answerGainPerCorrectWord));
+    const currentQuestion = Math.min(answeredQuestions + 1, totalQuestions);
+    context.fillText(`QUESTION ${currentQuestion} OF ${totalQuestions}`, 38, 42);
     context.font = "29px sans-serif";
     const questionBottom = this.drawWrappedPaperText(
       context,
@@ -1092,6 +1089,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       answerLabelY + 62,
       width - 104
     );
+    // Progress belongs to the answer sheet and redraws with each answer.
+    context.fillStyle = "#26313d";
+    context.font = "bold 24px sans-serif";
+    context.fillText(`${answeredQuestions} OF ${totalQuestions} ANSWERED`, 38, height - 76);
+    const progressWidth = width - 76;
+    context.fillStyle = "#d0d5d2";
+    context.fillRect(38, height - 40, progressWidth, 18);
+    context.fillStyle = "#38865b";
+    context.fillRect(38, height - 40,
+      progressWidth * THREE.MathUtils.clamp(this.answerProgress / 100, 0, 1), 18);
+    context.strokeStyle = "#26313d";
+    context.lineWidth = 2;
+    context.strokeRect(38, height - 40, progressWidth, 18);
     paper.userData.paperTexture.needsUpdate = true;
   }
 
@@ -1498,6 +1508,79 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.tutorEye.add(cone);
   }
 
+  beginTutorial() {
+    if (!this.camera || this.tutorialPose) return;
+    this.tutorialPose = {
+      yaw: this.yaw,
+      pitch: this.pitch,
+      fov: this.camera.fov
+    };
+    this.endPeek();
+    this.typedAnswer = "";
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.updatePlayerPaper();
+  }
+
+  moveTutorialLook(dx, dy) {
+    const sensitivity = this.game.levelThreeLookSensitivity ?? 1;
+    this.yaw -= dx * 0.002 * sensitivity;
+    this.pitch -= dy * 0.002 * sensitivity;
+    this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
+    this.pitch = clamp(this.pitch, -0.65, 0.45);
+    this.camera.rotation.order = "YXZ";
+    this.camera.rotation.y = this.yaw;
+    this.camera.rotation.x = this.pitch;
+  }
+
+  setTutorialMouseDown(active) {
+    this.leftMouseDown = Boolean(active);
+  }
+
+  updateTutorial(dt) {
+    if (!this.camera) return;
+    this.updateDeskTargeting();
+    this.updatePlayerPaperPose(dt);
+
+    this.zoomActive = this.leftMouseDown;
+    this.peekActive = Boolean(this.zoomActive && this.targetCheatDesk);
+    this.zoomOverlay?.classList.toggle("visible", this.zoomActive);
+
+    for (const desk of this.cheatDesks) {
+      desk.hologram.visible = this.peekActive && desk === this.targetCheatDesk;
+    }
+
+    if (this.peekActive) {
+      this.currentCopiedDesk = this.targetCheatDesk;
+      this.currentCopiedWord = this.targetCheatDesk.word;
+    }
+
+    const targetFov = this.zoomActive ? PEEK_CAMERA_FOV : NORMAL_CAMERA_FOV;
+    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, Math.min(1, dt * 10));
+    this.camera.updateProjectionMatrix();
+  }
+
+  endTutorial() {
+    if (!this.tutorialPose || !this.camera) return;
+    this.endPeek();
+    this.yaw = this.tutorialPose.yaw;
+    this.pitch = this.tutorialPose.pitch;
+    this.camera.fov = this.tutorialPose.fov;
+    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld(true);
+    this.targetCheatDesk = null;
+    this.isLookingAtPlayerDesk = false;
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.typedAnswer = "";
+    this.feedbackMessage = "";
+    this.feedbackTime = 0;
+    this.updatePlayerPaper();
+    this.game.input.clearMouseDelta();
+    this.tutorialPose = null;
+  }
+
   update(dt) {
     if (this.completed) {
       return;
@@ -1574,15 +1657,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (!this.levelThreeHud?.root?.isConnected) {
       this.game.setHUD(`
         <div class="game-hud l3-hud">
-          <div class="hud-split"><span>Time <strong data-l3-time></strong></span><span>Answers <strong data-l3-answers></strong></span></div>
-          <div class="meter progress"><i data-l3-progress></i></div>
+          <section class="l3-timer" aria-label="Test timer">
+            <div class="l3-stopwatch" aria-hidden="true" data-l3-stopwatch>
+              <img class="l3-stopwatch-base" src="./assets/images/ui/level3-stopwatch-base.png" alt="" draggable="false" />
+              <div class="l3-stopwatch-sweep"></div>
+              <img class="l3-stopwatch-hand" src="./assets/images/ui/level3-stopwatch-hand.png" alt="" draggable="false" />
+            </div>
+            <div class="l3-timer-caption">Time <strong data-l3-time></strong></div>
+          </section>
           <div class="hud-tip l3-context" data-l3-context></div>
-          <section class="l3-suspicion-vessel" aria-label="Suspicion meter">
-            <div class="l3-suspicion-label">Suspicion</div>
-            <div class="l3-suspicion-mark" aria-hidden="true">
-              <div class="l3-suspicion-well" data-l3-particle-well></div>
-              <div class="l3-suspicion-dot"></div>
-              <img class="l3-suspicion-art" src="./assets/images/ui/suspicion-meter.png" alt="" />
+          <section class="l3-suspicion-meter" aria-labelledby="l3-suspicion-label">
+            <div class="l3-suspicion-label" id="l3-suspicion-label">Suspicion</div>
+            <div class="l3-suspicion-track" role="meter" aria-label="Suspicion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-l3-suspicion-meter>
+              <div class="l3-suspicion-fill" data-l3-suspicion-fill></div>
             </div>
             <output class="l3-suspicion-value" data-l3-suspicion-value>0%</output>
           </section>
@@ -1592,19 +1679,21 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.levelThreeHud = {
         root,
         time: root.querySelector("[data-l3-time]"),
-        answers: root.querySelector("[data-l3-answers]"),
-        progress: root.querySelector("[data-l3-progress]"),
+        stopwatch: root.querySelector("[data-l3-stopwatch]"),
         context: root.querySelector("[data-l3-context]"),
         suspicionValue: root.querySelector("[data-l3-suspicion-value]"),
-        particleWell: root.querySelector("[data-l3-particle-well]")
+        suspicionMeter: root.querySelector("[data-l3-suspicion-meter]"),
+        suspicionFill: root.querySelector("[data-l3-suspicion-fill]")
       };
-      this.suspicionParticles = [];
     }
 
     const hud = this.levelThreeHud;
     hud.time.textContent = `${Math.ceil(this.timeRemaining)}s`;
-    hud.answers.textContent = `${Math.round(this.answerProgress)}%`;
-    hud.progress.style.width = `${this.answerProgress}%`;
+    // Use gameplay time so the hand and swept area freeze together on pause.
+    const elapsedFraction = THREE.MathUtils.clamp(
+      1 - this.timeRemaining / LEVEL_THREE_TIME_LIMIT, 0, 1
+    );
+    hud.stopwatch.style.setProperty("--timer-angle", `${elapsedFraction * 360}deg`);
     hud.context.textContent = this.getContextInstruction();
     if (this.isLookingAtPlayerDesk) {
       const typed = document.createElement("span");
@@ -1615,198 +1704,22 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     hud.suspicionValue.value = `${Math.round(this.suspicion)}%`;
     hud.suspicionValue.textContent = `${Math.round(this.suspicion)}%`;
 
-    this.syncSuspicionParticles();
-    this.updateSuspicionParticlePhysics(dt);
+    const suspicion = THREE.MathUtils.clamp(this.suspicion, 0, 100);
+    hud.suspicionFill.style.transform = `scaleY(${suspicion / 100})`;
+    hud.suspicionMeter.setAttribute("aria-valuenow", Math.round(suspicion));
+    // Keep the phase continuous as the shake speeds up, avoiding animation jumps.
+    const shakeProgress = THREE.MathUtils.clamp((suspicion - 50) / 49, 0, 1);
+    const shaking = suspicion >= 50;
+    const shakePeriod = THREE.MathUtils.lerp(0.7, 0.3, shakeProgress);
+    hud.shakePhase = shaking
+      ? ((hud.shakePhase ?? 0) + (dt ?? 0) * Math.PI * 2 / shakePeriod) % (Math.PI * 2)
+      : 0;
+    const shakeWave = Math.sin(hud.shakePhase);
+    hud.suspicionMeter.classList.toggle("is-danger", shaking);
+    hud.suspicionMeter.style.setProperty("--shake-x", `${shakeWave * THREE.MathUtils.lerp(1, 4, shakeProgress)}px`);
+    hud.suspicionMeter.style.setProperty("--shake-rotation", `${shakeWave * THREE.MathUtils.lerp(0.5, 2, shakeProgress)}deg`);
   }
 
-  syncSuspicionParticles() {
-    const targetCount = Math.round(
-      (this.suspicion / 100) * SUSPICION_PARTICLE_CAPACITY
-    );
-    const well = this.levelThreeHud.particleWell;
-
-    while (this.suspicionParticles.length < targetCount) {
-      const slotIndex = this.suspicionParticles.length;
-      const isLowerCubeSlot = slotIndex < 6;
-      const element = document.createElement("span");
-      element.className = "l3-suspicion-particle";
-      element.textContent = SUSPICION_PARTICLE_GLYPHS[
-        Math.floor(Math.random() * SUSPICION_PARTICLE_GLYPHS.length)
-      ];
-      well.append(element);
-      const [targetX, targetY] = this.getSuspicionParticleSlots(
-        well.clientWidth,
-        well.clientHeight
-      )[slotIndex];
-      this.suspicionParticles.push({
-        element,
-        x: well.clientWidth * (0.36 + Math.random() * 0.28),
-        // Dot glyphs begin in the hidden transfer gap, so the lower cube
-        // visibly fills before glyphs have time to settle in the upper body.
-        y: isLowerCubeSlot
-          ? well.clientHeight * (0.75 + Math.random() * 0.04)
-          : -18 - Math.random() * 32,
-        vx: (Math.random() - 0.5) * 42,
-        vy: isLowerCubeSlot ? 55 + Math.random() * 20 : Math.random() * 30,
-        rotation: (Math.random() - 0.5) * 50,
-        angularVelocity: (Math.random() - 0.5) * 280,
-        radius: SUSPICION_PARTICLE_RADIUS,
-        targetX,
-        targetY
-      });
-    }
-
-    while (this.suspicionParticles.length > targetCount) {
-      this.suspicionParticles.pop().element.remove();
-    }
-  }
-
-  updateSuspicionParticlePhysics(dt) {
-    const particles = this.suspicionParticles;
-    const well = this.levelThreeHud.particleWell;
-    const width = well.clientWidth;
-    const height = well.clientHeight;
-    if (!width || !height) return;
-
-    const step = Math.min(dt, 1 / 30);
-    for (const particle of particles) {
-      particle.vy += SUSPICION_PARTICLE_GRAVITY * step;
-      const drag = Math.pow(0.16, step);
-      particle.vx *= drag;
-      particle.vy *= drag;
-      particle.angularVelocity *= drag;
-      particle.x += particle.vx * step;
-      particle.y += particle.vy * step;
-      particle.rotation += particle.angularVelocity * step;
-      particle.x = THREE.MathUtils.damp(
-        particle.x,
-        particle.targetX,
-        14,
-        step
-      );
-      if (particle.y >= particle.targetY) {
-        particle.y = particle.targetY;
-        particle.vy = 0;
-        particle.vx = 0;
-        particle.angularVelocity = 0;
-      }
-      this.keepSuspicionParticleInside(particle, width, height);
-    }
-
-    for (const particle of particles) {
-      particle.element.style.transform = `translate3d(${particle.x - SUSPICION_PARTICLE_DISPLAY_RADIUS}px, ${particle.y - SUSPICION_PARTICLE_DISPLAY_RADIUS}px, 0) rotate(${particle.rotation}deg)`;
-      particle.element.style.opacity = this.getSuspicionParticleVisibility(
-        particle.y,
-        height
-      );
-    }
-  }
-
-  getSuspicionParticleSlots(width, height) {
-    const center = width / 2;
-    const slots = [
-      [0.38, 0.85], [0.62, 0.85],
-      [0.38, 0.91], [0.62, 0.91],
-      [0.38, 0.97], [0.62, 0.97]
-    ];
-    const upperRows = [
-      [0.59, [0.5]],
-      [0.54, [0.4, 0.6]],
-      [0.49, [0.32, 0.5, 0.68]],
-      [0.44, [0.32, 0.5, 0.68]],
-      [0.39, [0.32, 0.5, 0.68]],
-      [0.34, [0.32, 0.5, 0.68]],
-      [0.29, [0.32, 0.5, 0.68]],
-      [0.24, [0.2, 0.4, 0.6, 0.8]],
-      [0.19, [0.2, 0.4, 0.6, 0.8]],
-      [0.14, [0.2, 0.4, 0.6, 0.8]],
-      [0.09, [0.2, 0.4, 0.6, 0.8]],
-      [0.04, [0.2, 0.4, 0.6, 0.8]]
-    ];
-
-    for (const [y, xPositions] of upperRows) {
-      for (const x of xPositions) slots.push([x, y]);
-    }
-    return slots.map(([x, y]) => [center + (x - 0.5) * width, y * height]);
-  }
-
-  getSuspicionParticleVisibility(y, height) {
-    // The artwork intentionally separates the exclamation dot from the
-    // vessel. Physics stays continuous between them, while this render mask
-    // prevents glyphs from appearing in the illustrated air gap.
-    const gapStart = height * 0.68;
-    const gapEnd = height * 0.81;
-    const fadeDistance = 7;
-    if (y <= gapStart - fadeDistance || y >= gapEnd + fadeDistance) return 1;
-    if (y < gapStart) return (gapStart - y) / fadeDistance;
-    if (y <= gapEnd) return 0;
-    return (y - gapEnd) / fadeDistance;
-  }
-
-  keepSuspicionParticleInside(particle, width, height) {
-    const yProgress = THREE.MathUtils.clamp(particle.y / height, 0, 1);
-    let halfWidthFraction;
-    if (yProgress < 0.08) {
-      halfWidthFraction = 0.35 + (yProgress / 0.08) * 0.15;
-    } else if (yProgress < 0.62) {
-      halfWidthFraction = 0.5 - ((yProgress - 0.08) / 0.54) * 0.24;
-    } else if (yProgress < 0.69) {
-      halfWidthFraction = 0.26 - ((yProgress - 0.62) / 0.07) * 0.01;
-    } else if (yProgress < 0.79) {
-      // The narrow neck connecting the upper vessel to the dot.
-      halfWidthFraction = 0.25;
-    } else {
-      // The separate-looking square at the bottom is part of the fill volume.
-      halfWidthFraction = 0.34;
-    }
-    const halfWidth = width * halfWidthFraction;
-    const center = width / 2;
-    const minX = center - halfWidth + particle.radius;
-    const maxX = center + halfWidth - particle.radius;
-    if (particle.x < minX || particle.x > maxX) {
-      particle.x = THREE.MathUtils.clamp(particle.x, minX, maxX);
-      particle.vx *= -0.38;
-    }
-    if (particle.y > height - particle.radius) {
-      particle.y = height - particle.radius;
-      particle.vy *= -0.2;
-      particle.vx *= 0.65;
-      particle.angularVelocity *= 0.5;
-      if (Math.abs(particle.vy) < 12) particle.vy = 0;
-      if (Math.abs(particle.vx) < 4) particle.vx = 0;
-      if (Math.abs(particle.angularVelocity) < 8) particle.angularVelocity = 0;
-    }
-  }
-
-  resolveSuspicionParticleCollision(first, second) {
-    const dx = second.x - first.x;
-    const dy = second.y - first.y;
-    const minimumDistance = first.radius + second.radius;
-    const distanceSq = dx * dx + dy * dy;
-    if (!distanceSq || distanceSq >= minimumDistance * minimumDistance) return;
-
-    const distance = Math.sqrt(distanceSq);
-    const normalX = dx / distance;
-    const normalY = dy / distance;
-    const overlap = (minimumDistance - distance) / 2;
-    first.x -= normalX * overlap;
-    first.y -= normalY * overlap;
-    second.x += normalX * overlap;
-    second.y += normalY * overlap;
-
-    const relativeVelocity =
-      (second.vx - first.vx) * normalX + (second.vy - first.vy) * normalY;
-    if (relativeVelocity >= 0) return;
-    // Nearly inelastic glyph contacts prevent a crowded meter from endlessly
-    // passing momentum through the entire stack.
-    const impulse = relativeVelocity * -0.3;
-    first.vx -= impulse * normalX;
-    first.vy -= impulse * normalY;
-    second.vx += impulse * normalX;
-    second.vy += impulse * normalY;
-    first.angularVelocity *= 0.76;
-    second.angularVelocity *= 0.76;
-  }
   handleTutorPatrolArrival(reachedIndex) {
   if (reachedIndex === TUTOR_PLAYER_APPROACH_INDEX) {
     this.extraPlayerPassesRemaining =
@@ -2248,9 +2161,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     event.stopImmediatePropagation();
 
     if (event.key === "Enter") {
-      if (!event.repeat) {
-        this.submitTypedAnswer();
+      if (this.game.isTutorialActive) {
+        this.feedbackMessage = this.typedAnswer ? "Practice answer entered." : "Type an answer first.";
+        this.feedbackTime = 1.2;
+        return;
       }
+      if (!event.repeat) this.submitTypedAnswer();
       return;
     }
 
@@ -2432,7 +2348,6 @@ canTutorSeePlayer() {
 
   dispose() {
     this.audio.dispose();
-    this.suspicionParticles = [];
     this.levelThreeHud = null;
     this.backgroundTexture?.dispose();
     this.zoomOverlay?.classList.remove("visible");
