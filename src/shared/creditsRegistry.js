@@ -138,7 +138,7 @@ export const CREDITS = [
       },
       {
         name: "Wits shark 3D model",
-        detail: "Project-created by Gabriel Raz using the Wits Sharks Instagram account as visual reference supplied by Dean Feldman. The separately retained wits-shark.png reference image still needs reuse/redistribution clearance or removal.",
+        detail: "Project-created by Gabriel Raz using Wits Sharks Instagram imagery as visual reference supplied by Dean Feldman. The separate reference PNG was removed because gameplay loads only the GLB.",
         url: "https://www.instagram.com/wits_sharks/"
       },
       {
@@ -160,7 +160,8 @@ export const CREDITS = [
     entries: [
       {
         name: "Diesel Thomas proxy",
-        detail: "The runtime mesh is a project-made procedural proxy, but the underlying character reference still needs rights clearance or removal."
+        detail: "Project-made procedural proxy based on the supplied Sketchfab Diesel Powered Thomas source. Source is now recorded; the source-page licence/redistribution terms still need confirmation.",
+        url: "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
       },
       {
         name: "Level 1 recorded audio",
@@ -173,7 +174,7 @@ export const CREDITS = [
       },
       {
         name: "Level 1 environment textures still unresolved",
-        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was sourced/adapted from a Precast Walling Pros image supplied by Dean Feldman, but reuse/redistribution terms have not yet been confirmed.",
+        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was directly edited/adapted from a Precast Walling Pros image by Dean Feldman; reuse/redistribution terms have not yet been confirmed.",
         url: "https://precastwallingpros.co.za/"
       },
       {
@@ -185,13 +186,8 @@ export const CREDITS = [
         detail: "Tutor GLB/FBX assets, the seated-student animation, classroom-desk and classroom-plastic-chair variants still need complete provenance records. The repo also retains a known project-created cartoon-desk and a Jazavac CC BY 4.0 plastic-chair source asset, but the relationship to the current runtime replacement files must be confirmed before those credits are carried across."
       },
       {
-        name: "Wits shark reference image",
-        detail: "The 3D shark model is project-created by Gabriel Raz. wits-shark.png is a retained visual reference sourced by Dean Feldman from the Wits Sharks Instagram account; permission/licence for redistributing that reference image is not yet recorded.",
-        url: "https://www.instagram.com/wits_sharks/"
-      },
-      {
         name: "AMIC / Level 2 deck textures",
-        detail: "Source identified by Dean Feldman as Crown Publications' “Bridging the divide” article. The article credits its images to eimage/Gareth Gilmour. Reuse/redistribution permission for amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png still needs confirmation.",
+        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were directly edited/adapted by Dean Feldman from imagery in Crown Publications' “Bridging the divide” article. The article credits its images to eimage/Gareth Gilmour; reuse/redistribution permission still needs confirmation.",
         url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
       },
       {
