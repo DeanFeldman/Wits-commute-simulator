@@ -393,6 +393,8 @@ export class CrossingLevel {
       factory: this.pedestrians,
       animatedFactory: this.animatedNpcs,
       random: createSeededRandom(this.seed ^ 0x51ab1e),
+      grid: { step: WALK_STEP, originZ: this.startZ, minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ },
+      canOccupy: (x, z) => this.isNpcWalkableCell(x, z),
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
         tone
@@ -1122,6 +1124,13 @@ export class CrossingLevel {
     ) || this.blockedCells.some((cell) =>
       Math.abs(cell.x - x) < tolerance && Math.abs(cell.z - z) < tolerance
     );
+  }
+
+  // NPCs share the player's walkable cells, minus the road lanes (the player
+  // may cross Yale Road; a survey NPC strolling into traffic may not).
+  isNpcWalkableCell(x, z) {
+    if (this.isBlockedCell(x, z)) return false;
+    return !this.lanes.some((lane) => !lane.isHighway && Math.abs(lane.z - z) < this.gridSize * 0.75);
   }
 
   onWalkBlocked(x, z, direction) {
