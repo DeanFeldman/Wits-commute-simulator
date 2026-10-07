@@ -192,7 +192,6 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
-    this.audio.preloadMusic("level2");
     this.audio.preload([
       LEVEL2_VEHICLE_IMPACT_AUDIO,
       LEVEL2_EXTRA_AUDIO,
@@ -259,8 +258,7 @@ export class CrossingLevel {
       nearScenery: false,
       palette: { ground: 0x4f6844, buildings: 0x86513d, windows: 0xf0b56b, trees: 0x315c3a }
     }));
-    if (!this.game.isLevelIntroActive) this.audio.startMusic("level2");
-    this.collisionWorld = new CollisionWorld(this.root);
+      this.collisionWorld = new CollisionWorld(this.root);
 
     // Keep Level 2's original physical lights for geometry/shadows.
     // The Level 1-like warm/cool look is applied in a shader pass in Game.js.
