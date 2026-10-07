@@ -203,10 +203,6 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
-    this.uiAudio.preload([]);
-    for (const preset of ["menu", "level1", "level2", "level3"]) {
-      this.uiAudio.preloadMusic(preset);
-    }
     this.isMusicEnabled = true;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
@@ -234,7 +230,15 @@ export class Game {
     this.instructionElement = document.querySelector("#instruction-card");
     this.instructionKicker = document.querySelector("#instruction-kicker");
     this.instructionTitle = document.querySelector("#instruction-title");
-    this.instructionCopy = document.querySelector("#instruction-copy");
+    this.instructionObjective = document.querySelector("#instruction-objective");
+    this.instructionControls = document.querySelector("#instruction-controls");
+    this.instructionTip = document.querySelector("#instruction-tip");
+    this.instructionPreview = document.querySelector("#instruction-preview");
+    this.instructionPreviewLabel = document.querySelector("#instruction-preview-label");
+    this.instructionDemo = document.querySelector("#instruction-demo");
+    this.instructionDemoMarker = document.querySelector("#instruction-demo-marker");
+    this.instructionDemoStatus = document.querySelector("#instruction-demo-status");
+    this.instructionStart = document.querySelector(".tutorial-start");
     this.levelIntroElement = document.querySelector("#level-intro");
     this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
     this.levelIntroArt = document.querySelector("#level-intro-art");
@@ -805,9 +809,6 @@ export class Game {
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
-    // Gameplay uses environmental/interaction audio rather than a continuous
-    // soundtrack. Menu music ends as the level tutorial opens.
-    this.uiAudio.stopMusic();
     this.showInstruction(this.currentLevel);
   }
 
@@ -879,12 +880,12 @@ export class Game {
 
   playOneShotAudio(path, volume = 1) {
     if (this.isSoundMuted) return;
-    this.uiAudio.playSample(path, { volume, bus: "sfx" });
-  }
-
-  playPersistentAudio(path, options = {}) {
-    if (this.isSoundMuted) return null;
-    return this.uiAudio.playSample(path, { bus: "sfx", ...options });
+    const audio = new Audio(path);
+    this.uiAudio.trackSoundEffect(audio, volume);
+    audio.play().catch(() => {
+      // Browsers can block this if the game's initial click did not count as
+      // a user activation. The level transition remains usable in that case.
+    });
   }
 
   // `failure` is a { title, reason, next } description from the level; a
@@ -895,9 +896,6 @@ export class Game {
     if (this.isScoredJourney) {
       this.recordFailedAttempt(this.currentLevelNumber);
     }
-
-    // Failure is communicated visually; there is intentionally no generic
-    // success/failure sting. Contextual gameplay impacts remain audible.
     this.isTransitioning = true;
     this.setMessage(describeFailure(failure).title);
     this.fadeTransition(() => this.showFailure(failure));
@@ -977,8 +975,6 @@ export class Game {
       try {
         level.dispose();
       } catch (error) {
-        // A cleanup failure must never trap the player behind the fade overlay.
-        // Log it for debugging, then continue rebuilding the game state.
         console.error("Level cleanup failed:", error);
       }
     }
@@ -1415,8 +1411,9 @@ export class Game {
     if (!event.target.closest("[data-instruction-action='dismiss']")) return;
     this.hideInstruction();
     this.input.clearTransientState();
+    // Story/menu music ends when gameplay begins. Levels use environmental
+    // and contextual sound rather than a continuous soundtrack.
     this.uiAudio.stopMusic();
-    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     this.input.requestPointerLock();
     this.clock.getDelta();
   }
