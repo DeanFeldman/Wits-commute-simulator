@@ -991,10 +991,12 @@ export class CrossingLevel {
       rotationY: this.player.rotation.y,
       cameraMode: this.cameraMode,
       distanceWalked: this.hopController.distanceWalked,
-      targetYaw: this.hopController.targetYaw
+      targetYaw: this.hopController.targetYaw,
+      onBlocked: this.hopController.onBlocked
     };
     this.hopController.reset(this.player.position);
     this.hopController.setHeldDirection(null);
+    this.hopController.onBlocked = null;
   }
 
   updateTutorial(dt) {
@@ -1009,11 +1011,12 @@ export class CrossingLevel {
 
   endTutorial() {
     if (!this.tutorialPose || !this.player || !this.hopController) return;
-    const { position, rotationY, cameraMode, distanceWalked, targetYaw } = this.tutorialPose;
+    const { position, rotationY, cameraMode, distanceWalked, targetYaw, onBlocked } = this.tutorialPose;
     this.hopController.reset(position);
     this.hopController.setHeldDirection(null);
     this.hopController.distanceWalked = distanceWalked;
     this.hopController.targetYaw = targetYaw;
+    this.hopController.onBlocked = onBlocked;
     this.player.rotation.y = rotationY;
     this.updatePlayerGroundHeight();
     this.setCameraMode(cameraMode);
