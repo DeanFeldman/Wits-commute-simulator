@@ -20,7 +20,8 @@ const CHASE_SPEED = 3.3;
 const CHASE_MAX_DURATION = 1.6;
 const CHASE_MAX_TRAVEL = 4.5;
 const LEAVE_SPEED = 1.6;
-const LEAVE_DISTANCE = 6;
+// How far (in grid steps) a survey NPC may walk after a survey.
+const LEAVE_MAX_STEPS = 5;
 const SURVEY_COOLDOWN = 5;
 
 // What people say. `bump` lines are picked by personality; after a few bumps
@@ -129,10 +130,20 @@ const OCCUPY_X = 0.6;
 const OCCUPY_Z = 0.95;
 
 export class CampusCrowd {
-  constructor({ root, factory, animatedFactory = null, random, onSay = null }) {
+  // `grid` ({ step, originZ, minX, maxX, minZ, maxZ }) and `canOccupy(x, z)`
+  // describe the walkable route, so survey NPCs only ever walk cell to cell
+  // on it: never across Yale Road, into buildings, or through the railings.
+  // `playerVariant` is the student model the player chose; nobody in the
+  // crowd uses it, so the player never meets their own double.
+  constructor({ root, factory, animatedFactory = null, random, onSay = null, grid = null, canOccupy = null, playerVariant = null, variantCount = null }) {
     this.root = root;
+    this.grid = grid ?? { step: 1.2, originZ: 0, minX: -Infinity, maxX: Infinity, minZ: -Infinity, maxZ: Infinity };
+    this.canOccupy = canOccupy ?? (() => true);
+    this.lastPlayer = null;
     this.factory = factory;
     this.animatedFactory = animatedFactory;
+    this.playerVariant = Number.isInteger(playerVariant) ? playerVariant : null;
+    this.variantCount = variantCount ?? animatedFactory?.templates?.length ?? 0;
     this.random = random;
     this.onSay = onSay;
     this.people = [];
@@ -165,9 +176,11 @@ export class CampusCrowd {
       robot,
       scale
     };
-    const mesh = robot || !this.animatedFactory
-      ? this.factory.create(appearance)
-      : this.animatedFactory.create({ variant: index, holding: appearance.holding, scale });
+    const animated = !robot && Boolean(this.animatedFactory);
+    const variant = animated ? this.crowdVariant(index) : null;
+    const mesh = animated
+      ? this.animatedFactory.create({ variant, holding: appearance.holding, scale })
+      : this.factory.create(appearance);
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
@@ -179,6 +192,7 @@ export class CampusCrowd {
 
     const person = {
       kind,
+      variant,
       name: entry.name ?? (robot ? `Wits Bot ${index + 1}` : NAMES[index % NAMES.length]),
       mesh,
       rig: mesh.userData.rig,
@@ -208,12 +222,51 @@ export class CampusCrowd {
       surveyCooldown: 0,
       caught: false,
       leaving: false,
-      leaveDirection: null,
-      leaveYaw: 0,
-      leaveTraveled: 0
+      returning: false,
+      route: []
     };
     this.people.push(person);
     return person;
+  }
+
+  // The model for the index-th crowd member, skipping the player's model.
+  crowdVariant(index) {
+    const count = this.variantCount;
+    if (count <= 1 || this.playerVariant === null || this.playerVariant >= count) return count > 0 ? index % count : index;
+    const slot = index % (count - 1);
+    return slot >= this.playerVariant ? slot + 1 : slot;
+  }
+
+  // The player switched models mid-level (dev panel). Anyone wearing the new
+  // player model swaps to the one the player just gave up.
+  setPlayerVariant(variant) {
+    if (!Number.isInteger(variant) || variant === this.playerVariant) return;
+    const previous = this.playerVariant;
+    this.playerVariant = variant;
+    if (!this.animatedFactory) return;
+    for (const person of this.people) {
+      if (person.variant !== variant || !person.animation) continue;
+      const replacement = previous ?? this.crowdVariant(this.people.indexOf(person));
+      if (replacement === variant) continue;
+      this.reskin(person, replacement);
+    }
+  }
+
+  reskin(person, variant) {
+    const old = person.mesh;
+    const holding = person.rig?.holding && person.rig.heldItem?.visible !== false ? person.rig.holding : null;
+    const mesh = this.animatedFactory.create({ variant, holding, scale: old.scale.x });
+    mesh.name = old.name;
+    mesh.position.copy(old.position);
+    mesh.rotation.copy(old.rotation);
+    old.parent?.add(mesh);
+    old.removeFromParent();
+    person.animation?.mixer.stopAllAction();
+    person.animation?.mixer.uncacheRoot(old.children[0]);
+    person.mesh = mesh;
+    person.rig = mesh.userData.rig;
+    person.animation = mesh.userData.animation ?? null;
+    person.variant = variant;
   }
 
   // The person standing in (or walking through) a grid cell, if any.
@@ -254,21 +307,128 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
-  // After a survey, walk past the player, then become chaseable again.
+  // After a survey, walk away from the player along the route, then become
+  // chaseable again.
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
     person.surveyCooldown = SURVEY_COOLDOWN;
     person.caught = false;
-    const yaw = person.mesh.rotation.y;
-    person.leaveYaw = yaw;
-    person.leaveDirection = { x: Math.sin(yaw), z: Math.cos(yaw) };
-    person.leaveTraveled = 0;
+    person.returning = false;
+    person.route = this.planRoute(person, this.lastPlayer, { leave: true });
     person.leaving = true;
+  }
+
+  snapCell(x, z) {
+    const { step, originZ, minX, maxX, minZ, maxZ } = this.grid;
+    const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+    return {
+      x: clamp(Math.round(x / step) * step, minX, maxX),
+      z: clamp(originZ - Math.round((originZ - z) / step) * step, minZ, maxZ)
+    };
+  }
+
+  inGrid(x, z) {
+    const { minX, maxX, minZ, maxZ } = this.grid;
+    return x >= minX - 0.01 && x <= maxX + 0.01 && z >= minZ - 0.01 && z <= maxZ + 0.01;
+  }
+
+  // Walkable for an NPC: on the route and not on top of anyone else.
+  isOpenCell(x, z, self, player) {
+    if (!this.inGrid(x, z) || !this.canOccupy(x, z)) return false;
+    if (player && Math.abs(player.x - x) < OCCUPY_X && Math.abs(player.z - z) < OCCUPY_Z) return false;
+    return !this.people.some((other) => other !== self && !other.walking &&
+      Math.abs(other.mesh.position.x - x) < OCCUPY_X && Math.abs(other.mesh.position.z - z) < OCCUPY_Z);
+  }
+
+  // Walkers pace a column; nobody should come to rest on their path.
+  onWalkerPath(x, z) {
+    const step = this.grid.step;
+    return this.people.some((other) => other.walking && Math.abs(other.x - x) < 0.1 &&
+      z >= Math.min(other.fromZ, other.toZ) - step * 0.5 && z <= Math.max(other.fromZ, other.toZ) + step * 0.5);
+  }
+
+  // Breadth-first search over open grid cells. With `leave`, pick a cell a few
+  // steps away from the player; otherwise just the nearest open cell (used to
+  // settle back onto the grid after a chase).
+  planRoute(person, player, { leave = false } = {}) {
+    const step = this.grid.step;
+    const position = person.mesh.position;
+    const start = this.snapCell(position.x, position.z);
+    const key = (cell) => `${Math.round(cell.x / step)},${Math.round(cell.z / step)}`;
+    const startOpen = this.isOpenCell(start.x, start.z, person, player);
+    const parents = new Map([[key(start), null]]);
+    const queue = [{ ...start, depth: 0 }];
+    const goodRest = (cell) => this.isOpenCell(cell.x, cell.z, person, player) && !this.onWalkerPath(cell.x, cell.z);
+    let best = null;
+    let bestScore = -Infinity;
+    const maxDepth = leave ? LEAVE_MAX_STEPS : 6;
+
+    for (let i = 0; i < queue.length; i++) {
+      const cell = queue[i];
+      if (!leave && goodRest(cell)) { best = cell; break; }
+      if (leave && cell.depth > 0 && goodRest(cell)) {
+        const away = player ? Math.min(Math.hypot(cell.x - player.x, cell.z - player.z), step * 4) : 0;
+        const score = away + cell.depth * 0.25 + this.random() * 0.3;
+        if (score > bestScore) { bestScore = score; best = cell; }
+      }
+      if (cell.depth >= maxDepth) continue;
+      for (const [dx, dz] of [[0, -step], [0, step], [-step, 0], [step, 0]]) {
+        const next = { x: cell.x + dx, z: cell.z + dz, depth: cell.depth + 1 };
+        const nextKey = key(next);
+        if (parents.has(nextKey)) continue;
+        // An NPC that ended up off the route may step back onto it, but
+        // never walks further through blocked cells.
+        if (!this.isOpenCell(next.x, next.z, person, player) && !(cell.depth === 0 && !startOpen && this.inGrid(next.x, next.z) && this.canOccupy(next.x, next.z))) continue;
+        parents.set(nextKey, cell);
+        queue.push(next);
+      }
+    }
+
+    if (!best) return startOpen ? [] : [start];
+    const route = [];
+    for (let cell = best; cell && key(cell) !== key(start); cell = parents.get(key(cell))) route.unshift({ x: cell.x, z: cell.z });
+    if (Math.hypot(position.x - start.x, position.z - start.z) > 0.05 && startOpen) route.unshift(start);
+    return route;
+  }
+
+  // Walks the person along `person.route`, one grid cell at a time, waiting
+  // if the player steps onto the next cell. Returns true once finished.
+  followRoute(person, dt, player) {
+    const position = person.mesh.position;
+    const target = person.route[0];
+    if (!target) {
+      person.moving = false;
+      return true;
+    }
+    if (player && Math.abs(player.x - target.x) < OCCUPY_X && Math.abs(player.z - target.z) < OCCUPY_Z) {
+      person.moving = false;
+      return false;
+    }
+    const dx = target.x - position.x;
+    const dz = target.z - position.z;
+    const distance = Math.hypot(dx, dz);
+    const step = Math.min(LEAVE_SPEED * dt, distance);
+    if (distance > 1e-4) {
+      const yaw = Math.atan2(dx, dz);
+      position.x += (dx / distance) * step;
+      position.z += (dz / distance) * step;
+      person.restYaw = yaw;
+      this.turnTo(person, yaw, dt);
+    }
+    person.stride += step;
+    person.moving = true;
+    if (distance - step < 0.01) {
+      position.x = target.x;
+      position.z = target.z;
+      person.route.shift();
+    }
+    return person.route.length === 0;
   }
 
   update(dt, player) {
     this.time += dt;
+    this.lastPlayer = player;
     this.greetCooldown = Math.max(0, this.greetCooldown - dt);
     for (const person of this.people) {
       person.talkCooldown = Math.max(0, person.talkCooldown - dt);
@@ -277,8 +437,8 @@ export class CampusCrowd {
       person.caught = false;
 
       if (CHASE_KINDS.has(person.kind)) {
-        if (person.leaving) {
-          this.updateLeaving(person, dt);
+        if (person.leaving || person.returning) {
+          this.updateLeaving(person, dt, player);
           this.animate(person, dt);
           continue;
         }
@@ -334,6 +494,16 @@ export class CampusCrowd {
     }
 
     if (!person.chasing) {
+      // A chase that ended short of the player can leave the NPC between
+      // cells; settle back onto the nearest walkable cell.
+      const cell = this.snapCell(position.x, position.z);
+      if (Math.hypot(position.x - cell.x, position.z - cell.z) > 0.05 || !this.canOccupy(cell.x, cell.z)) {
+        person.route = this.planRoute(person, player);
+        if (person.route.length > 0) {
+          person.returning = true;
+          return;
+        }
+      }
       this.updateGreeting(person, player);
       this.turnTo(person, person.restYaw, dt);
       person.moving = false;
@@ -350,32 +520,32 @@ export class CampusCrowd {
     }
 
     const step = Math.min(CHASE_SPEED * dt, distance);
-    position.x += Math.sin(yaw) * step;
-    position.z += Math.cos(yaw) * step;
+    const nextX = position.x + Math.sin(yaw) * step;
+    const nextZ = position.z + Math.cos(yaw) * step;
+    // Never chase off the route (onto Yale Road, into railings or buildings).
+    const nextCell = this.snapCell(nextX, nextZ);
+    if (!this.inGrid(nextX, nextZ) || !this.canOccupy(nextCell.x, nextCell.z)) {
+      person.chasing = false;
+      person.moving = false;
+      this.turnTo(person, yaw, dt);
+      return;
+    }
+    position.x = nextX;
+    position.z = nextZ;
     person.chaseDistance += step;
     person.stride += step;
     person.moving = true;
     this.turnTo(person, yaw, dt);
   }
 
-  // Post-quiz departure: a straight walk in the direction the NPC was last
-  // facing, for LEAVE_DISTANCE, then it just stops (animate's idle branch
-  // takes over from there — no further special-casing needed).
-  updateLeaving(person, dt) {
-    const position = person.mesh.position;
-    if (person.leaveTraveled >= LEAVE_DISTANCE) {
-      person.moving = false;
-      person.leaving = false;
-      person.chaseArmed = person.surveyCooldown === 0;
-      return;
-    }
-    const step = Math.min(LEAVE_SPEED * dt, LEAVE_DISTANCE - person.leaveTraveled);
-    position.x += person.leaveDirection.x * step;
-    position.z += person.leaveDirection.z * step;
-    person.leaveTraveled += step;
-    person.stride += step;
-    person.moving = true;
-    this.turnTo(person, person.leaveYaw, dt);
+  // Post-quiz departure (or settling back after a chase): follow the planned
+  // grid route, then stand on that cell (animate's idle branch takes over).
+  updateLeaving(person, dt, player) {
+    if (!this.followRoute(person, dt, player)) return;
+    person.moving = false;
+    if (person.leaving) person.chaseArmed = person.surveyCooldown === 0;
+    person.leaving = false;
+    person.returning = false;
   }
 
   updateWalker(person, dt, player) {
@@ -431,8 +601,8 @@ export class CampusCrowd {
 
   animate(person, dt) {
     if (person.animation) {
-      const moving = person.reactTimer === 0 && Boolean(person.moving || person.chasing || person.leaving);
-      const speed = person.chasing ? CHASE_SPEED : person.leaving ? LEAVE_SPEED : person.speed;
+      const moving = person.reactTimer === 0 && Boolean(person.moving || person.chasing || person.leaving || person.returning);
+      const speed = person.chasing ? CHASE_SPEED : person.leaving || person.returning ? LEAVE_SPEED : person.speed;
       this.animatedFactory.setMoving(person.animation, moving, speed, person.chasing);
       person.animation.mixer.update(dt);
       return;
@@ -448,7 +618,7 @@ export class CampusCrowd {
       return;
     }
 
-    if (CHASE_KINDS.has(person.kind) && person.leaving) {
+    if (CHASE_KINDS.has(person.kind) && (person.leaving || person.returning)) {
       if (person.moving) {
         // Reuses the ordinary walk cycle, which also zeroes arm rotation.z
         // every frame — that's what clears the chase pose's raised arms.
