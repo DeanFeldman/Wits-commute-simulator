@@ -1,7 +1,5 @@
 import * as THREE from "three";
 
-const LEVEL2_EXTRA_AUDIO = "./assets/audio/level2/extra-sprite.opus";
-const LEVEL2_HORN_CUE = Object.freeze({ start: 0, duration: 1.09 });
 import { VehicleController } from "../../shared/VehicleController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import {
@@ -2940,13 +2938,6 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
   if (vehicle.passenger) {
     vehicle.passenger.visible = false;
   }
-
-  this.audio?.playSegment(LEVEL2_EXTRA_AUDIO, {
-    ...LEVEL2_HORN_CUE,
-    volume: 0.38,
-    pan: THREE.MathUtils.clamp(vehicle.root.position.x / 10, -0.8, 0.8),
-    playbackRate: 0.98 + this.random() * 0.04
-  });
 }
 
   scheduleTaxiStop(vehicle) {
