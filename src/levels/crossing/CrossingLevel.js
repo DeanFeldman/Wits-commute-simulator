@@ -227,6 +227,14 @@ export class CrossingLevel {
     this.completed = false;
   }
   async load() {
+    await this.audio.waitForPreload([
+      LEVEL2_VEHICLE_IMPACT_AUDIO,
+      LEVEL2_EXTRA_AUDIO,
+      LEVEL2_FOOTSTEP_AUDIO,
+      LEVEL2_INTERACTION_AUDIO,
+      LEVEL2_PASSBY_AUDIO
+    ]);
+
     // Survey completion belongs to this Level 2 run only.
     this.completedSurveys.clear();
     this.surveyConversation = null;
