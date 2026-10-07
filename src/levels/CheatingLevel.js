@@ -329,6 +329,7 @@ this.patrolPoints = [
     this.pitch = 0;
 
     this.completed = false;
+    this.tutorialPose = null;
 
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
@@ -1469,6 +1470,79 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.tutorEye.add(cone);
   }
 
+  beginTutorial() {
+    if (!this.camera || this.tutorialPose) return;
+    this.tutorialPose = {
+      yaw: this.yaw,
+      pitch: this.pitch,
+      fov: this.camera.fov
+    };
+    this.endPeek();
+    this.typedAnswer = "";
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.updatePlayerPaper();
+  }
+
+  moveTutorialLook(dx, dy) {
+    const sensitivity = this.game.levelThreeLookSensitivity ?? 1;
+    this.yaw -= dx * 0.002 * sensitivity;
+    this.pitch -= dy * 0.002 * sensitivity;
+    this.yaw = Math.atan2(Math.sin(this.yaw), Math.cos(this.yaw));
+    this.pitch = clamp(this.pitch, -0.65, 0.45);
+    this.camera.rotation.order = "YXZ";
+    this.camera.rotation.y = this.yaw;
+    this.camera.rotation.x = this.pitch;
+  }
+
+  setTutorialMouseDown(active) {
+    this.leftMouseDown = Boolean(active);
+  }
+
+  updateTutorial(dt) {
+    if (!this.camera) return;
+    this.updateDeskTargeting();
+    this.updatePlayerPaperPose(dt);
+
+    this.zoomActive = this.leftMouseDown;
+    this.peekActive = Boolean(this.zoomActive && this.targetCheatDesk);
+    this.zoomOverlay?.classList.toggle("visible", this.zoomActive);
+
+    for (const desk of this.cheatDesks) {
+      desk.hologram.visible = this.peekActive && desk === this.targetCheatDesk;
+    }
+
+    if (this.peekActive) {
+      this.currentCopiedDesk = this.targetCheatDesk;
+      this.currentCopiedWord = this.targetCheatDesk.word;
+    }
+
+    const targetFov = this.zoomActive ? PEEK_CAMERA_FOV : NORMAL_CAMERA_FOV;
+    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, Math.min(1, dt * 10));
+    this.camera.updateProjectionMatrix();
+  }
+
+  endTutorial() {
+    if (!this.tutorialPose || !this.camera) return;
+    this.endPeek();
+    this.yaw = this.tutorialPose.yaw;
+    this.pitch = this.tutorialPose.pitch;
+    this.camera.fov = this.tutorialPose.fov;
+    this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
+    this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld(true);
+    this.targetCheatDesk = null;
+    this.isLookingAtPlayerDesk = false;
+    this.currentCopiedWord = null;
+    this.currentCopiedDesk = null;
+    this.typedAnswer = "";
+    this.feedbackMessage = "";
+    this.feedbackTime = 0;
+    this.updatePlayerPaper();
+    this.game.input.clearMouseDelta();
+    this.tutorialPose = null;
+  }
+
   update(dt) {
     if (this.completed) {
       return;
@@ -1974,9 +2048,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     event.stopImmediatePropagation();
 
     if (event.key === "Enter") {
-      if (!event.repeat) {
-        this.submitTypedAnswer();
+      if (this.game.isTutorialActive) {
+        this.feedbackMessage = this.typedAnswer ? "Practice answer entered." : "Type an answer first.";
+        this.feedbackTime = 1.2;
+        return;
       }
+      if (!event.repeat) this.submitTypedAnswer();
       return;
     }
 

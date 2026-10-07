@@ -77,6 +77,33 @@ const LEVEL_INTRO_CONFIG = new Map([
   ]
 ]);
 
+const LEVEL_TUTORIAL_CONFIG = new Map([
+  [1, {
+    kicker: "LEVEL 01 // PARK",
+    title: "Park at Wits",
+    objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
+    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
+    tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
+    previewLabel: "Live Level 1 practice — purple markers = parking goals"
+  }],
+  [2, {
+    kicker: "LEVEL 02 // CROSS",
+    title: "Campus Crossing",
+    objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
+    controls: [["WASD / ARROWS", "Move across the route"], ["C", "Camera view"], ["P", "Pause / settings"]],
+    tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
+    previewLabel: "Live Level 2 practice — move the actual student"
+  }],
+  [3, {
+    kicker: "LEVEL 03 // CHEAT",
+    title: "Don't Get Caught",
+    objective: "Copy the correct answers and finish the test before time runs out without reaching 100% suspicion.",
+    controls: [["MOUSE", "Look around"], ["HOLD LEFT CLICK", "Zoom and reveal an answer"], ["TYPE + ENTER", "Submit at your desk"], ["P", "Pause / settings"]],
+    tip: "Only peek when it is safe. Release the mouse, look back at your desk, and type the answer before suspicion gets too high.",
+    previewLabel: "Live Level 3 practice — look, peek and type"
+  }]
+]);
+
 export class Game {
   constructor(container) {
     this.container = container;
@@ -142,6 +169,13 @@ export class Game {
     this.isTransitioning = false;
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
+    this.isTutorialActive = false;
+    this.tutorialDemoKeys = new Set();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook = { x: 0, y: 0 };
+    this.tutorialDemoPosition = { x: 0, y: 0 };
+    this.tutorialTypingTimer = null;
     this.levelIntroStoryIndex = 0;
     this.levelIntroConfig = null;
     this.levelIntroArtPreloads = new Map();
@@ -187,8 +221,17 @@ export class Game {
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
     this.instructionElement = document.querySelector("#instruction-card");
+    this.instructionKicker = document.querySelector("#instruction-kicker");
     this.instructionTitle = document.querySelector("#instruction-title");
-    this.instructionCopy = document.querySelector("#instruction-copy");
+    this.instructionObjective = document.querySelector("#instruction-objective");
+    this.instructionControls = document.querySelector("#instruction-controls");
+    this.instructionTip = document.querySelector("#instruction-tip");
+    this.instructionPreview = document.querySelector("#instruction-preview");
+    this.instructionPreviewLabel = document.querySelector("#instruction-preview-label");
+    this.instructionDemo = document.querySelector("#instruction-demo");
+    this.instructionDemoMarker = document.querySelector("#instruction-demo-marker");
+    this.instructionDemoStatus = document.querySelector("#instruction-demo-status");
+    this.instructionStart = document.querySelector(".tutorial-start");
     this.levelIntroElement = document.querySelector("#level-intro");
     this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
     this.levelIntroArt = document.querySelector("#level-intro-art");
@@ -205,6 +248,11 @@ export class Game {
     this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
     this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
     this.onInstructionClick = this.onInstructionClick.bind(this);
+    this.onTutorialDemoKeyDown = this.onTutorialDemoKeyDown.bind(this);
+    this.onTutorialDemoKeyUp = this.onTutorialDemoKeyUp.bind(this);
+    this.onTutorialDemoPointerMove = this.onTutorialDemoPointerMove.bind(this);
+    this.onTutorialDemoPointerDown = this.onTutorialDemoPointerDown.bind(this);
+    this.onTutorialDemoPointerUp = this.onTutorialDemoPointerUp.bind(this);
     this.onLevelIntroClick = this.onLevelIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
@@ -213,6 +261,12 @@ export class Game {
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
+    window.addEventListener("keydown", this.onTutorialDemoKeyDown, true);
+    window.addEventListener("keyup", this.onTutorialDemoKeyUp, true);
+    this.instructionPreview.addEventListener("pointermove", this.onTutorialDemoPointerMove);
+    this.instructionPreview.addEventListener("pointerdown", this.onTutorialDemoPointerDown);
+    this.instructionPreview.addEventListener("pointerup", this.onTutorialDemoPointerUp);
+    this.instructionPreview.addEventListener("pointerleave", this.onTutorialDemoPointerUp);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
     this.selectedPlayerVariant = 0;
@@ -292,7 +346,7 @@ export class Game {
     this.menuElement.classList.add("menu-home");
     this.devLevelSelect.hidden = false;
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuElement.hidden = false;
     this.menuPreviewElement.hidden = true;
     document.body.classList.remove("level-2");
@@ -389,7 +443,7 @@ export class Game {
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuElement.hidden = false;
     this.menuPreviewElement.hidden = true;
     document.body.classList.remove("level-2");
@@ -477,6 +531,7 @@ export class Game {
     this.isLoading = true;
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
+    this.hideInstruction();
     this.menuElement.hidden = true;
     this.menuPreviewElement.hidden = true;
     this.levelNameElement.textContent = loadingMessage;
@@ -539,13 +594,14 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
+    if (!showIntro) this.showInstruction(level);
   }
 
   showCharacterSelect() {
     this.cancelTransition();
     this.hideLevelIntro();
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage("");
@@ -733,12 +789,7 @@ export class Game {
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
-    this.uiAudio.stopMusic();
-    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
-    // The Continue click is a user gesture, so it can immediately return
-    // focus and mouse control to the loaded level without a second click.
-    this.input.requestPointerLock();
-    this.clock.getDelta();
+    this.showInstruction(this.currentLevel);
   }
 
   setCheckpoint(checkpoint) {
@@ -863,7 +914,7 @@ export class Game {
     this.setHUD("");
     this.setMessage("");
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuTitleElement.textContent = title;
     // The card says what went wrong and what Retry will do, rather than the
     // single line the message strip used to flash before the fade covered it.
@@ -980,7 +1031,7 @@ export class Game {
   }
 
   updateGlobalControls() {
-    if (this.isLevelIntroActive) return;
+    if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
       this.togglePause();
@@ -1105,22 +1156,253 @@ export class Game {
   }
 
   showInstruction(level) {
-    const briefs = {
-      1: "Drive with W/S and steer with A/D. Watch out for potholes — they slow the car and reduce its condition. Stop straight inside the cyan bay.",
-      //2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect Vida cups for power-ups, wait for gaps in the traffic, and reach Engineering.",
-      2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect every Vida cup and reach Engineering in under 30 seconds. Flat Whites reduce your recorded time.",
-      3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's answer. Release, look down at your own desk, type your answer, and press Enter. P opens settings."
-    };
-    this.instructionTitle.textContent = level.name;
-    this.instructionCopy.textContent = briefs[this.currentLevelNumber] ?? "Complete the objective to continue.";
+    const config = LEVEL_TUTORIAL_CONFIG.get(this.currentLevelNumber);
+    if (!config || !level) return;
+    document.exitPointerLock?.();
+    this.input.clearTransientState();
+    this.isTutorialActive = true;
+    this.instructionElement.dataset.level = String(this.currentLevelNumber);
+    this.instructionKicker.textContent = config.kicker;
+    this.instructionTitle.textContent = config.title;
+    this.instructionObjective.textContent = config.objective;
+    this.instructionControls.innerHTML = config.controls.map(([keys, action], index) => `<li data-control-index="${index}"><kbd>${keys}</kbd><span>${action}</span></li>`).join("");
+    this.instructionTip.textContent = config.tip;
+    this.instructionPreviewLabel.textContent = config.previewLabel;
     this.instructionElement.hidden = false;
+    this.currentLevel?.beginTutorial?.();
+    this.resetTutorialDemo();
+    this.configureTutorialDemo();
+    this.captureTutorialPreview();
+    requestAnimationFrame(() => this.instructionStart?.focus());
+  }
+
+  captureTutorialPreview() {
+    requestAnimationFrame(() => this.syncTutorialPreviewFrame());
+  }
+
+  syncTutorialPreviewFrame() {
+    const preview = this.instructionPreview, source = this.renderer.domElement;
+    if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    const now = performance.now();
+    if (now - (this.lastTutorialPreview ?? 0) < 1000 / 30) return;
+    this.lastTutorialPreview = now;
+    const ctx = preview.getContext("2d");
+    if (!ctx) return;
+    const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
+    const srcRatio = sw / sh, dstRatio = dw / dh;
+    let sx = 0, sy = 0, cw = sw, ch = sh;
+    if (srcRatio > dstRatio) {
+      cw = sh * dstRatio;
+      sx = (sw - cw) / 2;
+    } else {
+      ch = sw / dstRatio;
+      sy = (sh - ch) / 2;
+    }
+    ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
+  }
+
+  configureTutorialDemo() {
+    const level = this.currentLevelNumber;
+    this.instructionDemo.dataset.level = String(level);
+    this.instructionDemoMarker.textContent = level === 1 ? "CAR" : level === 2 ? "YOU" : "+";
+    this.instructionDemoStatus.textContent = level === 1
+      ? "DRIVE THE ACTUAL CAR • PRESS C"
+      : level === 2
+        ? "MOVE THE ACTUAL PLAYER • PRESS C"
+        : "MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE";
+    this.instructionDemo.classList.toggle("is-level3", level === 3);
+    this.instructionDemoMarker.style.transform = "";
+  }
+
+  setTutorialDemoStatus(text) {
+    this.instructionDemoStatus.textContent = text;
+    this.instructionDemoStatus.classList.remove("is-pulse");
+    void this.instructionDemoStatus.offsetWidth;
+    this.instructionDemoStatus.classList.add("is-pulse");
+  }
+
+  moveTutorialDemo(code) {
+    const p = this.tutorialDemoPosition;
+    if (code === "KeyW" || code === "ArrowUp") p.y -= 9;
+    if (code === "KeyS" || code === "ArrowDown") p.y += 9;
+    if (code === "KeyA" || code === "ArrowLeft") p.x -= 9;
+    if (code === "KeyD" || code === "ArrowRight") p.x += 9;
+    p.x = THREE.MathUtils.clamp(p.x, -70, 70);
+    p.y = THREE.MathUtils.clamp(p.y, -42, 42);
+    this.instructionDemoMarker.style.transform = `translate(${p.x}px, ${p.y}px)`;
+  }
+
+  tutorialControlIndex(code) {
+    if (this.currentLevelNumber === 1) {
+      if (code === "KeyW" || code === "ArrowUp") return 0;
+      if (code === "KeyS" || code === "ArrowDown") return 1;
+      if (["KeyA", "KeyD", "ArrowLeft", "ArrowRight"].includes(code)) return 2;
+      if (code === "KeyC") return 3;
+    }
+    if (this.currentLevelNumber === 2) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) return 0;
+      if (code === "KeyC") return 1;
+      if (code === "KeyP") return 2;
+    }
+    if (this.currentLevelNumber === 3) {
+      if (code === "KeyP") return 3;
+      if (code === "Enter" || /^Key[A-Z]$/.test(code)) return 2;
+    }
+    return -1;
+  }
+
+  setTutorialControlActive(index, active) {
+    if (index < 0) return;
+    this.instructionControls.querySelector(`[data-control-index="${index}"]`)?.classList.toggle("is-active", active);
+  }
+
+  applyTutorialDemoMotion() {
+    const preview = this.instructionPreview;
+    if (!preview) return;
+    if (this.currentLevelNumber === 3) {
+      const scale = this.tutorialPeekDemo ? 1.1 : 1.025;
+      preview.style.transform = `translate(${this.tutorialLook.x}px, ${this.tutorialLook.y}px) scale(${scale})`;
+      preview.style.filter = this.tutorialPeekDemo ? "contrast(1.1) saturate(1.12)" : "";
+      this.instructionDemoMarker.style.transform = `translate(${-this.tutorialLook.x * 2}px, ${-this.tutorialLook.y * 2}px)`;
+      this.instructionDemo.classList.toggle("is-peeking", this.tutorialPeekDemo);
+      return;
+    }
+
+    const x = this.tutorialDemoPosition.x * .14;
+    const y = this.tutorialDemoPosition.y * .12;
+    const rotation = this.tutorialDemoPosition.x * .012;
+    const scale = (this.tutorialCameraDemo ? 1.065 : 1) + (this.tutorialDemoPosition.y < 0 ? .012 : 0);
+    preview.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
+    preview.style.filter = this.tutorialCameraDemo ? "contrast(1.06) saturate(1.08)" : "";
+    preview.closest(".tutorial-preview-frame")?.classList.toggle("is-camera-demo", this.tutorialCameraDemo);
+  }
+
+  onTutorialDemoKeyDown(event) {
+    if (!this.isTutorialActive) return;
+    const index = this.tutorialControlIndex(event.code);
+    if (index < 0) return;
+    event.preventDefault();
+    this.setTutorialControlActive(index, true);
+
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
+      const action = event.code === "KeyW" || event.code === "ArrowUp" ? (this.currentLevelNumber === 1 ? "ACCELERATE" : "WALK FORWARD")
+        : event.code === "KeyS" || event.code === "ArrowDown" ? (this.currentLevelNumber === 1 ? "BRAKE / REVERSE" : "WALK BACK")
+        : event.code === "KeyA" || event.code === "ArrowLeft" ? (this.currentLevelNumber === 1 ? "STEER LEFT" : "WALK LEFT")
+        : event.code === "KeyD" || event.code === "ArrowRight" ? (this.currentLevelNumber === 1 ? "STEER RIGHT" : "WALK RIGHT")
+        : event.code === "KeyC" ? "CAMERA VIEW"
+        : "PAUSE / SETTINGS";
+      this.setTutorialDemoStatus(action);
+      if (event.code === "KeyP") event.stopImmediatePropagation();
+      return;
+    }
+
+    if (event.code === "KeyP") {
+      this.setTutorialDemoStatus("PAUSE / SETTINGS");
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    if (this.currentLevelNumber === 3 && index === 2) {
+      const label = event.code === "Enter" ? "ENTER" : event.code.replace("Key", "");
+      this.setTutorialDemoStatus(`TYPING: ${label}`);
+      this.instructionPreview.classList.remove("is-typing-demo");
+      void this.instructionPreview.offsetWidth;
+      this.instructionPreview.classList.add("is-typing-demo");
+      window.clearTimeout(this.tutorialTypingTimer);
+      this.tutorialTypingTimer = window.setTimeout(() => {
+        this.instructionPreview.classList.remove("is-typing-demo");
+        this.setTutorialControlActive(2, false);
+      }, 180);
+    }
+  }
+
+  onTutorialDemoKeyUp(event) {
+    if (!this.isTutorialActive) return;
+    const index = this.tutorialControlIndex(event.code);
+    if (index < 0) return;
+    event.preventDefault();
+
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
+      this.setTutorialControlActive(index, false);
+      return;
+    }
+
+    if (this.currentLevelNumber === 3 && event.code === "KeyP") {
+      this.setTutorialControlActive(index, false);
+      event.stopImmediatePropagation();
+      return;
+    }
+    this.tutorialDemoKeys.delete(event.code);
+    if (event.code !== "KeyC") this.setTutorialControlActive(index, false);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoPointerMove(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    this.currentLevel?.moveTutorialLook?.(event.movementX, event.movementY);
+    this.setTutorialControlActive(0, true);
+    this.setTutorialDemoStatus("LOOK AROUND");
+  }
+
+  onTutorialDemoPointerDown(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3 || event.button !== 0) return;
+    event.preventDefault();
+    this.instructionPreview.setPointerCapture?.(event.pointerId);
+    this.currentLevel?.setTutorialMouseDown?.(true);
+    this.setTutorialControlActive(1, true);
+    this.setTutorialDemoStatus("PEEKING — HOLD LEFT CLICK");
+  }
+
+  onTutorialDemoPointerUp(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    this.currentLevel?.setTutorialMouseDown?.(false);
+    this.instructionPreview.releasePointerCapture?.(event?.pointerId);
+    this.setTutorialControlActive(1, false);
+    this.setTutorialControlActive(0, false);
+    this.setTutorialDemoStatus("MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE");
+  }
+
+  resetTutorialDemo() {
+    this.tutorialDemoKeys.clear();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook.x = 0;
+    this.tutorialLook.y = 0;
+    this.tutorialDemoPosition.x = 0;
+    this.tutorialDemoPosition.y = 0;
+    window.clearTimeout(this.tutorialTypingTimer);
+    this.tutorialTypingTimer = null;
+    if (this.instructionPreview) {
+      this.instructionPreview.style.transform = "";
+      this.instructionPreview.style.filter = "";
+      this.instructionPreview.classList.remove("is-typing-demo");
+      this.instructionPreview.closest(".tutorial-preview-frame")?.classList.remove("is-camera-demo");
+    }
+    if (this.instructionDemo) {
+      this.instructionDemo.classList.remove("is-peeking");
+      this.instructionDemoMarker.style.transform = "";
+      this.instructionDemoStatus.classList.remove("is-pulse");
+    }
+    this.instructionControls?.querySelectorAll(".is-active").forEach((element) => element.classList.remove("is-active"));
+  }
+
+  hideInstruction() {
+    this.currentLevel?.endTutorial?.();
+    this.isTutorialActive = false;
+    this.resetTutorialDemo();
+    this.instructionElement.hidden = true;
   }
 
   onInstructionClick(event) {
-    if (event.target.closest("[data-instruction-action='dismiss']")) {
-      this.instructionElement.hidden = true;
-    }
+    if (!event.target.closest("[data-instruction-action='dismiss']")) return;
+    this.hideInstruction();
+    this.input.clearTransientState();
+    this.uiAudio.stopMusic();
+    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
+    this.input.requestPointerLock();
+    this.clock.getDelta();
   }
+
   onPauseMenuClick(event) {
     if (event.target.closest("[data-pause-action='resume']")) {
       this.resume();
@@ -1183,6 +1465,7 @@ export class Game {
     // path is timed on the same terms as the direct one.
     this.gpuTimer?.begin();
     this.render();
+    this.syncTutorialPreviewFrame();
     this.gpuTimer?.end();
     this.gpuTimer?.poll();
     this.input.endFrame();
@@ -1210,11 +1493,17 @@ export class Game {
   update(dt) {
     this.updateGlobalControls();
 
+    if (this.isTutorialActive) {
+      this.currentLevel?.updateTutorial?.(dt);
+      return;
+    }
+
     if (
       !this.isPaused &&
       !this.isLoading &&
       !this.isTransitioning &&
       !this.isLevelIntroActive &&
+      !this.isTutorialActive &&
       this.currentLevel
     ) {
       this.journeyTime += dt;
