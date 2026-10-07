@@ -1181,9 +1181,11 @@ export class Game {
   }
 
   syncTutorialPreviewFrame() {
-    const preview = this.instructionPreview;
-    const source = this.renderer.domElement;
+    const preview = this.instructionPreview, source = this.renderer.domElement;
     if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    const now = performance.now();
+    if (now - (this.lastTutorialPreview ?? 0) < 1000 / 30) return;
+    this.lastTutorialPreview = now;
     const ctx = preview.getContext("2d");
     if (!ctx) return;
     const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
@@ -1196,7 +1198,6 @@ export class Game {
       ch = sw / dstRatio;
       sy = (sh - ch) / 2;
     }
-    ctx.clearRect(0, 0, dw, dh);
     ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
   }
 
