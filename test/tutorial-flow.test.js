@@ -26,8 +26,9 @@ test("starting gameplay clears tutorial input before restoring control", () => {
 });
 
 
-test("tutorial preview is captured from the loaded game renderer", () => {
-  assert.match(game, /captureTutorialPreview\(\)[\s\S]*?this\.render\(\)[\s\S]*?ctx\.drawImage\(source/);
+test("tutorial preview is continuously copied from the loaded game renderer", () => {
+  assert.match(game, /syncTutorialPreviewFrame\(\)[\s\S]*?ctx\.drawImage\(source/);
+  assert.match(game, /this\.render\(\);[\s\S]*?this\.syncTutorialPreviewFrame\(\)/);
 });
 
 
@@ -53,7 +54,8 @@ test("level 2 and level 3 tutorials use real gameplay interaction", () => {
   const cheating = readFileSync(new URL("../src/levels/CheatingLevel.js", import.meta.url), "utf8");
   assert.match(crossing, /beginTutorial\(\)[\s\S]*?tutorialPose/);
   assert.match(crossing, /updateTutorial\(dt\)[\s\S]*?capturePlayerInput\(\)[\s\S]*?hopController\.update\(dt\)/);
-  assert.match(crossing, /endTutorial\(\)[\s\S]*?hopController\.reset\(position\)/);
+  assert.match(crossing, /beginTutorial\(\)[\s\S]*?hopController\.onBlocked = null/);
+  assert.match(crossing, /endTutorial\(\)[\s\S]*?hopController\.reset\(position\)[\s\S]*?hopController\.onBlocked = onBlocked/);
   assert.match(cheating, /moveTutorialLook\(dx, dy\)[\s\S]*?this\.camera\.rotation/);
   assert.match(cheating, /updateTutorial\(dt\)[\s\S]*?this\.peekActive/);
   assert.match(cheating, /endTutorial\(\)[\s\S]*?currentCopiedWord = null[\s\S]*?typedAnswer = ""/);
