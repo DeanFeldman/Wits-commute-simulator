@@ -238,7 +238,6 @@ export class LevelAudio {
     release = 0.22
   } = {}) {
     if (!this.ensure() || !this.musicDuck) return;
-    audioInstances.delete(this);
 
     if (this.musicDuckTimer) {
       clearTimeout(this.musicDuckTimer);
@@ -766,14 +765,11 @@ export class LevelAudio {
 
   setMuted(muted) {
     this.isMuted = muted;
-    if (this.master) this.master.gain.value = muted ? 0 : MIX.master;
-    if (this.music && !this.musicSource) this.music.muted = muted || !this.musicEnabled;
-    for (const loop of this.loops.values()) {
-      if (loop.fallback) loop.element.muted = muted;
-    }
+    this.applyVolumes();
   }
 
   dispose() {
+    audioInstances.delete(this);
     this.stopMusic({ fadeSeconds: 0, reset: true });
     for (const name of [...this.loops.keys()]) this.stopLoop(name);
     for (const handle of [...this.oneShots]) {
