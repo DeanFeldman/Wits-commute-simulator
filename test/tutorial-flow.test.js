@@ -40,22 +40,25 @@ test("camera tutorial control is shown on Levels 1 and 2 only", () => {
 });
 
 
-test("tutorial controls animate the preview without advancing gameplay", () => {
-  assert.match(game, /onTutorialDemoKeyDown\(event\)[\s\S]*?tutorialDemoKeys[\s\S]*?applyTutorialDemoMotion\(\)/);
-  assert.match(game, /onTutorialDemoPointerMove\(event\)[\s\S]*?currentLevelNumber !== 3/);
-  assert.match(game, /if \(this\.isLevelIntroActive \|\| this\.isTutorialActive\) return/);
+test("tutorial controls update real level previews without advancing the journey timer", () => {
+  assert.match(game, /if \(this\.isTutorialActive\) \{[\s\S]*?updateTutorial/);
+  assert.match(game, /syncTutorialPreviewFrame\(\)[\s\S]*?ctx\.drawImage\(source/);
   assert.match(css, /\.tutorial-controls li\.is-active[\s\S]*?\.tutorial-preview\.is-typing-demo/);
   assert.match(html, /Try the controls here/);
 });
 
 
-test("level 2 and level 3 tutorials expose visible interaction feedback", () => {
-  assert.match(html, /id="instruction-demo"[\s\S]*?id="instruction-demo-marker"[\s\S]*?id="instruction-demo-status"/);
-  assert.match(game, /moveTutorialDemo\(code\)[\s\S]*?tutorialDemoPosition/);
-  assert.match(game, /currentLevelNumber === 2[\s\S]*?WALK:/);
-  assert.match(game, /onTutorialDemoPointerDown\(event\)[\s\S]*?PEEKING/);
-  assert.match(game, /TYPING:/);
-  assert.match(css, /\.tutorial-demo-layer\[data-level="2"\][\s\S]*?\.tutorial-demo-layer\.is-level3/);
+test("level 2 and level 3 tutorials use real gameplay interaction", () => {
+  const crossing = readFileSync(new URL("../src/levels/crossing/CrossingLevel.js", import.meta.url), "utf8");
+  const cheating = readFileSync(new URL("../src/levels/CheatingLevel.js", import.meta.url), "utf8");
+  assert.match(crossing, /beginTutorial\(\)[\s\S]*?tutorialPose/);
+  assert.match(crossing, /updateTutorial\(dt\)[\s\S]*?capturePlayerInput\(\)[\s\S]*?hopController\.update\(dt\)/);
+  assert.match(crossing, /endTutorial\(\)[\s\S]*?hopController\.reset\(position\)/);
+  assert.match(cheating, /moveTutorialLook\(dx, dy\)[\s\S]*?this\.camera\.rotation/);
+  assert.match(cheating, /updateTutorial\(dt\)[\s\S]*?this\.peekActive/);
+  assert.match(cheating, /endTutorial\(\)[\s\S]*?currentCopiedWord = null[\s\S]*?typedAnswer = ""/);
+  assert.match(game, /MOVE THE ACTUAL PLAYER/);
+  assert.match(game, /MOVE MOUSE OVER PREVIEW/);
 });
 
 
@@ -64,7 +67,7 @@ test("level 1 tutorial drives the real car and restores its start pose", () => {
   assert.match(parking, /beginTutorial\(\)[\s\S]*?tutorialPose/);
   assert.match(parking, /updateTutorial\(dt\)[\s\S]*?this\.vehicle\.update\(dt/);
   assert.match(parking, /endTutorial\(\)[\s\S]*?this\.car\.position\.copy\(position\)[\s\S]*?this\.vehicle\.stop\(\)/);
-  assert.match(game, /isTutorialActive && this\.currentLevelNumber === 1[\s\S]*?updateTutorial/);
+  assert.match(game, /if \(this\.isTutorialActive\)[\s\S]*?updateTutorial/);
   assert.match(game, /syncTutorialPreviewFrame\(\)[\s\S]*?ctx\.drawImage\(source/);
 });
 
