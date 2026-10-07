@@ -1282,15 +1282,15 @@ body.level-2 #level2-vignette{opacity:1}
   place-items: center;
   overflow-y: auto;
   padding: clamp(0.75rem, 3vw, 2rem);
-  background: rgba(4, 9, 15, 0.94);
-  backdrop-filter: blur(8px);
+  background: rgba(4, 9, 15, 0.82);
+  backdrop-filter: blur(5px);
 }
 #instruction-card[data-level="2"] { --tutorial-accent: #35e0d1; }
 #instruction-card[data-level="3"] { --tutorial-accent: #ff5963; }
 #instruction-card[hidden] { display: none; }
 
 .tutorial-card {
-  width: min(920px, 100%);
+  width: min(1100px, 100%);
   padding: clamp(1rem, 3vw, 2rem);
   border: 4px solid #eafcff;
   background: linear-gradient(145deg, rgba(8, 18, 27, 0.98), rgba(4, 9, 15, 0.99));
@@ -1309,35 +1309,46 @@ body.level-2 #level2-vignette{opacity:1}
 .tutorial-header h2 { margin: 0; font-size: clamp(2rem, 6vw, 4rem); line-height: 0.95; text-transform: uppercase; }
 .tutorial-objective { max-width: 52rem; margin: 0.8rem 0 0; color: #c8d6dc; font: 600 clamp(0.92rem, 2vw, 1.08rem)/1.45 Inter, sans-serif; }
 
-.tutorial-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr); gap: 1rem; margin-top: 1rem; }
-.tutorial-wireframe {
-  min-height: 230px;
-  display: grid;
-  grid-template-columns: auto minmax(120px, 1fr) auto;
-  align-items: center;
-  gap: 0.8rem;
-  padding: clamp(1rem, 4vw, 2rem);
-  border: 2px dashed rgba(234, 252, 255, 0.42);
-  background: repeating-linear-gradient(0deg, transparent 0 31px, rgba(255,255,255,.035) 31px 32px), repeating-linear-gradient(90deg, transparent 0 31px, rgba(255,255,255,.035) 31px 32px);
+.tutorial-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.75fr); gap: 1rem; margin-top: 1rem; }
+.tutorial-preview-frame {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border: 3px solid #29424b;
+  background: #050a0e;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.06), 5px 5px 0 #020609;
 }
-.tutorial-node {
-  display: grid;
-  place-items: center;
-  min-width: 76px;
-  min-height: 64px;
-  padding: 0.55rem;
-  border: 3px solid var(--tutorial-accent);
-  background: #0d1820;
-  box-shadow: 4px 4px 0 #020609;
-  color: #fff;
-  font-weight: 900;
-  text-align: center;
+.tutorial-preview-frame::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), transparent 16%, transparent 78%, rgba(0,0,0,.22)),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 4px);
 }
-.tutorial-node-end { border-style: double; border-width: 6px; }
-.tutorial-route { display: grid; gap: 0.55rem; align-items: center; color: #9fb1b8; text-align: center; font-size: 0.74rem; letter-spacing: 0.08em; }
-.tutorial-route i { display: block; height: 3px; background: repeating-linear-gradient(90deg, var(--tutorial-accent) 0 16px, transparent 16px 27px); }
-.tutorial-route i::after { content: "▶"; display: block; color: var(--tutorial-accent); text-align: right; transform: translateY(-0.58rem); }
-.tutorial-route b { font-weight: 800; }
+.tutorial-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #091016;
+}
+.tutorial-preview-label {
+  position: absolute;
+  left: 0.65rem;
+  bottom: 0.65rem;
+  z-index: 1;
+  max-width: calc(100% - 1.3rem);
+  padding: 0.38rem 0.55rem;
+  border-left: 4px solid var(--tutorial-accent);
+  background: rgba(4, 9, 15, 0.82);
+  color: #f4f4f5;
+  font: 800 0.68rem/1.15 "Pixelify Sans", monospace;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
 
 .tutorial-controls-panel { padding: 1rem; border: 2px solid #29424b; background: rgba(10, 24, 31, 0.8); }
 .tutorial-controls { display: grid; gap: 0.65rem; margin: 0; padding: 0; list-style: none; }
@@ -1369,12 +1380,10 @@ body.level-2 #level2-vignette{opacity:1}
 
 @media (max-width: 720px) {
   .tutorial-grid { grid-template-columns: 1fr; }
-  .tutorial-wireframe { min-height: 170px; }
+  .tutorial-preview-frame { min-height: 0; }
 }
 @media (max-width: 460px) {
   .tutorial-card { box-shadow: 6px 6px 0 var(--tutorial-accent); }
-  .tutorial-wireframe { grid-template-columns: 1fr; min-height: 0; }
-  .tutorial-route { grid-template-columns: 1fr; }
   .tutorial-controls li { grid-template-columns: 1fr; gap: 0.35rem; }
 }
 /* Level 2: speech bubbles, pop-ups and HUD */
