@@ -797,6 +797,89 @@ was packed into the Level 1 impact sprite.
 Added by:
 Nadav Sundy
 
+### Level 1 Parking-Lot Ambience
+
+Type:
+Environmental ambience
+
+Source:
+https://freesound.org/people/FunWithSound/sounds/406096/
+
+Author:
+FunWithSound
+
+Licence:
+CC0
+
+Used for:
+The continuous Level 1 parking/campus ambience bed. The source already contains
+a parking lot, nearby roadway traffic, faint machinery hum and light wind, so it
+replaces the temporary reuse of Level 2 traffic ambience/pass-bys.
+
+Runtime file:
+`public/assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3`
+
+Modified:
+No — the supplied MP3 is streamed as a long-form loop rather than decoded into
+a large Web Audio buffer.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Car Start
+
+Type:
+Vehicle sound effect
+
+Source:
+https://freesound.org/people/GiocoSound/sounds/401558/
+
+Author:
+GiocoSound
+
+Licence:
+CC0
+
+Used for:
+A one-shot exterior engine-start cue when the Level 1 player car becomes active.
+
+Runtime file:
+`public/assets/audio/level1/401558__giocosound__sfx_car_engine_outside_start.wav`
+
+Modified:
+No — the short supplied WAV is preloaded/decoded for immediate playback.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Damaged Engine
+
+Type:
+Vehicle loop
+
+Source:
+https://freesound.org/people/LHermanns/sounds/557214/
+
+Author:
+LHermanns
+
+Licence:
+CC BY 4.0
+
+Used for:
+A progressive high-damage engine layer in Level 1. It begins fading in below
+35% vehicle condition and becomes dominant toward 10% condition.
+
+Runtime file:
+`public/assets/audio/level1/557214__lhermanns__enginewarmup_1-loop.wav`
+
+Modified:
+Runtime playback rate and gain vary with vehicle speed/damage; the source file
+itself is unchanged.
+
+Added by:
+Nadav Sundy
+
 ### Level 2 Taxi Horn
 
 Type:
