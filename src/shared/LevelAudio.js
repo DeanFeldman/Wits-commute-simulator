@@ -622,12 +622,12 @@ export class LevelAudio {
     });
   }
 
-  updateEngine(speed) {
+  updateEngine(speed, volumeScale = 1) {
     if (!this.loops.has("engine")) return;
     const intensity = clamp01(Math.abs(speed) / 10);
     this.setLoopParameters("engine", {
       playbackRate: 0.86 + intensity * 0.34,
-      volume: 0.14 + intensity * 0.2
+      volume: (0.14 + intensity * 0.2) * clamp01(volumeScale)
     });
   }
 
