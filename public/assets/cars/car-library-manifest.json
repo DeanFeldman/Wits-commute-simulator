@@ -10,7 +10,11 @@
       "name": "2008 Aston Martin V8 Vantage GT2",
       "game": "aston-game.glb",
       "lite": "aston-lite.glb",
-      "collider": [2.0, 1.35, 4.5],
+      "collider": [
+        2,
+        1.35,
+        4.5
+      ],
       "randomWeight": 1
     },
     {
@@ -18,7 +22,11 @@
       "name": "2024 BYD Atto 2",
       "game": "byd-game.glb",
       "lite": "byd-lite.glb",
-      "collider": [2.15, 1.75, 4.5],
+      "collider": [
+        2.15,
+        1.75,
+        4.5
+      ],
       "randomWeight": 1
     },
     {
@@ -26,7 +34,11 @@
       "name": "Honda Accord 11th Gen",
       "game": "honda-game.glb",
       "lite": "honda-lite.glb",
-      "collider": [1.95, 1.4, 4.5],
+      "collider": [
+        1.95,
+        1.4,
+        4.5
+      ],
       "randomWeight": 1
     },
     {
@@ -34,7 +46,11 @@
       "name": "2020 Nissan GT-R50",
       "game": "nissan-game.glb",
       "lite": "nissan-lite.glb",
-      "collider": [1.95, 1.35, 4.5],
+      "collider": [
+        1.95,
+        1.35,
+        4.5
+      ],
       "randomWeight": 1
     },
     {
@@ -42,7 +58,11 @@
       "name": "2022 Volkswagen Saveiro 1.6 Robust",
       "game": "vw-game.glb",
       "lite": "vw-lite.glb",
-      "collider": [2.1, 1.95, 4.5],
+      "collider": [
+        2.1,
+        1.95,
+        4.5
+      ],
       "randomWeight": 1
     },
     {
@@ -50,9 +70,14 @@
       "name": "Diesel Powered Thomas (lightweight proxy)",
       "game": "diesel-thomas-proxy-game.glb",
       "lite": "diesel-thomas-proxy-lite.glb",
-      "collider": [2.0, 2.1, 3.9],
+      "collider": [
+        2,
+        2.1,
+        3.9
+      ],
       "randomWeight": 0.01,
-      "note": "Proxy built from primitives because the uploaded source is a .blend and Blender is unavailable in this conversion runtime."
+      "note": "Project-made primitive proxy because the uploaded source is a .blend and Blender was unavailable; source URL recorded, licence/redistribution terms still require confirmation.",
+      "source": "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
     }
   ]
 }
