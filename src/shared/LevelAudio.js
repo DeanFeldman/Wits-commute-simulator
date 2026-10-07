@@ -650,7 +650,7 @@ export class LevelAudio {
     this.loops.delete(name);
   }
 
-  startEngineLoop(path = "./assets/audio/level1/idle-car.wav") {
+  startEngineLoop(path = "./assets/audio/level1/idle-car.opus") {
     return this.startLoop("engine", path, {
       bus: "sfx",
       volume: 0.16,
