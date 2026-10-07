@@ -35,6 +35,8 @@ export class LevelAudio {
     this.loops = new Map();
     this.oneShots = new Set();
     this.sampleCache = new Map();
+    this.bufferCache = new Map();
+    this.bufferPromises = new Map();
     this.tickTimer = 0;
     this.stepTimer = 0;
 
@@ -276,9 +278,31 @@ export class LevelAudio {
     return audio;
   }
 
+  async preloadBuffer(path) {
+    if (!path) return null;
+    if (this.bufferCache.has(path)) return this.bufferCache.get(path);
+    if (this.bufferPromises.has(path)) return this.bufferPromises.get(path);
+
+    const promise = (async () => {
+      if (!this.ensure() || typeof fetch !== "function") return null;
+      const response = await fetch(path);
+      if (!response.ok) return null;
+      const bytes = await response.arrayBuffer();
+      const buffer = await this.context.decodeAudioData(bytes.slice(0));
+      this.bufferCache.set(path, buffer);
+      return buffer;
+    })().catch(() => null).finally(() => {
+      this.bufferPromises.delete(path);
+    });
+
+    this.bufferPromises.set(path, promise);
+    return promise;
+  }
+
   async waitForPreload(paths = [], timeoutMs = 1800) {
     this.preload(paths);
-    await Promise.all(paths.map((path) => new Promise((resolve) => {
+
+    const metadataReady = Promise.all(paths.map((path) => new Promise((resolve) => {
       const pool = this.sampleCache.get(path) ?? [];
       if (pool.some((audio) => audio.readyState >= 1)) {
         resolve();
@@ -303,6 +327,57 @@ export class LevelAudio {
       audio.addEventListener("error", finish, { once: true });
       audio.load?.();
     })));
+
+    const decodedReady = Promise.all(paths.map((path) => this.preloadBuffer(path)));
+    await Promise.race([
+      Promise.all([metadataReady, decodedReady]),
+      new Promise((resolve) => setTimeout(resolve, timeoutMs))
+    ]);
+  }
+
+  playDecoded(path, {
+    start = 0,
+    duration = null,
+    volume = 1,
+    pan = 0,
+    playbackRate = 1,
+    bus = "sfx"
+  } = {}) {
+    const buffer = this.bufferCache.get(path);
+    if (!buffer || !this.ensure() || this.isMuted) return null;
+
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    const panner = this.context.createStereoPanner?.();
+    source.buffer = buffer;
+    source.playbackRate.value = playbackRate;
+    gain.gain.value = Math.max(0, volume);
+
+    source.connect(gain);
+    if (panner) {
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      gain.connect(panner).connect(this.getBus(bus));
+    } else {
+      gain.connect(this.getBus(bus));
+    }
+
+    const handle = { source, gain, panner };
+    this.oneShots.add(handle);
+    const cleanup = () => {
+      source.disconnect();
+      gain.disconnect();
+      panner?.disconnect();
+      this.oneShots.delete(handle);
+    };
+    source.addEventListener("ended", cleanup, { once: true });
+
+    const offset = Math.max(0, Math.min(start, Math.max(0, buffer.duration - 0.001)));
+    if (Number.isFinite(duration) && duration > 0) {
+      source.start(0, offset, Math.min(duration, Math.max(0.001, buffer.duration - offset)));
+    } else {
+      source.start(0, offset);
+    }
+    return source;
   }
 
   playSample(path, {
@@ -312,6 +387,9 @@ export class LevelAudio {
     bus = "sfx"
   } = {}) {
     if (!path || this.isMuted) return null;
+
+    const decoded = this.playDecoded(path, { volume, pan, playbackRate, bus });
+    if (decoded) return decoded;
 
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
@@ -359,6 +437,16 @@ export class LevelAudio {
     bus = "sfx"
   } = {}) {
     if (!path || this.isMuted || duration <= 0) return null;
+
+    const decoded = this.playDecoded(path, {
+      start,
+      duration,
+      volume,
+      pan,
+      playbackRate,
+      bus
+    });
+    if (decoded) return decoded;
 
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
@@ -622,6 +710,8 @@ export class LevelAudio {
     }
     this.oneShots.clear();
     this.sampleCache.clear();
+    this.bufferCache.clear();
+    this.bufferPromises.clear();
 
     if (this.musicDuckTimer) {
       clearTimeout(this.musicDuckTimer);
