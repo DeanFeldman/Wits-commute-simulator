@@ -51,12 +51,12 @@ const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
 
 const LEVEL1_IMPACT_AUDIO = "./assets/audio/level1/impact-sprite.opus";
-const LEVEL1_PARKING_AMBIENCE_AUDIO = "./assets/audio/level2/traffic-ambience.opus";
-const LEVEL1_DISTANT_PASSBY_AUDIO = "./assets/audio/level2/vehicle-passbys.opus";
-const LEVEL1_DISTANT_PASSBY_CUES = Object.freeze([
-  Object.freeze({ start: 0.10, duration: 5.2 }),
-  Object.freeze({ start: 5.40, duration: 5.2 })
-]);
+const LEVEL1_PARKING_AMBIENCE_AUDIO =
+  "./assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3";
+const LEVEL1_CAR_START_AUDIO =
+  "./assets/audio/level1/401558__giocosound__sfx_car_engine_outside_start.wav";
+const LEVEL1_DAMAGED_ENGINE_AUDIO =
+  "./assets/audio/level1/557214__lhermanns__enginewarmup_1-loop.wav";
 const LEVEL1_IMPACT_CUES = Object.freeze({
   collision: Object.freeze({ start: 0, duration: 0.94 }),
   pothole: Object.freeze({ start: 1.04, duration: 1.25 }),
@@ -1358,11 +1358,12 @@ export class ParkingLevel {
     this.audio.preload([
       LEVEL1_IMPACT_AUDIO,
       LEVEL1_PARKING_AMBIENCE_AUDIO,
-      LEVEL1_DISTANT_PASSBY_AUDIO,
+      LEVEL1_CAR_START_AUDIO,
+      LEVEL1_DAMAGED_ENGINE_AUDIO,
       "./assets/audio/level1/idle-car.wav"
     ]);
     this.parkingAmbienceStarted = false;
-    this.distantPassbyTimer = 6 + Math.random() * 6;
+    this.engineStartRemaining = 0;
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -1407,8 +1408,7 @@ export class ParkingLevel {
 async load() {
   await this.audio.waitForPreload([
     LEVEL1_IMPACT_AUDIO,
-    LEVEL1_PARKING_AMBIENCE_AUDIO,
-    LEVEL1_DISTANT_PASSBY_AUDIO
+    LEVEL1_CAR_START_AUDIO
   ]);
 
   const scene = this.game.scene;
@@ -2406,7 +2406,23 @@ createParkingSurface(potholes = []) {
   }
 
   startCarIdleAudio() {
+    // Let the player hear the car actually start before the healthy idle loop
+    // takes over. The loops begin immediately at zero/low gain so their media
+    // is already warm when the startup recording finishes.
+    this.audio.playSample(LEVEL1_CAR_START_AUDIO, {
+      volume: 0.82
+    });
+    this.engineStartRemaining = 2.15;
+
     this.audio.startEngineLoop("./assets/audio/level1/idle-car.wav");
+    this.audio.setLoopParameters("engine", { volume: 0 });
+
+    this.audio.startLoop("level1-damaged-engine", LEVEL1_DAMAGED_ENGINE_AUDIO, {
+      bus: "sfx",
+      volume: 0,
+      playbackRate: 0.96
+    });
+
     this.startParkingAmbience();
   }
 
@@ -2414,42 +2430,45 @@ createParkingSurface(potholes = []) {
     if (this.parkingAmbienceStarted) return;
     this.parkingAmbienceStarted = true;
 
-    // A quiet campus/road bed replaces the missing soundtrack without making
-    // the parking lot sound like the active Yale Road crossing in Level 2.
-    this.audio.startLoop("level1-parking-bed-a", LEVEL1_PARKING_AMBIENCE_AUDIO, {
+    // This recording already contains the right world: a parking lot, a
+    // nearby roadway, faint machinery and a little wind. Keep it as one
+    // natural long-form bed instead of layering Level 2 traffic effects over it.
+    this.audio.startLoop("level1-parking-bed", LEVEL1_PARKING_AMBIENCE_AUDIO, {
       bus: "ambience",
-      volume: 0.11,
-      playbackRate: 0.96,
-      pan: -0.16
-    });
-    this.audio.startLoop("level1-parking-bed-b", LEVEL1_PARKING_AMBIENCE_AUDIO, {
-      bus: "ambience",
-      volume: 0.065,
-      playbackRate: 1.04,
-      pan: 0.18,
-      startTime: 1.8
+      volume: 0.44,
+      playbackRate: 1
     });
   }
 
-  updateParkingAmbience(dt) {
-    if (!this.parkingAmbienceStarted) return;
-    this.distantPassbyTimer -= dt;
-    if (this.distantPassbyTimer > 0) return;
+  updateLevelOneEngineAudio(dt) {
+    this.engineStartRemaining = Math.max(0, this.engineStartRemaining - dt);
 
-    const cue = LEVEL1_DISTANT_PASSBY_CUES[
-      Math.floor(Math.random() * LEVEL1_DISTANT_PASSBY_CUES.length)
-    ];
-    this.audio.playSegment(LEVEL1_DISTANT_PASSBY_AUDIO, {
-      ...cue,
-      bus: "ambience",
-      volume: 0.13 + Math.random() * 0.07,
-      pan: -0.75 + Math.random() * 1.5,
-      playbackRate: 0.92 + Math.random() * 0.12
+    const startupBlend = this.engineStartRemaining <= 0
+      ? 1
+      : THREE.MathUtils.clamp(1 - this.engineStartRemaining / 1.65, 0, 1);
+
+    // The damaged loop starts appearing below 35% condition and is effectively
+    // dominant by 10%. This is a crossfade, not a binary switch.
+    const damageBlend = THREE.MathUtils.clamp(
+      (35 - this.condition) / 25,
+      0,
+      1
+    );
+    const speedIntensity = THREE.MathUtils.clamp(
+      Math.abs(this.vehicle?.speed ?? 0) / 10,
+      0,
+      1
+    );
+
+    this.audio.updateEngine(
+      this.vehicle?.speed ?? 0,
+      startupBlend * (1 - damageBlend * 0.58)
+    );
+
+    this.audio.setLoopParameters("level1-damaged-engine", {
+      volume: startupBlend * damageBlend * (0.18 + speedIntensity * 0.16),
+      playbackRate: 0.96 + speedIntensity * 0.08
     });
-
-    // Long irregular gaps keep these as distant campus-road events instead of
-    // making the parking lot sound like a busy traffic lane.
-    this.distantPassbyTimer = 11 + Math.random() * 10;
   }
 
   // The impact sprite is preloaded so the transient lands on the collision
@@ -2542,8 +2561,7 @@ this.vehicle.update(dt, {
     (controls.isDown("steerRight") ? 1 : 0)
 });
 
-this.audio.updateEngine(this.vehicle.speed);
-this.updateParkingAmbience(dt);
+this.updateLevelOneEngineAudio(dt);
 
 this.environment?.update(dt);
 
