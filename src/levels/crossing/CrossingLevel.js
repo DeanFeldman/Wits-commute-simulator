@@ -203,6 +203,7 @@ export class CrossingLevel {
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
     this.trafficPassCooldown = 0;
+    this.trafficHornCooldown = 0;
    // this.roadFogMaterials = [];
 
     this.cupKit = null;
@@ -1178,18 +1179,19 @@ export class CrossingLevel {
     // Road bed is silent away from Yale Road. It fades in only once the
     // player is genuinely near the kerb and reaches full level in the lanes.
     const roadProximity = 1 - THREE.MathUtils.clamp(
-      (nearestRoadDistance - 1.5) / 5.5,
+      (nearestRoadDistance - 0.75) / 3.75,
       0,
       1
     );
     this.audio.setLoopParameters("level2-traffic-a", {
-      volume: 0.38 * roadProximity
+      volume: 0.52 * roadProximity
     });
     this.audio.setLoopParameters("level2-traffic-b", {
-      volume: 0.22 * roadProximity
+      volume: 0.30 * roadProximity
     });
 
     this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
+    this.trafficHornCooldown = Math.max(0, this.trafficHornCooldown - dt);
     for (const vehicle of this.traffic) {
       if (vehicle.lane.isHighway) continue;
 
@@ -1197,6 +1199,31 @@ export class CrossingLevel {
       const dz = vehicle.lane.z - this.player.position.z;
       const absX = Math.abs(dx);
       const absZ = Math.abs(dz);
+
+      if (absX > 8) vehicle.hornArmed = true;
+      if (vehicle.hornArmed === undefined) vehicle.hornArmed = absX > 5;
+
+      // A warning horn is contextual only: the player must be physically in
+      // this lane, and the vehicle must be approaching from a few metres away.
+      const directlyInPath = absZ <= 1.05;
+      const approaching = dx * vehicle.lane.direction < 0;
+      if (
+        vehicle.hornArmed &&
+        this.trafficHornCooldown <= 0 &&
+        directlyInPath &&
+        approaching &&
+        absX >= 2.2 &&
+        absX <= 5.5
+      ) {
+        this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
+          ...LEVEL2_EXTRA_CUES.horn,
+          volume: 0.34,
+          pan: THREE.MathUtils.clamp(dx / 5, -0.8, 0.8),
+          playbackRate: 0.98 + Math.random() * 0.04
+        });
+        vehicle.hornArmed = false;
+        this.trafficHornCooldown = 4.5;
+      }
 
       if (absX > 7) vehicle.audioPassArmed = true;
       if (vehicle.audioPassArmed === undefined) vehicle.audioPassArmed = absX > 4;
@@ -1217,7 +1244,7 @@ export class CrossingLevel {
 
       this.audio.playSegment(LEVEL2_PASSBY_AUDIO, {
         ...cue,
-        volume: THREE.MathUtils.lerp(0.28, 0.62, laneProximity),
+        volume: THREE.MathUtils.lerp(0.36, 0.72, laneProximity),
         pan: THREE.MathUtils.clamp(dx / 5, -0.9, 0.9),
         playbackRate: THREE.MathUtils.clamp(
           (vehicle.controller?.speed ?? vehicle.cruiseSpeed ?? 5) /
@@ -1407,7 +1434,7 @@ export class CrossingLevel {
     this.audio.duckMusic({ scale: 0.3, hold: 0.42 });
     this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
       ...LEVEL2_EXTRA_CUES.cupCollect,
-      volume: 0.86,
+      volume: 1,
       playbackRate: 0.97 + Math.random() * 0.06
     });
   }
@@ -1537,15 +1564,15 @@ checkFinish() {
     this.game.flashHUD();
 
     const impactOptions = {
-      volume: 0.96,
+      volume: 1,
       playbackRate: wasTaxi ? 0.96 : 1.02
     };
 
+    // This now uses a pre-decoded Web Audio buffer, so the transient starts on
+    // the collision frame before any checkpoint/reset state is changed.
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
+
     if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
-      // The level is disposed ~280 ms after failLevel(). Route the fatal
-      // impact through the persistent UI audio context so its full tail is not
-      // cut off during the transition.
-      this.game.playPersistentAudio(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
       this.game.setCheckpoint("start");
       this.game.failLevel({
         title: "Too many impacts",
@@ -1555,9 +1582,8 @@ checkFinish() {
       return;
     }
 
-    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
     this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
-    this.impactTimer = 0.42;
+    this.impactTimer = 0.58;
     this.cameraShakeTime = 0.34;
     this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;
