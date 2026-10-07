@@ -3427,16 +3427,17 @@ if (hit) {
       );
     }
 
+    this.audio.duckMusic({ scale: 0.38, hold: 0.36 });
     this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
       ...LEVEL1_IMPACT_CUES.pothole,
-      volume: THREE.MathUtils.clamp(0.34 + feedbackScale * 0.34, 0, 0.78),
+      volume: THREE.MathUtils.clamp(0.42 + feedbackScale * 0.38, 0, 0.88),
       playbackRate: THREE.MathUtils.lerp(0.92, 1.05, speedFactor)
     });
 
     if (contactedPothole.userData.isWet) {
       this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
         ...LEVEL1_IMPACT_CUES.puddle,
-        volume: THREE.MathUtils.clamp(0.22 + speedFactor * 0.38, 0, 0.62),
+        volume: THREE.MathUtils.clamp(0.28 + speedFactor * 0.42, 0, 0.72),
         playbackRate: THREE.MathUtils.lerp(0.94, 1.06, speedFactor)
       });
     }
