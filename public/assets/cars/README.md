@@ -25,7 +25,9 @@ Load each unique GLB once with `GLTFLoader`, cache the loaded scene, and clone i
 
 ## Thomas note
 
-The uploaded Diesel Powered Thomas asset was a Blender `.blend` file. The conversion environment does not contain Blender, so the included `diesel-thomas-proxy-*` files are lightweight procedural stand-ins, not a conversion of the original mesh. They are suitable for a rare Easter egg. Keep the original `.blend` if you later want to export the exact model from Blender.
+Source: https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab
+
+The uploaded Diesel Powered Thomas asset was a Blender `.blend` file. The conversion environment does not contain Blender, so the included `diesel-thomas-proxy-*` files are lightweight procedural stand-ins, not a conversion of the original mesh. The source URL is now recorded, but the Sketchfab source-page licence/redistribution terms still need confirmation before submission.
 
 ## Licensing / credits
 
