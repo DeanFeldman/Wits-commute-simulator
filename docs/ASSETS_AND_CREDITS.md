@@ -358,6 +358,32 @@ Yes — individual vehicles are extracted from the pack and cloned per bay.
 Added by:
 Shayna Unterslak
 
+### Diesel Powered Thomas (reference source for project proxy)
+
+Type:
+Model / reference source
+
+Source:
+https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab
+
+Author:
+mrmrnaufal
+
+Licence:
+Creative Commons Attribution (CC BY), as displayed on the Sketchfab model page.
+
+Used for:
+Reference/source for the lightweight project-made `diesel-thomas-proxy-game.glb`
+and `diesel-thomas-proxy-lite.glb` files retained under `public/assets/cars/`.
+The proxy files are procedural stand-ins and are not a conversion of the source mesh.
+
+Modified:
+The source model itself is not shipped. The retained proxies were created separately
+from simple geometry for this project.
+
+Added by:
+Dean Feldman
+
 ---
 
 ## Foliage Models
@@ -729,37 +755,16 @@ Gabriel Raz
 
 ## Unresolved — Action Required
 
-### Normalised Vehicle Pack (aston, byd, honda, nissan, vw, diesel-thomas)
+### Historical normalised vehicle variants
 
-Type: Model
+The old Aston Martin, BYD, Honda, Nissan and Volkswagen `*-game/lite.glb`
+variants are no longer present in the current repository asset tree, so they
+require no current submission credit unless reintroduced.
 
-Source:
-**Not recorded.** These were converted from uploaded source archives that did not
-carry licence metadata — see `public/assets/cars/README.md`. The vehicles are
-identified in `car-library-manifest.json` as a 2008 Aston Martin V8 Vantage GT2,
-2024 BYD Atto 2, Honda Accord 11th Gen, 2020 Nissan GT-R50, 2022 Volkswagen
-Saveiro, and a "Diesel Powered Thomas" easter egg.
-
-Author:
-Unknown — **must be traced before submission.**
-
-Licence:
-Unknown — **must be traced before submission.**
-
-Used for:
-Parked cars and M1 background traffic in Level 1 (`*-game.glb` for near vehicles,
-`*-lite.glb` for distant ones).
-
-Files:
-`public/assets/cars/{aston,byd,honda,nissan,vw,diesel-thomas-proxy}-{game,lite}.glb`
-
-Modified:
-Yes — converted to `.glb`, decimated, textures stripped and replaced with vertex
-colours, normalised to a common scale and orientation. The `diesel-thomas-proxy`
-files are procedural stand-ins, not a conversion of the original mesh.
-
-Added by:
-Dean Feldman — **please supply the original download pages and licences.**
+The retained Diesel Thomas proxy files are documented separately above. Their
+reference source is mrmrnaufal's Sketchfab model under Creative Commons
+Attribution (CC BY), and the repository proxies are project-made procedural
+stand-ins rather than a conversion of that source mesh.
 
 ---
 
@@ -803,7 +808,7 @@ team-authored or properly licensed alternatives.
 | Runtime asset(s) | Current evidence | Required before submission |
 | --- | --- | --- |
 | `cars/{aston,byd,honda,nissan,vw}-{game,lite}.glb` | Historical Issue #160 record only. These files are no longer present in the current repository asset tree. | No current credit action unless these assets are reintroduced. |
-| `cars/diesel-thomas-proxy-{game,lite}.glb` | Procedural project proxy. Source identified as https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab; the uploaded Blender source was not converted. | Confirm the Sketchfab source-page licence/redistribution terms before submission, or remove the retained proxy files. |
+| `cars/diesel-thomas-proxy-{game,lite}.glb` | Procedural project proxy. Reference source: mrmrnaufal, “Diesel Powered Thomas,” Sketchfab, Creative Commons Attribution (CC BY). The uploaded Blender source was not converted. | Source/author/licence record complete; retain attribution if the proxy files remain distributed. |
 | `audio/level1/car-crash.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
 | `audio/level1/car-door-shut.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
 | `audio/level1/idle-car.wav` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
@@ -855,6 +860,7 @@ The following resources have a recorded source/author/licence or a project-autho
 - Paper Tablet — NameSsis — CC BY 4.0.
 - Car Scene — toivo — CC BY 4.0.
 - Generic Passenger Car Pack — Comrade1280 — CC BY 4.0.
+- Diesel Powered Thomas reference — mrmrnaufal — Creative Commons Attribution (CC BY), as displayed on Sketchfab; retained project proxies are procedural stand-ins.
 - Asphalt 02 PBR set — Rob Tuytel / Poly Haven — CC0.
 - Joburg Central Sunset HDRI — Dimitrios Savva and Greg Zaal / Poly Haven — CC0.
 - Grass Pack of 9 Variations — LOLIPOP — CC BY.
@@ -875,7 +881,7 @@ The following resources have a recorded source/author/licence or a project-autho
 These remain **open** and are the reason Issue #245 must not be closed yet:
 
 ### Vehicles / retained car assets
-- Diesel Thomas source is now identified as https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab. The retained proxy GLBs are project-made procedural stand-ins; the source-page licence/redistribution terms still need confirmation.
+- Diesel Thomas provenance is resolved: reference source mrmrnaufal on Sketchfab, Creative Commons Attribution (CC BY); retained proxy GLBs are project-made procedural stand-ins.
 - The Aston Martin, BYD, Honda, Nissan and Volkswagen `*-game/lite.glb` files referenced by
   the legacy `CAR_SPECS` table are **not present in the current repository asset tree** and
   are therefore not part of the present distributed asset inventory.
@@ -1023,7 +1029,6 @@ final submitted asset set, even when they are not referenced by current gameplay
 - `car-crash.mp3`, `car-door-shut.mp3`, and `idle-car.wav`.
 
 ### Dean Feldman
-- `diesel-thomas-proxy-{game,lite}.glb` — source identified as https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab. The retained files are project-made procedural stand-ins and are not currently loaded by gameplay; source-page licence/redistribution terms still need confirmation.
 - `east-precast-wall-texture.jpg` — directly edited/adapted from the Precast Walling Pros source image; reuse/redistribution terms still need confirmation.
 - Wits shark — Gabriel Raz created the 3D model; Dean supplied the Wits Sharks Instagram visual reference. The unused reference PNG has been removed; runtime uses only the GLB.
 - `amic-fence.png`, `amic-fence-reference.png`, and
@@ -1039,7 +1044,7 @@ final submitted asset set, even when they are not referenced by current gameplay
 
 Dean Feldman supplied the following provenance details for the assets attributed to him in the re-audit:
 
-- **Diesel Powered Thomas source:** https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab. The repository ships only lightweight procedural proxy GLBs, not a conversion of that Blender mesh. The source URL is now recorded; the source-page licence/redistribution terms still need confirmation.
+- **Diesel Powered Thomas source:** https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab — author **mrmrnaufal**, licence **Creative Commons Attribution (CC BY)** as displayed on Sketchfab. The repository ships only lightweight project-made procedural proxy GLBs, not a conversion of that Blender mesh. This provenance item is resolved.
 
 - **East precast wall:** directly edited/adapted by Dean Feldman from the supplied Precast Walling Pros image. The Google Images result resolves to the Precast Walling Pros site and image at `precastwallingpros.co.za`. The repository record does not yet establish a reuse/redistribution licence, so that clearance remains open.
 - **Wits shark:** Gabriel Raz created the 3D model using his modelling workflow. Dean supplied imagery from the Wits Sharks Instagram account as the visual reference. The unused `wits-shark.png` reference image was removed because runtime code loads only `wits-shark.glb`.
@@ -1047,7 +1052,7 @@ Dean Feldman supplied the following provenance details for the assets attributed
 - **Main menu background:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
 - **Level 3 story/loading image:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
 
-These records resolve the missing generation/authorship history for the two AI-generated UI images and identify the source/reference history for the wall, shark and AMIC assets without inventing licence terms that have not been confirmed.
+These records resolve the missing generation/authorship history for the two AI-generated UI images and the Diesel Thomas source/author/licence record. They also identify the source/reference history for the wall, shark and AMIC assets without inventing licence terms that have not been confirmed.
 
 ---
 
