@@ -1,8 +1,8 @@
 const MIX = Object.freeze({
   master: 0.9,
-  music: 0.24,
-  ambience: 0.36,
-  sfx: 0.82
+  music: 0.18,
+  ambience: 0.34,
+  sfx: 1
 });
 
 const MUSIC_FILES = {
@@ -20,6 +20,7 @@ export class LevelAudio {
     this.master = null;
     this.masterLimiter = null;
     this.musicBus = null;
+    this.musicDuck = null;
     this.ambienceBus = null;
     this.sfxBus = null;
 
@@ -29,6 +30,7 @@ export class LevelAudio {
     this.musicPreset = null;
     this.musicScale = 1;
     this.musicStopTimer = null;
+    this.musicDuckTimer = null;
 
     this.loops = new Map();
     this.oneShots = new Set();
@@ -63,15 +65,17 @@ export class LevelAudio {
     this.master = this.context.createGain();
     this.masterLimiter = this.context.createDynamicsCompressor();
     this.musicBus = this.context.createGain();
+    this.musicDuck = this.context.createGain();
     this.ambienceBus = this.context.createGain();
     this.sfxBus = this.context.createGain();
 
     this.master.gain.value = this.isMuted ? 0 : MIX.master;
     this.musicBus.gain.value = this.musicEnabled ? MIX.music * this.musicScale : 0;
+    this.musicDuck.gain.value = 1;
     this.ambienceBus.gain.value = MIX.ambience;
     this.sfxBus.gain.value = MIX.sfx;
 
-    this.musicBus.connect(this.master);
+    this.musicBus.connect(this.musicDuck).connect(this.master);
     this.ambienceBus.connect(this.master);
     this.sfxBus.connect(this.master);
 
@@ -209,22 +213,66 @@ export class LevelAudio {
     );
   }
 
-  preload(paths = []) {
-    for (const path of paths) {
-      if (!path || this.sampleCache.has(path)) continue;
+  duckMusic({
+    scale = 0.25,
+    attack = 0.025,
+    hold = 0.45,
+    release = 0.22
+  } = {}) {
+    if (!this.ensure() || !this.musicDuck) return;
+    if (this.musicDuckTimer) {
+      clearTimeout(this.musicDuckTimer);
+      this.musicDuckTimer = null;
+    }
+
+    const now = this.context.currentTime;
+    const gain = this.musicDuck.gain;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(Math.max(0.001, gain.value), now);
+    gain.linearRampToValueAtTime(Math.max(0.001, clamp01(scale)), now + attack);
+
+    this.musicDuckTimer = setTimeout(() => {
+      if (!this.context || !this.musicDuck) return;
+      const releaseStart = this.context.currentTime;
+      this.musicDuck.gain.cancelScheduledValues(releaseStart);
+      this.musicDuck.gain.setValueAtTime(
+        Math.max(0.001, this.musicDuck.gain.value),
+        releaseStart
+      );
+      this.musicDuck.gain.linearRampToValueAtTime(1, releaseStart + release);
+      this.musicDuckTimer = null;
+    }, Math.ceil((attack + hold) * 1000));
+  }
+
+  primeSamplePool(path, targetSize = 3) {
+    if (!path) return;
+    const pool = this.sampleCache.get(path) ?? [];
+    while (pool.length < targetSize) {
       const audio = new Audio(path);
       audio.preload = "auto";
       audio.load?.();
-      this.sampleCache.set(path, audio);
+      pool.push(audio);
     }
+    this.sampleCache.set(path, pool);
+  }
+
+  preload(paths = []) {
+    for (const path of paths) this.primeSamplePool(path);
   }
 
   createSampleElement(path) {
-    const cached = this.sampleCache.get(path);
-    if (cached) return cached.cloneNode(true);
+    this.primeSamplePool(path);
+    const pool = this.sampleCache.get(path) ?? [];
 
-    const audio = new Audio(path);
+    // Prefer the already-warmed media element itself. Cloning a preloaded
+    // element resets readyState in Chromium and caused the first impact in a
+    // level to arrive late even though the source had been preloaded.
+    let index = pool.findIndex((audio) => audio.readyState >= 1);
+    if (index < 0) index = 0;
+
+    const audio = pool.splice(index, 1)[0] ?? new Audio(path);
     audio.preload = "auto";
+    this.primeSamplePool(path);
     return audio;
   }
 
@@ -239,20 +287,6 @@ export class LevelAudio {
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
-    const applyStartTime = () => {
-      if (startTime <= 0) return;
-      try {
-        const duration = Number.isFinite(audio.duration) && audio.duration > 0
-          ? audio.duration
-          : startTime;
-        audio.currentTime = Math.min(startTime, Math.max(0, duration - 0.01));
-      } catch {
-        // Metadata may not be ready yet; loadedmetadata retries below.
-      }
-    };
-    if (audio.readyState >= 1) applyStartTime();
-    else audio.addEventListener("loadedmetadata", applyStartTime, { once: true });
-
     if (!this.ensure()) {
       audio.volume = clamp01(volume);
       audio.play().catch(() => {});
@@ -400,7 +434,27 @@ export class LevelAudio {
 
     const handle = { element: audio, source, gain, panner, shouldPlay: true, fallback: false };
     this.loops.set(name, handle);
-    audio.play().catch(() => {});
+
+    const begin = () => {
+      if (!handle.shouldPlay) return;
+      if (startTime > 0) {
+        try {
+          const maxStart = Number.isFinite(audio.duration) && audio.duration > 0
+            ? Math.max(0, audio.duration - 0.01)
+            : startTime;
+          audio.currentTime = Math.min(startTime, maxStart);
+        } catch {
+          // If seeking is temporarily unavailable, playback still starts.
+        }
+      }
+      audio.play().catch(() => {});
+    };
+
+    if (startTime > 0 && audio.readyState < 1) {
+      audio.addEventListener("loadedmetadata", begin, { once: true });
+    } else {
+      begin();
+    }
     return audio;
   }
 
@@ -481,7 +535,7 @@ export class LevelAudio {
       ? Math.max(0, distance)
       : Math.abs(lateralDistance);
     const pan = lateralDistance / 8;
-    const proximity = Math.max(0.08, 0.72 - audibleDistance * 0.055);
+    const proximity = Math.max(0.12, 0.86 - audibleDistance * 0.05);
     const sample = samples[Math.floor(Math.random() * samples.length)];
     const options = {
       volume: proximity,
@@ -540,11 +594,17 @@ export class LevelAudio {
     this.oneShots.clear();
     this.sampleCache.clear();
 
+    if (this.musicDuckTimer) {
+      clearTimeout(this.musicDuckTimer);
+      this.musicDuckTimer = null;
+    }
+
     if (this.unlockAudio) {
       globalThis.removeEventListener?.("pointerdown", this.unlockAudio);
       globalThis.removeEventListener?.("keydown", this.unlockAudio);
     }
 
+    this.musicDuck?.disconnect?.();
     this.masterLimiter?.disconnect?.();
     this.context?.close?.();
     this.context = null;
