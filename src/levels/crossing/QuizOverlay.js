@@ -23,6 +23,7 @@ const LEVEL2_PAPER_CUES = Object.freeze({
 export class QuizOverlay {
   constructor({ audio = null } = {}) {
     this.audio = audio;
+    this.audio?.preload?.([LEVEL2_INTERACTION_AUDIO, LEVEL2_PAPER_AUDIO]);
     this.root = document.querySelector("#quiz-overlay");
     this.titleEl = document.querySelector("#quiz-title");
     this.introEl = document.querySelector("#quiz-intro");
