@@ -1349,6 +1349,7 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
+    this.audio.preloadMusic("level1");
     this.audio.preload([LEVEL1_IMPACT_AUDIO, "./assets/audio/level1/idle-car.wav"]);
     this.environment = null;
     this.impactCooldown = 0;
