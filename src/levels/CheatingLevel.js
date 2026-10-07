@@ -1554,7 +1554,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     this.audio.startLoop("level3-classroom", LEVEL3_CLASSROOM_AMBIENCE_AUDIO, {
       bus: "ambience",
-      volume: 0.16
+      volume: 0.21
     });
     this.audio.startLoop("level3-heartbeat", LEVEL3_HEARTBEAT_AUDIO, {
       bus: "ambience",
@@ -2101,7 +2101,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         LEVEL3_INTERACTION_AUDIO,
         {
           ...LEVEL3_INTERACTION_CUES[cueName],
-          volume: this.peekActive ? 0.2 : 0.14,
+          volume: this.peekActive ? 0.34 : 0.24,
           playbackRate: 0.96 + Math.random() * 0.08
         }
       );
@@ -2275,9 +2275,10 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
+      this.audio.duckMusic({ scale: 0.12, hold: 0.85, release: 0.28 });
       this.audio.playSegment(RESULT_AUDIO, {
         ...LEVEL3_RESULT_CUES.incorrect,
-        volume: 0.82
+        volume: 1
       });
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
@@ -2291,8 +2292,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
+    this.audio.duckMusic({ scale: 0.12, hold: 0.62, release: 0.24 });
     this.audio.playSample(LEVEL3_CORRECT_AUDIO, {
-      volume: 0.58
+      volume: 0.92
     });
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
