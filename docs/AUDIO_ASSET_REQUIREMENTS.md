@@ -1,8 +1,8 @@
 # Audio Asset Requirements — Issue #233
 
-The core audio refactor is implemented on `feat/233-audio-overhaul`: music,
-ambience and SFX use separate buses; synthetic gameplay beeps are being replaced
-with contextual recordings; and Level 3 music ducks as tension rises.
+The core audio refactor is implemented on `feat/233-audio-overhaul`.
+Gameplay now uses environmental ambience and contextual SFX rather than a
+continuous level soundtrack. Music is retained for the menu / story intro only.
 
 ## Integrated
 
@@ -61,8 +61,8 @@ Implementation details:
 - the Level 3 interaction sprite contains only the two active peek-rustle cues;
 - the heartbeat starts silent and fades in as suspicion rises above 20%, or as
   the final 15 seconds become urgent;
-- heartbeat volume and playback rate both increase with tension while the music
-  is ducked, keeping gameplay information more readable;
+- heartbeat volume and playback rate both increase with tension, keeping
+  gameplay information readable without relying on a continuous soundtrack;
 - the real wall clock stays extremely quiet during normal play, then steps up
   subtly at 30, 15 and 5 seconds remaining instead of beeping every second.
 
@@ -92,8 +92,10 @@ removed from the branch because they are no longer used.
 
 Still required before submission:
 
-- provenance or a cleared replacement for `idle-car.wav`;
-- provenance or a cleared replacement for `car-door-shut.mp3`.
+- provenance or a cleared replacement for `idle-car.wav`.
+
+The old end-of-Level-1 door-close cue has been removed from gameplay, so
+`car-door-shut.mp3` is no longer required.
 
 Still optional:
 - parking-brake / parking-confirmation sound.
@@ -115,11 +117,10 @@ Optional:
 
 Integrated in the latest pass:
 
-- [x] louder replacement incorrect-answer cue;
-- [x] caught / failure sting;
-- [x] test-complete / success sting.
-
-- [x] replacement correct-answer tick supplied, processed, preloaded and wired.
+- [x] replacement incorrect-answer cue;
+- [x] replacement correct-answer tick;
+- [x] both answer cues are pre-decoded before gameplay for frame-accurate playback;
+- [x] generic failure and completion stings removed.
 
 Optional:
 - a subtle additional pencil/writing bed could be layered very quietly into
@@ -133,20 +134,19 @@ Implemented after the full audit:
   crowd/pathing and quiz-disposal changes;
 - [x] master dynamics limiter added after the shared music/ambience/SFX buses to
   catch stacked gameplay peaks without flattening the normal mix;
-- [x] gameplay music and long ambience loops are preloaded during level loading;
-- [x] Level 2 fatal vehicle impact is routed through persistent game audio so the
-  tail survives level disposal;
-- [x] all failure stings now use persistent game audio on Levels 1–3;
-- [x] gameplay music fades over 120 ms before fail/success stings;
+- [x] critical one-shot effects are pre-decoded into Web Audio buffers before
+  gameplay, preventing first-use timing delays;
+- [x] generic success/failure stings removed from every level;
+- [x] continuous level music removed; gameplay is driven by contextual ambience
+  and effects, with music retained for menu/story presentation only;
 - [x] Level 2 pass-by overlap reduced with a 2.8-second cooldown;
 - [x] short Level 2 traffic ambience de-repeated with two offset/rate layers;
 - [x] Level 3 interaction sprite repacked to remove unused legacy answer clips;
 - [x] Level 1 completion door sound preloaded.
 
-Remaining audio blockers are provenance-only:
+Remaining audio blocker is provenance-only:
 
 - `public/assets/audio/level1/idle-car.wav`
-- `public/assets/audio/level1/car-door-shut.mp3`
 
 No additional gameplay sound category is required for issue #233. Parking-confirm,
 Level 2 checkpoint confirmation and extra classroom writing texture remain optional
@@ -163,31 +163,12 @@ polish only.
 
 ## Music
 
-The soundtrack has now been fully rewritten on this branch.
+The four project-created tracks remain in the repository, but continuous music
+is intentionally disabled during Levels 1–3. The menu / story-intro music is
+retained for presentation and transitions.
 
-The four tracks share one recognisable D-major / B-minor commute motif instead
-of behaving like unrelated pieces:
-
-- **Menu — "Commute Motif" (84 BPM):** warm, calm statement of the theme.
-- **Level 1 — "After Class" (76 BPM):** slower dusk interpretation with lots of
-  space for engine, collision and pothole audio.
-- **Level 2 — "Crossing Rush" (116 BPM):** brighter rhythmic version designed
-  to support movement without covering footsteps and traffic.
-- **Level 3 — "Eyes Down" (88 BPM):** deliberately sparse fragmented version;
-  suspicion/time pressure is carried primarily by heartbeat, clock and tutor
-  footsteps rather than by making the music increasingly loud.
-
-All music is project-created/generated specifically for this game and contains
-no downloaded loops or third-party samples.
-
-### Test before finalising
-
-Listen for:
-
-- whether the shared motif is recognisable without becoming repetitive;
-- whether music remains behind SFX at normal game volume;
-- whether Level 2 feels energetic without becoming tiring;
-- whether Level 3 leaves enough room to locate the tutor by sound;
-- whether any loop boundary is noticeable;
-- whether any track should be slightly louder/quieter before the final SFX pass.
-
+This matches the final sound-design direction: gameplay information is carried
+by engine/impact/pothole audio, footsteps, traffic, pickups, classroom room tone,
+tutor footsteps, clock, heartbeat, paper movement and answer feedback. This
+keeps important cues readable and avoids using music merely because a game is
+expected to have a soundtrack.
