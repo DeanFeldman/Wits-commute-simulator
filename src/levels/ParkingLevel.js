@@ -1362,6 +1362,7 @@ export class ParkingLevel {
       LEVEL1_IDLE_AUDIO
     ]);
     this.parkingAmbienceStarted = false;
+    this.damagedEngineStarted = false;
     this.engineStartRemaining = 0;
     this.environment = null;
     this.impactCooldown = 0;
@@ -2417,12 +2418,6 @@ createParkingSurface(potholes = []) {
     this.audio.startEngineLoop(LEVEL1_IDLE_AUDIO);
     this.audio.setLoopParameters("engine", { volume: 0 });
 
-    this.audio.startLoop("level1-damaged-engine", LEVEL1_DAMAGED_ENGINE_AUDIO, {
-      bus: "sfx",
-      volume: 0,
-      playbackRate: 0.96
-    });
-
     this.startParkingAmbience();
   }
 
@@ -2454,6 +2449,18 @@ createParkingSurface(potholes = []) {
       0,
       1
     );
+
+    // Do not fetch the large damaged-engine loop on clean runs. Start it a
+    // little before its audible crossfade range so the browser has time to
+    // buffer before damageBlend becomes significant.
+    if (!this.damagedEngineStarted && this.condition <= 42) {
+      this.damagedEngineStarted = true;
+      this.audio.startLoop("level1-damaged-engine", LEVEL1_DAMAGED_ENGINE_AUDIO, {
+        bus: "sfx",
+        volume: 0,
+        playbackRate: 0.96
+      });
+    }
     const speedIntensity = THREE.MathUtils.clamp(
       Math.abs(this.vehicle?.speed ?? 0) / 10,
       0,
@@ -2465,10 +2472,12 @@ createParkingSurface(potholes = []) {
       startupBlend * (1 - damageBlend * 0.58)
     );
 
-    this.audio.setLoopParameters("level1-damaged-engine", {
-      volume: startupBlend * damageBlend * (0.18 + speedIntensity * 0.16),
-      playbackRate: 0.96 + speedIntensity * 0.08
-    });
+    if (this.damagedEngineStarted) {
+      this.audio.setLoopParameters("level1-damaged-engine", {
+        volume: startupBlend * damageBlend * (0.18 + speedIntensity * 0.16),
+        playbackRate: 0.96 + speedIntensity * 0.08
+      });
+    }
   }
 
   // The impact sprite is preloaded so the transient lands on the collision
