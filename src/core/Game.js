@@ -1206,9 +1206,9 @@ export class Game {
     this.instructionDemoMarker.textContent = level === 1 ? "CAR" : level === 2 ? "YOU" : "+";
     this.instructionDemoStatus.textContent = level === 1
       ? "DRIVE THE ACTUAL CAR • PRESS C"
-      : level === 3
-        ? "MOVE MOUSE • HOLD LEFT CLICK • TYPE"
-        : "TRY WASD / ARROWS • PRESS C";
+      : level === 2
+        ? "MOVE THE ACTUAL PLAYER • PRESS C"
+        : "MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE";
     this.instructionDemo.classList.toggle("is-level3", level === 3);
     this.instructionDemoMarker.style.transform = "";
   }
@@ -1283,23 +1283,21 @@ export class Game {
     event.preventDefault();
     this.setTutorialControlActive(index, true);
 
-    if (this.currentLevelNumber === 1) {
-      const action = event.code === "KeyW" || event.code === "ArrowUp" ? "ACCELERATE"
-        : event.code === "KeyS" || event.code === "ArrowDown" ? "BRAKE / REVERSE"
-        : event.code === "KeyA" || event.code === "ArrowLeft" ? "STEER LEFT"
-        : event.code === "KeyD" || event.code === "ArrowRight" ? "STEER RIGHT"
-        : "CAMERA VIEW";
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
+      const action = event.code === "KeyW" || event.code === "ArrowUp" ? (this.currentLevelNumber === 1 ? "ACCELERATE" : "WALK FORWARD")
+        : event.code === "KeyS" || event.code === "ArrowDown" ? (this.currentLevelNumber === 1 ? "BRAKE / REVERSE" : "WALK BACK")
+        : event.code === "KeyA" || event.code === "ArrowLeft" ? (this.currentLevelNumber === 1 ? "STEER LEFT" : "WALK LEFT")
+        : event.code === "KeyD" || event.code === "ArrowRight" ? (this.currentLevelNumber === 1 ? "STEER RIGHT" : "WALK RIGHT")
+        : event.code === "KeyC" ? "CAMERA VIEW"
+        : "PAUSE / SETTINGS";
       this.setTutorialDemoStatus(action);
+      if (event.code === "KeyP") event.stopImmediatePropagation();
       return;
     }
 
-    event.stopImmediatePropagation();
-
-    if (event.code === "KeyC" && this.currentLevelNumber !== 3) {
-      if (!event.repeat) this.tutorialCameraDemo = !this.tutorialCameraDemo;
-      this.setTutorialControlActive(index, this.tutorialCameraDemo);
-      this.setTutorialDemoStatus(this.tutorialCameraDemo ? "CAMERA VIEW CHANGED" : "CAMERA VIEW RESTORED");
-      this.applyTutorialDemoMotion();
+    if (event.code === "KeyP") {
+      this.setTutorialDemoStatus("PAUSE / SETTINGS");
+      event.stopImmediatePropagation();
       return;
     }
 
@@ -1314,22 +1312,7 @@ export class Game {
         this.instructionPreview.classList.remove("is-typing-demo");
         this.setTutorialControlActive(2, false);
       }, 180);
-      return;
     }
-
-    if (this.currentLevelNumber <= 2 && index === 0 || this.currentLevelNumber === 1 && index <= 2) {
-      this.moveTutorialDemo(event.code);
-      const action = event.code === "KeyW" || event.code === "ArrowUp" ? "FORWARD"
-        : event.code === "KeyS" || event.code === "ArrowDown" ? "BACK"
-        : event.code === "KeyA" || event.code === "ArrowLeft" ? "LEFT"
-        : "RIGHT";
-      this.setTutorialDemoStatus(this.currentLevelNumber === 1 ? `CAR: ${action}` : `WALK: ${action}`);
-    } else if (event.code === "KeyP") {
-      this.setTutorialDemoStatus("PAUSE / SETTINGS");
-    }
-
-    this.tutorialDemoKeys.add(event.code);
-    this.applyTutorialDemoMotion();
   }
 
   onTutorialDemoKeyUp(event) {
@@ -1338,12 +1321,16 @@ export class Game {
     if (index < 0) return;
     event.preventDefault();
 
-    if (this.currentLevelNumber === 1) {
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
       this.setTutorialControlActive(index, false);
       return;
     }
 
-    event.stopImmediatePropagation();
+    if (this.currentLevelNumber === 3 && event.code === "KeyP") {
+      this.setTutorialControlActive(index, false);
+      event.stopImmediatePropagation();
+      return;
+    }
     this.tutorialDemoKeys.delete(event.code);
     if (event.code !== "KeyC") this.setTutorialControlActive(index, false);
     this.applyTutorialDemoMotion();
@@ -1351,30 +1338,27 @@ export class Game {
 
   onTutorialDemoPointerMove(event) {
     if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
-    const rect = this.instructionPreview.getBoundingClientRect();
-    this.tutorialLook.x = ((event.clientX - rect.left) / rect.width - .5) * -14;
-    this.tutorialLook.y = ((event.clientY - rect.top) / rect.height - .5) * -10;
+    this.currentLevel?.moveTutorialLook?.(event.movementX, event.movementY);
     this.setTutorialControlActive(0, true);
     this.setTutorialDemoStatus("LOOK AROUND");
-    this.applyTutorialDemoMotion();
   }
 
   onTutorialDemoPointerDown(event) {
     if (!this.isTutorialActive || this.currentLevelNumber !== 3 || event.button !== 0) return;
     event.preventDefault();
-    this.tutorialPeekDemo = true;
+    this.instructionPreview.setPointerCapture?.(event.pointerId);
+    this.currentLevel?.setTutorialMouseDown?.(true);
     this.setTutorialControlActive(1, true);
     this.setTutorialDemoStatus("PEEKING — HOLD LEFT CLICK");
-    this.applyTutorialDemoMotion();
   }
 
-  onTutorialDemoPointerUp() {
+  onTutorialDemoPointerUp(event) {
     if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
-    this.tutorialPeekDemo = false;
+    this.currentLevel?.setTutorialMouseDown?.(false);
+    this.instructionPreview.releasePointerCapture?.(event?.pointerId);
     this.setTutorialControlActive(1, false);
     this.setTutorialControlActive(0, false);
-    this.setTutorialDemoStatus("MOVE MOUSE • HOLD LEFT CLICK • TYPE");
-    this.applyTutorialDemoMotion();
+    this.setTutorialDemoStatus("MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE");
   }
 
   resetTutorialDemo() {
@@ -1508,7 +1492,7 @@ export class Game {
   update(dt) {
     this.updateGlobalControls();
 
-    if (this.isTutorialActive && this.currentLevelNumber === 1) {
+    if (this.isTutorialActive) {
       this.currentLevel?.updateTutorial?.(dt);
       return;
     }
