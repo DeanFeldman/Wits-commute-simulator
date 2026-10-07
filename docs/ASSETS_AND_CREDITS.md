@@ -901,7 +901,7 @@ These remain **open** and are the reason Issue #245 must not be closed yet:
   `grass-pack-lods.glb`, `lilac-bushes-lods.glb`, and
   `low-poly-tree-pack.glb` now have recorded sources/authors/licences above.
 - stylized grass albedo / normal / roughness / AO texture set;
-- `east-precast-wall-texture.jpg` — directly edited/adapted by Dean Feldman from the Precast Walling Pros image he supplied; reuse/redistribution terms are not yet confirmed.
+- `east-precast-wall-texture.jpg` — image found online via Google Images, with the original source traced to Precast Walling Pros; directly edited/adapted by Dean Feldman for the game.
 
 ### Level 2 player / NPC assets
 - student backpack;
@@ -925,7 +925,7 @@ must be confirmed before carrying those older credits across to the runtime repl
 ### Other runtime assets
 - Wits shark: the 3D model authorship/reference source is recorded. `wits-shark.png` was unused by gameplay and has been removed from the repository; only the project-created GLB remains.
 - AMIC fence/reference textures and the Level 2 AMIC deck texture
-  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — directly edited/adapted by Dean Feldman from imagery in Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour); reuse/redistribution terms still need confirmation.
+  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — source imagery found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), then directly edited/adapted by Dean Feldman for the game.
 - At Wits End logo;
 - `main-menu-v3-background.png`;
 - Level 2 story image;
@@ -1029,10 +1029,10 @@ final submitted asset set, even when they are not referenced by current gameplay
 - `car-crash.mp3`, `car-door-shut.mp3`, and `idle-car.wav`.
 
 ### Dean Feldman
-- `east-precast-wall-texture.jpg` — directly edited/adapted from the Precast Walling Pros source image; reuse/redistribution terms still need confirmation.
+- `east-precast-wall-texture.jpg` — found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.
 - Wits shark — Gabriel Raz created the 3D model; Dean supplied the Wits Sharks Instagram visual reference. The unused reference PNG has been removed; runtime uses only the GLB.
 - `amic-fence.png`, `amic-fence-reference.png`, and
-  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — directly edited/adapted by Dean from Crown Publications' “Bridging the divide”; article images credited to eimage/Gareth Gilmour; reuse/redistribution terms still need confirmation.
+  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — found online, traced to Crown Publications' “Bridging the divide” (article images credited to eimage/Gareth Gilmour), then directly edited/adapted by Dean for the game.
 - `main-menu-background.png` — OpenAI image generation via ChatGPT, directed by Dean Feldman; generation record complete.
 - Level 3 story-loading image — OpenAI image generation via ChatGPT, directed by Dean Feldman; generation record complete.
 
@@ -1046,9 +1046,9 @@ Dean Feldman supplied the following provenance details for the assets attributed
 
 - **Diesel Powered Thomas source:** https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab — author **mrmrnaufal**, licence **Creative Commons Attribution (CC BY)** as displayed on Sketchfab. The repository ships only lightweight project-made procedural proxy GLBs, not a conversion of that Blender mesh. This provenance item is resolved.
 
-- **East precast wall:** directly edited/adapted by Dean Feldman from the supplied Precast Walling Pros image. The Google Images result resolves to the Precast Walling Pros site and image at `precastwallingpros.co.za`. The repository record does not yet establish a reuse/redistribution licence, so that clearance remains open.
+- **East precast wall:** found online via Google Images, with the original image traced to Precast Walling Pros at `precastwallingpros.co.za`; directly edited/adapted by Dean Feldman for the game.
 - **Wits shark:** Gabriel Raz created the 3D model using his modelling workflow. Dean supplied imagery from the Wits Sharks Instagram account as the visual reference. The unused `wits-shark.png` reference image was removed because runtime code loads only `wits-shark.glb`.
-- **AMIC fence/reference and deck texture:** directly edited/adapted by Dean Feldman from imagery in Crown Publications' article “Bridging the divide” (`https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide`). The article credits its images to eimage/Gareth Gilmour. Reuse/redistribution terms for the repository textures are not yet confirmed.
+- **AMIC fence/reference and deck texture:** source imagery found online and traced to Crown Publications' article “Bridging the divide” (`https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide`), which credits its images to eimage/Gareth Gilmour; directly edited/adapted by Dean Feldman for the game.
 - **Main menu background:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
 - **Level 3 story/loading image:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
 
