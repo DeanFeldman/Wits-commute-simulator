@@ -197,14 +197,12 @@ const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambienc
 const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
 const LEVEL3_CLOCK_AUDIO = "./assets/audio/level3/clock-tick.opus";
 const LEVEL3_CORRECT_AUDIO = "./assets/audio/level3/correct-tick.opus";
-const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
+const LEVEL3_INCORRECT_AUDIO = "./assets/audio/shared/result-sprite.opus";
 const LEVEL3_INTERACTION_CUES = Object.freeze({
   peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
   peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 })
 });
-const LEVEL3_RESULT_CUES = Object.freeze({
-  incorrect: Object.freeze({ start: 4.81, duration: 1.47 })
-});
+const LEVEL3_INCORRECT_CUE = Object.freeze({ start: 4.81, duration: 1.47 });
 export const TUTOR_OPENING_START_INDEX = 7;
 export const TUTOR_OPENING_TARGET_INDEX = 8;
 export function getTutorOpeningYaw(points) {
@@ -325,7 +323,7 @@ this.patrolPoints = [
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
     this.audio.preload([
-      RESULT_AUDIO,
+      LEVEL3_INCORRECT_AUDIO,
       LEVEL3_CORRECT_AUDIO,
       LEVEL3_INTERACTION_AUDIO,
       LEVEL3_TUTOR_STEP_AUDIO,
@@ -380,7 +378,7 @@ this.patrolPoints = [
 
   async load() {
     await this.audio.waitForPreload([
-      RESULT_AUDIO,
+      LEVEL3_INCORRECT_AUDIO,
       LEVEL3_CORRECT_AUDIO,
       LEVEL3_INTERACTION_AUDIO,
       LEVEL3_TUTOR_STEP_AUDIO
@@ -2281,8 +2279,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
       this.audio.duckMusic({ scale: 0.12, hold: 0.85, release: 0.28 });
-      this.audio.playSegment(RESULT_AUDIO, {
-        ...LEVEL3_RESULT_CUES.incorrect,
+      this.audio.playSegment(LEVEL3_INCORRECT_AUDIO, {
+        ...LEVEL3_INCORRECT_CUE,
         volume: 1
       });
       this.typedAnswer = "";
