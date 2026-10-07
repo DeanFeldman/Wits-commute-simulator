@@ -184,7 +184,6 @@ const LEVEL3_TUTOR_STEPS = Object.freeze([
   Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.248, duration: 0.539 }),
   Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.888, duration: 0.571 })
 ]);
-
 const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus";
 const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
 const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
@@ -384,7 +383,7 @@ this.patrolPoints = [
     await this.loadHologramFont();
 
     scene.add(this.root);
-      this.collisionWorld = new CollisionWorld(this.root);
+    this.collisionWorld = new CollisionWorld(this.root);
 
     const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 1.35);
     this.root.add(ambient);
@@ -1589,7 +1588,6 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.ensureGameplayAudio();
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
-    // Clock/heartbeat urgency is mixed below from the cleared recordings.
     this.updateMouseLook();
     this.updateDeskTargeting();
     this.updatePlayerPaperPose(dt);
@@ -1633,6 +1631,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       });
     }
   }
+
 
   ensureGameplayAudio() {
     if (this.gameplayAudioStarted) return;
@@ -2013,14 +2012,11 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (this.peekActive !== this.wasPeekActive) {
       const cueName = this.peekRustleVariant % 2 === 0 ? "peekRustle1" : "peekRustle2";
       this.peekRustleVariant += 1;
-      this.audio.playSegment(
-        LEVEL3_INTERACTION_AUDIO,
-        {
-          ...LEVEL3_INTERACTION_CUES[cueName],
-          volume: this.peekActive ? 0.34 : 0.24,
-          playbackRate: 0.96 + Math.random() * 0.08
-        }
-      );
+      this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
+        ...LEVEL3_INTERACTION_CUES[cueName],
+        volume: this.peekActive ? 0.34 : 0.24,
+        playbackRate: 0.96 + Math.random() * 0.08
+      });
       this.wasPeekActive = this.peekActive;
     }
 
@@ -2056,19 +2052,6 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       dt
     });
 
-    // Keep the soundtrack behind the information-rich classroom sounds.
-    // As suspicion rises (or the timer becomes critical) the score ducks
-    // rather than becoming louder and more fatiguing.
-    const suspicionMix = THREE.MathUtils.lerp(
-      0.9,
-      0.58,
-      this.suspicion / 100
-    );
-    const urgencyMix = this.timeRemaining < 15
-      ? THREE.MathUtils.lerp(0.55, 0.78, this.timeRemaining / 15)
-      : 1;
-    this.audio.setMusicScale(Math.min(suspicionMix, urgencyMix));
-
     const suspicionTension = THREE.MathUtils.clamp(
       (this.suspicion - 20) / 80,
       0,
@@ -2088,9 +2071,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     if (this.timeRemaining <= 30) clockVolume = 0.014;
     if (this.timeRemaining <= 15) clockVolume = 0.026;
     if (this.timeRemaining <= 5) clockVolume = 0.045;
-    this.audio.setLoopParameters("level3-clock", {
-      volume: clockVolume
-    });
+    this.audio.setLoopParameters("level3-clock", { volume: clockVolume });
   }
 
   getContextInstruction() {
@@ -2194,7 +2175,6 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
-      this.audio.duckMusic({ scale: 0.12, hold: 0.85, release: 0.28 });
       this.audio.playSegment(LEVEL3_INCORRECT_AUDIO, {
         ...LEVEL3_INCORRECT_CUE,
         volume: 1
@@ -2211,10 +2191,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    this.audio.duckMusic({ scale: 0.12, hold: 0.62, release: 0.24 });
-    this.audio.playSample(LEVEL3_CORRECT_AUDIO, {
-      volume: 0.92
-    });
+    this.audio.playSample(LEVEL3_CORRECT_AUDIO, { volume: 0.92 });
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
