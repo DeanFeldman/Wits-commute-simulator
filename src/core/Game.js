@@ -257,8 +257,8 @@ export class Game {
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
-    this.instructionElement.addEventListener("keydown", this.onTutorialDemoKeyDown);
-    this.instructionElement.addEventListener("keyup", this.onTutorialDemoKeyUp);
+    window.addEventListener("keydown", this.onTutorialDemoKeyDown);
+    window.addEventListener("keyup", this.onTutorialDemoKeyUp);
     this.instructionPreview.addEventListener("pointermove", this.onTutorialDemoPointerMove);
     this.instructionPreview.addEventListener("pointerdown", this.onTutorialDemoPointerDown);
     this.instructionPreview.addEventListener("pointerup", this.onTutorialDemoPointerUp);
