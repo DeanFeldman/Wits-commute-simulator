@@ -38,3 +38,12 @@ test("camera tutorial control is shown on Levels 1 and 2 only", () => {
   const level3 = config.slice(config.indexOf("LEVEL 03 \/\/ CHEAT"));
   assert.doesNotMatch(level3, /\["C",/);
 });
+
+
+test("tutorial controls animate the preview without advancing gameplay", () => {
+  assert.match(game, /onTutorialDemoKeyDown\(event\)[\s\S]*?tutorialDemoKeys[\s\S]*?applyTutorialDemoMotion\(\)/);
+  assert.match(game, /onTutorialDemoPointerMove\(event\)[\s\S]*?currentLevelNumber !== 3/);
+  assert.match(game, /if \(this\.isLevelIntroActive \|\| this\.isTutorialActive\) return/);
+  assert.match(css, /\.tutorial-controls li\.is-active[\s\S]*?\.tutorial-preview\.is-typing-demo/);
+  assert.match(html, /Try the controls here/);
+});
