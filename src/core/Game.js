@@ -82,9 +82,9 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     kicker: "LEVEL 01 // PARK",
     title: "Park at Wits",
     objective: "Get the car into the highlighted bay with condition remaining, then stop straight inside it.",
-    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"]],
+    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
     tip: "Potholes slow the car and damage its condition. Avoid obstacles and line the car up before stopping.",
-    start: "CAR", route: "AVOID POTHOLES", end: "PARK"
+    previewLabel: "Actual Level 1 view — car, potholes and parking area"
   }],
   [2, {
     kicker: "LEVEL 02 // CROSS",
@@ -92,7 +92,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
     controls: [["WASD / ARROWS", "Move across the route"], ["P", "Pause / settings"], ["C", "Change camera"]],
     tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
-    start: "YOU", route: "READ THE GAPS", end: "ENGINEERING"
+    previewLabel: "Actual Level 2 crossing view"
   }],
   [3, {
     kicker: "LEVEL 03 // CHEAT",
@@ -100,7 +100,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     objective: "Copy the correct answers and finish the test before time runs out without reaching 100% suspicion.",
     controls: [["MOUSE", "Look around"], ["HOLD LEFT CLICK", "Zoom and reveal an answer"], ["TYPE + ENTER", "Submit at your desk"], ["P", "Pause / settings"]],
     tip: "Only peek when it is safe. Release the mouse, look back at your desk, and type the answer before suspicion gets too high.",
-    start: "YOUR DESK", route: "PEEK → TYPE", end: "ANSWERS"
+    previewLabel: "Actual Level 3 classroom view"
   }]
 ]);
 
@@ -220,9 +220,8 @@ export class Game {
     this.instructionObjective = document.querySelector("#instruction-objective");
     this.instructionControls = document.querySelector("#instruction-controls");
     this.instructionTip = document.querySelector("#instruction-tip");
-    this.instructionDiagramStart = document.querySelector("#instruction-diagram-start");
-    this.instructionDiagramRoute = document.querySelector("#instruction-diagram-route");
-    this.instructionDiagramEnd = document.querySelector("#instruction-diagram-end");
+    this.instructionPreview = document.querySelector("#instruction-preview");
+    this.instructionPreviewLabel = document.querySelector("#instruction-preview-label");
     this.instructionStart = document.querySelector(".tutorial-start");
     this.levelIntroElement = document.querySelector("#level-intro");
     this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
@@ -1148,11 +1147,35 @@ export class Game {
     this.instructionObjective.textContent = config.objective;
     this.instructionControls.innerHTML = config.controls.map(([keys, action]) => `<li><kbd>${keys}</kbd><span>${action}</span></li>`).join("");
     this.instructionTip.textContent = config.tip;
-    this.instructionDiagramStart.textContent = config.start;
-    this.instructionDiagramRoute.textContent = config.route;
-    this.instructionDiagramEnd.textContent = config.end;
+    this.instructionPreviewLabel.textContent = config.previewLabel;
     this.instructionElement.hidden = false;
+    this.captureTutorialPreview();
     requestAnimationFrame(() => this.instructionStart?.focus());
+  }
+
+  captureTutorialPreview() {
+    const preview = this.instructionPreview;
+    const source = this.renderer.domElement;
+    if (!preview || !source || !this.currentLevel) return;
+
+    requestAnimationFrame(() => {
+      if (!this.isTutorialActive) return;
+      this.render();
+      const ctx = preview.getContext("2d");
+      if (!ctx) return;
+      const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
+      const srcRatio = sw / sh, dstRatio = dw / dh;
+      let sx = 0, sy = 0, cw = sw, ch = sh;
+      if (srcRatio > dstRatio) {
+        cw = sh * dstRatio;
+        sx = (sw - cw) / 2;
+      } else {
+        ch = sw / dstRatio;
+        sy = (sh - ch) / 2;
+      }
+      ctx.clearRect(0, 0, dw, dh);
+      ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
+    });
   }
 
   hideInstruction() {
