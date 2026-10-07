@@ -3,11 +3,14 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
+import { GraphicsSettings, loadSavedGraphicsSettings } from "./GraphicsSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
 import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
+import { ToonStyleShader } from "../shaders/toonStyleShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
@@ -80,7 +83,10 @@ const LEVEL_INTRO_CONFIG = new Map([
 export class Game {
   constructor(container) {
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    const savedGraphics = loadSavedGraphicsSettings();
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: savedGraphics.antialiasing !== "off"
+    });
 
     // Tone mapping, output colour space, shadow filtering and the pixel
     // ratio cap all live in renderSettings.js, which documents why each
@@ -115,6 +121,10 @@ export class Game {
 
     this.suspicionComposer.addPass(this.suspicionRenderPass);
     this.suspicionComposer.addPass(this.suspicionPass);
+    this.suspicionToonPass = new ShaderPass(ToonStyleShader);
+    this.suspicionComposer.addPass(this.suspicionToonPass);
+    this.suspicionFxaaPass = new ShaderPass(FXAAShader);
+    this.suspicionComposer.addPass(this.suspicionFxaaPass);
     this.suspicionComposer.addPass(this.suspicionOutputPass);
 
     this.clock = new THREE.Clock();
@@ -176,9 +186,8 @@ export class Game {
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
-    this.menuPreviewAction = document.querySelector("#menu-preview-action");
-    this.menuPreviewElement = document.querySelector("#menu-preview");
-    this.menuPreviewMusicAction = document.querySelector("#menu-preview-music-action");
+    this.homeMenuElement = document.querySelector("#home-menu");
+    this.homeMenuPrimaryAction = document.querySelector("#home-menu-primary-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
     this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
@@ -209,7 +218,7 @@ export class Game {
 
     window.addEventListener("resize", this.onResize);
     this.menuElement.addEventListener("click", this.onMenuClick);
-    this.menuPreviewElement.addEventListener("click", this.onMenuClick);
+    this.homeMenuElement.addEventListener("click", this.onMenuClick);
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
@@ -237,7 +246,27 @@ export class Game {
 
     this.roadFogComposer.addPass(this.roadFogRenderPass);
     this.roadFogComposer.addPass(this.roadFogPass);
+    this.roadFogToonPass = new ShaderPass(ToonStyleShader);
+    this.roadFogComposer.addPass(this.roadFogToonPass);
+    this.roadFogFxaaPass = new ShaderPass(FXAAShader);
+    this.roadFogComposer.addPass(this.roadFogFxaaPass);
     this.roadFogComposer.addPass(this.roadFogOutputPass);
+
+    this.toonComposer = new EffectComposer(this.renderer);
+    this.toonRenderPass = new RenderPass(this.scene, this.camera);
+    this.toonPass = new ShaderPass(ToonStyleShader);
+    this.toonFxaaPass = new ShaderPass(FXAAShader);
+    this.toonOutputPass = new OutputPass();
+    this.toonComposer.addPass(this.toonRenderPass);
+    this.toonComposer.addPass(this.toonPass);
+    this.toonComposer.addPass(this.toonFxaaPass);
+    this.toonComposer.addPass(this.toonOutputPass);
+    this.fxaaResolution = new THREE.Vector2();
+
+    this.graphicsSettings = new GraphicsSettings({
+      renderer: this.renderer,
+      composers: [this.roadFogComposer, this.suspicionComposer, this.toonComposer]
+    });
   }
 
   start() {
@@ -269,15 +298,6 @@ export class Game {
     this.setMessage("");
     this.menuTitleElement.textContent = "Wits Commute Simulator";
 
-    const menu = this.menuTitleElement.closest(".menu, .main-menu, body");
-    if (menu) {
-      menu.style.backgroundImage =
-        'url("/assets/images/ui/main-menu-background.png")';
-      menu.style.backgroundSize = "100% auto";
-      menu.style.backgroundPosition = "center";
-      menu.style.backgroundColor = "#8bc0f2";
-      menu.style.minHeight = "100vh";
-    }
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
@@ -293,8 +313,8 @@ export class Game {
     this.devLevelSelect.hidden = false;
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
-    this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.menuElement.hidden = true;
+    this.homeMenuElement.hidden = false;
     document.body.classList.remove("level-2");
     this.updateStartAvailability();
   }
@@ -325,26 +345,19 @@ export class Game {
     const waitingForCharacters =
       !this.characterSelectFlow.isReady && !this.characterSelectFlow.didFail;
 
-    this.menuPrimaryAction.disabled = waitingForCharacters;
-    this.menuPrimaryAction.setAttribute("aria-busy", String(waitingForCharacters));
-    this.menuPrimaryAction.textContent = waitingForCharacters
+    const startAction = this.homeMenuPrimaryAction;
+    startAction.disabled = waitingForCharacters;
+    startAction.setAttribute("aria-busy", String(waitingForCharacters));
+    startAction.querySelector(".journey-button-label").textContent = waitingForCharacters
       ? "Loading characters…"
-      : "Start journey";
+      : "Begin Journey";
 
     if (this.characterSelectFlow.didFail) {
-      this.menuPrimaryAction.title =
+      startAction.title =
         "Character previews could not be preloaded; fallback loading will be used.";
     } else {
-      this.menuPrimaryAction.removeAttribute("title");
+      startAction.removeAttribute("title");
     }
-  }
-
-  showMenuPreview() {
-    this.menuElement.hidden = true;
-    this.menuPreviewElement.style.backgroundImage =
-      'url("./assets/images/ui/main-menu-v3-background.png")';
-    this.menuPreviewElement.hidden = false;
-    this.updateMenuMusicAction();
   }
 
   showResults(keepFade = false) {
@@ -391,7 +404,7 @@ export class Game {
     this.pauseMenuElement.hidden = true;
     this.instructionElement.hidden = true;
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     document.body.classList.remove("level-2");
   }
 
@@ -478,7 +491,7 @@ export class Game {
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.menuElement.hidden = true;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -549,6 +562,7 @@ export class Game {
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage("");
+    this.homeMenuElement.hidden = true;
     this.characterSelectFlow.show(this.selectedPlayerVariant);
   }
 
@@ -1041,7 +1055,7 @@ export class Game {
     }
 
     if (action === "credits") {
-      this.menuPreviewElement.hidden = true;
+      this.homeMenuElement.hidden = true;
       this.showCredits();
       return;
     }
@@ -1056,8 +1070,8 @@ export class Game {
       return;
     }
 
-    if (action === "preview-menu") {
-      this.showMenuPreview();
+    if (action === "settings") {
+      this.graphicsSettings.open();
       return;
     }
 
@@ -1069,8 +1083,6 @@ export class Game {
   updateMenuMusicAction() {
     this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
     this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
-    this.menuPreviewMusicAction.textContent = this.menuMusicAction.textContent;
-    this.menuPreviewMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   updatePauseMusicAction() {
@@ -1101,7 +1113,7 @@ export class Game {
     this.menuElement.classList.remove("menu-home");
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
   }
 
   showInstruction(level) {
@@ -1146,6 +1158,10 @@ export class Game {
     }
 
     if (event.target.closest("[data-pause-action='music']")) this.setMusicEnabled(!this.isMusicEnabled);
+
+    if (event.target.closest("[data-pause-action='settings']")) {
+      this.graphicsSettings.open();
+    }
   }
 
   setMusicEnabled(enabled) {
@@ -1225,8 +1241,21 @@ export class Game {
   render(){
     if(this.isLoading)return;
 
-    const level1Fog=this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
-    if((level1Fog||this.currentLevelNumber===2)&&this.currentLevel){
+    const effectsEnabled = this.graphicsSettings.effectsEnabled;
+    const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.fxaaResolution.set(
+      1 / Math.max(drawingBufferSize.x, 1),
+      1 / Math.max(drawingBufferSize.y, 1)
+    );
+    this.roadFogToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.suspicionToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.toonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    [this.roadFogFxaaPass, this.suspicionFxaaPass, this.toonFxaaPass].forEach((pass) => {
+      pass.enabled = this.graphicsSettings.settings.antialiasing !== "off";
+      pass.uniforms.resolution.value.copy(this.fxaaResolution);
+    });
+    const level1Fog=effectsEnabled&&this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
+    if((level1Fog||(effectsEnabled&&this.currentLevelNumber===2))&&this.currentLevel){
       this.roadFogRenderPass.scene=this.scene;
       this.roadFogRenderPass.camera=this.camera;
       const u=this.roadFogPass.uniforms;
@@ -1236,11 +1265,12 @@ export class Game {
       u.uTime.value=this.clock.elapsedTime;
       if(level1Fog){
         const fog=this.currentLevel.roadFogConfig??{};
+        const distanceScale = this.graphicsSettings.viewDistanceScale;
         u.uRadialMode.value=1;
         u.uFogCenterX.value=0;
         u.uFogCenterZ.value=-8;
-        u.uFogStart.value=fog.fogStart??82;
-        u.uFogEnd.value=fog.fogEnd??130;
+        u.uFogStart.value=(fog.fogStart??82)*distanceScale;
+        u.uFogEnd.value=(fog.fogEnd??130)*distanceScale;
         u.uDensity.value=fog.density??0.9;
       }else{
         u.uRadialMode.value=0;
@@ -1256,12 +1286,19 @@ export class Game {
       return;
     }
 
-    if(this.currentLevelNumber===3&&this.currentLevel){
+    if(effectsEnabled&&this.currentLevelNumber===3&&this.currentLevel){
       this.suspicionRenderPass.scene=this.scene;
       this.suspicionRenderPass.camera=this.camera;
       this.suspicionPass.uniforms.uSuspicion.value=THREE.MathUtils.clamp((this.currentLevel.suspicion??0)/100,0,1);
       this.suspicionComposer.render();
       this.currentLevel.renderOverlay?.(this.renderer);
+      return;
+    }
+
+    if (effectsEnabled && this.currentLevel) {
+      this.toonRenderPass.scene = this.scene;
+      this.toonRenderPass.camera = this.camera;
+      this.toonComposer.render();
       return;
     }
 
@@ -1291,7 +1328,9 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
+    this.graphicsSettings?.apply();
     this.roadFogComposer.setSize(width, height);
     this.suspicionComposer.setSize(width, height);
+    this.toonComposer.setSize(width, height);
   }
 }

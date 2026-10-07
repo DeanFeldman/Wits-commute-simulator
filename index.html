@@ -155,7 +155,7 @@
       </div>
     </section>
 
-    <main id="menu" aria-live="polite">
+    <main id="menu" aria-live="polite" hidden>
       <section class="menu-card" aria-labelledby="menu-title">
         <p class="menu-kicker">COMS3006A / COMS3025A</p>
         <h1 id="menu-title">7:55AM - At Wits End</h1>
@@ -167,14 +167,41 @@
         <button id="menu-credits-action" data-game-action="credits" type="button">
           Credits &amp; licences
         </button>
-        <button id="menu-preview-action" data-game-action="preview-menu" type="button">
-          Test new Menu
-        </button>
+        <button data-game-action="settings" type="button">Settings</button>
         <button id="menu-home-action" data-game-action="menu" type="button" hidden>
           Back to home
         </button>
+
+      </section>
+    </main>
+
+    <main id="home-menu" aria-label="Main menu" style="background-image: url('./assets/images/ui/main-menu-v3-background.png')">
+      <section class="home-menu-card">
+        <img
+          class="home-menu-logo"
+          src="./assets/images/ui/at-wits-end-logo-v2.png"
+          alt="7:55 AM at Wits End — Park. Cross. Cheat."
+          draggable="false"
+        />
+        <div class="home-menu-actions">
+          <button id="home-menu-primary-action" data-game-action="start" type="button">
+            <img class="journey-button-art journey-button-idle" src="./assets/images/ui/begin-journey-unselected.png" alt="" draggable="false" />
+            <img class="journey-button-art journey-button-selected" src="./assets/images/ui/begin-journey-selected.png" alt="" draggable="false" />
+            <span class="journey-button-label">Begin Journey</span>
+          </button>
+          <button id="home-menu-settings-action" data-game-action="settings" type="button">
+            <img class="journey-button-art settings-button-idle" src="./assets/images/ui/settings-unselected.png" alt="" draggable="false" />
+            <img class="journey-button-art settings-button-selected" src="./assets/images/ui/settings-selected.png" alt="" draggable="false" />
+            <span class="journey-button-label">Settings</span>
+          </button>
+          <button id="home-menu-credits-action" data-game-action="credits" type="button">
+            <img class="journey-button-art credits-button-idle" src="./assets/images/ui/credits-unselected.png" alt="" draggable="false" />
+            <img class="journey-button-art credits-button-selected" src="./assets/images/ui/credits-selected.png" alt="" draggable="false" />
+            <span class="journey-button-label">Credits</span>
+          </button>
+        </div>
         <div id="dev-level-select" hidden>
-          <p>Choose route</p>
+          <p>Dev</p>
           <button data-game-action="level-1" type="button">
             <span class="menu-level-title">Level 1</span>
             <span class="menu-level-subtitle">Parking Escape</span>
@@ -191,22 +218,42 @@
       </section>
     </main>
 
-    <main id="menu-preview" aria-label="New main menu preview" hidden>
-      <section class="menu-preview-card">
-        <img
-          class="menu-preview-logo"
-          src="./assets/images/ui/at-wits-end-logo-v2.png"
-          alt="7:55 AM at Wits End — Park. Cross. Cheat."
-          draggable="false"
-        />
-        <div class="menu-preview-actions">
-          <button data-game-action="start" type="button">Start journey</button>
-          <button id="menu-preview-music-action" data-game-action="music" type="button">Pause music</button>
-            <button data-game-action="credits" type="button">Licences and Registrations</button>
-          <button data-game-action="menu" type="button">Back to current menu</button>
+    <section id="graphics-settings" hidden aria-labelledby="graphics-settings-title">
+      <form id="graphics-settings-form" class="graphics-settings-card">
+        <p class="menu-kicker">SETTINGS</p>
+        <h2 id="graphics-settings-title">Graphics</h2>
+        <p class="graphics-settings-copy">Changes preview immediately and are saved when applied. Anti-aliasing applies after reloading the page.</p>
+        <label>Preset
+          <select id="graphics-preset">
+            <option value="auto">Auto</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label>Render quality
+          <select id="graphics-resolution"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1">100%</option></select>
+        </label>
+        <label>Anti-aliasing
+          <select id="graphics-antialiasing"><option value="on">On</option><option value="off">Off</option></select>
+        </label>
+        <label>Shadows
+          <select id="graphics-shadows"><option value="off">Off</option><option value="low">Low</option><option value="high">High</option></select>
+        </label>
+        <label>Effects
+          <select id="graphics-effects"><option value="on">On</option><option value="off">Off</option></select>
+        </label>
+        <label>View distance
+          <select id="graphics-view-distance"><option value="near">Near</option><option value="standard">Standard</option><option value="far">Far</option></select>
+        </label>
+        <div class="graphics-settings-actions">
+          <button data-graphics-action="reset" type="button">Restore defaults</button>
+          <button data-graphics-action="close" type="button">Cancel</button>
+          <button data-graphics-action="apply" type="button">Apply</button>
         </div>
-      </section>
-    </main>
+      </form>
+    </section>
 
 
 
@@ -242,6 +289,7 @@
           <button data-pause-action="restart" type="button">Restart level</button>
           <button data-pause-action="sound" type="button" aria-pressed="false">Sound: on</button>
           <button data-pause-action="music" type="button" aria-pressed="false">Music: on</button>
+          <button data-pause-action="settings" type="button">Graphics settings</button>
           <button class="pause-home" data-pause-action="home" type="button">Return to home</button>
         </div>
         <p class="pause-hint">Press P to resume</p>
