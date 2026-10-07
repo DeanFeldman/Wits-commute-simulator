@@ -49,6 +49,20 @@ const POTHOLE_WATER_DEPTH_RATIO = 0.42;
 
 const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
+
+const LEVEL1_IMPACT_AUDIO = "./assets/audio/level1/impact-sprite.opus";
+const LEVEL1_PARKING_AMBIENCE_AUDIO =
+  "./assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3";
+const LEVEL1_CAR_START_AUDIO =
+  "./assets/audio/level1/401558__giocosound__sfx_car_engine_outside_start.wav";
+const LEVEL1_IDLE_AUDIO = "./assets/audio/level1/idle-car.opus";
+const LEVEL1_DAMAGED_ENGINE_AUDIO =
+  "./assets/audio/level1/557214__lhermanns__enginewarmup_1-loop.wav";
+const LEVEL1_IMPACT_CUES = Object.freeze({
+  collision: Object.freeze({ start: 0, duration: 0.94 }),
+  pothole: Object.freeze({ start: 1.04, duration: 1.25 }),
+  puddle: Object.freeze({ start: 2.39, duration: 1.8 })
+});
 const PLAYER_CAR_COLLIDER_SIZE = [2.1, 1.1, 4];
 const PLAYER_CAR_HITBOX_BEVEL = 0.35;
 const LARGE_PARKING_CAR_IDS = new Set([
@@ -1342,9 +1356,15 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
-    this.carIdleAudio = null;
-    this.collisionHitAudio = null;
-    this.collisionHitPlaying = new Set();
+    this.audio.preload([
+      LEVEL1_IMPACT_AUDIO,
+      LEVEL1_CAR_START_AUDIO,
+      LEVEL1_IDLE_AUDIO
+    ]);
+    this.parkingAmbienceStarted = false;
+    this.gameplayAudioStarted = false;
+    this.damagedEngineStarted = false;
+    this.engineStartRemaining = 0;
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -1388,6 +1408,11 @@ export class ParkingLevel {
   }
 
 async load() {
+  await this.audio.waitForPreload([
+    LEVEL1_IMPACT_AUDIO,
+    LEVEL1_CAR_START_AUDIO
+  ]);
+
   const scene = this.game.scene;
 
   const skyColor = new THREE.Color(0x8ec9ee);
@@ -1396,7 +1421,6 @@ async load() {
   this.chaseFog = null;
 
   scene.add(this.root);
-  if (!this.game.isLevelIntroActive) this.audio.startMusic("level1");
 
   // Raised from 0.75 for ACES, 2026-09-08, with the dusk sun below. Level 1
   // is the darkest scene in the game, and three's ACES curve is sub-unity
@@ -2286,13 +2310,7 @@ createParkingSurface(potholes = []) {
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
     this.createPlayerCollisionVolumes();
-    return modelReady.then((model) => {
-      // Start the recorded idle loop only once the player car is visible.
-      // This level is entered from a user interaction, so playback can begin
-      // immediately in browsers that enforce an audio-gesture policy.
-      this.startCarIdleAudio();
-      return model;
-    });
+    return modelReady;
   }
 
   createDamageVisuals() {
@@ -2383,44 +2401,106 @@ createParkingSurface(potholes = []) {
     if (moved) this.collisionWorld.rebuild();
   }
 
-  startCarIdleAudio() {
-    if (this.carIdleAudio) return;
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+    this.startCarIdleAudio();
+  }
 
-    const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
-    idleAudio.loop = true;
-    this.audio.trackSoundEffect(idleAudio, 0.15);
-    idleAudio.muted = this.game.isSoundMuted;
-    this.carIdleAudio = idleAudio;
-    idleAudio.play().catch(() => {
-      // A browser can still refuse playback if the level was not started from
-      // a trusted user gesture. Keep the level playable in that case.
+  startCarIdleAudio() {
+    // Let the player hear the car actually start before the healthy idle loop
+    // takes over. The loops begin immediately at zero/low gain so their media
+    // is already warm when the startup recording finishes.
+    this.audio.playSample(LEVEL1_CAR_START_AUDIO, {
+      volume: 0.82
+    });
+    this.engineStartRemaining = 2.15;
+
+    this.audio.startEngineLoop(LEVEL1_IDLE_AUDIO);
+    this.audio.setLoopParameters("engine", { volume: 0 });
+
+    this.startParkingAmbience();
+  }
+
+  startParkingAmbience() {
+    if (this.parkingAmbienceStarted) return;
+    this.parkingAmbienceStarted = true;
+
+    // This recording already contains the right world: a parking lot, a
+    // nearby roadway, faint machinery and a little wind. Keep it as one
+    // natural long-form bed instead of layering Level 2 traffic effects over it.
+    this.audio.startLoop("level1-parking-bed", LEVEL1_PARKING_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.44,
+      playbackRate: 1
     });
   }
 
-  // Level 1 only: one-shot crunch for parked-car impacts.
-  // The source element is kept for preloading; each hit plays a clone so
-  // back-to-back impacts can overlap instead of cutting each other off.
-  playCollisionSound(speedFactor = 1) {
-    if (this.game.isSoundMuted) return;
-    if (!this.collisionHitAudio) {
-      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash.mp3");
-      this.collisionHitAudio.preload = "auto";
-    }
+  updateLevelOneEngineAudio(dt) {
+    this.engineStartRemaining = Math.max(0, this.engineStartRemaining - dt);
 
-    const hit = this.collisionHitAudio.cloneNode();
-    this.audio.trackSoundEffect(hit, THREE.MathUtils.lerp(0.45, 1, THREE.MathUtils.clamp(speedFactor, 0, 1)));
-    this.collisionHitPlaying.add(hit);
-    hit.addEventListener("ended", () => this.collisionHitPlaying.delete(hit), { once: true });
-    hit.play().catch(() => {
-      // Playback can be refused without a user gesture; keep the level playable.
-      this.collisionHitPlaying.delete(hit);
+    const startupBlend = this.engineStartRemaining <= 0
+      ? 1
+      : THREE.MathUtils.clamp(1 - this.engineStartRemaining / 1.65, 0, 1);
+
+    // The damaged loop starts appearing below 35% condition and is effectively
+    // dominant by 10%. This is a crossfade, not a binary switch.
+    const damageBlend = THREE.MathUtils.clamp(
+      (35 - this.condition) / 25,
+      0,
+      1
+    );
+
+    // Do not fetch the large damaged-engine loop on clean runs. Start it a
+    // little before its audible crossfade range so the browser has time to
+    // buffer before damageBlend becomes significant.
+    if (!this.damagedEngineStarted && this.condition <= 42) {
+      this.damagedEngineStarted = true;
+      this.audio.startLoop("level1-damaged-engine", LEVEL1_DAMAGED_ENGINE_AUDIO, {
+        bus: "sfx",
+        volume: 0,
+        playbackRate: 0.96
+      });
+    }
+    const speedIntensity = THREE.MathUtils.clamp(
+      Math.abs(this.vehicle?.speed ?? 0) / 10,
+      0,
+      1
+    );
+
+    this.audio.updateEngine(
+      this.vehicle?.speed ?? 0,
+      startupBlend * (1 - damageBlend * 0.58)
+    );
+
+    if (this.damagedEngineStarted) {
+      this.audio.setLoopParameters("level1-damaged-engine", {
+        volume: startupBlend * damageBlend * (0.18 + speedIntensity * 0.16),
+        playbackRate: 0.96 + speedIntensity * 0.08
+      });
+    }
+  }
+
+  // The impact sprite is preloaded so the transient lands on the collision
+  // frame instead of waiting for a cold media element to buffer.
+  playCollisionSound(speedFactor = 1) {
+    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      ...LEVEL1_IMPACT_CUES.collision,
+      volume: THREE.MathUtils.lerp(
+        0.58,
+        0.95,
+        THREE.MathUtils.clamp(speedFactor, 0, 1)
+      ),
+      playbackRate: THREE.MathUtils.lerp(
+        0.94,
+        1.04,
+        THREE.MathUtils.clamp(speedFactor, 0, 1)
+      )
     });
   }
 
   setMuted(muted) {
     this.audio.setMuted(muted);
-    if (this.carIdleAudio) this.carIdleAudio.muted = muted;
-    this.collisionHitPlaying.forEach((hit) => { hit.muted = muted; });
   }
 
 
@@ -2492,6 +2572,7 @@ createParkingSurface(potholes = []) {
 
   update(dt) {
     if(!this.car)return;
+    this.ensureGameplayAudio();
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     this.potholeSharks?.forEach((shark,index)=>{
@@ -2557,7 +2638,7 @@ this.vehicle.update(dt, {
     (controls.isDown("steerRight") ? 1 : 0)
 });
 
-this.audio.updateEngine(this.vehicle.speed);
+this.updateLevelOneEngineAudio(dt);
 
 this.environment?.update(dt);
 
@@ -2606,7 +2687,11 @@ if (hit) {
       this.pushParkedCar(hit, crashSpeedFactor);
       this.playCollisionSound(crashSpeedFactor);
     } else {
-      this.audio.cue(78, 0.12, 0.15);
+      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+        ...LEVEL1_IMPACT_CUES.collision,
+        volume: THREE.MathUtils.lerp(0.42, 0.78, crashSpeedFactor),
+        playbackRate: THREE.MathUtils.lerp(0.92, 1.04, crashSpeedFactor)
+      });
     }
 
     this.impactCooldown = 0.55;
@@ -3498,6 +3583,21 @@ if (hit) {
       );
     }
 
+    this.audio.duckMusic({ scale: 0.38, hold: 0.36 });
+    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      ...LEVEL1_IMPACT_CUES.pothole,
+      volume: THREE.MathUtils.clamp(0.42 + feedbackScale * 0.38, 0, 0.88),
+      playbackRate: THREE.MathUtils.lerp(0.92, 1.05, speedFactor)
+    });
+
+    if (contactedPothole.userData.isWet) {
+      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+        ...LEVEL1_IMPACT_CUES.puddle,
+        volume: THREE.MathUtils.clamp(0.28 + speedFactor * 0.42, 0, 0.72),
+        playbackRate: THREE.MathUtils.lerp(0.94, 1.06, speedFactor)
+      });
+    }
+
     const travelDirection =
       Math.sign(
         this.vehicle.speed
@@ -3827,11 +3927,6 @@ if (hit) {
   }
 
   dispose() {
-    this.carIdleAudio?.pause();
-    this.carIdleAudio = null;
-    this.collisionHitPlaying.forEach((hit) => hit.pause());
-    this.collisionHitPlaying.clear();
-    this.collisionHitAudio = null;
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);

@@ -568,6 +568,664 @@ Shayna Unterslak
 
 ---
 
+## Sound Effects
+
+### Level 2 Vehicle Impact
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/avakas/sounds/144113/
+
+Author:
+avakas
+
+Licence:
+CC BY 4.0
+
+Used for:
+Level 2 vehicle-to-player collision feedback.
+
+Runtime file:
+`public/assets/audio/level2/vehicle-impact.opus`
+
+Modified:
+Yes — converted from the supplied recording to Opus for runtime delivery and
+gain-controlled by the game's SFX bus.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Shield Pop
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-pop-402324/
+
+Author:
+DRAGON-STUDIO
+
+Licence:
+Pixabay Content License
+
+Used for:
+Level 2 shield consumption feedback.
+
+Runtime file:
+`public/assets/audio/level2/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into a short interaction audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Pencil Mark
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/NoisyRedFox/sounds/742353/
+
+Author:
+NoisyRedFox
+
+Licence:
+CC0 (creator states their uploaded sounds are released under CC0)
+
+Used for:
+Level 2 psychology questionnaire answer selections.
+
+Runtime file:
+`public/assets/audio/level2/interaction-sprite.opus`
+
+Modified:
+Yes — converted to Opus and packed into a short interaction audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Tutor Footsteps
+
+Type:
+Sound effects
+
+Sources:
+- https://pixabay.com/sound-effects/film-special-effects-indoor-footsteps-100664/
+- https://pixabay.com/sound-effects/household-footsteps-in-a-hallway-47842/
+
+Authors:
+- Yin_Yang_Jake007 (Freesound)
+- derjuli (Freesound)
+
+Licence:
+Pixabay Content License
+
+Used for:
+Level 3 tutor footsteps. Individual step events are selected randomly and panned
+according to the tutor's position relative to the player.
+
+Runtime file:
+`public/assets/audio/level3/tutor-steps.opus`
+
+Modified:
+Yes — individual footsteps were cropped from the supplied sequences, normalised
+for gameplay use and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Desk / Chair Foley
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Anakronizm/sounds/494616/
+
+Author:
+Anakronizm
+
+Licence:
+CC0
+
+Used for:
+Subtle Level 3 peek-enter / peek-exit desk and chair movement. The source is a
+short walk-to-desk / chair / writing-surface foley sequence; it is not used as
+classroom ambience.
+
+Runtime file:
+`public/assets/audio/level3/interaction-sprite.opus`
+
+Modified:
+Yes — two short foley moments were cropped and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Correct Answer
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-game-show-correct-tick-sound-416167/
+
+Author:
+DRAGON-STUDIO
+
+Licence:
+Pixabay Content License
+
+Used for:
+Immediate Level 3 correct-answer confirmation.
+
+Runtime file:
+`public/assets/audio/level3/correct-tick.opus`
+
+Modified:
+Yes — the supplied MP3 was trimmed by 10 ms, downmixed to mono, normalised with
+headroom and encoded to Opus. The runtime file is preloaded before gameplay.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Pavement Footsteps
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/PeteBarry/sounds/647403/
+
+Author:
+PeteBarry
+
+Licence:
+CC BY 4.0
+
+Used for:
+Level 2 player footsteps on pavement.
+
+Runtime file:
+`public/assets/audio/level2/footsteps-pavement.opus`
+
+Modified:
+Yes — individual steps were cropped, downmixed and packed into an Opus audio
+sprite; playback rate is varied slightly at runtime.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Traffic Ambience
+
+Type:
+Ambience
+
+Source:
+https://freesound.org/people/pawsound/sounds/154858/
+
+Author:
+pawsound
+
+Licence:
+CC0
+
+Used for:
+Quiet continuous exterior road ambience in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/traffic-ambience.opus`
+
+Modified:
+Yes — the supplied multichannel recording was downmixed and shortened into a
+lightweight runtime loop.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Pedestrian Crossing Signal
+
+Type:
+Road-crossing ambience / traffic-light signal
+
+Source:
+https://freesound.org/people/MacFerret_20/sounds/231936/
+
+Author:
+MacFerret_20
+
+Licence:
+**Exact Freesound licence still to be verified before final submission.**
+
+Used for:
+A low traffic-light ticking layer that fades in only as the player approaches
+and crosses Yale Road in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/crossing-signal.opus`
+
+Modified:
+Yes — leading silence removed, downmixed to mono, loop boundary crossfaded,
+normalised with headroom and encoded to Opus.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Vehicle Pass-bys
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Bakstad/sounds/823549/
+
+Author:
+Bakstad
+
+Licence:
+CC0
+
+Used for:
+Nearby Level 2 traffic pass-bys. The source contains one left-to-right and one
+right-to-left pass; the game rate-limits and pans them based on nearby traffic.
+
+Runtime file:
+`public/assets/audio/level2/vehicle-passbys.opus`
+
+Modified:
+Yes — the two pass-bys were isolated, downmixed and packed into one Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Paper Foley
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/ssugg/sounds/588320/
+
+Author:
+ssugg
+
+Licence:
+CC0
+
+Used for:
+Opening and submitting Level 2 survey/quiz forms.
+
+Runtime file:
+`public/assets/audio/level2/paper-sprite.opus`
+
+Modified:
+Yes — short paper movements were cropped and packed into an Opus audio sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Classroom Room Tone
+
+Type:
+Ambience
+
+Source:
+https://freesound.org/people/klankbeeld/sounds/212137/
+
+Author:
+klankbeeld
+
+Licence:
+CC BY 4.0
+
+Used for:
+Continuous Level 3 classroom ambience / hall air-conditioning room tone.
+
+Runtime file:
+`public/assets/audio/level3/classroom-ambience.opus`
+
+Modified:
+Yes — a clean speech-free section was downmixed and shortened into a lightweight
+runtime loop.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Heartbeat
+
+Type:
+Sound effect / ambience loop
+
+Source:
+https://freesound.org/people/Cloud-10/sounds/688735/
+
+Author:
+Cloud-10
+
+Licence:
+CC0
+
+Used for:
+Adaptive Level 3 tension. Heartbeat gain and playback rate increase with
+suspicion and late-test urgency.
+
+Runtime file:
+`public/assets/audio/level3/heartbeat.opus`
+
+Modified:
+Yes — converted to mono Opus for runtime looping.
+
+Added by:
+Nadav Sundy
+
+### Level 3 Classroom Clock
+
+Type:
+Sound effect / ambience loop
+
+Source:
+https://freesound.org/people/giddster/sounds/434841/
+
+Author:
+giddster
+
+Licence:
+CC0
+
+Used for:
+Subtle Level 3 wall-clock ticking. It stays almost inaudible early in the test
+and becomes more noticeable during the final 30, 15 and 5 seconds.
+
+Runtime file:
+`public/assets/audio/level3/clock-tick.opus`
+
+Modified:
+Yes — a clean section was cropped, downmixed and encoded to Opus for looping.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Collision / Pothole Impact
+
+Type:
+Sound effects
+
+Sources:
+- https://pixabay.com/sound-effects/film-special-effects-combat-impact-352458/
+- https://pixabay.com/sound-effects/technology-low-thumpy-kick-reverb-hit-494833/
+
+Authors:
+- Universfield
+- Black_Kumizhi
+
+Licence:
+Pixabay Content License
+
+Used for:
+Immediate Level 1 car/kerb impacts and the low suspension thump when entering a
+pothole.
+
+Runtime file:
+`public/assets/audio/level1/impact-sprite.opus`
+
+Modified:
+Yes — leading silence was removed, the useful transients were cropped and the
+effects were packed into a preloaded Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Puddle Splash
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/cookies%2Bpolicy/sounds/563021/
+
+Author:
+cookies+policy
+
+Licence:
+CC0
+
+Used for:
+Wet-pothole tyre splash layered over the pothole suspension impact.
+
+Runtime file:
+`public/assets/audio/level1/impact-sprite.opus`
+
+Modified:
+Yes — substantial leading silence was removed and a short useful splash section
+was packed into the Level 1 impact sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Parking-Lot Ambience
+
+Type:
+Environmental ambience
+
+Source:
+https://freesound.org/people/FunWithSound/sounds/406096/
+
+Author:
+FunWithSound
+
+Licence:
+CC0
+
+Used for:
+The continuous Level 1 parking/campus ambience bed. The source already contains
+a parking lot, nearby roadway traffic, faint machinery hum and light wind, so it
+replaces the temporary reuse of Level 2 traffic ambience/pass-bys.
+
+Runtime file:
+`public/assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3`
+
+Modified:
+No — the supplied MP3 is streamed as a long-form loop rather than decoded into
+a large Web Audio buffer.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Car Start
+
+Type:
+Vehicle sound effect
+
+Source:
+https://freesound.org/people/GiocoSound/sounds/401558/
+
+Author:
+GiocoSound
+
+Licence:
+CC0
+
+Used for:
+A one-shot exterior engine-start cue when the Level 1 player car becomes active.
+
+Runtime file:
+`public/assets/audio/level1/401558__giocosound__sfx_car_engine_outside_start.wav`
+
+Modified:
+No — the short supplied WAV is preloaded/decoded for immediate playback.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Normal Engine Idle
+
+Type:
+Sound effect / vehicle loop
+
+Source:
+https://freesound.org/people/GiocoSound/sounds/401552/
+
+Author:
+GiocoSound
+
+Licence:
+Creative Commons 0 (CC0)
+
+Used for:
+Normal Level 1 engine idle / low-speed engine bed after the startup cue.
+
+Runtime file:
+`public/assets/audio/level1/idle-car.opus`
+
+Modified:
+Yes — converted to compact Opus and circularly crossfaded for a cleaner loop.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Damaged Engine
+
+Type:
+Vehicle loop
+
+Source:
+https://freesound.org/people/LHermanns/sounds/557214/
+
+Author:
+LHermanns
+
+Licence:
+CC BY 4.0
+
+Used for:
+A progressive high-damage engine layer in Level 1. It begins fading in below
+35% vehicle condition and becomes dominant toward 10% condition.
+
+Runtime file:
+`public/assets/audio/level1/557214__lhermanns__enginewarmup_1-loop.wav`
+
+Modified:
+Runtime playback rate and gain vary with vehicle speed/damage; the source file
+itself is unchanged.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Taxi Horn
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/
+
+Author:
+Universfield
+
+Licence:
+Pixabay Content License
+
+Used for:
+Taxi stops in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/extra-sprite.opus`
+
+Modified:
+Yes — leading silence was removed and the cue was packed into an Opus sprite.
+
+Added by:
+Nadav Sundy
+
+### Level 2 Person Bump
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/foxboyprower/sounds/512568/
+
+Author:
+foxboyprower
+
+Licence:
+Creative Commons 0 (CC0)
+
+Used for:
+Player-to-pedestrian bumps in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/person-bump.opus`
+
+Modified:
+Yes — downmixed to mono, peak-normalised with headroom and encoded to Opus.
+
+Added by:
+Nadav Sundy
+
+
+### Level 2 Vida Cup Pickup
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/Leszek_Szary/sounds/171579/
+
+Author:
+Leszek_Szary
+
+Licence:
+Creative Commons 0 (CC0)
+
+Used for:
+Immediate Vida cup collection feedback in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/cup-pickup.opus`
+
+Modified:
+Yes — the silent tail was removed, the useful cue was downmixed to mono,
+normalised with headroom and encoded to Opus.
+
+Added by:
+Nadav Sundy
+
+
+### Level 3 Incorrect Answer
+
+Type:
+Sound effect
+
+Source:
+https://pixabay.com/sound-effects/film-special-effects-wrong-47985/
+
+Author:
+TheBuilder15 (Freesound), distributed via Pixabay freesound_community
+
+Licence:
+Pixabay Content License
+
+Used for:
+Audible incorrect-answer feedback in Level 3.
+
+Runtime file:
+`public/assets/audio/shared/result-sprite.opus`
+
+Modified:
+Yes — cropped to the useful error cue, encoded to Opus and played at a stronger
+gain than the previous incorrect sound.
+
+Added by:
+Nadav Sundy
+
+---
+
 ## AI-Generated Assets
 
 > Generated rather than downloaded. Recorded here because they are not
@@ -809,10 +1467,6 @@ team-authored or properly licensed alternatives.
 | --- | --- | --- |
 | `cars/{aston,byd,honda,nissan,vw}-{game,lite}.glb` | Historical Issue #160 record only. These files are no longer present in the current repository asset tree. | No current credit action unless these assets are reintroduced. |
 | `cars/diesel-thomas-proxy-{game,lite}.glb` | Procedural project proxy. Reference source: mrmrnaufal, “Diesel Powered Thomas,” Sketchfab, Creative Commons Attribution (CC BY). The uploaded Blender source was not converted. | Source/author/licence record complete; retain attribution if the proxy files remain distributed. |
-| `audio/level1/car-crash.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
-| `audio/level1/car-door-shut.mp3` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
-| `audio/level1/idle-car.wav` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
-| `audio/level1/collision-hit.mp3` | Supplied as `freesound_community-fast-collision-reverb-14611.mp3`; used for pothole and parked-car impacts; the filename suggests a Freesound community upload, but no page URL or licence was recorded. | Source URL, author and licence (confirm attribution requirements), or replacement. |
 | `models/characters/wits-shark.glb` | Project-created by Gabriel Raz using the Wits Sharks Instagram account as visual reference supplied by Dean Feldman. The unused `wits-shark.png` reference file was removed because runtime code loads only the GLB. | Project-authorship/reference record complete for the retained GLB. |
 | `textures/road/amic-fence.png`, `textures/road/amic-fence-reference.png`, `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` | Directly edited/adapted by Dean Feldman from imagery in Crown Publications' “Bridging the divide” article; the article credits its images to eimage/Gareth Gilmour. | Confirm the article image reuse/redistribution terms for these adapted textures, or replace them with cleared/team-made equivalents. |
 | `images/ui/main-menu-background.png`, `images/ui/level2-story-loading-screen.png`, `images/ui/level3-story-loading-screen.png` | Dean Feldman confirmed main-menu-background.png and level3-story-loading-screen.png were generated with OpenAI image generation via ChatGPT. Level 2 story art remains unresolved in this group. | Main menu and Level 3 story generation records are now documented; Level 2 story art still needs its own generation/source record. |
@@ -886,11 +1540,6 @@ These remain **open** and are the reason Issue #245 must not be closed yet:
   the legacy `CAR_SPECS` table are **not present in the current repository asset tree** and
   are therefore not part of the present distributed asset inventory.
 
-### Recorded Level 1 audio
-- `car-crash.mp3`;
-- `car-door-shut.mp3`;
-- `idle-car.wav`;
-- `collision-hit.mp3`.
 
 ### Font
 - `pencil-pete-trial.ttf` — source and author are now identified, but the trial
@@ -938,6 +1587,13 @@ For each unresolved item, the final action is one of:
 1. record the original source, author and licence;
 2. record a truthful team-authorship / generation record; or
 3. replace/remove the asset before submission.
+
+### Level 2 crossing-signal licence verification
+
+The source and author for `crossing-signal.opus` are recorded as MacFerret_20,
+Freesound sound 231936. Confirm the exact licence displayed on that specific
+Freesound page before final submission; do not infer it from the author's other
+recordings.
 
 ## Still required before final submission
 

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+
 import { VehicleController } from "../../shared/VehicleController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
 import {
@@ -2937,13 +2938,6 @@ addBox([farW+.5,.35,farD+.4],[farX,floors*floorH+.18,farZ],roofGrey,"yale-left-g
   if (vehicle.passenger) {
     vehicle.passenger.visible = false;
   }
-
-  this.audio?.cue(
-    520,
-    0.13,
-    0.1,
-    vehicle.root.position.x / 12
-  );
 }
 
   scheduleTaxiStop(vehicle) {

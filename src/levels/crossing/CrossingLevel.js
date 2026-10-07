@@ -36,6 +36,32 @@ const WALKWAY_SURFACE_Y = 0.19;
 const YALE_SURFACE_Y = 0.01;
 const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.025;
 
+const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
+const LEVEL2_SHIELD_CUE = Object.freeze({ start: 0, duration: 0.717 });
+const LEVEL2_VEHICLE_IMPACT_AUDIO = "./assets/audio/level2/vehicle-impact.opus";
+const LEVEL2_FOOTSTEP_AUDIO = "./assets/audio/level2/footsteps-pavement.opus";
+const LEVEL2_FOOTSTEP_CUES = Object.freeze([
+  Object.freeze({ start: 0.08, duration: 0.52 }),
+  Object.freeze({ start: 0.69, duration: 0.52 }),
+  Object.freeze({ start: 1.30, duration: 0.52 }),
+  Object.freeze({ start: 1.91, duration: 0.52 }),
+  Object.freeze({ start: 2.52, duration: 0.52 }),
+  Object.freeze({ start: 3.13, duration: 0.52 })
+]);
+const LEVEL2_TRAFFIC_AMBIENCE_AUDIO = "./assets/audio/level2/traffic-ambience.opus";
+const LEVEL2_PASSBY_AUDIO = "./assets/audio/level2/vehicle-passbys.opus";
+const LEVEL2_PASSBY_CUES = Object.freeze([
+  Object.freeze({ start: 0.10, duration: 5.2 }),
+  Object.freeze({ start: 5.40, duration: 5.2 })
+]);
+const LEVEL2_EXTRA_AUDIO = "./assets/audio/level2/extra-sprite.opus";
+const LEVEL2_EXTRA_CUES = Object.freeze({
+  horn: Object.freeze({ start: 0, duration: 1.09 })
+});
+const LEVEL2_CUP_PICKUP_AUDIO = "./assets/audio/level2/cup-pickup.opus";
+const LEVEL2_PERSON_BUMP_AUDIO = "./assets/audio/level2/person-bump.opus";
+const LEVEL2_CROSSING_SIGNAL_AUDIO = "./assets/audio/level2/crossing-signal.opus";
+
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
   down: Object.freeze({ x: 0, z: 1 }),
@@ -167,7 +193,19 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
-    this.chimes = [];
+    this.audio.preload([
+      LEVEL2_VEHICLE_IMPACT_AUDIO,
+      LEVEL2_EXTRA_AUDIO,
+      LEVEL2_PASSBY_AUDIO,
+      LEVEL2_FOOTSTEP_AUDIO,
+      LEVEL2_INTERACTION_AUDIO,
+      LEVEL2_CUP_PICKUP_AUDIO,
+      LEVEL2_PERSON_BUMP_AUDIO
+    ]);
+    this.gameplayAudioStarted = false;
+    this.footstepIndex = 0;
+    this.trafficPassCooldown = 0;
+    this.trafficHornCooldown = 0;
    // this.roadFogMaterials = [];
 
     this.cupKit = null;
@@ -192,6 +230,15 @@ export class CrossingLevel {
     this.tutorialPose = null;
   }
   async load() {
+    await this.audio.waitForPreload([
+      LEVEL2_VEHICLE_IMPACT_AUDIO,
+      LEVEL2_EXTRA_AUDIO,
+      LEVEL2_FOOTSTEP_AUDIO,
+      LEVEL2_INTERACTION_AUDIO,
+      LEVEL2_CUP_PICKUP_AUDIO,
+      LEVEL2_PERSON_BUMP_AUDIO
+    ]);
+
     // Survey completion belongs to this Level 2 run only.
     this.completedSurveys.clear();
     this.surveyConversation = null;
@@ -216,8 +263,7 @@ export class CrossingLevel {
       nearScenery: false,
       palette: { ground: 0x4f6844, buildings: 0x86513d, windows: 0xf0b56b, trees: 0x315c3a }
     }));
-    if (!this.game.isLevelIntroActive) this.audio.startMusic("level2");
-    this.collisionWorld = new CollisionWorld(this.root);
+      this.collisionWorld = new CollisionWorld(this.root);
 
     // Keep Level 2's original physical lights for geometry/shadows.
     // The Level 1-like warm/cool look is applied in a shader pass in Game.js.
@@ -256,7 +302,7 @@ export class CrossingLevel {
       this.animatedNpcs = null;
     }
     this.speech = new SpeechBubbles();
-    this.quiz = new QuizOverlay();
+    this.quiz = new QuizOverlay({ audio: this.audio });
     // game.selectedPlayerVariant is the source of truth. Direct developer
     // launches never set it beyond Game's default, so they get variant 0.
     this.selectedPlayerVariant = this.resolveSelectedPlayerVariant();
@@ -1037,6 +1083,7 @@ export class CrossingLevel {
       return;
     }
 
+    this.ensureGameplayAudio();
     this.updateSurveyConversation?.(dt);
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
@@ -1050,7 +1097,6 @@ export class CrossingLevel {
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
-    this.updateChimes(dt);
     this.crossingTime += dt;
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
@@ -1063,7 +1109,7 @@ export class CrossingLevel {
     this.updatePlayerAnimation(dt);
     if (landedDirection?.z > 0) this.backwardSteps += 1;
     if (landedDirection) this.updateCheckpoint();
-    if (landedDirection) this.audio.cue(170 + Math.random() * 30, 0.04, 0.03);
+    if (landedDirection) this.playPlayerFootstep();
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
@@ -1138,8 +1184,137 @@ export class CrossingLevel {
       || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
   }
 
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+    // Layer the short ambience recording at two offsets/rates so the source's
+    // 3.74-second loop boundary is not perceived as an obvious repeating cycle.
+    this.audio.startLoop("level2-traffic-a", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 1
+    });
+    this.audio.startLoop("level2-traffic-b", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 0.93,
+      startTime: 1.65
+    });
+    this.audio.startLoop("level2-crossing-signal", LEVEL2_CROSSING_SIGNAL_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 1
+    });
+  }
+
+  playPlayerFootstep() {
+    const cue = LEVEL2_FOOTSTEP_CUES[this.footstepIndex % LEVEL2_FOOTSTEP_CUES.length];
+    this.footstepIndex += 1;
+    this.audio.playSegment(LEVEL2_FOOTSTEP_AUDIO, {
+      ...cue,
+      volume: 0.44,
+      playbackRate: 0.95 + Math.random() * 0.1
+    });
+  }
+
   updateTraffic(dt) {
     for (const strip of this.strips) strip.update(dt);
+
+    const nearestRoadDistance = this.lanes
+      .filter((lane) => !lane.isHighway)
+      .reduce(
+        (nearest, lane) => Math.min(nearest, Math.abs(lane.z - this.player.position.z)),
+        Infinity
+      );
+    // A grid move is 1.2 m. By the time the player is one move from the
+    // road edge, the nearest lane centre is about one strip (2.4 m) away.
+    // Give that first approach a clear floor, then rise smoothly in the road.
+    const proximityCurve = 1 - THREE.MathUtils.clamp(
+      (nearestRoadDistance - 0.6) / 3.0,
+      0,
+      1
+    );
+    const oneMoveApproach = nearestRoadDistance <= STRIP_DEPTH ? 0.62 : 0;
+    const roadProximity = Math.max(proximityCurve, oneMoveApproach);
+
+    this.audio.setLoopParameters("level2-traffic-a", {
+      volume: 0.58 * roadProximity
+    });
+    this.audio.setLoopParameters("level2-traffic-b", {
+      volume: 0.34 * roadProximity
+    });
+    this.audio.setLoopParameters("level2-crossing-signal", {
+      volume: 0.26 * roadProximity
+    });
+
+    this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
+    this.trafficHornCooldown = Math.max(0, this.trafficHornCooldown - dt);
+    for (const vehicle of this.traffic) {
+      if (vehicle.lane.isHighway) continue;
+
+      const dx = vehicle.root.position.x - this.player.position.x;
+      const dz = vehicle.lane.z - this.player.position.z;
+      const absX = Math.abs(dx);
+      const absZ = Math.abs(dz);
+
+      if (absX > 8) vehicle.hornArmed = true;
+      if (vehicle.hornArmed === undefined) vehicle.hornArmed = absX > 5;
+
+      // A warning horn is contextual only: the player must be physically in
+      // this lane, and the vehicle must be approaching from a few metres away.
+      const directlyInPath = absZ <= 1.05;
+      const approaching = dx * vehicle.lane.direction < 0;
+      if (
+        vehicle.hornArmed &&
+        this.trafficHornCooldown <= 0 &&
+        directlyInPath &&
+        approaching &&
+        absX >= 2.2 &&
+        absX <= 5.5
+      ) {
+        this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
+          ...LEVEL2_EXTRA_CUES.horn,
+          volume: 0.34,
+          pan: THREE.MathUtils.clamp(dx / 5, -0.8, 0.8),
+          playbackRate: 0.98 + Math.random() * 0.04
+        });
+        vehicle.hornArmed = false;
+        this.trafficHornCooldown = 4.5;
+      }
+
+      if (absX > 7) vehicle.audioPassArmed = true;
+      if (vehicle.audioPassArmed === undefined) vehicle.audioPassArmed = absX > 4;
+
+      if (
+        !vehicle.audioPassArmed ||
+        this.trafficPassCooldown > 0 ||
+        absZ > 6 ||
+        absX > 4.5
+      ) {
+        continue;
+      }
+
+      const cue = vehicle.lane.direction > 0
+        ? LEVEL2_PASSBY_CUES[0]
+        : LEVEL2_PASSBY_CUES[1];
+      const laneProximity = 1 - THREE.MathUtils.clamp(absZ / 6, 0, 1);
+
+      this.audio.playSegment(LEVEL2_PASSBY_AUDIO, {
+        ...cue,
+        volume: THREE.MathUtils.lerp(0.36, 0.72, laneProximity),
+        pan: THREE.MathUtils.clamp(dx / 5, -0.9, 0.9),
+        playbackRate: THREE.MathUtils.clamp(
+          (vehicle.controller?.speed ?? vehicle.cruiseSpeed ?? 5) /
+            Math.max(0.1, vehicle.cruiseSpeed ?? 5),
+          0.9,
+          1.1
+        )
+      });
+
+      vehicle.audioPassArmed = false;
+      this.trafficPassCooldown = 2.8;
+      break;
+    }
   }
 
   capturePlayerInput() {
@@ -1198,7 +1373,10 @@ export class CrossingLevel {
     this.hopController.bump(direction);
     this.cameraShakeTime = 0.18;
     this.cameraShakeStrength = 0.35;
-    this.audio.cue(120, 0.09, 0.09);
+    this.audio.playSample(LEVEL2_PERSON_BUMP_AUDIO, {
+      volume: 0.78,
+      playbackRate: 0.97 + Math.random() * 0.06
+    });
     const { droppedCup } = this.crowd.bump(person, this.player.position);
     if (droppedCup) {
       // They drop their coffee straight into your hands, after a little bounce.
@@ -1306,19 +1484,12 @@ export class CrossingLevel {
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
     this.game.setMessage(`${type.label}! ${type.blurb}.`);
-    // A rising three-note chime; faster types get a higher one.
-    const base = type.id === "doubleShot" ? 660 : type.id === "icedLatte" ? 520 : type.id === "shield" ? 440 : 590;
-    this.chimes.push({ delay: 0, frequency: base }, { delay: 0.07, frequency: base * 1.25 }, { delay: 0.14, frequency: base * 1.5 });
-  }
-
-  updateChimes(dt) {
-    for (let index = this.chimes.length - 1; index >= 0; index--) {
-      const chime = this.chimes[index];
-      chime.delay -= dt;
-      if (chime.delay > 0) continue;
-      this.audio.cue(chime.frequency, 0.12, 0.07);
-      this.chimes.splice(index, 1);
-    }
+    // A short dedicated cue is decoded before gameplay so collection feedback
+    // lands on the exact frame the cup disappears.
+    this.audio.playSample(LEVEL2_CUP_PICKUP_AUDIO, {
+      volume: 0.92,
+      playbackRate: 0.98 + Math.random() * 0.04
+    });
   }
 
   updatePlayerEffects(dt) {
@@ -1384,8 +1555,16 @@ checkFinish() {
 
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
-    this.audio.cue(880, 0.18, 0.1);
-    this.audio.cue(wasTaxi ? 110 : 165, 0.12, 0.08);
+    this.audio.duckMusic({ scale: 0.22, hold: 0.5 });
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+      volume: 0.62,
+      playbackRate: wasTaxi ? 0.96 : 1.02
+    });
+    this.audio.playSegment(LEVEL2_INTERACTION_AUDIO, {
+      ...LEVEL2_SHIELD_CUE,
+      volume: 0.58,
+      playbackRate: wasTaxi ? 0.96 : 1
+    });
     this.impactTimer = 0.25;
     this.cameraShakeTime = 0.3;
     this.cameraShakeStrength = 0.8;
@@ -1436,7 +1615,15 @@ checkFinish() {
   failAtCheckpoint(wasTaxi) {
     this.attempts += 1;
     this.game.flashHUD();
-    this.audio.cue(wasTaxi ? 110 : 165, 0.2, 0.12);
+
+    const impactOptions = {
+      volume: 1,
+      playbackRate: wasTaxi ? 0.96 : 1.02
+    };
+
+    // This now uses a pre-decoded Web Audio buffer, so the transient starts on
+    // the collision frame before any checkpoint/reset state is changed.
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
 
     if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
       this.game.setCheckpoint("start");
@@ -1449,7 +1636,7 @@ checkFinish() {
     }
 
     this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
-    this.impactTimer = 0.42;
+    this.impactTimer = 0.58;
     this.cameraShakeTime = 0.34;
     this.cameraShakeStrength = 1;
     this.invulnerabilityTimer = 0.9;

@@ -176,6 +176,24 @@ const TABLET_TARGET_WIDTH = 1.0;
 const TABLET_TARGET_HEIGHT = 0.28;
 const TABLET_TARGET_DEPTH = 0.65;
 const MAX_TYPED_ANSWER_LENGTH = 24;
+
+const LEVEL3_TUTOR_STEP_AUDIO = "./assets/audio/level3/tutor-steps.opus";
+const LEVEL3_TUTOR_STEPS = Object.freeze([
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 0, duration: 0.54 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 0.64, duration: 0.508 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.248, duration: 0.539 }),
+  Object.freeze({ path: LEVEL3_TUTOR_STEP_AUDIO, start: 1.888, duration: 0.571 })
+]);
+const LEVEL3_INTERACTION_AUDIO = "./assets/audio/level3/interaction-sprite.opus";
+const LEVEL3_CLASSROOM_AMBIENCE_AUDIO = "./assets/audio/level3/classroom-ambience.opus";
+const LEVEL3_HEARTBEAT_AUDIO = "./assets/audio/level3/heartbeat.opus";
+const LEVEL3_CLOCK_AUDIO = "./assets/audio/level3/clock-tick.opus";
+const LEVEL3_CORRECT_AUDIO = "./assets/audio/level3/correct-tick.opus";
+const LEVEL3_INCORRECT_AUDIO = "./assets/audio/level3/incorrect-answer.opus";
+const LEVEL3_INTERACTION_CUES = Object.freeze({
+  peekRustle1: Object.freeze({ start: 0, duration: 0.847 }),
+  peekRustle2: Object.freeze({ start: 0.947, duration: 0.897 })
+});
 export const TUTOR_OPENING_START_INDEX = 7;
 export const TUTOR_OPENING_TARGET_INDEX = 8;
 export function getTutorOpeningYaw(points) {
@@ -295,6 +313,13 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
+    this.audio.preload([
+      LEVEL3_INCORRECT_AUDIO,
+      LEVEL3_CORRECT_AUDIO,
+      LEVEL3_INTERACTION_AUDIO,
+      LEVEL3_TUTOR_STEP_AUDIO
+    ]);
+    this.gameplayAudioStarted = false;
 
     this.cheatDesks = [];
     this.decorativeTablets = [];
@@ -305,6 +330,8 @@ this.patrolPoints = [
     this.isLookingAtPlayerDesk = false;
     this.zoomActive = false;
     this.peekActive = false;
+    this.wasPeekActive = false;
+    this.peekRustleVariant = 0;
     this.leftMouseDown = false;
     this.zoomOverlay = null;
     this.currentCopiedWord = null;
@@ -338,6 +365,13 @@ this.patrolPoints = [
   }
 
   async load() {
+    await this.audio.waitForPreload([
+      LEVEL3_INCORRECT_AUDIO,
+      LEVEL3_CORRECT_AUDIO,
+      LEVEL3_INTERACTION_AUDIO,
+      LEVEL3_TUTOR_STEP_AUDIO
+    ]);
+
     const scene = this.game.scene;
 
     scene.background = new THREE.Color(0xb9d8e8);
@@ -345,7 +379,6 @@ this.patrolPoints = [
     await this.loadHologramFont();
 
     scene.add(this.root);
-    if (!this.game.isLevelIntroActive) this.audio.startMusic("level3");
     this.collisionWorld = new CollisionWorld(this.root);
 
     const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 1.35);
@@ -1548,9 +1581,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return;
     }
 
+    this.ensureGameplayAudio();
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
-    this.audio.updateClock(dt);
     this.updateMouseLook();
     this.updateDeskTargeting();
     this.updatePlayerPaperPose(dt);
@@ -1593,6 +1626,26 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         next: `Retry restarts the test with a fresh ${LEVEL_THREE_TIME_LIMIT} seconds.`
       });
     }
+  }
+
+
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+
+    this.audio.startLoop("level3-classroom", LEVEL3_CLASSROOM_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.21
+    });
+    this.audio.startLoop("level3-heartbeat", LEVEL3_HEARTBEAT_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 0.88
+    });
+    this.audio.startLoop("level3-clock", LEVEL3_CLOCK_AUDIO, {
+      bus: "ambience",
+      volume: 0.006
+    });
   }
 
   updateLevelThreeHUD(dt) {
@@ -1750,7 +1803,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       dt,
       isWalking,
       this.tutor.position.x,
-      this.playerPosition.x
+      this.playerPosition.x,
+      LEVEL3_TUTOR_STEPS,
+      Math.hypot(
+        this.tutor.position.x - this.playerPosition.x,
+        this.tutor.position.z - this.playerPosition.z
+      )
     );
 
     const headForward = new THREE.Vector3(0, 0, 1).applyQuaternion(
@@ -1947,6 +2005,17 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.peekActive = Boolean(this.zoomActive && this.targetCheatDesk);
     this.zoomOverlay?.classList.toggle("visible", this.zoomActive);
 
+    if (this.peekActive !== this.wasPeekActive) {
+      const cueName = this.peekRustleVariant % 2 === 0 ? "peekRustle1" : "peekRustle2";
+      this.peekRustleVariant += 1;
+      this.audio.playSegment(LEVEL3_INTERACTION_AUDIO, {
+        ...LEVEL3_INTERACTION_CUES[cueName],
+        volume: this.peekActive ? 0.34 : 0.24,
+        playbackRate: 0.96 + Math.random() * 0.08
+      });
+      this.wasPeekActive = this.peekActive;
+    }
+
     for (const desk of this.cheatDesks) {
       desk.hologram.visible = this.peekActive && desk === this.targetCheatDesk;
     }
@@ -1978,6 +2047,27 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       seen,
       dt
     });
+
+    const suspicionTension = THREE.MathUtils.clamp(
+      (this.suspicion - 20) / 80,
+      0,
+      1
+    );
+    const timeTension = this.timeRemaining < 15
+      ? (15 - this.timeRemaining) / 15
+      : 0;
+    const tension = Math.max(suspicionTension, timeTension * 0.72);
+
+    this.audio.setLoopParameters("level3-heartbeat", {
+      volume: tension > 0 ? 0.04 + tension * 0.24 : 0,
+      playbackRate: 0.88 + tension * 0.34
+    });
+
+    let clockVolume = 0.006;
+    if (this.timeRemaining <= 30) clockVolume = 0.014;
+    if (this.timeRemaining <= 15) clockVolume = 0.026;
+    if (this.timeRemaining <= 5) clockVolume = 0.045;
+    this.audio.setLoopParameters("level3-clock", { volume: clockVolume });
   }
 
   getContextInstruction() {
@@ -2081,6 +2171,9 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
 
     if (!isCopiedAnswerCorrect(this.typedAnswer, this.activeQuestion?.correctAnswer)) {
       this.incorrectAnswers += 1;
+      this.audio.playSample(LEVEL3_INCORRECT_AUDIO, {
+        volume: 1
+      });
       this.typedAnswer = "";
       this.feedbackMessage = "Incorrect.";
       this.feedbackTime = 1.8;
@@ -2093,7 +2186,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    this.audio.cue(680, 0.08, 0.035);
+    this.audio.playSample(LEVEL3_CORRECT_AUDIO, { volume: 0.92 });
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";

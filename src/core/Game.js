@@ -855,16 +855,6 @@ export class Game {
     this.isTransitioning = true;
     this.setMessage(message);
 
-    if (completedLevel === 1) {
-      // ParkingLevel is disposed before the Level 2 intro appears, so this
-      // completion cue is owned by the game rather than the parking level.
-      // It fires immediately when the parking confirmation reaches 100%.
-      this.playOneShotAudio(
-        "./assets/audio/level1/car-door-shut.mp3",
-        0.4875
-      );
-    }
-
     this.fadeTransition(() => {
       if (nextLevel <= 3) {
         this.showLevelIntro(nextLevel);
@@ -980,8 +970,13 @@ export class Game {
 
   disposeCurrentLevel() {
     if (this.currentLevel) {
-      this.currentLevel.dispose();
+      const level = this.currentLevel;
       this.currentLevel = null;
+      try {
+        level.dispose();
+      } catch (error) {
+        console.error("Level cleanup failed:", error);
+      }
     }
 
     this.scene.clear();
@@ -1416,8 +1411,9 @@ export class Game {
     if (!event.target.closest("[data-instruction-action='dismiss']")) return;
     this.hideInstruction();
     this.input.clearTransientState();
+    // Story/menu music ends when gameplay begins. Levels use environmental
+    // and contextual sound rather than a continuous soundtrack.
     this.uiAudio.stopMusic();
-    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     this.input.requestPointerLock();
     this.clock.getDelta();
   }

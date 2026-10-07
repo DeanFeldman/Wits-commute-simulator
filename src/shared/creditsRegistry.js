@@ -117,12 +117,39 @@ export const CREDITS = [
       }
     ]
   },
+  { heading: "Sound effects", entries: [
+    { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
+    { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
+    { name: "Level 2 pencil mark", detail: "NoisyRedFox — CC0. Used for questionnaire selections.", url: "https://freesound.org/people/NoisyRedFox/sounds/742353/" },
+    { name: "Level 3 tutor footsteps", detail: "Yin_Yang_Jake007 and derjuli (Freesound) — Pixabay Content License. Cropped into positional tutor-step cues.", url: "https://pixabay.com/sound-effects/film-special-effects-indoor-footsteps-100664/" },
+    { name: "Level 3 desk/chair foley", detail: "Anakronizm — CC0. Cropped into the two active peek-rustle cues; legacy answer clips were removed from the runtime sprite.", url: "https://freesound.org/people/Anakronizm/sounds/494616/" },
+    { name: "Level 3 correct answer", detail: "DRAGON-STUDIO — Pixabay Content License. Trimmed and preloaded for immediate correct-answer feedback.", url: "https://pixabay.com/sound-effects/film-special-effects-game-show-correct-tick-sound-416167/" },
+    { name: "Level 2 pavement footsteps", detail: "PeteBarry — CC BY 4.0. Cropped into varied pavement steps.", url: "https://freesound.org/people/PeteBarry/sounds/647403/" },
+    { name: "Level 2 traffic ambience", detail: "pawsound — CC0. Downmixed into the Level 2 road ambience loop.", url: "https://freesound.org/people/pawsound/sounds/154858/" },
+    { name: "Level 2 vehicle pass-bys", detail: "Bakstad — CC0. Two directional vehicle pass-bys used for nearby traffic.", url: "https://freesound.org/people/Bakstad/sounds/823549/" },
+    { name: "Level 2 paper foley", detail: "ssugg — CC0. Cropped for survey and quiz paper movement.", url: "https://freesound.org/people/ssugg/sounds/588320/" },
+    { name: "Level 3 classroom room tone", detail: "klankbeeld — CC BY 4.0. Used as the classroom/hall ambience loop.", url: "https://freesound.org/people/klankbeeld/sounds/212137/" },
+    { name: "Level 3 heartbeat", detail: "Cloud-10 — CC0. Adaptive heartbeat loop for suspicion and time pressure.", url: "https://freesound.org/people/Cloud-10/sounds/688735/" },
+    { name: "Level 3 classroom clock", detail: "giddster — CC0. Subtle wall-clock loop that becomes more audible near the end of the test.", url: "https://freesound.org/people/giddster/sounds/434841/" },
+    { name: "Level 1 collision impact", detail: "Universfield — Pixabay Content License. Trimmed for immediate car and barrier impacts.", url: "https://pixabay.com/sound-effects/film-special-effects-combat-impact-352458/" },
+    { name: "Level 1 pothole thump", detail: "Black_Kumizhi — Pixabay Content License. Low suspension/body thump for potholes.", url: "https://pixabay.com/sound-effects/technology-low-thumpy-kick-reverb-hit-494833/" },
+    { name: "Level 1 puddle splash", detail: "cookies+policy — CC0. Wet-pothole tyre splash.", url: "https://freesound.org/people/cookies%2Bpolicy/sounds/563021/" },
+    { name: "Level 1 parking-lot ambience", detail: "FunWithSound — CC0. Long-form parking lot / nearby road / light wind ambience for Level 1.", url: "https://freesound.org/people/FunWithSound/sounds/406096/" },
+    { name: "Level 1 car start", detail: "GiocoSound — CC0. BMW 120d exterior engine-start cue used when Level 1 begins.", url: "https://freesound.org/people/GiocoSound/sounds/401558/" },
+    { name: "Level 1 normal engine idle", detail: "GiocoSound — CC0. BMW 120d exterior idle; converted to a compact seamless Opus loop.", url: "https://freesound.org/people/GiocoSound/sounds/401552/" },
+    { name: "Level 1 damaged engine", detail: "LHermanns — CC BY 4.0. Engine warmup loop crossfaded in progressively as Level 1 vehicle condition becomes critical.", url: "https://freesound.org/people/LHermanns/sounds/557214/" },
+    { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
+    { name: "Level 2 person bump", detail: "foxboyprower — CC0. Short collision/bump cue, trimmed and converted to mono Opus.", url: "https://freesound.org/people/foxboyprower/sounds/512568/" },
+    { name: "Level 2 Vida pickup", detail: "Leszek_Szary — CC0. Dedicated collection cue, silence-trimmed and converted to mono Opus.", url: "https://freesound.org/people/Leszek_Szary/sounds/171579/" },
+    { name: "Level 2 pedestrian crossing signal", detail: "MacFerret_20 — traffic-light ticking field recording used only near Yale Road. Source is recorded; exact Freesound licence still needs final verification before submission.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
+    { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
+  ] },
   {
     heading: "Original music",
     entries: [
       {
         name: "Commute Theme / Dusk Drive / Empire Rush / Don't Get Caught",
-        detail: `OpenAI-assisted original compositions generated for this project on 2026-09-25 and stored as pre-rendered WAV files. ${GENERATED}. No third-party samples are recorded as used.`
+        detail: `OpenAI-assisted original compositions generated for this project on 2026-09-25 and stored as pre-rendered WAV files. ${GENERATED}. Continuous level music is disabled; music is retained for menu/story presentation.`
       }
     ]
   },
@@ -165,7 +192,7 @@ export const CREDITS = [
     entries: [
       {
         name: "Level 1 recorded audio",
-        detail: "car-crash.mp3, car-door-shut.mp3, idle-car.wav and collision-hit.mp3 still need complete source/author/licence records or replacement."
+        detail: "The old undocumented Level 1 crash/collision/door/idle files have been replaced or retired. Current runtime Level 1 audio has source records in the Sound effects section."
       },
       {
         name: "Pencil Pete trial font",
