@@ -47,3 +47,13 @@ test("tutorial controls animate the preview without advancing gameplay", () => {
   assert.match(css, /\.tutorial-controls li\.is-active[\s\S]*?\.tutorial-preview\.is-typing-demo/);
   assert.match(html, /Try the controls here/);
 });
+
+
+test("level 2 and level 3 tutorials expose visible interaction feedback", () => {
+  assert.match(html, /id="instruction-demo"[\s\S]*?id="instruction-demo-marker"[\s\S]*?id="instruction-demo-status"/);
+  assert.match(game, /moveTutorialDemo\(code\)[\s\S]*?tutorialDemoPosition/);
+  assert.match(game, /currentLevelNumber === 2[\s\S]*?WALK:/);
+  assert.match(game, /onTutorialDemoPointerDown\(event\)[\s\S]*?PEEKING/);
+  assert.match(game, /TYPING:/);
+  assert.match(css, /\.tutorial-demo-layer\[data-level="2"\][\s\S]*?\.tutorial-demo-layer\.is-level3/);
+});
