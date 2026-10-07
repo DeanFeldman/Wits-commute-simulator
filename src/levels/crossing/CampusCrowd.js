@@ -133,13 +133,17 @@ export class CampusCrowd {
   // `grid` ({ step, originZ, minX, maxX, minZ, maxZ }) and `canOccupy(x, z)`
   // describe the walkable route, so survey NPCs only ever walk cell to cell
   // on it: never across Yale Road, into buildings, or through the railings.
-  constructor({ root, factory, animatedFactory = null, random, onSay = null, grid = null, canOccupy = null }) {
+  // `playerVariant` is the student model the player chose; nobody in the
+  // crowd uses it, so the player never meets their own double.
+  constructor({ root, factory, animatedFactory = null, random, onSay = null, grid = null, canOccupy = null, playerVariant = null, variantCount = null }) {
     this.root = root;
     this.grid = grid ?? { step: 1.2, originZ: 0, minX: -Infinity, maxX: Infinity, minZ: -Infinity, maxZ: Infinity };
     this.canOccupy = canOccupy ?? (() => true);
     this.lastPlayer = null;
     this.factory = factory;
     this.animatedFactory = animatedFactory;
+    this.playerVariant = Number.isInteger(playerVariant) ? playerVariant : null;
+    this.variantCount = variantCount ?? animatedFactory?.templates?.length ?? 0;
     this.random = random;
     this.onSay = onSay;
     this.people = [];
@@ -172,9 +176,11 @@ export class CampusCrowd {
       robot,
       scale
     };
-    const mesh = robot || !this.animatedFactory
-      ? this.factory.create(appearance)
-      : this.animatedFactory.create({ variant: index, holding: appearance.holding, scale });
+    const animated = !robot && Boolean(this.animatedFactory);
+    const variant = animated ? this.crowdVariant(index) : null;
+    const mesh = animated
+      ? this.animatedFactory.create({ variant, holding: appearance.holding, scale })
+      : this.factory.create(appearance);
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
@@ -186,6 +192,7 @@ export class CampusCrowd {
 
     const person = {
       kind,
+      variant,
       name: entry.name ?? (robot ? `Wits Bot ${index + 1}` : NAMES[index % NAMES.length]),
       mesh,
       rig: mesh.userData.rig,
@@ -220,6 +227,46 @@ export class CampusCrowd {
     };
     this.people.push(person);
     return person;
+  }
+
+  // The model for the index-th crowd member, skipping the player's model.
+  crowdVariant(index) {
+    const count = this.variantCount;
+    if (count <= 1 || this.playerVariant === null || this.playerVariant >= count) return count > 0 ? index % count : index;
+    const slot = index % (count - 1);
+    return slot >= this.playerVariant ? slot + 1 : slot;
+  }
+
+  // The player switched models mid-level (dev panel). Anyone wearing the new
+  // player model swaps to the one the player just gave up.
+  setPlayerVariant(variant) {
+    if (!Number.isInteger(variant) || variant === this.playerVariant) return;
+    const previous = this.playerVariant;
+    this.playerVariant = variant;
+    if (!this.animatedFactory) return;
+    for (const person of this.people) {
+      if (person.variant !== variant || !person.animation) continue;
+      const replacement = previous ?? this.crowdVariant(this.people.indexOf(person));
+      if (replacement === variant) continue;
+      this.reskin(person, replacement);
+    }
+  }
+
+  reskin(person, variant) {
+    const old = person.mesh;
+    const holding = person.rig?.holding && person.rig.heldItem?.visible !== false ? person.rig.holding : null;
+    const mesh = this.animatedFactory.create({ variant, holding, scale: old.scale.x });
+    mesh.name = old.name;
+    mesh.position.copy(old.position);
+    mesh.rotation.copy(old.rotation);
+    old.parent?.add(mesh);
+    old.removeFromParent();
+    person.animation?.mixer.stopAllAction();
+    person.animation?.mixer.uncacheRoot(old.children[0]);
+    person.mesh = mesh;
+    person.rig = mesh.userData.rig;
+    person.animation = mesh.userData.animation ?? null;
+    person.variant = variant;
   }
 
   // The person standing in (or walking through) a grid cell, if any.

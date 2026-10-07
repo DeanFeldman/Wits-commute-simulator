@@ -395,6 +395,8 @@ export class CrossingLevel {
       random: createSeededRandom(this.seed ^ 0x51ab1e),
       grid: { step: WALK_STEP, originZ: this.startZ, minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ },
       canOccupy: (x, z) => this.isNpcWalkableCell(x, z),
+      playerVariant: this.selectedPlayerVariant,
+      variantCount: STUDENT_MODEL_VARIANTS.length,
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
         tone
@@ -760,6 +762,7 @@ export class CrossingLevel {
     this.playerRig = null;
     this.selectedPlayerVariant = variant;
     this.game.selectedPlayerVariant = variant;
+    this.crowd?.setPlayerVariant(variant);
     this.game.setMessage(`${STUDENT_MODEL_VARIANTS[variant].label} selected as the Level 2 player.`);
   }
 

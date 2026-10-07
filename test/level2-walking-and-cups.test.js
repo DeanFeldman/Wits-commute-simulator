@@ -337,3 +337,38 @@ test("survey NPCs only walk on route cells after a survey or a chase", () => {
     assert.ok(onRoute(chaser.mesh.position), "the chaser never steps onto the road");
   }
 });
+
+test("the crowd never wears the player's chosen model, even after a mid-level swap", () => {
+  const created = [];
+  const animatedFactory = {
+    templates: [0, 1, 2, 3, 4, 5],
+    create({ variant, holding }) {
+      const mesh = new THREE.Group();
+      mesh.add(new THREE.Group());
+      mesh.userData.animation = { mixer: { update() {}, stopAllAction() {}, uncacheRoot() {} } };
+      mesh.userData.rig = { holding, heldItem: null };
+      mesh.userData.soleOffset = 0;
+      created.push(variant);
+      return mesh;
+    },
+    setMoving() {}
+  };
+  for (let playerVariant = 0; playerVariant < 6; playerVariant++) {
+    const root = new THREE.Group();
+    const crowd = new CampusCrowd({ root, factory: new PedestrianFactory(), animatedFactory, random: () => 0.5, playerVariant, variantCount: 6 });
+    crowd.spawn(createCrowdPlan({ zones: ZONES, startZ: START_Z, step: STEP }));
+    const humans = crowd.people.filter((person) => person.kind !== "robot");
+    assert.ok(humans.every((person) => person.variant !== playerVariant), `no NPC uses player model ${playerVariant}`);
+    const used = new Set(humans.map((person) => person.variant));
+    assert.equal(used.size, 5, "every other model still appears");
+
+    const next = (playerVariant + 1) % 6;
+    const position = humans.find((person) => person.variant === next).mesh.position.clone();
+    crowd.setPlayerVariant(next);
+    assert.ok(humans.every((person) => person.variant !== next), "a swap re-skins the new player model's doubles");
+    assert.ok(humans.some((person) => person.variant === playerVariant), "they take the model the player gave up");
+    assert.ok(humans.some((person) => person.mesh.position.equals(position)), "re-skinned NPCs keep their spot");
+    assert.ok(humans.every((person) => person.mesh.parent === root), "old meshes are removed from the scene");
+    assert.equal(root.children.length, crowd.people.length);
+  }
+});
