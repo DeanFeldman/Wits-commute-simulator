@@ -14,8 +14,19 @@ const MUSIC_FILES = {
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
+const audioInstances = new Set();
+let musicVolume = 1;
+let soundEffectsVolume = 1;
+
+export function setAudioVolumes(music, effects) {
+  musicVolume = clamp01(Number(music) || 0);
+  soundEffectsVolume = clamp01(Number(effects) || 0);
+  for (const audio of audioInstances) audio.applyVolumes();
+}
+
 export class LevelAudio {
   constructor() {
+    audioInstances.add(this);
     this.context = null;
     this.master = null;
     this.masterLimiter = null;
@@ -72,10 +83,11 @@ export class LevelAudio {
     this.sfxBus = this.context.createGain();
 
     this.master.gain.value = this.isMuted ? 0 : MIX.master;
-    this.musicBus.gain.value = this.musicEnabled ? MIX.music * this.musicScale : 0;
+    this.musicBus.gain.value =
+      this.musicEnabled ? MIX.music * this.musicScale * musicVolume : 0;
     this.musicDuck.gain.value = 1;
-    this.ambienceBus.gain.value = MIX.ambience;
-    this.sfxBus.gain.value = MIX.sfx;
+    this.ambienceBus.gain.value = MIX.ambience * soundEffectsVolume;
+    this.sfxBus.gain.value = MIX.sfx * soundEffectsVolume;
 
     this.musicBus.connect(this.musicDuck).connect(this.master);
     this.ambienceBus.connect(this.master);
@@ -139,7 +151,7 @@ export class LevelAudio {
       this.musicTrackGain = trackGain;
     } else {
       music.muted = this.isMuted || !this.musicEnabled;
-      music.volume = MIX.music;
+      music.volume = MIX.music * musicVolume;
     }
 
     if (this.musicEnabled) music.play().catch(() => {});
@@ -199,7 +211,11 @@ export class LevelAudio {
     if (this.musicBus && this.context) {
       const now = this.context.currentTime;
       this.musicBus.gain.cancelScheduledValues(now);
-      this.musicBus.gain.setTargetAtTime(enabled ? MIX.music * this.musicScale : 0, now, 0.04);
+      this.musicBus.gain.setTargetAtTime(
+        enabled ? MIX.music * this.musicScale * musicVolume : 0,
+        now,
+        0.04
+      );
     }
     enabled ? this.resumeMusic() : this.pauseMusic();
     if (this.music && !this.musicSource) this.music.muted = this.isMuted || !enabled;
@@ -209,7 +225,7 @@ export class LevelAudio {
     this.musicScale = clamp01(scale);
     if (!this.musicBus || !this.context) return;
     this.musicBus.gain.setTargetAtTime(
-      this.musicEnabled ? MIX.music * this.musicScale : 0,
+      this.musicEnabled ? MIX.music * this.musicScale * musicVolume : 0,
       this.context.currentTime,
       0.08
     );
@@ -222,6 +238,8 @@ export class LevelAudio {
     release = 0.22
   } = {}) {
     if (!this.ensure() || !this.musicDuck) return;
+    audioInstances.delete(this);
+
     if (this.musicDuckTimer) {
       clearTimeout(this.musicDuckTimer);
       this.musicDuckTimer = null;
@@ -407,7 +425,7 @@ export class LevelAudio {
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
     if (!this.ensure()) {
-      audio.volume = clamp01(volume);
+      audio.volume = clamp01(volume * soundEffectsVolume);
       audio.play().catch(() => {});
       return audio;
     }
@@ -506,7 +524,7 @@ export class LevelAudio {
           gain.connect(this.getBus(bus));
         }
       } else {
-        audio.volume = clamp01(volume);
+        audio.volume = clamp01(volume * soundEffectsVolume);
       }
 
       audio.play().then(() => {
@@ -541,9 +559,15 @@ export class LevelAudio {
     audio.playbackRate = playbackRate;
 
     if (!this.ensure()) {
-      audio.volume = clamp01(volume);
+      audio.volume = clamp01(volume * soundEffectsVolume);
       audio.muted = this.isMuted;
-      this.loops.set(name, { element: audio, shouldPlay: true, fallback: true });
+      this.loops.set(name, {
+        element: audio,
+        shouldPlay: true,
+        fallback: true,
+        baseVolume: volume,
+        bus
+      });
       audio.play().catch(() => {});
       return audio;
     }
@@ -561,7 +585,16 @@ export class LevelAudio {
       gain.connect(this.getBus(bus));
     }
 
-    const handle = { element: audio, source, gain, panner, shouldPlay: true, fallback: false };
+    const handle = {
+      element: audio,
+      source,
+      gain,
+      panner,
+      shouldPlay: true,
+      fallback: false,
+      baseVolume: volume,
+      bus
+    };
     this.loops.set(name, handle);
 
     const begin = () => {
@@ -592,10 +625,11 @@ export class LevelAudio {
     if (!loop) return;
     if (Number.isFinite(playbackRate)) loop.element.playbackRate = Math.max(0.25, playbackRate);
     if (Number.isFinite(volume)) {
+      loop.baseVolume = Math.max(0, volume);
       if (loop.gain && this.context) {
         loop.gain.gain.setTargetAtTime(Math.max(0, volume), this.context.currentTime, 0.06);
       } else {
-        loop.element.volume = clamp01(volume);
+        loop.element.volume = clamp01(volume * soundEffectsVolume);
       }
     }
     if (Number.isFinite(pan) && loop.panner) {
@@ -697,6 +731,37 @@ export class LevelAudio {
       playbackRate: 0.98 + Math.random() * 0.04,
       bus: "ambience"
     });
+  }
+
+  trackSoundEffect(element, baseVolume = 1) {
+    if (!element) return;
+    element.volume = clamp01(baseVolume * soundEffectsVolume);
+    element.muted = this.isMuted;
+  }
+
+  applyVolumes() {
+    if (this.master) this.master.gain.value = this.isMuted ? 0 : MIX.master;
+
+    if (this.musicBus && this.context) {
+      this.musicBus.gain.setTargetAtTime(
+        this.musicEnabled ? MIX.music * this.musicScale * musicVolume : 0,
+        this.context.currentTime,
+        0.04
+      );
+    }
+    if (this.ambienceBus) this.ambienceBus.gain.value = MIX.ambience * soundEffectsVolume;
+    if (this.sfxBus) this.sfxBus.gain.value = MIX.sfx * soundEffectsVolume;
+
+    if (this.music && !this.musicSource) {
+      this.music.muted = this.isMuted || !this.musicEnabled;
+      this.music.volume = MIX.music * musicVolume;
+    }
+
+    for (const loop of this.loops.values()) {
+      if (!loop.fallback) continue;
+      loop.element.muted = this.isMuted;
+      loop.element.volume = clamp01((loop.baseVolume ?? 1) * soundEffectsVolume);
+    }
   }
 
   setMuted(muted) {
