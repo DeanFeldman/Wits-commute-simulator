@@ -1139,12 +1139,12 @@ export class CrossingLevel {
     // 3.74-second loop boundary is not perceived as an obvious repeating cycle.
     this.audio.startLoop("level2-traffic-a", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
       bus: "ambience",
-      volume: 0.12,
+      volume: 0,
       playbackRate: 1
     });
     this.audio.startLoop("level2-traffic-b", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
       bus: "ambience",
-      volume: 0.08,
+      volume: 0,
       playbackRate: 0.93,
       startTime: 1.65
     });
@@ -1155,7 +1155,7 @@ export class CrossingLevel {
     this.footstepIndex += 1;
     this.audio.playSegment(LEVEL2_FOOTSTEP_AUDIO, {
       ...cue,
-      volume: 0.34,
+      volume: 0.44,
       playbackRate: 0.95 + Math.random() * 0.1
     });
   }
@@ -1169,12 +1169,18 @@ export class CrossingLevel {
         (nearest, lane) => Math.min(nearest, Math.abs(lane.z - this.player.position.z)),
         Infinity
       );
-    const roadProximity = 1 - THREE.MathUtils.clamp(nearestRoadDistance / 9, 0, 1);
+    // Road bed is silent away from Yale Road. It fades in only once the
+    // player is genuinely near the kerb and reaches full level in the lanes.
+    const roadProximity = 1 - THREE.MathUtils.clamp(
+      (nearestRoadDistance - 1.5) / 5.5,
+      0,
+      1
+    );
     this.audio.setLoopParameters("level2-traffic-a", {
-      volume: THREE.MathUtils.lerp(0.12, 0.36, roadProximity)
+      volume: 0.38 * roadProximity
     });
     this.audio.setLoopParameters("level2-traffic-b", {
-      volume: THREE.MathUtils.lerp(0.08, 0.22, roadProximity)
+      volume: 0.22 * roadProximity
     });
 
     this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
@@ -1277,9 +1283,10 @@ export class CrossingLevel {
     this.hopController.bump(direction);
     this.cameraShakeTime = 0.18;
     this.cameraShakeStrength = 0.35;
+    this.audio.duckMusic({ scale: 0.45, hold: 0.3 });
     this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
       ...LEVEL2_EXTRA_CUES.personBump,
-      volume: 0.52,
+      volume: 0.72,
       playbackRate: 0.97 + Math.random() * 0.06
     });
     const { droppedCup } = this.crowd.bump(person, this.player.position);
@@ -1389,9 +1396,12 @@ export class CrossingLevel {
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
     this.game.setMessage(`${type.label}! ${type.blurb}.`);
+    // Yes: every Vida pickup has a dedicated collection cue. Duck the score
+    // briefly so the pickup is obvious even in the busiest traffic section.
+    this.audio.duckMusic({ scale: 0.3, hold: 0.42 });
     this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
       ...LEVEL2_EXTRA_CUES.cupCollect,
-      volume: 0.48,
+      volume: 0.86,
       playbackRate: 0.97 + Math.random() * 0.06
     });
   }
@@ -1459,6 +1469,7 @@ checkFinish() {
 
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
+    this.audio.duckMusic({ scale: 0.22, hold: 0.5 });
     this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
       volume: 0.62,
       playbackRate: wasTaxi ? 0.96 : 1.02
