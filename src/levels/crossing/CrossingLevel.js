@@ -426,6 +426,10 @@ export class CrossingLevel {
       factory: this.pedestrians,
       animatedFactory: this.animatedNpcs,
       random: createSeededRandom(this.seed ^ 0x51ab1e),
+      grid: { step: WALK_STEP, originZ: this.startZ, minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ },
+      canOccupy: (x, z) => this.isNpcWalkableCell(x, z),
+      playerVariant: this.selectedPlayerVariant,
+      variantCount: STUDENT_MODEL_VARIANTS.length,
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
         tone
@@ -466,6 +470,7 @@ export class CrossingLevel {
   createMinimapCamera() {
     this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
     this.minimapCamera.position.set(0, 100, this.startZ);
+    this.minimapCamera.up.set(0, 0, 1);
     this.minimapCamera.lookAt(0, 0, this.startZ);
     this.updateMinimapCameraFrustum();
   }
@@ -595,9 +600,9 @@ export class CrossingLevel {
     const rect = this.minimapElement.getBoundingClientRect(), canvasRect = renderer.domElement.getBoundingClientRect();
     if (rect.width < 2 || rect.height < 2) return;
     this.updateMinimapCameraFrustum(rect.width / rect.height);
-    const { x, z } = this.player.position, angle = this.player.rotation.y;
+    const { x, z } = this.player.position;
     this.minimapCamera.position.set(x, 100, z);
-    this.minimapCamera.up.set(Math.sin(angle), 0, Math.cos(angle));
+    this.minimapCamera.up.set(0, 0, 1);
     this.minimapCamera.lookAt(x, 0, z);
     const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
     const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
@@ -790,6 +795,7 @@ export class CrossingLevel {
     this.playerRig = null;
     this.selectedPlayerVariant = variant;
     this.game.selectedPlayerVariant = variant;
+    this.crowd?.setPlayerVariant(variant);
     this.game.setMessage(`${STUDENT_MODEL_VARIANTS[variant].label} selected as the Level 2 player.`);
   }
 
@@ -1227,6 +1233,13 @@ export class CrossingLevel {
     ) || this.blockedCells.some((cell) =>
       Math.abs(cell.x - x) < tolerance && Math.abs(cell.z - z) < tolerance
     );
+  }
+
+  // NPCs share the player's walkable cells, minus the road lanes (the player
+  // may cross Yale Road; a survey NPC strolling into traffic may not).
+  isNpcWalkableCell(x, z) {
+    if (this.isBlockedCell(x, z)) return false;
+    return !this.lanes.some((lane) => !lane.isHighway && Math.abs(lane.z - z) < this.gridSize * 0.75);
   }
 
   onWalkBlocked(x, z, direction) {
