@@ -57,3 +57,18 @@ test("level 2 and level 3 tutorials expose visible interaction feedback", () => 
   assert.match(game, /TYPING:/);
   assert.match(css, /\.tutorial-demo-layer\[data-level="2"\][\s\S]*?\.tutorial-demo-layer\.is-level3/);
 });
+
+
+test("level 1 tutorial drives the real car and restores its start pose", () => {
+  const parking = readFileSync(new URL("../src/levels/ParkingLevel.js", import.meta.url), "utf8");
+  assert.match(parking, /beginTutorial\(\)[\s\S]*?tutorialPose/);
+  assert.match(parking, /updateTutorial\(dt\)[\s\S]*?this\.vehicle\.update\(dt/);
+  assert.match(parking, /endTutorial\(\)[\s\S]*?this\.car\.position\.copy\(position\)[\s\S]*?this\.vehicle\.stop\(\)/);
+  assert.match(game, /isTutorialActive && this\.currentLevelNumber === 1[\s\S]*?updateTutorial/);
+  assert.match(game, /syncTutorialPreviewFrame\(\)[\s\S]*?ctx\.drawImage\(source/);
+});
+
+test("level 1 tutorial explains the purple parking markers", () => {
+  assert.match(game, /Drive to any purple marker/);
+  assert.match(game, /Purple markers are your parking goals/);
+});
