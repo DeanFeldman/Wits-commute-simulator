@@ -85,7 +85,10 @@ Integrated in the latest pass:
 
 - [x] immediate licensed collision impact;
 - [x] dedicated low pothole thump;
-- [x] wet-pothole water splash layered over the thump.
+- [x] wet-pothole water splash layered over the thump;
+- [x] quiet two-layer parking/campus road ambience using the cleared traffic bed;
+- [x] occasional distant pass-bys with long irregular gaps so Level 1 feels occupied
+  without sounding like the active road crossing in Level 2.
 
 The old undocumented `car-crash.mp3` and `collision-hit.mp3` files have been
 removed from the branch because they are no longer used.
@@ -147,6 +150,11 @@ Implemented after the full audit:
 Remaining audio blocker is provenance-only:
 
 - `public/assets/audio/level1/idle-car.wav`
+
+Failure-flow hardening:
+- decoded Web Audio one-shots now dispose safely even if they are still playing;
+- level cleanup errors are logged but can no longer trap the player behind the
+  failure fade overlay.
 
 No additional gameplay sound category is required for issue #233. Parking-confirm,
 Level 2 checkpoint confirmation and extra classroom writing texture remain optional
