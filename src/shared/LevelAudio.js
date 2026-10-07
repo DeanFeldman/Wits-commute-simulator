@@ -6,8 +6,20 @@ const MUSIC_FILES = {
   level3: "./assets/audio/music/level3-dont-get-caught.wav"
 };
 
+const audioInstances = new Set();
+let musicVolume = 1;
+let soundEffectsVolume = 1;
+
+export function setAudioVolumes(music, effects) {
+  musicVolume = Math.max(0, Math.min(1, Number(music) || 0));
+  soundEffectsVolume = Math.max(0, Math.min(1, Number(effects) || 0));
+  audioInstances.forEach((audio) => audio.applyVolumes());
+}
+
 export class LevelAudio {
   constructor() {
+    audioInstances.add(this);
+    this.soundEffects = new Map();
     this.context = null;
     this.master = null;
     this.engine = null;
@@ -41,10 +53,10 @@ export class LevelAudio {
     if (!AudioContext) return false;
     this.context = new AudioContext();
     this.master = this.context.createGain();
-    this.master.gain.value = this.isMuted ? 0 : 0.16;
+    this.master.gain.value = this.isMuted ? 0 : 0.16 * soundEffectsVolume;
     this.master.connect(this.context.destination);
     this.musicGain = this.context.createGain();
-    this.musicGain.gain.value = this.isMuted ? 0 : MUSIC_GAIN;
+    this.musicGain.gain.value = this.isMuted ? 0 : MUSIC_GAIN * musicVolume;
     this.musicLimiter = this.context.createDynamicsCompressor();
     this.musicLimiter.threshold.value = -8;
     this.musicLimiter.knee.value = 4;
@@ -70,7 +82,10 @@ export class LevelAudio {
     if (this.ensure()) {
       this.musicSource = this.context.createMediaElementSource(music);
       this.musicSource.connect(this.musicGain);
-    } else music.muted = this.isMuted;
+    } else {
+      music.muted = this.isMuted;
+      music.volume = musicVolume;
+    }
     if (this.musicEnabled) music.play().catch(() => {});
   }
 
@@ -149,14 +164,34 @@ export class LevelAudio {
     this.cue(920, 0.035, 0.025);
   }
 
+  trackSoundEffect(element, baseVolume = 1) {
+    this.soundEffects.set(element, baseVolume);
+    element.volume = baseVolume * soundEffectsVolume;
+    element.muted = this.isMuted;
+    element.addEventListener("ended", () => this.soundEffects.delete(element), { once: true });
+  }
+
+  applyVolumes() {
+    if (this.master) this.master.gain.value = this.isMuted ? 0 : 0.16 * soundEffectsVolume;
+    if (this.musicGain) this.musicGain.gain.value = this.isMuted ? 0 : MUSIC_GAIN * musicVolume;
+    if (this.music && !this.musicSource) {
+      this.music.muted = this.isMuted;
+      this.music.volume = musicVolume;
+    }
+    this.soundEffects.forEach((baseVolume, element) => {
+      element.volume = baseVolume * soundEffectsVolume;
+      element.muted = this.isMuted;
+    });
+  }
+
   setMuted(muted) {
     this.isMuted = muted;
-    if (this.master) this.master.gain.value = muted ? 0 : 0.16;
-    if (this.musicGain) this.musicGain.gain.value = muted ? 0 : MUSIC_GAIN;
-    if (this.music && !this.musicSource) this.music.muted = muted;
+    this.applyVolumes();
   }
 
   dispose() {
+    audioInstances.delete(this);
+    this.soundEffects.clear();
     this.stopMusic();
     this.engine?.stop();
     this.ambience?.stop();

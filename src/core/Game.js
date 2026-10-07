@@ -3,11 +3,14 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
+import { GraphicsSettings, loadSavedGraphicsSettings } from "./GraphicsSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
 import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
+import { ToonStyleShader } from "../shaders/toonStyleShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
@@ -107,7 +110,10 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
 export class Game {
   constructor(container) {
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    const savedGraphics = loadSavedGraphicsSettings();
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: savedGraphics.antialiasing !== "off"
+    });
 
     // Tone mapping, output colour space, shadow filtering and the pixel
     // ratio cap all live in renderSettings.js, which documents why each
@@ -142,12 +148,16 @@ export class Game {
 
     this.suspicionComposer.addPass(this.suspicionRenderPass);
     this.suspicionComposer.addPass(this.suspicionPass);
+    this.suspicionToonPass = new ShaderPass(ToonStyleShader);
+    this.suspicionComposer.addPass(this.suspicionToonPass);
+    this.suspicionFxaaPass = new ShaderPass(FXAAShader);
+    this.suspicionComposer.addPass(this.suspicionFxaaPass);
     this.suspicionComposer.addPass(this.suspicionOutputPass);
 
     this.clock = new THREE.Clock();
     this.input = new InputManager(this.renderer.domElement);
     this.globalControls = this.input.registerBindings({
-      pause: "KeyP",
+      pause: ["KeyP", "Escape"],
       levelOne: "Digit1",
       levelTwo: "Digit2",
       levelThree: "Digit3",
@@ -210,13 +220,10 @@ export class Game {
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
-    this.menuPreviewAction = document.querySelector("#menu-preview-action");
-    this.menuPreviewElement = document.querySelector("#menu-preview");
-    this.menuPreviewMusicAction = document.querySelector("#menu-preview-music-action");
+    this.homeMenuElement = document.querySelector("#home-menu");
+    this.homeMenuPrimaryAction = document.querySelector("#home-menu-primary-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
-    this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
-    this.pauseMusicAction = document.querySelector("[data-pause-action='music']");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
@@ -256,8 +263,20 @@ export class Game {
     this.onLevelIntroClick = this.onLevelIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
+    // Browsers consume Escape to release pointer lock, so handle that release too.
+    this.wasPointerLocked = false;
+    document.addEventListener("pointerlockchange", () => {
+      const locked = document.pointerLockElement === this.renderer.domElement;
+      if (this.wasPointerLocked && !locked && !this.isPaused &&
+          !this.isLoading && !this.isTransitioning &&
+          !this.isLevelIntroActive && !this.isTutorialActive) {
+        this.pause();
+      }
+      this.wasPointerLocked = locked;
+    });
     this.menuElement.addEventListener("click", this.onMenuClick);
-    this.menuPreviewElement.addEventListener("click", this.onMenuClick);
+    this.homeMenuElement.addEventListener("click", this.onMenuClick);
+    this.homeMenuElement.addEventListener("dragstart", (event) => event.preventDefault());
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
@@ -291,7 +310,27 @@ export class Game {
 
     this.roadFogComposer.addPass(this.roadFogRenderPass);
     this.roadFogComposer.addPass(this.roadFogPass);
+    this.roadFogToonPass = new ShaderPass(ToonStyleShader);
+    this.roadFogComposer.addPass(this.roadFogToonPass);
+    this.roadFogFxaaPass = new ShaderPass(FXAAShader);
+    this.roadFogComposer.addPass(this.roadFogFxaaPass);
     this.roadFogComposer.addPass(this.roadFogOutputPass);
+
+    this.toonComposer = new EffectComposer(this.renderer);
+    this.toonRenderPass = new RenderPass(this.scene, this.camera);
+    this.toonPass = new ShaderPass(ToonStyleShader);
+    this.toonFxaaPass = new ShaderPass(FXAAShader);
+    this.toonOutputPass = new OutputPass();
+    this.toonComposer.addPass(this.toonRenderPass);
+    this.toonComposer.addPass(this.toonPass);
+    this.toonComposer.addPass(this.toonFxaaPass);
+    this.toonComposer.addPass(this.toonOutputPass);
+    this.fxaaResolution = new THREE.Vector2();
+
+    this.graphicsSettings = new GraphicsSettings({
+      renderer: this.renderer,
+      composers: [this.roadFogComposer, this.suspicionComposer, this.toonComposer]
+    });
   }
 
   start() {
@@ -323,15 +362,6 @@ export class Game {
     this.setMessage("");
     this.menuTitleElement.textContent = "Wits Commute Simulator";
 
-    const menu = this.menuTitleElement.closest(".menu, .main-menu, body");
-    if (menu) {
-      menu.style.backgroundImage =
-        'url("/assets/images/ui/main-menu-background.png")';
-      menu.style.backgroundSize = "100% auto";
-      menu.style.backgroundPosition = "center";
-      menu.style.backgroundColor = "#8bc0f2";
-      menu.style.minHeight = "100vh";
-    }
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
@@ -341,14 +371,14 @@ export class Game {
     this.menuMusicAction.hidden = false;
     this.updateMenuMusicAction();
     this.menuHomeAction.hidden = true;
-    this.menuElement.classList.remove("menu-credits");
+    this.menuElement.classList.remove("menu-credits", "menu-results");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
     this.devLevelSelect.hidden = false;
     this.pauseMenuElement.hidden = true;
     this.hideInstruction();
-    this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.menuElement.hidden = true;
+    this.homeMenuElement.hidden = false;
     document.body.classList.remove("level-2");
     this.updateStartAvailability();
   }
@@ -376,29 +406,17 @@ export class Game {
   updateStartAvailability() {
     if (this.state !== "menu") return;
 
-    const waitingForCharacters =
-      !this.characterSelectFlow.isReady && !this.characterSelectFlow.didFail;
-
-    this.menuPrimaryAction.disabled = waitingForCharacters;
-    this.menuPrimaryAction.setAttribute("aria-busy", String(waitingForCharacters));
-    this.menuPrimaryAction.textContent = waitingForCharacters
-      ? "Loading characters…"
-      : "Start journey";
+    const startAction = this.homeMenuPrimaryAction;
+    startAction.disabled = false;
+    startAction.removeAttribute("aria-busy");
+    startAction.querySelector(".journey-button-label").textContent = "Begin Journey";
 
     if (this.characterSelectFlow.didFail) {
-      this.menuPrimaryAction.title =
+      startAction.title =
         "Character previews could not be preloaded; fallback loading will be used.";
     } else {
-      this.menuPrimaryAction.removeAttribute("title");
+      startAction.removeAttribute("title");
     }
-  }
-
-  showMenuPreview() {
-    this.menuElement.hidden = true;
-    this.menuPreviewElement.style.backgroundImage =
-      'url("./assets/images/ui/main-menu-v3-background.png")';
-    this.menuPreviewElement.hidden = false;
-    this.updateMenuMusicAction();
   }
 
   showResults(keepFade = false) {
@@ -440,12 +458,13 @@ export class Game {
     this.menuCreditsAction.textContent = "Credits & licences";
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuHomeAction.hidden = false;
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-credits");
+    this.menuElement.classList.add("menu-results");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
     this.hideInstruction();
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     document.body.classList.remove("level-2");
   }
 
@@ -533,7 +552,7 @@ export class Game {
     if (!showIntro) this.hideLevelIntro();
     this.hideInstruction();
     this.menuElement.hidden = true;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -605,6 +624,7 @@ export class Game {
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage("");
+    this.homeMenuElement.hidden = true;
     this.characterSelectFlow.show(this.selectedPlayerVariant);
   }
 
@@ -871,7 +891,7 @@ export class Game {
   playOneShotAudio(path, volume = 1) {
     if (this.isSoundMuted) return;
     const audio = new Audio(path);
-    audio.volume = volume;
+    this.uiAudio.trackSoundEffect(audio, volume);
     audio.play().catch(() => {
       // Browsers can block this if the game's initial click did not count as
       // a user activation. The level transition remains usable in that case.
@@ -927,7 +947,7 @@ export class Game {
     this.menuCreditsAction.hidden = false;
     this.menuCreditsAction.textContent = "Back to menu";
     this.menuCreditsAction.dataset.gameAction = "menu";
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-results");
     this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
@@ -977,9 +997,6 @@ export class Game {
     this.pauseMenuElement.hidden = false;
     this.pauseKickerElement.textContent = `LEVEL ${this.currentLevelNumber} PAUSED`;
     this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
-    this.pauseSoundAction.textContent = this.isSoundMuted ? "Sound: off" : "Sound: on";
-    this.pauseSoundAction.setAttribute("aria-pressed", String(this.isSoundMuted));
-    this.updatePauseMusicAction();
     // Releasing pointer lock is what returns the visible cursor immediately;
     // no Escape key or extra click should be required to use this menu.
     if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
@@ -1034,7 +1051,8 @@ export class Game {
     if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
-      this.togglePause();
+      if (this.input.wasPressed("Escape")) this.pause();
+      else this.togglePause();
       return;
     }
 
@@ -1075,13 +1093,6 @@ export class Game {
     if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
-      if (
-        this.state === "menu" &&
-        !this.characterSelectFlow.isReady &&
-        !this.characterSelectFlow.didFail
-      ) {
-        return;
-      }
       this.showCharacterSelect();
       return;
     }
@@ -1092,7 +1103,7 @@ export class Game {
     }
 
     if (action === "credits") {
-      this.menuPreviewElement.hidden = true;
+      this.homeMenuElement.hidden = true;
       this.showCredits();
       return;
     }
@@ -1107,8 +1118,23 @@ export class Game {
       return;
     }
 
-    if (action === "preview-menu") {
-      this.showMenuPreview();
+    if (action === "end-screen") {
+      // Sample results let the team inspect the full ending without a scored run.
+      const samples = [
+        { time: 48, condition: 90, containmentPercent: 98, alignmentErrorDegrees: 2 },
+        { time: 35, impacts: 1, backwardSteps: 2 },
+        { time: 52, incorrectAnswers: 1, suspicion: 15 }
+      ];
+      this.isScoredJourney = false;
+      this.journeyLevelResults = new Map(samples.map((performance, index) =>
+        [index + 1, scoreLevel(index + 1, performance)]));
+      this.journeyTime = samples.reduce((total, performance) => total + performance.time, 0);
+      this.showResults();
+      return;
+    }
+
+    if (action === "settings") {
+      this.graphicsSettings.open();
       return;
     }
 
@@ -1120,19 +1146,12 @@ export class Game {
   updateMenuMusicAction() {
     this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
     this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
-    this.menuPreviewMusicAction.textContent = this.menuMusicAction.textContent;
-    this.menuPreviewMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
-  }
-
-  updatePauseMusicAction() {
-    this.pauseMusicAction.textContent = this.isMusicEnabled ? "Music: on" : "Music: off";
-    this.pauseMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   showCredits() {
     this.menuTitleElement.textContent = "Credits";
     this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
-    this.menuPrimaryAction.textContent = "Back to menu";
+    this.menuPrimaryAction.textContent = "Back";
     this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
       <section class="credits-section" aria-label="${heading}">
         <h2>${heading}</h2>
@@ -1149,10 +1168,10 @@ export class Game {
     this.menuHomeAction.hidden = true;
     this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-results");
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
   }
 
   showInstruction(level) {
@@ -1422,12 +1441,10 @@ export class Game {
       return;
     }
 
-    if (event.target.closest("[data-pause-action='sound']")) {
-      this.setSoundMuted(!this.isSoundMuted);
-      return;
-    }
 
-    if (event.target.closest("[data-pause-action='music']")) this.setMusicEnabled(!this.isMusicEnabled);
+    if (event.target.closest("[data-pause-action='settings']")) {
+      this.graphicsSettings.open();
+    }
   }
 
   setMusicEnabled(enabled) {
@@ -1435,7 +1452,6 @@ export class Game {
     this.uiAudio.setMusicEnabled(enabled);
     this.currentLevel?.audio?.setMusicEnabled?.(enabled);
     this.updateMenuMusicAction();
-    this.updatePauseMusicAction();
   }
 
   setSoundMuted(muted) {
@@ -1443,8 +1459,6 @@ export class Game {
     this.uiAudio.setMuted(muted);
     this.currentLevel?.audio?.setMuted?.(muted);
     this.currentLevel?.setMuted?.(muted);
-    this.pauseSoundAction.textContent = muted ? "Sound: off" : "Sound: on";
-    this.pauseSoundAction.setAttribute("aria-pressed", String(muted));
   }
 
   onLookSensitivityInput(event) {
@@ -1514,8 +1528,21 @@ export class Game {
   render(){
     if(this.isLoading)return;
 
-    const level1Fog=this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
-    if((level1Fog||this.currentLevelNumber===2)&&this.currentLevel){
+    const effectsEnabled = this.graphicsSettings.effectsEnabled;
+    const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.fxaaResolution.set(
+      1 / Math.max(drawingBufferSize.x, 1),
+      1 / Math.max(drawingBufferSize.y, 1)
+    );
+    this.roadFogToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.suspicionToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.toonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    [this.roadFogFxaaPass, this.suspicionFxaaPass, this.toonFxaaPass].forEach((pass) => {
+      pass.enabled = this.graphicsSettings.settings.antialiasing !== "off";
+      pass.uniforms.resolution.value.copy(this.fxaaResolution);
+    });
+    const level1Fog=effectsEnabled&&this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
+    if((level1Fog||(effectsEnabled&&this.currentLevelNumber===2))&&this.currentLevel){
       this.roadFogRenderPass.scene=this.scene;
       this.roadFogRenderPass.camera=this.camera;
       const u=this.roadFogPass.uniforms;
@@ -1525,11 +1552,12 @@ export class Game {
       u.uTime.value=this.clock.elapsedTime;
       if(level1Fog){
         const fog=this.currentLevel.roadFogConfig??{};
+        const distanceScale = this.graphicsSettings.viewDistanceScale;
         u.uRadialMode.value=1;
         u.uFogCenterX.value=0;
         u.uFogCenterZ.value=-8;
-        u.uFogStart.value=fog.fogStart??82;
-        u.uFogEnd.value=fog.fogEnd??130;
+        u.uFogStart.value=(fog.fogStart??82)*distanceScale;
+        u.uFogEnd.value=(fog.fogEnd??130)*distanceScale;
         u.uDensity.value=fog.density??0.9;
       }else{
         u.uRadialMode.value=0;
@@ -1545,12 +1573,19 @@ export class Game {
       return;
     }
 
-    if(this.currentLevelNumber===3&&this.currentLevel){
+    if(effectsEnabled&&this.currentLevelNumber===3&&this.currentLevel){
       this.suspicionRenderPass.scene=this.scene;
       this.suspicionRenderPass.camera=this.camera;
       this.suspicionPass.uniforms.uSuspicion.value=THREE.MathUtils.clamp((this.currentLevel.suspicion??0)/100,0,1);
       this.suspicionComposer.render();
       this.currentLevel.renderOverlay?.(this.renderer);
+      return;
+    }
+
+    if (effectsEnabled && this.currentLevel) {
+      this.toonRenderPass.scene = this.scene;
+      this.toonRenderPass.camera = this.camera;
+      this.toonComposer.render();
       return;
     }
 
@@ -1580,7 +1615,9 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
+    this.graphicsSettings?.apply();
     this.roadFogComposer.setSize(width, height);
     this.suspicionComposer.setSize(width, height);
+    this.toonComposer.setSize(width, height);
   }
 }
