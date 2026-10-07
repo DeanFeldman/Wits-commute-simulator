@@ -81,6 +81,26 @@ export const CREDITS = [
         url: "https://polyhaven.com/a/asphalt_02"
       },
       {
+        name: "Grass Pack of 9 Variations",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 grass foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/grass-pack-of-9-vars-lowpoly-game-ready-0561204a1fa14c17939300ee1108948b"
+      },
+      {
+        name: "Lilac Bush Pack",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 bush/understory foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/lilac-bush-pack-12-vars-lods-game-ready-10312697ec994fc99355cb94f1963a2e"
+      },
+      {
+        name: "Giant Low Poly Tree",
+        detail: "Sahir Virmani (@sahirvirmani) — CC BY. Used for Level 1 hero/near-campus trees; normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572"
+      },
+      {
+        name: "Low Poly Tree Pack",
+        detail: "Pasha (@Pasha.) — Sketchfab Free Standard. Used for Level 1 near/distant trees; selected subtrees are normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/low-poly-tree-pack-1edaac90fe8d4bb28546740496684d96"
+      },
+      {
         name: "Joburg Central Sunset HDRI",
         detail: `Dimitrios Savva (photography) and Greg Zaal (processing) / Poly Haven — ${CC0}. Used for Level 3 environment lighting and background.`,
         url: "https://polyhaven.com/a/sunset_jhbcentral"
@@ -134,11 +154,12 @@ export const CREDITS = [
       },
       {
         name: "Pencil Pete trial font",
-        detail: "pencil-pete-trial.ttf is loaded by Level 3 but its source and redistribution licence are not yet recorded."
+        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit clearance or replacement.",
+        url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {
-        name: "Foliage and environment assets",
-        detail: "The runtime foliage packs, stylized grass texture set and east precast-wall texture are used in Level 1 but still need source/licence or team-authorship records."
+        name: "Level 1 environment textures still unresolved",
+        detail: "The runtime foliage model sources are now recorded. The stylized grass texture set and east precast-wall texture still need source/licence or team-authorship records."
       },
       {
         name: "Level 2 character assets",
