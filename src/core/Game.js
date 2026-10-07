@@ -170,6 +170,11 @@ export class Game {
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
     this.isTutorialActive = false;
+    this.tutorialDemoKeys = new Set();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook = { x: 0, y: 0 };
+    this.tutorialTypingTimer = null;
     this.levelIntroStoryIndex = 0;
     this.levelIntroConfig = null;
     this.levelIntroArtPreloads = new Map();
@@ -239,6 +244,11 @@ export class Game {
     this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
     this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
     this.onInstructionClick = this.onInstructionClick.bind(this);
+    this.onTutorialDemoKeyDown = this.onTutorialDemoKeyDown.bind(this);
+    this.onTutorialDemoKeyUp = this.onTutorialDemoKeyUp.bind(this);
+    this.onTutorialDemoPointerMove = this.onTutorialDemoPointerMove.bind(this);
+    this.onTutorialDemoPointerDown = this.onTutorialDemoPointerDown.bind(this);
+    this.onTutorialDemoPointerUp = this.onTutorialDemoPointerUp.bind(this);
     this.onLevelIntroClick = this.onLevelIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
@@ -247,6 +257,12 @@ export class Game {
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
+    this.instructionElement.addEventListener("keydown", this.onTutorialDemoKeyDown);
+    this.instructionElement.addEventListener("keyup", this.onTutorialDemoKeyUp);
+    this.instructionPreview.addEventListener("pointermove", this.onTutorialDemoPointerMove);
+    this.instructionPreview.addEventListener("pointerdown", this.onTutorialDemoPointerDown);
+    this.instructionPreview.addEventListener("pointerup", this.onTutorialDemoPointerUp);
+    this.instructionPreview.addEventListener("pointerleave", this.onTutorialDemoPointerUp);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
     this.selectedPlayerVariant = 0;
@@ -1145,7 +1161,7 @@ export class Game {
     this.instructionKicker.textContent = config.kicker;
     this.instructionTitle.textContent = config.title;
     this.instructionObjective.textContent = config.objective;
-    this.instructionControls.innerHTML = config.controls.map(([keys, action]) => `<li><kbd>${keys}</kbd><span>${action}</span></li>`).join("");
+    this.instructionControls.innerHTML = config.controls.map(([keys, action], index) => `<li data-control-index="${index}"><kbd>${keys}</kbd><span>${action}</span></li>`).join("");
     this.instructionTip.textContent = config.tip;
     this.instructionPreviewLabel.textContent = config.previewLabel;
     this.instructionElement.hidden = false;
@@ -1178,8 +1194,134 @@ export class Game {
     });
   }
 
+  tutorialControlIndex(code) {
+    if (this.currentLevelNumber === 1) {
+      if (code === "KeyW" || code === "ArrowUp") return 0;
+      if (code === "KeyS" || code === "ArrowDown") return 1;
+      if (["KeyA", "KeyD", "ArrowLeft", "ArrowRight"].includes(code)) return 2;
+      if (code === "KeyC") return 3;
+    }
+    if (this.currentLevelNumber === 2) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) return 0;
+      if (code === "KeyC") return 1;
+      if (code === "KeyP") return 2;
+    }
+    if (this.currentLevelNumber === 3) {
+      if (code === "KeyP") return 3;
+      if (code === "Enter" || /^Key[A-Z]$/.test(code)) return 2;
+    }
+    return -1;
+  }
+
+  setTutorialControlActive(index, active) {
+    if (index < 0) return;
+    this.instructionControls.querySelector(`[data-control-index="${index}"]`)?.classList.toggle("is-active", active);
+  }
+
+  applyTutorialDemoMotion() {
+    const preview = this.instructionPreview;
+    if (!preview) return;
+    if (this.currentLevelNumber === 3) {
+      const scale = this.tutorialPeekDemo ? 1.085 : 1.025;
+      preview.style.transform = `translate(${this.tutorialLook.x}px, ${this.tutorialLook.y}px) scale(${scale})`;
+      preview.style.filter = this.tutorialPeekDemo ? "contrast(1.08) saturate(1.08)" : "";
+      return;
+    }
+    let x = 0, y = 0, rotation = 0, scale = this.tutorialCameraDemo ? 1.07 : 1;
+    if (this.tutorialDemoKeys.has("KeyW") || this.tutorialDemoKeys.has("ArrowUp")) { y -= 7; scale += .018; }
+    if (this.tutorialDemoKeys.has("KeyS") || this.tutorialDemoKeys.has("ArrowDown")) { y += 7; scale -= .012; }
+    if (this.tutorialDemoKeys.has("KeyA") || this.tutorialDemoKeys.has("ArrowLeft")) { x -= 8; rotation -= .8; }
+    if (this.tutorialDemoKeys.has("KeyD") || this.tutorialDemoKeys.has("ArrowRight")) { x += 8; rotation += .8; }
+    preview.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
+    preview.style.filter = this.tutorialCameraDemo ? "contrast(1.06) saturate(1.08)" : "";
+    preview.closest(".tutorial-preview-frame")?.classList.toggle("is-camera-demo", this.tutorialCameraDemo);
+  }
+
+  onTutorialDemoKeyDown(event) {
+    if (!this.isTutorialActive) return;
+    const index = this.tutorialControlIndex(event.code);
+    if (index < 0) return;
+    event.preventDefault();
+    this.setTutorialControlActive(index, true);
+
+    if (event.code === "KeyC" && this.currentLevelNumber !== 3) {
+      if (!event.repeat) this.tutorialCameraDemo = !this.tutorialCameraDemo;
+      this.setTutorialControlActive(index, this.tutorialCameraDemo);
+      this.applyTutorialDemoMotion();
+      return;
+    }
+
+    if (this.currentLevelNumber === 3 && index === 2) {
+      this.instructionPreview.classList.remove("is-typing-demo");
+      void this.instructionPreview.offsetWidth;
+      this.instructionPreview.classList.add("is-typing-demo");
+      window.clearTimeout(this.tutorialTypingTimer);
+      this.tutorialTypingTimer = window.setTimeout(() => {
+        this.instructionPreview.classList.remove("is-typing-demo");
+        this.setTutorialControlActive(2, false);
+      }, 180);
+      return;
+    }
+
+    this.tutorialDemoKeys.add(event.code);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoKeyUp(event) {
+    if (!this.isTutorialActive) return;
+    this.tutorialDemoKeys.delete(event.code);
+    const index = this.tutorialControlIndex(event.code);
+    if (event.code !== "KeyC") this.setTutorialControlActive(index, false);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoPointerMove(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    const rect = this.instructionPreview.getBoundingClientRect();
+    this.tutorialLook.x = ((event.clientX - rect.left) / rect.width - .5) * -12;
+    this.tutorialLook.y = ((event.clientY - rect.top) / rect.height - .5) * -8;
+    this.setTutorialControlActive(0, true);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoPointerDown(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3 || event.button !== 0) return;
+    event.preventDefault();
+    this.tutorialPeekDemo = true;
+    this.setTutorialControlActive(1, true);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoPointerUp() {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    this.tutorialPeekDemo = false;
+    this.setTutorialControlActive(1, false);
+    this.setTutorialControlActive(0, false);
+    this.tutorialLook.x = 0;
+    this.tutorialLook.y = 0;
+    this.applyTutorialDemoMotion();
+  }
+
+  resetTutorialDemo() {
+    this.tutorialDemoKeys.clear();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook.x = 0;
+    this.tutorialLook.y = 0;
+    window.clearTimeout(this.tutorialTypingTimer);
+    this.tutorialTypingTimer = null;
+    if (this.instructionPreview) {
+      this.instructionPreview.style.transform = "";
+      this.instructionPreview.style.filter = "";
+      this.instructionPreview.classList.remove("is-typing-demo");
+      this.instructionPreview.closest(".tutorial-preview-frame")?.classList.remove("is-camera-demo");
+    }
+    this.instructionControls?.querySelectorAll(".is-active").forEach((element) => element.classList.remove("is-active"));
+  }
+
   hideInstruction() {
     this.isTutorialActive = false;
+    this.resetTutorialDemo();
     this.instructionElement.hidden = true;
   }
 
