@@ -56,6 +56,11 @@ export const CREDITS = [
         url: "https://sketchfab.com/3d-models/whiteboard-d0b05bd140734a799666f0a29e1fe1bb"
       },
       {
+        name: "Plastic Chair (retained asset)",
+        detail: `Jazavac — ${CC_BY_4}. plastic-chair.glb remains in the distributed public asset folder, although current Level 3 code loads classroom-plastic-chair.glb instead.`,
+        url: "https://sketchfab.com/3d-models/plastic-chair-be3d5131e634424e89ffd57ebb19804e"
+      },
+      {
         name: "Paper Tablet",
         detail: `NameSsis — ${CC_BY_4}. Level 3 answer tablets; rescaled and given runtime answer textures.`,
         url: "https://sketchfab.com/3d-models/paper-tablet-f2b7978367164eb38167dd4832978288"
@@ -69,6 +74,11 @@ export const CREDITS = [
         name: "Generic Passenger Car Pack",
         detail: `Comrade1280 — ${CC_BY_4}. Level 1 parked-car population; individual vehicles are extracted and cloned.`,
         url: "https://sketchfab.com/3d-models/generic-passenger-car-pack-20f9af9b8a404d5cb022ac6fe87f21f5"
+      },
+      {
+        name: "Diesel Powered Thomas reference",
+        detail: "mrmrnaufal — Creative Commons Attribution (CC BY), as listed on Sketchfab. The repo retains lightweight project-made procedural proxy GLBs rather than a conversion of the source mesh.",
+        url: "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
       }
     ]
   },
@@ -81,12 +91,33 @@ export const CREDITS = [
         url: "https://polyhaven.com/a/asphalt_02"
       },
       {
+        name: "Grass Pack of 9 Variations",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 grass foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/grass-pack-of-9-vars-lowpoly-game-ready-0561204a1fa14c17939300ee1108948b"
+      },
+      {
+        name: "Lilac Bush Pack",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 bush/understory foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/lilac-bush-pack-12-vars-lods-game-ready-10312697ec994fc99355cb94f1963a2e"
+      },
+      {
+        name: "Giant Low Poly Tree",
+        detail: "Sahir Virmani (@sahirvirmani) — CC BY. Used for Level 1 hero/near-campus trees; normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572"
+      },
+      {
+        name: "Low Poly Tree Pack",
+        detail: "Pasha (@Pasha.) — Sketchfab Free Standard. Used for Level 1 near/distant trees; selected subtrees are normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/low-poly-tree-pack-1edaac90fe8d4bb28546740496684d96"
+      },
+      {
         name: "Joburg Central Sunset HDRI",
         detail: `Dimitrios Savva (photography) and Greg Zaal (processing) / Poly Haven — ${CC0}. Used for Level 3 environment lighting and background.`,
         url: "https://polyhaven.com/a/sunset_jhbcentral"
       }
     ]
   },
+
   { heading: "Sound effects", entries: [
     { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
     { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
@@ -106,10 +137,12 @@ export const CREDITS = [
     { name: "Level 1 puddle splash", detail: "cookies+policy — CC0. Wet-pothole tyre splash.", url: "https://freesound.org/people/cookies%2Bpolicy/sounds/563021/" },
     { name: "Level 1 parking-lot ambience", detail: "FunWithSound — CC0. Long-form parking lot / nearby road / light wind ambience for Level 1.", url: "https://freesound.org/people/FunWithSound/sounds/406096/" },
     { name: "Level 1 car start", detail: "GiocoSound — CC0. BMW 120d exterior engine-start cue used when Level 1 begins.", url: "https://freesound.org/people/GiocoSound/sounds/401558/" },
+    { name: "Level 1 normal engine idle", detail: "GiocoSound — CC0. BMW 120d exterior idle; converted to a compact seamless Opus loop.", url: "https://freesound.org/people/GiocoSound/sounds/401552/" },
     { name: "Level 1 damaged engine", detail: "LHermanns — CC BY 4.0. Engine warmup loop crossfaded in progressively as Level 1 vehicle condition becomes critical.", url: "https://freesound.org/people/LHermanns/sounds/557214/" },
     { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
-    { name: "Level 2 person bump", detail: "freesound_community — Pixabay Content License. Used for pedestrian collisions.", url: "https://pixabay.com/sound-effects/film-special-effects-people-colliding-43479/" },
-    { name: "Level 2 Vida pickup", detail: "Vadim_Makes_Sound — Pixabay Content License; Pixabay marks the source AI modified/generated. Used for Vida cup collection.", url: "https://pixabay.com/sound-effects/film-special-effects-achievement-badge-pop-sound-1-547860/" },
+    { name: "Level 2 person bump", detail: "foxboyprower — CC0. Short collision/bump cue, trimmed and converted to mono Opus.", url: "https://freesound.org/people/foxboyprower/sounds/512568/" },
+    { name: "Level 2 Vida pickup", detail: "Leszek_Szary — CC0. Dedicated collection cue, silence-trimmed and converted to mono Opus.", url: "https://freesound.org/people/Leszek_Szary/sounds/171579/" },
+    { name: "Level 2 pedestrian crossing signal", detail: "MacFerret_20 — traffic-light ticking field recording used only near Yale Road. Source is recorded; exact Freesound licence still needs final verification before submission.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
     { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
   ] },
   {
@@ -129,6 +162,19 @@ export const CREDITS = [
         detail: `Generated with OpenAI image generation on 2026-09-08 from the team's driver-checking-a-watch concept reference — ${GENERATED}.`
       },
       {
+        name: "Main menu background",
+        detail: `main-menu-background.png — generated with OpenAI image generation via ChatGPT under the direction of Dean Feldman for this project — ${GENERATED}.`
+      },
+      {
+        name: "Level 3 story loading screen",
+        detail: `level3-story-loading-screen.png — generated with OpenAI image generation via ChatGPT under the direction of Dean Feldman for this project — ${GENERATED}.`
+      },
+      {
+        name: "Wits shark 3D model",
+        detail: "Project-created by Gabriel Raz using Wits Sharks Instagram imagery as visual reference supplied by Dean Feldman. The separate reference PNG was removed because gameplay loads only the GLB.",
+        url: "https://www.instagram.com/wits_sharks/"
+      },
+      {
         name: "Classroom brick wall and terrazzo floor",
         detail: `Generated by Gabriel Raz and tiled at runtime in Level 3 — ${GENERATED}.`
       },
@@ -146,24 +192,19 @@ export const CREDITS = [
     heading: "Pending provenance before final submission",
     entries: [
       {
-        name: "Normalised vehicle variants",
-        detail: "Aston Martin, BYD, Honda, Nissan and Volkswagen runtime variants were converted from uploaded archives that did not preserve original source, author or licence metadata. Supply those records or replace the assets."
-      },
-      {
-        name: "Diesel Thomas proxy",
-        detail: "The runtime mesh is a project-made procedural proxy, but the underlying character reference still needs rights clearance or removal."
-      },
-      {
-        name: "Level 1 recorded audio",
-        detail: "idle-car.wav still needs complete source/author/licence records or replacement. The old crash/collision files and the end-of-level car-door cue are no longer used."
+        name: "Level 2 pedestrian crossing signal licence",
+        detail: "MacFerret_20 / Freesound sound 231936 is integrated for testing; confirm the exact licence shown on the Freesound sound page before final submission.",
+        url: "https://freesound.org/people/MacFerret_20/sounds/231936/"
       },
       {
         name: "Pencil Pete trial font",
-        detail: "pencil-pete-trial.ttf is loaded by Level 3 but its source and redistribution licence are not yet recorded."
+        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit clearance or replacement.",
+        url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {
-        name: "Foliage and environment assets",
-        detail: "The runtime foliage packs, stylized grass texture set and east precast-wall texture are used in Level 1 but still need source/licence or team-authorship records."
+        name: "Level 1 environment textures still unresolved",
+        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.",
+        url: "https://precastwallingpros.co.za/"
       },
       {
         name: "Level 2 character assets",
@@ -174,16 +215,13 @@ export const CREDITS = [
         detail: "Tutor GLB/FBX assets, the seated-student animation, classroom-desk and classroom-plastic-chair variants still need complete provenance records. The repo also retains a known project-created cartoon-desk and a Jazavac CC BY 4.0 plastic-chair source asset, but the relationship to the current runtime replacement files must be confirmed before those credits are carried across."
       },
       {
-        name: "Wits shark",
-        detail: "wits-shark.glb and wits-shark.png still need a source/licence or team-authorship record."
-      },
-      {
-        name: "AMIC fence textures",
-        detail: "amic-fence.png and amic-fence-reference.png are loaded by the current game and still need source/licence or team-authorship records."
+        name: "AMIC / Level 2 deck textures",
+        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), and directly edited/adapted by Dean Feldman for the game.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
       },
       {
         name: "UI artwork still awaiting provenance records",
-        detail: "at-wits-end-logo-v2.png, main-menu-background.png, main-menu-v3-background.png, level2-story-loading-screen.png, level3-story-loading-screen.png and suspicion-meter.png need generation records or source/licence records where not already documented."
+        detail: "main-menu-background.png and level3-story-loading-screen.png now have OpenAI/ChatGPT generation records from Dean Feldman. at-wits-end-logo-v2.png, main-menu-v3-background.png, level2-story-loading-screen.png and suspicion-meter.png still need generation or source/licence records."
       }
     ]
   }
