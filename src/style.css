@@ -1274,49 +1274,72 @@ body.level-2 #level2-vignette{opacity:1}
 }
 
 #instruction-card {
-  --tutorial-accent: #ffd22d;
+  --tutorial-bg: #f6edcf;
+  --tutorial-panel: #fbf3d8;
+  --tutorial-edge: #4b2f16;
+  --tutorial-edge-soft: #886846;
+  --tutorial-ink: #211409;
+  --tutorial-muted: #5b3b20;
+  --tutorial-accent: #dda765;
+  --tutorial-accent-strong: #c88d4b;
   position: fixed;
   inset: 0;
   z-index: 41;
   display: grid;
   place-items: center;
   overflow-y: auto;
-  padding: clamp(0.75rem, 3vw, 2rem);
-  background: rgba(4, 9, 15, 0.82);
-  backdrop-filter: blur(5px);
+  padding: clamp(.75rem,3vw,2rem);
+  background: rgba(38,24,11,.38);
+  backdrop-filter: blur(4px);
 }
-#instruction-card[data-level="2"] { --tutorial-accent: #35e0d1; }
-#instruction-card[data-level="3"] { --tutorial-accent: #ff5963; }
 #instruction-card[hidden] { display: none; }
 
 .tutorial-card {
-  width: min(1100px, 100%);
-  padding: clamp(1rem, 3vw, 2rem);
-  border: 4px solid #eafcff;
-  background: linear-gradient(145deg, rgba(8, 18, 27, 0.98), rgba(4, 9, 15, 0.99));
-  color: #f4f4f5;
-  box-shadow: 10px 10px 0 #020609, 14px 14px 0 var(--tutorial-accent);
-  font-family: "Pixelify Sans", ui-monospace, monospace;
+  width: min(1100px,100%);
+  padding: clamp(1rem,3vw,2rem);
+  border: 6px solid var(--tutorial-edge);
+  border-radius: 7px;
+  background: linear-gradient(180deg,#fbf4da 0%,var(--tutorial-bg) 100%);
+  color: var(--tutorial-ink);
+  box-shadow: 0 0 0 6px rgba(53,33,15,.95),8px 8px 0 rgba(25,13,6,.28);
+  font-family: "Pixelify Sans",ui-monospace,monospace;
 }
-.tutorial-header { padding-bottom: 1rem; border-bottom: 4px solid var(--tutorial-accent); }
-.tutorial-kicker, .tutorial-panel-title {
-  margin: 0 0 0.45rem;
-  color: var(--tutorial-accent);
+.tutorial-header { padding-bottom: 1rem; border-bottom: 5px solid var(--tutorial-edge); }
+.tutorial-kicker,.tutorial-panel-title {
+  margin: 0 0 .45rem;
+  color: var(--tutorial-muted);
   font-weight: 800;
-  letter-spacing: 0.14em;
+  letter-spacing: .12em;
   text-transform: uppercase;
 }
-.tutorial-header h2 { margin: 0; font-size: clamp(2rem, 6vw, 4rem); line-height: 0.95; text-transform: uppercase; }
-.tutorial-objective { max-width: 52rem; margin: 0.8rem 0 0; color: #c8d6dc; font: 600 clamp(0.92rem, 2vw, 1.08rem)/1.45 Inter, sans-serif; }
+.tutorial-header h2 {
+  margin: 0;
+  color: var(--tutorial-ink);
+  font-size: clamp(2rem,6vw,4rem);
+  line-height: .95;
+  text-transform: uppercase;
+}
+.tutorial-objective {
+  max-width: 52rem;
+  margin: .8rem 0 0;
+  color: var(--tutorial-muted);
+  font: 700 clamp(.92rem,2vw,1.08rem)/1.45 Inter,sans-serif;
+}
 
-.tutorial-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.75fr); gap: 1rem; margin-top: 1rem; }
+.tutorial-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1.55fr) minmax(260px,.75fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
 .tutorial-preview-frame {
   position: relative;
   margin: 0;
   overflow: hidden;
-  border: 3px solid #29424b;
-  background: #050a0e;
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.06), 5px 5px 0 #020609;
+  border: 4px solid var(--tutorial-edge-soft);
+  border-radius: 3px;
+  background: #d8c7a8;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.25),4px 4px 0 rgba(35,22,10,.18);
 }
 .tutorial-preview-frame::after {
   position: absolute;
@@ -1324,68 +1347,103 @@ body.level-2 #level2-vignette{opacity:1}
   content: "";
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.05), transparent 16%, transparent 78%, rgba(0,0,0,.22)),
-    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 4px);
+    linear-gradient(180deg,rgba(255,255,255,.10),transparent 18%,transparent 78%,rgba(74,47,22,.14)),
+    repeating-linear-gradient(0deg,rgba(74,47,22,.035) 0 1px,transparent 1px 4px);
 }
 .tutorial-preview {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16/9;
   object-fit: cover;
-  background: #091016;
+  background: #d9ccb7;
 }
 .tutorial-preview-label {
   position: absolute;
-  left: 0.65rem;
-  bottom: 0.65rem;
+  left: .65rem;
+  bottom: .65rem;
   z-index: 1;
   max-width: calc(100% - 1.3rem);
-  padding: 0.38rem 0.55rem;
-  border-left: 4px solid var(--tutorial-accent);
-  background: rgba(4, 9, 15, 0.82);
-  color: #f4f4f5;
-  font: 800 0.68rem/1.15 "Pixelify Sans", monospace;
-  letter-spacing: 0.07em;
+  padding: .38rem .55rem;
+  border-left: 4px solid var(--tutorial-accent-strong);
+  background: rgba(246,237,207,.94);
+  color: var(--tutorial-edge);
+  font: 800 .68rem/1.15 "Pixelify Sans",monospace;
+  letter-spacing: .07em;
   text-transform: uppercase;
-  backdrop-filter: blur(4px);
 }
 
-.tutorial-controls-panel { padding: 1rem; border: 2px solid #29424b; background: rgba(10, 24, 31, 0.8); }
-.tutorial-controls { display: grid; gap: 0.65rem; margin: 0; padding: 0; list-style: none; }
-.tutorial-controls li { display: grid; grid-template-columns: minmax(105px, auto) 1fr; gap: 0.75rem; align-items: center; color: #d8e4e8; font: 600 0.9rem/1.25 Inter, sans-serif; }
+.tutorial-controls-panel {
+  padding: 1rem;
+  border: 4px solid var(--tutorial-edge-soft);
+  border-radius: 3px;
+  background: var(--tutorial-panel);
+}
+.tutorial-controls {
+  display: grid;
+  gap: .65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tutorial-controls li {
+  display: grid;
+  grid-template-columns: minmax(105px,auto) 1fr;
+  gap: .75rem;
+  align-items: center;
+  color: var(--tutorial-ink);
+  font: 700 .95rem/1.25 Inter,sans-serif;
+}
 .tutorial-controls kbd {
-  padding: 0.45rem 0.55rem;
-  border: 2px solid #eafcff;
-  background: #16262f;
-  color: var(--tutorial-accent);
-  box-shadow: 3px 3px 0 #020609;
-  font: 800 0.76rem/1 "Pixelify Sans", monospace;
+  padding: .45rem .55rem;
+  border: 3px solid var(--tutorial-edge-soft);
+  border-radius: 2px;
+  background: #fff9ee;
+  color: var(--tutorial-muted);
+  box-shadow: 3px 3px 0 rgba(35,22,10,.16);
+  font: 800 .76rem/1 "Pixelify Sans",monospace;
   text-align: center;
 }
-.tutorial-tip { margin: 1rem 0; padding: 0.85rem 1rem; border-left: 5px solid var(--tutorial-accent); background: rgba(255,255,255,.055); color: #cad8de; font: 600 0.9rem/1.45 Inter, sans-serif; }
-.tutorial-tip strong { color: var(--tutorial-accent); }
+
+.tutorial-tip {
+  margin: 1rem 0;
+  padding: .85rem 1rem;
+  border-left: 6px solid var(--tutorial-accent-strong);
+  background: #f3e8d0;
+  color: var(--tutorial-muted);
+  font: 700 .92rem/1.45 Inter,sans-serif;
+}
+.tutorial-tip strong { color: var(--tutorial-edge); }
+
 .tutorial-start {
   width: 100%;
-  padding: 0.85rem 1rem;
-  border: 3px solid #071014;
+  padding: .9rem 1rem;
+  border: 4px solid #8a6a46;
+  border-radius: 3px;
   background: var(--tutorial-accent);
-  color: #071014;
+  color: #fffaf0;
   cursor: pointer;
-  box-shadow: 5px 5px 0 #eafcff;
-  font: 900 1rem "Pixelify Sans", monospace;
-  letter-spacing: 0.08em;
+  box-shadow: 4px 4px 0 rgba(74,47,22,.45);
+  font: 900 1rem "Pixelify Sans",monospace;
+  letter-spacing: .08em;
   text-transform: uppercase;
 }
-.tutorial-start:hover, .tutorial-start:focus-visible { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 #eafcff; outline: 2px solid #fff; outline-offset: 3px; }
+.tutorial-start:hover,.tutorial-start:focus-visible {
+  background: #e7b775;
+  transform: translate(-2px,-2px);
+  box-shadow: 6px 6px 0 rgba(74,47,22,.45);
+  outline: 2px solid var(--tutorial-edge);
+  outline-offset: 3px;
+}
 
-@media (max-width: 720px) {
+@media (max-width:720px) {
   .tutorial-grid { grid-template-columns: 1fr; }
   .tutorial-preview-frame { min-height: 0; }
 }
-@media (max-width: 460px) {
-  .tutorial-card { box-shadow: 6px 6px 0 var(--tutorial-accent); }
-  .tutorial-controls li { grid-template-columns: 1fr; gap: 0.35rem; }
+@media (max-width:460px) {
+  .tutorial-card { box-shadow: 0 0 0 4px rgba(53,33,15,.95),5px 5px 0 rgba(25,13,6,.22); }
+  .tutorial-controls li { grid-template-columns: 1fr; gap: .35rem; }
 }
+
 /* Level 2: speech bubbles, pop-ups and HUD */
 .speech-layer { position: fixed; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
 .speech-bubble, .world-popup { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
