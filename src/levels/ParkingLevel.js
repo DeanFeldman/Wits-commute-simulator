@@ -506,6 +506,14 @@ export function applyLevelOneDamage(condition, tag) {
   );
 }
 
+export function getLevelOneDamageStage(condition) {
+  if (condition <= 20) return 4;
+  if (condition <= 40) return 3;
+  if (condition <= 60) return 2;
+  if (condition <= 80) return 1;
+  return 0;
+}
+
 const DOUBLE_ROW_CONFIGS = Object.freeze([
   Object.freeze({ name: "row-a", centerX: -42.5, startZ: -38.9, endZ: 32 }),
   Object.freeze({ name: "row-b", centerX: -26.5, startZ: -37.2, endZ: 32 }),
@@ -564,7 +572,7 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   potholeEntranceClearance: 5.5,
   potholeFreeBayClearance: 4.5,
   playerSpawn: Object.freeze({ x: -34.5, z: 41, angle: 0 }),
-  skyViewScale: 1.05
+  skyViewScale: 1.10
 });
 
 export function createParkingRow({ name, start, count, step, rotation }) {
@@ -1288,12 +1296,16 @@ export class ParkingLevel {
     this.potholePitchVelocity = 0;
     this.activePothole = null;
     this.chaseCamera = null;
+    this.hoodCamera = null;
     this.skyCamera = null;
+    this.minimapCamera = null;
     this.northReferenceCamera = null;
     this.eastReferenceCamera = null;
     this.southReferenceCamera = null;
     this.westReferenceCamera = null;
+    this.cameraMode = "chase";
     this.skyViewActive = false;
+    this.minimapElement = null;
     this.northReferenceActive = false;
     this.eastReferenceActive = false;
     this.southReferenceActive = false;
@@ -1307,6 +1319,9 @@ export class ParkingLevel {
     this.vehicleHitboxesVisible = false;
     this.playerCollisionVolumes = [];
     this.vehicleHitboxHelpers = [];
+    this.parkedCars = [];
+    this.parkedCarField = null;
+    this.damageVisuals = null;
     this.northReferenceToggle = null;
     this.eastReferenceToggle = null;
     this.southReferenceToggle = null;
@@ -1314,7 +1329,7 @@ export class ParkingLevel {
     this.skyViewScale = LEVEL_ONE_PARKING_LAYOUT.skyViewScale;
     this.chaseFog = null;
     this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
-    this.onViewToggle = this.toggleSkyView.bind(this);
+    this.onViewToggle = this.cycleCameraMode.bind(this);
     this.onDevToggle = this.toggleDevMenu.bind(this);
     this.onSkyZoomInput = this.setSkyZoom.bind(this);
     this.onVehicleHitboxesToggle = this.toggleVehicleHitboxes.bind(this);
@@ -1397,16 +1412,15 @@ async load() {
   // here reaches it, and it was measured separately and needed no change.
   // See docs/DECISIONS.md, 2026-09-08.
   const hemi = new THREE.HemisphereLight(
-    0x5e7898,
-    0x170d09,
-    1.63
+    0xc7e4f2,
+    0x53634a,
+    2.25
   );
   this.root.add(hemi);
 
   const duskSun = new THREE.DirectionalLight(
-    0xffb56a,
-    // 1.8 before ACES. Same 2.172 scale as the hemisphere above.
-    3.91
+    0xffe1b0,
+    3.6
   );
 
   duskSun.position.set(-18, 11, 8);
@@ -1466,6 +1480,11 @@ async load() {
   camera.lookAt(initialLookTarget);
   this.chaseCamera = camera;
 
+  this.hoodCamera = new THREE.PerspectiveCamera(72, 1, 0.05, camera.far);
+  this.hoodCamera.position.set(0, 1.55, -0.65);
+  this.hoodCamera.rotation.set(0, 0, 0);
+  this.suspension.add(this.hoodCamera);
+
   const reference = NORTH_DIORAMA_CONFIG.referenceCamera;
   this.northReferenceCamera = new THREE.PerspectiveCamera(
     reference.fov,
@@ -1516,21 +1535,31 @@ async load() {
   this.skyCamera.lookAt(PARKING_LAYOUT.mainLot.x, 0, PARKING_LAYOUT.mainLot.z);
   this.updateSkyCameraFrustum();
 
+  this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
+  this.minimapCamera.position.set(PARKING_LAYOUT.mainLot.x, 110, PARKING_LAYOUT.mainLot.z);
+  this.minimapCamera.up.set(0, 0, -1);
+  this.minimapCamera.lookAt(PARKING_LAYOUT.mainLot.x, 0, PARKING_LAYOUT.mainLot.z);
+
   this.game.setCamera(camera);
 
   this.controls = this.game.input.registerBindings({
     accelerate: ["KeyW", "ArrowUp"],
     brake: ["KeyS", "ArrowDown"],
     steerLeft: ["KeyA", "ArrowLeft"],
-    steerRight: ["KeyD", "ArrowRight"]
+    steerRight: ["KeyD", "ArrowRight"],
+    cycleCamera: ["KeyC"]
   });
 
   this.game.setMessage(
-    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, Ctrl+R = restart."
+    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, C = camera, Ctrl+R = restart."
   );
 
   this.viewToggle = document.querySelector("#level1-view-toggle");
+  this.minimapElement = document.querySelector("#level1-minimap");
   this.viewToggle.hidden = false;
+  if (this.minimapElement) this.minimapElement.hidden = false;
+  this.updateCameraModeButton();
+  this.updateMinimapCameraFrustum();
   this.viewToggle.addEventListener("click", this.onViewToggle);
   this.devToggle = document.querySelector("#level1-dev-toggle");
   this.devMenu = document.querySelector("#level1-dev-menu");
@@ -1541,7 +1570,7 @@ async load() {
   this.eastReferenceToggle = document.querySelector("#level1-east-reference-toggle");
   this.southReferenceToggle = document.querySelector("#level1-south-reference-toggle");
   this.westReferenceToggle = document.querySelector("#level1-west-reference-toggle");
-  this.devToggle.hidden = false;
+  // this.devToggle.hidden = false; // Keep Level 1 dev controls available in code, but hidden in normal play.
   this.skyZoomInput.value = String(this.skyViewScale);
   this.skyZoomValue.value = `${this.skyViewScale.toFixed(2)}×`;
   this.devToggle.addEventListener("click", this.onDevToggle);
@@ -1596,19 +1625,79 @@ async load() {
     if (this.skyViewActive) this.game.onResize();
   }
 
-  toggleSkyView() {
+  updateCameraModeButton() {
+    if (!this.viewToggle) return;
+    const labels = { chase: "Chase", hood: "Hood", sky: "Sky" };
+    this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "sky"));
+  }
+
+  setCameraMode(mode) {
+    if (!["chase", "hood", "sky"].includes(mode)) return;
     this.resetReferenceViews();
-    this.skyViewActive = !this.skyViewActive;
+    this.cameraMode = mode;
+    this.skyViewActive = mode === "sky";
+    if (this.minimapElement) this.minimapElement.hidden = this.skyViewActive;
 
     if (this.skyViewActive) {
       this.updateSkyCameraFrustum();
       this.game.setCamera(this.skyCamera);
     } else {
-      this.game.setCamera(this.chaseCamera);
+      this.game.setCamera(mode === "hood" ? this.hoodCamera : this.chaseCamera);
     }
 
-    this.viewToggle.textContent = this.skyViewActive ? "Chase view" : "Sky view";
-    this.viewToggle.setAttribute("aria-pressed", String(this.skyViewActive));
+    this.updateCameraModeButton();
+  }
+
+  cycleCameraMode() {
+    const modes = ["chase", "hood", "sky"];
+    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+  }
+
+  toggleSkyView() {
+    this.setCameraMode(this.skyViewActive ? "chase" : "sky");
+  }
+
+  updateMinimapCameraFrustum(aspect = null) {
+    if (!this.minimapCamera) return;
+    const rect = this.minimapElement?.getBoundingClientRect();
+    const mapAspect = aspect ?? (rect?.width && rect?.height ? rect.width / rect.height : 4 / 3);
+    const viewHeight = 28;
+    const viewWidth = viewHeight * mapAspect;
+    this.minimapCamera.left = -viewWidth / 2;
+    this.minimapCamera.right = viewWidth / 2;
+    this.minimapCamera.top = viewHeight / 2;
+    this.minimapCamera.bottom = -viewHeight / 2;
+    this.minimapCamera.updateProjectionMatrix();
+  }
+
+  renderOverlay(renderer) {
+    if (this.skyViewActive || !this.car || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    const rect = this.minimapElement.getBoundingClientRect();
+    const canvasRect = renderer.domElement.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+
+    this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x: carX, z: carZ } = this.car.position;
+    const carAngle = this.car.rotation.y;
+    this.minimapCamera.position.set(carX, 110, carZ);
+    this.minimapCamera.up.set(-Math.sin(carAngle), 0, -Math.cos(carAngle));
+    this.minimapCamera.lookAt(carX, 0, carZ);
+    const x = Math.round(rect.left - canvasRect.left);
+    const y = Math.round(canvasRect.bottom - rect.bottom);
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+    const autoClear = renderer.autoClear;
+
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(x, y, width, height);
+    renderer.setViewport(x, y, width, height);
+    renderer.clear(true, true, true);
+    renderer.render(this.game.scene, this.minimapCamera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    renderer.autoClear = autoClear;
   }
 
   toggleNorthReferenceView() {
@@ -1619,9 +1708,10 @@ async load() {
     }
     this.northReferenceActive = !this.northReferenceActive;
     if (this.northReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.northReferenceCamera);
       this.roadFogConfig = NORTH_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1642,9 +1732,10 @@ async load() {
     }
     this.eastReferenceActive = !this.eastReferenceActive;
     if (this.eastReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.eastReferenceCamera);
       this.roadFogConfig = EAST_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1666,9 +1757,10 @@ async load() {
     }
     this.southReferenceActive = !this.southReferenceActive;
     if (this.southReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.southReferenceCamera);
       this.roadFogConfig = SOUTH_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1690,9 +1782,10 @@ async load() {
     }
     this.westReferenceActive = !this.westReferenceActive;
     if (this.westReferenceActive) {
+      this.cameraMode = "chase";
       this.skyViewActive = false;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      if (this.minimapElement) this.minimapElement.hidden = false;
+      this.updateCameraModeButton();
       this.game.setCamera(this.westReferenceCamera);
       this.roadFogConfig = WEST_DIORAMA_CONFIG.atmosphere;
     } else {
@@ -1788,26 +1881,23 @@ createParkingSurface(potholes = []) {
     const placements = [];
 
     for (const space of getLevelOneParkingSpaces()) {
-      // The lot is full apart from the bays the player is being sent to.
       if (this.freeBayKeys.has(parkingBayKey(space))) continue;
-
-      // Every vehicle in the pack is modelled at its own heading. The loader
-      // normalises each one to a 4.2 m length, grounds it and turns it to +Z
-      // forward, so a bay only has to supply its own rotation here.
       let spec = pickRandomParkingCar(random);
       const candidate = { spec, x: space.x, z: space.z, angle: space.angle };
-
-      // Two high, long vehicles nose-to-nose make a drive aisle look blocked.
-      // Swap the later car for a passenger vehicle; normal cars may still use
-      // opposing bays, so the lot remains visually dense.
       if (placements.some((parkedCar) => largeCarsFaceEachOther(candidate, parkedCar))) {
-        spec = SMALL_PARKING_CAR_SPECS[
-          Math.floor(random() * SMALL_PARKING_CAR_SPECS.length)
-        ];
+        spec = SMALL_PARKING_CAR_SPECS[Math.floor(random() * SMALL_PARKING_CAR_SPECS.length)];
       }
-      placements.push({ spec, x: space.x, z: space.z, angle: space.angle });
 
-      this.createVehicleCollisionVolumes({
+      const placement = { spec, x: space.x, z: space.z, angle: space.angle };
+      const parkedCar = {
+        placement,
+        origin: new THREE.Vector2(space.x, space.z),
+        velocity: new THREE.Vector2(),
+        angularVelocity: 0,
+        volumes: []
+      };
+      placements.push(placement);
+      parkedCar.volumes = this.createVehicleCollisionVolumes({
         x: space.x,
         z: space.z,
         angle: space.angle,
@@ -1817,11 +1907,14 @@ createParkingSurface(potholes = []) {
         color: 0xff6b6b,
         addToCollisionWorld: true
       });
+      for (const volume of parkedCar.volumes) volume.object.userData.parkedCar = parkedCar;
+      this.parkedCars.push(parkedCar);
     }
 
     return createInstancedCarField(placements, { variant: "lite" })
       .then((field) => {
         field.name = "level-one-parked-cars";
+        this.parkedCarField = field;
         this.root.add(field);
       })
       .catch((error) => {
@@ -2148,6 +2241,7 @@ createParkingSurface(potholes = []) {
     suspension.position.y = 0.04;
     carRoot.add(suspension);
     this.suspension = suspension;
+    this.createDamageVisuals();
 
     const modelReady = attachPlayerCarModel(suspension)
       .then((model) => {
@@ -2200,6 +2294,94 @@ createParkingSurface(potholes = []) {
     });
   }
 
+  createDamageVisuals() {
+    const group = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: 0x241a16, roughness: 1, metalness: 0.05 });
+    const add = (geometry, position, stage, rotation = null) => {
+      const mesh = new THREE.Mesh(geometry, material.clone());
+      mesh.position.set(...position);
+      if (rotation) mesh.rotation.set(...rotation);
+      mesh.userData.damageStage = stage;
+      mesh.visible = false;
+      group.add(mesh);
+      return mesh;
+    };
+    add(new THREE.BoxGeometry(1.45, 0.16, 0.045), [0, 0.62, -2.12], 1);
+    add(new THREE.BoxGeometry(0.045, 0.17, 1.25), [-1.02, 0.66, -0.2], 2);
+    add(new THREE.BoxGeometry(0.045, 0.17, 1.05), [1.02, 0.7, 0.35], 3);
+    add(new THREE.BoxGeometry(1.25, 0.045, 0.85), [0, 1.02, -1.15], 3, [-0.08, 0, 0]);
+    for (let index = 0; index < 5; index++) {
+      const smoke = add(
+        new THREE.SphereGeometry(0.12 + index * 0.018, 7, 5),
+        [-0.28 + index * 0.14, 1.18 + index * 0.08, -1.25],
+        4
+      );
+      smoke.material.color.setHex(0x454545);
+      smoke.material.transparent = true;
+      smoke.material.opacity = 0.48;
+      smoke.userData.smoke = true;
+      smoke.userData.base = smoke.position.clone();
+      smoke.userData.phase = index * 0.9;
+    }
+    this.damageVisuals = group;
+    this.suspension.add(group);
+  }
+
+  updateDamageVisuals(dt) {
+    if (!this.damageVisuals) return;
+    const stage = getLevelOneDamageStage(this.condition);
+    const time = performance.now() * 0.001;
+    for (const mesh of this.damageVisuals.children) {
+      mesh.visible = stage >= mesh.userData.damageStage;
+      if (!mesh.visible || !mesh.userData.smoke) continue;
+      const base = mesh.userData.base;
+      const phase = (time * 0.75 + mesh.userData.phase) % 1;
+      mesh.position.set(base.x + Math.sin(time * 3 + mesh.userData.phase) * 0.09, base.y + phase * 0.75, base.z);
+      mesh.material.opacity = 0.48 * (1 - phase);
+    }
+  }
+
+  pushParkedCar(hit, speedFactor) {
+    const parkedCar = hit?.object?.userData?.parkedCar;
+    if (!parkedCar) return;
+    const dx = parkedCar.placement.x - this.car.position.x;
+    const dz = parkedCar.placement.z - this.car.position.z;
+    const length = Math.hypot(dx, dz) || 1;
+    const impulse = THREE.MathUtils.lerp(0.7, 2.4, speedFactor);
+    parkedCar.velocity.x += dx / length * impulse;
+    parkedCar.velocity.y += dz / length * impulse;
+    const localSide = Math.cos(parkedCar.placement.angle) * dx - Math.sin(parkedCar.placement.angle) * dz;
+    parkedCar.angularVelocity += (Math.sign(localSide) || 1) * THREE.MathUtils.lerp(0.18, 0.65, speedFactor);
+  }
+
+  updateParkedCars(dt) {
+    let moved = false;
+    for (const parkedCar of this.parkedCars) {
+      if (parkedCar.velocity.lengthSq() < 0.0004 && Math.abs(parkedCar.angularVelocity) < 0.002) continue;
+      const placement = parkedCar.placement;
+      placement.x += parkedCar.velocity.x * dt;
+      placement.z += parkedCar.velocity.y * dt;
+      placement.angle += parkedCar.angularVelocity * dt;
+      const offset = new THREE.Vector2(placement.x - parkedCar.origin.x, placement.z - parkedCar.origin.y);
+      if (offset.length() > 1.15) {
+        offset.setLength(1.15);
+        placement.x = parkedCar.origin.x + offset.x;
+        placement.z = parkedCar.origin.y + offset.y;
+        parkedCar.velocity.multiplyScalar(0.25);
+      }
+      const damping = Math.exp(-4.2 * dt);
+      parkedCar.velocity.multiplyScalar(damping);
+      parkedCar.angularVelocity *= damping;
+      for (const volume of parkedCar.volumes) {
+        volume.object.position.set(placement.x, volume.localY, placement.z);
+        volume.object.rotation.y = placement.angle;
+      }
+      this.parkedCarField?.userData.updatePlacement?.(placement);
+      moved = true;
+    }
+    if (moved) this.collisionWorld.rebuild();
+  }
+
   startCarIdleAudio() {
     if (this.carIdleAudio) return;
 
@@ -2220,7 +2402,7 @@ createParkingSurface(potholes = []) {
   playCollisionSound(speedFactor = 1) {
     if (this.game.isSoundMuted) return;
     if (!this.collisionHitAudio) {
-      this.collisionHitAudio = new Audio("./assets/audio/level1/collision-hit.mp3");
+      this.collisionHitAudio = new Audio("./assets/audio/level1/car-crash.mp3");
       this.collisionHitAudio.preload = "auto";
     }
 
@@ -2243,6 +2425,7 @@ createParkingSurface(potholes = []) {
 
   update(dt) {
     if(!this.car)return;
+    if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     this.potholeSharks?.forEach((shark,index)=>{
       const dx=shark.userData.worldX-this.car.position.x;
@@ -2291,6 +2474,8 @@ this.impactCooldown = Math.max(
   0,
   this.impactCooldown - dt
 );
+this.updateParkedCars(dt);
+this.updateDamageVisuals(dt);
 
 const previousPosition = this.car.position.clone();
 const previousRotationY = this.car.rotation.y;
@@ -2349,11 +2534,12 @@ if (hit) {
     );
 
     this.game.flashHUD();
-    this.audio.cue(78, 0.12, 0.15);
 
-    // Crashing into a parked car only; kerbs, fences and signs stay silent.
     if (hit.tag === "parked-car") {
+      this.pushParkedCar(hit, crashSpeedFactor);
       this.playCollisionSound(crashSpeedFactor);
+    } else {
+      this.audio.cue(78, 0.12, 0.15);
     }
 
     this.impactCooldown = 0.55;
@@ -3497,31 +3683,18 @@ if (hit) {
       || this.westReferenceActive
     ) return;
 
-    const camera =
-      this.game.camera;
+    const isHood = this.cameraMode === "hood";
+    if (isHood) {
+      this.cameraShake = Math.max(0, this.cameraShake - dt * 0.78);
+      return;
+    }
 
-    const carAngle =
-      this.car.rotation.y;
-
-    const behind =
-      new THREE.Vector3(
-        Math.sin(carAngle) * 8,
-        5,
-        Math.cos(carAngle) * 8
-      );
-
-    const targetPosition =
-      this.car.position
-        .clone()
-        .add(behind);
-
-    camera.position.lerp(
-      targetPosition,
-      1 -
-        Math.exp(
-          -5 * dt
-        )
+    const camera = this.chaseCamera;
+    const carAngle = this.car.rotation.y;
+    const targetPosition = this.car.position.clone().add(
+      new THREE.Vector3(Math.sin(carAngle) * 8, 5, Math.cos(carAngle) * 8)
     );
+    camera.position.lerp(targetPosition, 1 - Math.exp(-5 * dt));
 
     let cameraRoll = 0;
 
@@ -3577,14 +3750,9 @@ if (hit) {
         0.035;
     }
 
-    const lookTarget =
-      this.car.position.clone();
-
+    const lookTarget = this.car.position.clone();
     lookTarget.y += 1;
-
-    camera.lookAt(
-      lookTarget
-    );
+    camera.lookAt(lookTarget);
 
     // lookAt resets orientation each frame, so this cannot drift.
     camera.rotation.z +=
@@ -3609,9 +3777,10 @@ if (hit) {
     this.westReferenceToggle?.removeEventListener("click", this.onWestReferenceToggle);
     if (this.viewToggle) {
       this.viewToggle.hidden = true;
-      this.viewToggle.textContent = "Sky view";
-      this.viewToggle.setAttribute("aria-pressed", "false");
+      this.cameraMode = "chase";
+      this.updateCameraModeButton();
     }
+    if (this.minimapElement) this.minimapElement.hidden = true;
     if (this.devToggle) {
       this.devToggle.hidden = true;
       this.devToggle.setAttribute("aria-expanded", "false");

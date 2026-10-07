@@ -297,3 +297,78 @@ test("survey NPCs run only while chasing and walk away after completion", () => 
     "the post-survey departure switches back to walking"
   );
 });
+
+test("survey NPCs only walk on route cells after a survey or a chase", () => {
+  const step = 1.2;
+  // Railings beyond |x| > 1.2, a road row at z <= -2.4, a building cell at (0, 2.4).
+  const canOccupy = (x, z) => Math.abs(x) <= step + 0.01 && z > -2.4 + 0.01 && !(Math.abs(x) < 0.1 && Math.abs(z - 2.4) < 0.1);
+  const grid = { step, originZ: 6, minX: -2.4, maxX: 2.4, minZ: -6, maxZ: 6 };
+  const onRoute = (position) => {
+    const cx = Math.round(position.x / step) * step;
+    const cz = 6 - Math.round((6 - position.z) / step) * step;
+    return canOccupy(cx, cz);
+  };
+
+  for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2, Math.PI / 4]) {
+    const crowd = new CampusCrowd({ root: new THREE.Group(), factory: new PedestrianFactory(), random: createSeededRandom(3), grid, canOccupy });
+    const person = crowd.add({ kind: "psychQuizzer", x: 1.2, z: -1.2, yaw });
+    // Caught right next to the player, facing straight at the railing/road.
+    person.mesh.position.set(1.0, person.mesh.position.y, -1.3);
+    person.mesh.rotation.y = yaw;
+    const player = new THREE.Vector3(0, 0.95, -1.2);
+    crowd.update(1 / 60, player);
+    crowd.sendOff(person);
+    for (let frame = 0; frame < 600; frame++) {
+      crowd.update(1 / 60, player);
+      assert.ok(onRoute(person.mesh.position), `left the route at ${person.mesh.position.x.toFixed(2)}, ${person.mesh.position.z.toFixed(2)}`);
+    }
+    assert.equal(person.leaving, false, "the departure finishes");
+    const { x, z } = person.mesh.position;
+    assert.ok(canOccupy(Math.round(x / step) * step, z) && Math.abs(x - Math.round(x / step) * step) < 0.02, "the NPC rests on a grid cell");
+    assert.ok(Math.hypot(x - player.x, z - player.z) > step * 1.5, "the NPC walks away from the player");
+  }
+
+  // A chase toward a player standing on the road stops at the kerb.
+  const crowd = new CampusCrowd({ root: new THREE.Group(), factory: new PedestrianFactory(), random: () => 0.5, grid, canOccupy });
+  const chaser = crowd.add({ kind: "ccduAdvisor", x: 0, z: 0, yaw: Math.PI });
+  const player = new THREE.Vector3(0, 0.95, -3.6);
+  for (let frame = 0; frame < 300; frame++) {
+    crowd.update(1 / 60, player);
+    assert.ok(onRoute(chaser.mesh.position), "the chaser never steps onto the road");
+  }
+});
+
+test("the crowd never wears the player's chosen model, even after a mid-level swap", () => {
+  const created = [];
+  const animatedFactory = {
+    templates: [0, 1, 2, 3, 4, 5],
+    create({ variant, holding }) {
+      const mesh = new THREE.Group();
+      mesh.add(new THREE.Group());
+      mesh.userData.animation = { mixer: { update() {}, stopAllAction() {}, uncacheRoot() {} } };
+      mesh.userData.rig = { holding, heldItem: null };
+      mesh.userData.soleOffset = 0;
+      created.push(variant);
+      return mesh;
+    },
+    setMoving() {}
+  };
+  for (let playerVariant = 0; playerVariant < 6; playerVariant++) {
+    const root = new THREE.Group();
+    const crowd = new CampusCrowd({ root, factory: new PedestrianFactory(), animatedFactory, random: () => 0.5, playerVariant, variantCount: 6 });
+    crowd.spawn(createCrowdPlan({ zones: ZONES, startZ: START_Z, step: STEP }));
+    const humans = crowd.people.filter((person) => person.kind !== "robot");
+    assert.ok(humans.every((person) => person.variant !== playerVariant), `no NPC uses player model ${playerVariant}`);
+    const used = new Set(humans.map((person) => person.variant));
+    assert.equal(used.size, 5, "every other model still appears");
+
+    const next = (playerVariant + 1) % 6;
+    const position = humans.find((person) => person.variant === next).mesh.position.clone();
+    crowd.setPlayerVariant(next);
+    assert.ok(humans.every((person) => person.variant !== next), "a swap re-skins the new player model's doubles");
+    assert.ok(humans.some((person) => person.variant === playerVariant), "they take the model the player gave up");
+    assert.ok(humans.some((person) => person.mesh.position.equals(position)), "re-skinned NPCs keep their spot");
+    assert.ok(humans.every((person) => person.mesh.parent === root), "old meshes are removed from the scene");
+    assert.equal(root.children.length, crowd.people.length);
+  }
+});

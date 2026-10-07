@@ -176,6 +176,13 @@ const TABLET_TARGET_WIDTH = 1.0;
 const TABLET_TARGET_HEIGHT = 0.28;
 const TABLET_TARGET_DEPTH = 0.65;
 const MAX_TYPED_ANSWER_LENGTH = 24;
+export const TUTOR_OPENING_START_INDEX = 7;
+export const TUTOR_OPENING_TARGET_INDEX = 8;
+export function getTutorOpeningYaw(points) {
+  const start = points[TUTOR_OPENING_START_INDEX];
+  const target = points[TUTOR_OPENING_TARGET_INDEX];
+  return Math.atan2(target.x - start.x, target.z - start.z);
+}
 const TUTOR_PLAYER_APPROACH_INDEX = 9;
 const TUTOR_PLAYER_NEAR_INDEX = 12;
 const TUTOR_PLAYER_RECHECK_INDEX = 11;
@@ -215,6 +222,8 @@ export class CheatingLevel {
     this.root = new THREE.Group();
 
     this.camera = null;
+    this.minimapCamera = null;
+    this.minimapElement = null;
     this.backgroundTexture = null;
 
     this.playerPosition = new THREE.Vector3(
@@ -358,6 +367,7 @@ this.patrolPoints = [
     await this.createTutor();
     this.tutorMover = new WaypointMover(this.tutor, {
       points: this.patrolPoints, speed: 2.1, pauseAtNodes: LEVEL_THREE_BALANCE.tutorPauseSeconds,
+      startIndex: TUTOR_OPENING_TARGET_INDEX,
       debugRoot: this.root, debugColor: 0xff7f86
     });
     this.collisionWorld.rebuild();
@@ -366,7 +376,14 @@ this.patrolPoints = [
     this.camera.position.copy(this.playerPosition);
     this.resetCameraToWhiteboard();
 
+    this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 120);
+    this.minimapCamera.position.set(this.tutor.position.x, 5.5, this.tutor.position.z);
+    this.minimapCamera.lookAt(this.tutor.position.x, 0, this.tutor.position.z);
+    this.updateMinimapCameraFrustum();
+
     this.game.setCamera(this.camera);
+    this.minimapElement = document.querySelector("#level3-minimap");
+    if (this.minimapElement) this.minimapElement.hidden = false;
     this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
     if (this.zoomOverlay) {
       this.zoomOverlay.classList.remove("visible");
@@ -1397,7 +1414,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
   }
   async createTutor() {
     this.tutor = await createAnimatedTutor();
-    this.tutor.position.copy(this.patrolPoints[0]);
+    this.tutor.position.copy(this.patrolPoints[TUTOR_OPENING_START_INDEX]);
+    this.tutor.rotation.y = getTutorOpeningYaw(this.patrolPoints);
     this.tutor.name = "level-3-tutor";
     this.root.add(this.tutor);
     this.collisionWorld.add({
@@ -1715,6 +1733,47 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         Math.sin(this.tutorWalkPhase * 0.5) *
         (isWalking ? 0.07 : 0.025);
     }
+  }
+
+  updateMinimapCameraFrustum(aspect = 4 / 3) {
+    if (!this.minimapCamera) return;
+    const viewHeight = 8.5, viewWidth = viewHeight * aspect;
+    this.minimapCamera.left = -viewWidth / 2;
+    this.minimapCamera.right = viewWidth / 2;
+    this.minimapCamera.top = viewHeight / 2;
+    this.minimapCamera.bottom = -viewHeight / 2;
+    this.minimapCamera.updateProjectionMatrix();
+  }
+
+  renderOverlay(renderer) {
+    if (!this.tutor || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    const rect = this.minimapElement.getBoundingClientRect(), canvasRect = renderer.domElement.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+
+    this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x, z } = this.tutor.position, angle = this.tutor.rotation.y;
+    const fx = Math.sin(angle), fz = Math.cos(angle);
+    this.minimapCamera.up.set(fx, 0, fz);
+    const halfW = (this.minimapCamera.right - this.minimapCamera.left) / 2;
+    const halfH = (this.minimapCamera.top - this.minimapCamera.bottom) / 2;
+    const spanX = Math.abs(fz) * halfW + Math.abs(fx) * halfH;
+    const spanZ = Math.abs(fx) * halfW + Math.abs(fz) * halfH;
+    const mapX = THREE.MathUtils.clamp(x, -CLASSROOM_HALF_WIDTH + spanX, CLASSROOM_HALF_WIDTH - spanX);
+    const mapZ = THREE.MathUtils.clamp(z, CLASSROOM_FRONT_Z + spanZ, CLASSROOM_BACK_Z - spanZ);
+    this.minimapCamera.position.set(mapX, 5.5, mapZ);
+    this.minimapCamera.lookAt(mapX, 0, mapZ);
+
+    const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
+    const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(vx, vy, width, height);
+    renderer.setViewport(vx, vy, width, height);
+    renderer.clear(true, true, true);
+    renderer.render(this.game.scene, this.minimapCamera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    renderer.autoClear = autoClear;
   }
 
   updateMouseLook() {
@@ -2098,6 +2157,7 @@ canTutorSeePlayer() {
       this.zoomOverlay.hidden = true;
     }
     this.zoomOverlay = null;
+    if (this.minimapElement) this.minimapElement.hidden = true;
     window.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("keydown", this.onTypingKeyDown, true);

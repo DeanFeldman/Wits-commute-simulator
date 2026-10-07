@@ -115,10 +115,15 @@ export class CrossingLevel {
     this.cameraLookTarget = new THREE.Vector3();
     this.cameraLookGoal = new THREE.Vector3();
     this.chaseCamera = null;
+    this.closeCamera = null;
     this.mapCamera = null;
+    this.minimapCamera = null;
+    this.cameraMode = "chase";
     this.mapViewActive = false;
+    this.minimapElement = null;
+    this.viewToggle = null;
     this.mapViewScale = 1;
-    this.walkableOverlayVisible = true;
+    this.walkableOverlayVisible = false;
     this.walkableCellOverlay = null;
     this.devToggle = null;
     this.devMenu = null;
@@ -146,6 +151,7 @@ export class CrossingLevel {
     this.characterPreviewVisual = null;
     this.characterPreviewModels = new Map();
     this.onDevToggle = this.toggleDevMenu.bind(this);
+    this.onViewToggle = this.cycleCameraMode.bind(this);
     this.onMapToggle = this.toggleMapView.bind(this);
     this.onWalkableToggle = this.toggleWalkableOverlay.bind(this);
     this.onMapZoomInput = this.setMapZoom.bind(this);
@@ -277,7 +283,11 @@ export class CrossingLevel {
     this.cameraLookTarget.set(this.player.position.x, 0.9, this.player.position.z - 3);
     camera.lookAt(this.cameraLookTarget);
     this.chaseCamera = camera;
+    this.closeCamera = new THREE.PerspectiveCamera(66, camera.aspect, 0.1, 160);
+    this.closeCamera.position.set(this.player.position.x + 2.7, 3.8, this.player.position.z + 4.2);
+    this.closeCamera.lookAt(this.player.position.x, 1, this.player.position.z - 1.4);
     this.createMapCamera();
+    this.createMinimapCamera();
     this.createWalkableCellOverlay();
     this.game.setCamera(camera);
 
@@ -285,10 +295,11 @@ export class CrossingLevel {
       moveUp: ["KeyW", "ArrowUp"],
       moveDown: ["KeyS", "ArrowDown"],
       moveLeft: ["KeyA", "ArrowLeft"],
-      moveRight: ["KeyD", "ArrowRight"]
+      moveRight: ["KeyD", "ArrowRight"],
+      cycleCamera: ["KeyC"]
     });
     this.game.setMessage(
-      "Collect every Vida cup and reach Engineering as fast as you can."
+      "Collect every Vida cup and reach Engineering as fast as you can. Press C to change camera."
     );
     this.setupDevControls();
   }
@@ -376,12 +387,16 @@ export class CrossingLevel {
   }
 
   createCrowd() {
-    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP });
+    const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP, random: Math.random });
     this.crowd = new CampusCrowd({
       root: this.root,
       factory: this.pedestrians,
       animatedFactory: this.animatedNpcs,
       random: createSeededRandom(this.seed ^ 0x51ab1e),
+      grid: { step: WALK_STEP, originZ: this.startZ, minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ },
+      canOccupy: (x, z) => this.isNpcWalkableCell(x, z),
+      playerVariant: this.selectedPlayerVariant,
+      variantCount: STUDENT_MODEL_VARIANTS.length,
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
         tone
@@ -419,6 +434,24 @@ export class CrossingLevel {
     this.mapCamera.userData.viewHeight = this.mapViewScale * Math.max(routeDepth, routeWidth / aspect);
   }
 
+  createMinimapCamera() {
+    this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
+    this.minimapCamera.position.set(0, 100, this.startZ);
+    this.minimapCamera.up.set(0, 0, 1);
+    this.minimapCamera.lookAt(0, 0, this.startZ);
+    this.updateMinimapCameraFrustum();
+  }
+
+  updateMinimapCameraFrustum(aspect = 4 / 3) {
+    if (!this.minimapCamera) return;
+    const viewHeight = 14, viewWidth = viewHeight * aspect;
+    this.minimapCamera.left = -viewWidth / 2;
+    this.minimapCamera.right = viewWidth / 2;
+    this.minimapCamera.top = viewHeight / 2;
+    this.minimapCamera.bottom = -viewHeight / 2;
+    this.minimapCamera.updateProjectionMatrix();
+  }
+
   createWalkableCellOverlay() {
     const cells = this.reachableCells();
     const geometry = new THREE.PlaneGeometry(WALK_STEP * 0.9, WALK_STEP * 0.9);
@@ -439,11 +472,14 @@ export class CrossingLevel {
     }
     overlay.instanceMatrix.needsUpdate = true;
     overlay.name = "level2-walkable-cell-overlay";
+    overlay.visible = this.walkableOverlayVisible;
     this.walkableCellOverlay = overlay;
     this.root.add(overlay);
   }
 
   setupDevControls() {
+    this.viewToggle = document.querySelector("#level2-view-toggle");
+    this.minimapElement = document.querySelector("#level2-minimap");
     this.devToggle = document.querySelector("#level2-dev-toggle");
     this.devMenu = document.querySelector("#level2-dev-menu");
     this.mapToggle = document.querySelector("#level2-map-toggle");
@@ -460,9 +496,13 @@ export class CrossingLevel {
     this.characterPreviewCanvas = document.querySelector("#level2-character-preview");
     this.characterName = document.querySelector("#level2-character-name");
     this.characterCode = document.querySelector("#level2-character-code");
-    this.devToggle.hidden = false;
+    this.viewToggle.hidden = false;
+    if (this.minimapElement) this.minimapElement.hidden = false;
+    this.updateCameraModeButton();
+    // this.devToggle.hidden = false; // Keep Level 2 dev controls available in code, but hidden in normal play.
     this.mapZoomInput.value = String(this.mapViewScale);
     this.mapZoomValue.value = `${this.mapViewScale.toFixed(2)}×`;
+    this.viewToggle.addEventListener("click", this.onViewToggle);
     this.devToggle.addEventListener("click", this.onDevToggle);
     this.mapToggle.addEventListener("click", this.onMapToggle);
     this.walkableToggle.addEventListener("click", this.onWalkableToggle);
@@ -489,11 +529,59 @@ export class CrossingLevel {
     if (this.mapViewActive) this.game.onResize();
   }
 
+  updateCameraModeButton() {
+    if (!this.viewToggle) return;
+    const labels = { chase: "Chase", close: "Close" };
+    this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "close"));
+  }
+
+  setCameraMode(mode) {
+    if (!["chase", "close"].includes(mode)) return;
+    this.cameraMode = mode;
+    this.mapViewActive = false;
+    if (this.minimapElement) this.minimapElement.hidden = false;
+    this.game.setCamera(mode === "close" ? this.closeCamera : this.chaseCamera);
+    this.updateCameraModeButton();
+    if (this.mapToggle) {
+      this.mapToggle.textContent = "Bird's-eye map";
+      this.mapToggle.setAttribute("aria-pressed", "false");
+    }
+  }
+
+  cycleCameraMode() {
+    const modes = ["chase", "close"];
+    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+  }
+
   toggleMapView() {
     this.mapViewActive = !this.mapViewActive;
-    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.chaseCamera);
-    this.mapToggle.textContent = this.mapViewActive ? "Return to chase view" : "Bird's-eye map";
+    if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera);
+    this.mapToggle.textContent = this.mapViewActive ? "Return to camera" : "Bird's-eye map";
     this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
+  }
+
+  renderOverlay(renderer) {
+    if (this.mapViewActive || !this.player || !this.minimapCamera || !this.minimapElement || this.minimapElement.hidden) return;
+    const rect = this.minimapElement.getBoundingClientRect(), canvasRect = renderer.domElement.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    this.updateMinimapCameraFrustum(rect.width / rect.height);
+    const { x, z } = this.player.position;
+    this.minimapCamera.position.set(x, 100, z);
+    this.minimapCamera.up.set(0, 0, 1);
+    this.minimapCamera.lookAt(x, 0, z);
+    const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
+    const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setScissorTest(true);
+    renderer.setScissor(vx, vy, width, height);
+    renderer.setViewport(vx, vy, width, height);
+    renderer.clear(true, true, true);
+    renderer.render(this.game.scene, this.minimapCamera);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, canvasRect.width, canvasRect.height);
+    renderer.autoClear = autoClear;
   }
 
   toggleWalkableOverlay() {
@@ -674,6 +762,7 @@ export class CrossingLevel {
     this.playerRig = null;
     this.selectedPlayerVariant = variant;
     this.game.selectedPlayerVariant = variant;
+    this.crowd?.setPlayerVariant(variant);
     this.game.setMessage(`${STUDENT_MODEL_VARIANTS[variant].label} selected as the Level 2 player.`);
   }
 
@@ -907,6 +996,7 @@ export class CrossingLevel {
     }
 
     this.updateSurveyConversation?.(dt);
+    if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     if (this.quizPaused) {
       // A quiz doesn't stop the clock — only player input, movement, and
@@ -1037,6 +1127,13 @@ export class CrossingLevel {
     ) || this.blockedCells.some((cell) =>
       Math.abs(cell.x - x) < tolerance && Math.abs(cell.z - z) < tolerance
     );
+  }
+
+  // NPCs share the player's walkable cells, minus the road lanes (the player
+  // may cross Yale Road; a survey NPC strolling into traffic may not).
+  isNpcWalkableCell(x, z) {
+    if (this.isBlockedCell(x, z)) return false;
+    return !this.lanes.some((lane) => !lane.isHighway && Math.abs(lane.z - z) < this.gridSize * 0.75);
   }
 
   onWalkBlocked(x, z, direction) {
@@ -1338,19 +1435,18 @@ checkFinish() {
       if (this.mapCamera.userData.viewHeight !== previousViewHeight) this.game.onResize();
       return;
     }
-    const camera = this.game.camera;
+    const camera = this.cameraMode === "close" ? this.closeCamera : this.chaseCamera;
+    const close = this.cameraMode === "close";
     const shake = this.cameraShakeTime > 0 ? (this.cameraShakeTime / 0.34) * this.cameraShakeStrength : 0;
     this.cameraShakeTime = Math.max(0, this.cameraShakeTime - dt);
     this.cameraPositionTarget.set(
-      this.player.position.x + 5.2 + (Math.random() - 0.5) * shake * 0.35,
-      6.5 + (Math.random() - 0.5) * shake * 0.2,
-      this.player.position.z + 7.5 + (Math.random() - 0.5) * shake * 0.35
+      this.player.position.x + (close ? 2.7 : 5.2) + (Math.random() - 0.5) * shake * 0.35,
+      (close ? 3.8 : 6.5) + (Math.random() - 0.5) * shake * 0.2,
+      this.player.position.z + (close ? 4.2 : 7.5) + (Math.random() - 0.5) * shake * 0.35
     );
     const follow = 1 - Math.exp(-6 * dt);
     camera.position.lerp(this.cameraPositionTarget, follow);
-    // The look target follows at the same rate as the camera, so walking
-    // glides instead of the view snapping to each new cell.
-    this.cameraLookGoal.set(this.player.position.x, 0.9, this.player.position.z - 3);
+    this.cameraLookGoal.set(this.player.position.x, close ? 1 : 0.9, this.player.position.z - (close ? 1.4 : 3));
     this.cameraLookTarget.lerp(this.cameraLookGoal, follow);
     camera.lookAt(this.cameraLookTarget);
   }
@@ -1366,6 +1462,7 @@ checkFinish() {
     this.speech?.dispose();
     this.quiz?.dispose();
     this.crowd?.dispose();
+    this.viewToggle?.removeEventListener("click", this.onViewToggle);
     this.devToggle?.removeEventListener("click", this.onDevToggle);
     this.mapToggle?.removeEventListener("click", this.onMapToggle);
     this.walkableToggle?.removeEventListener("click", this.onWalkableToggle);
@@ -1376,6 +1473,12 @@ checkFinish() {
     this.characterConfirm?.removeEventListener("click", this.onCharacterConfirm);
     this.characterSelect?.removeEventListener("click", this.onCharacterSelectBackdrop);
     document.removeEventListener("keydown", this.onCharacterSelectKeydown);
+    if (this.viewToggle) {
+      this.viewToggle.hidden = true;
+      this.cameraMode = "chase";
+      this.updateCameraModeButton();
+    }
+    if (this.minimapElement) this.minimapElement.hidden = true;
     if (this.devToggle) {
       this.devToggle.hidden = true;
       this.devToggle.setAttribute("aria-expanded", "false");
@@ -1387,8 +1490,8 @@ checkFinish() {
       this.mapToggle.setAttribute("aria-pressed", "false");
     }
     if (this.walkableToggle) {
-      this.walkableToggle.textContent = "Hide walkable area";
-      this.walkableToggle.setAttribute("aria-pressed", "true");
+      this.walkableToggle.textContent = "Show walkable area";
+      this.walkableToggle.setAttribute("aria-pressed", "false");
     }
     this.playerMixer?.stopAllAction();
     for (const visual of this.playerModelCache.values()) visual.userData.animation?.mixer.stopAllAction();
