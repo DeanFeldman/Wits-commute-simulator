@@ -29,3 +29,12 @@ test("starting gameplay clears tutorial input before restoring control", () => {
 test("tutorial preview is captured from the loaded game renderer", () => {
   assert.match(game, /captureTutorialPreview\(\)[\s\S]*?this\.render\(\)[\s\S]*?ctx\.drawImage\(source/);
 });
+
+
+test("camera tutorial control is shown on Levels 1 and 2 only", () => {
+  const config = game.slice(game.indexOf("const LEVEL_TUTORIAL_CONFIG"), game.indexOf("export class Game"));
+  assert.match(config, /LEVEL 01 \/\/ PARK[\s\S]*?\["C", "Camera view"\]/);
+  assert.match(config, /LEVEL 02 \/\/ CROSS[\s\S]*?\["C", "Camera view"\]/);
+  const level3 = config.slice(config.indexOf("LEVEL 03 \/\/ CHEAT"));
+  assert.doesNotMatch(level3, /\["C",/);
+});
