@@ -1362,6 +1362,7 @@ export class ParkingLevel {
       LEVEL1_IDLE_AUDIO
     ]);
     this.parkingAmbienceStarted = false;
+    this.gameplayAudioStarted = false;
     this.damagedEngineStarted = false;
     this.engineStartRemaining = 0;
     this.environment = null;
@@ -2309,13 +2310,7 @@ createParkingSurface(potholes = []) {
     this.vehicle = new VehicleController(carRoot);
     this.root.add(carRoot);
     this.createPlayerCollisionVolumes();
-    return modelReady.then((model) => {
-      // Start the recorded idle loop only once the player car is visible.
-      // This level is entered from a user interaction, so playback can begin
-      // immediately in browsers that enforce an audio-gesture policy.
-      this.startCarIdleAudio();
-      return model;
-    });
+    return modelReady;
   }
 
   createDamageVisuals() {
@@ -2404,6 +2399,12 @@ createParkingSurface(potholes = []) {
       moved = true;
     }
     if (moved) this.collisionWorld.rebuild();
+  }
+
+  ensureGameplayAudio() {
+    if (this.gameplayAudioStarted) return;
+    this.gameplayAudioStarted = true;
+    this.startCarIdleAudio();
   }
 
   startCarIdleAudio() {
@@ -2571,6 +2572,7 @@ createParkingSurface(potholes = []) {
 
   update(dt) {
     if(!this.car)return;
+    this.ensureGameplayAudio();
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     this.potholeSharks?.forEach((shark,index)=>{
