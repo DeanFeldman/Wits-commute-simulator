@@ -172,13 +172,28 @@ Keep the slide motion on the overlay container and the sway on the child image. 
 
 The HUD shows:
 
-- answer progress;
-- suspicion;
+- answer progress on the player’s paper: a bottom progress bar, completed-answer
+  count, and a `QUESTION 1 OF 5` heading that advances after correct answers;
+- suspicion, shown as a vertical bar vertically centred on the right beneath the timer that fills upward
+  from 0 to 100%, with quarter marks and a percentage below it. At 50%, the
+  bar starts shaking; strength and speed increase continuously until the shake
+  reaches its maximum at 99%. The motion pauses with the game and is
+  disabled when reduced motion is requested;
 - remaining time;
 - a context-sensitive instruction;
 - the typed answer line while the player is looking at their paper.
 
 Context instructions should guide the next action: find a tablet, hold zoom, avoid the tutor, look down, type, and submit. Preserve this guidance when changing the mechanic; the desk-gated typing rule is not obvious without it.
+
+The timer uses `level3-stopwatch-base.png` and `level3-stopwatch-hand.png` under
+`./assets/images/ui/`. The hand starts at 12 o'clock and rotates clockwise once
+over the 100-second attempt. A faint red sector covers the elapsed portion of
+the dial. Both visuals derive from `timeRemaining`, so pausing freezes them and
+retrying resets them. The remaining seconds stay visible below the dial.
+The clock scales with the shorter viewport dimension (`20vmin`, limited to
+160–320 CSS pixels, or 120–160 pixels on short screens). It sits in the top-right
+area below the top bar, centred above the suspicion bar. The Level 3 HUD has a transparent background, with a text
+shadow keeping its labels readable over the classroom.
 
 ## Performance and Lifecycle
 
