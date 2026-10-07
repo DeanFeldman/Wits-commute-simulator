@@ -55,6 +55,7 @@ const LEVEL1_PARKING_AMBIENCE_AUDIO =
   "./assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3";
 const LEVEL1_CAR_START_AUDIO =
   "./assets/audio/level1/401558__giocosound__sfx_car_engine_outside_start.wav";
+const LEVEL1_IDLE_AUDIO = "./assets/audio/level1/idle-car.opus";
 const LEVEL1_DAMAGED_ENGINE_AUDIO =
   "./assets/audio/level1/557214__lhermanns__enginewarmup_1-loop.wav";
 const LEVEL1_IMPACT_CUES = Object.freeze({
@@ -1360,7 +1361,7 @@ export class ParkingLevel {
       LEVEL1_PARKING_AMBIENCE_AUDIO,
       LEVEL1_CAR_START_AUDIO,
       LEVEL1_DAMAGED_ENGINE_AUDIO,
-      "./assets/audio/level1/idle-car.wav"
+      LEVEL1_IDLE_AUDIO
     ]);
     this.parkingAmbienceStarted = false;
     this.engineStartRemaining = 0;
@@ -2415,7 +2416,7 @@ createParkingSurface(potholes = []) {
     });
     this.engineStartRemaining = 2.15;
 
-    this.audio.startEngineLoop("./assets/audio/level1/idle-car.wav");
+    this.audio.startEngineLoop(LEVEL1_IDLE_AUDIO);
     this.audio.setLoopParameters("engine", { volume: 0 });
 
     this.audio.startLoop("level1-damaged-engine", LEVEL1_DAMAGED_ENGINE_AUDIO, {
