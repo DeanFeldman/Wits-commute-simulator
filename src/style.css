@@ -80,7 +80,14 @@ body.level-2 #level2-vignette{opacity:1}
 #hud:empty { display: none; }
 #hud[data-variant="level1"] { width: min(250px, calc(100vw - 2rem)); }
 #hud[data-variant="level2"] { width: min(230px, calc(100vw - 2rem)); }
-#hud[data-variant="level3"] { width: min(255px, calc(100vw - 2rem)); backdrop-filter: none; }
+#hud[data-variant="level3"] {
+  width: min(max(255px, 20vmin), calc(100vw - 2rem));
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
 
 #message {
   position: fixed;
@@ -1062,156 +1069,150 @@ body.level-2 #level2-vignette{opacity:1}
 .parking-checks span.pass { border-color: rgba(111,213,154,0.45); color: #9ce4b9; background: rgba(111,213,154,0.08); }
 .hud-confirm { color: #ffcf8a; font-size: 0.72rem; font-weight: 800; text-align: center; }
 
-/* Level 3: the suspicion meter is a physical-looking exclamation vessel. */
-.l3-suspicion-vessel {
+/* Level 3 stopwatch: both supplied images keep their original transparent canvas. */
+#hud[data-variant="level3"] {
+  --l3-clock-size: clamp(160px, 20vmin, 320px);
+  --l3-right-inset: clamp(0.75rem, 2vw, 2rem);
+  --l3-meter-height: min(clamp(180px, 34vh, 420px), max(60px, calc(100dvh - 2 * var(--l3-clock-size) - 14rem)));
+}
+
+.l3-hud > .hud-metric,
+.l3-hud > .meter,
+.l3-hud > .hud-tip {
+  max-width: calc(100vw - var(--l3-clock-size) - 3rem);
+}
+
+.l3-timer {
   position: fixed;
-  right: clamp(1rem, 3vw, 2.4rem);
-  top: clamp(1rem, 3vh, 2rem);
-  transform: scale(1.5);
-  transform-origin: right top;
-  width: 126px;
-  height: 282px;
+  top: max(3.5rem, calc(50dvh - var(--l3-meter-height) / 2 - var(--l3-clock-size) - 5rem));
+  right: var(--l3-right-inset);
+  width: var(--l3-clock-size);
   display: grid;
-  grid-template-rows: auto 1fr auto;
   justify-items: center;
-  color: #f3f6fb;
-  font-family: "Pixelify Sans", monospace;
-  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.36));
+  gap: 0.15rem;
+}
+
+.l3-stopwatch {
+  --timer-angle: 0deg;
+  position: relative;
+  /* Scale with the shorter viewport dimension, including on wide monitors. */
+  width: var(--l3-clock-size);
+  aspect-ratio: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+}
+
+.l3-stopwatch img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.l3-stopwatch-sweep {
+  position: absolute;
+  /* The face centre is (627, 628) in the 1254px artwork. Stay inside its rim. */
+  left: 12.5%;
+  top: 12.5%;
+  width: 75%;
+  height: 75%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(220, 35, 48, 0.22) 0deg var(--timer-angle), transparent var(--timer-angle) 360deg);
+}
+
+.l3-stopwatch .l3-stopwatch-hand {
+  /* Hand hub is at (627, 677): raise it to the face centre before rotating. */
+  top: -3.91%;
+  transform-origin: 50% 54%;
+  transform: rotate(var(--timer-angle));
+}
+
+.l3-timer-caption {
+  color: #c7ced8;
+  font-variant-numeric: tabular-nums;
+}
+
+.l3-timer-caption strong { color: #fff; }
+
+@media (max-width: 620px) {
+  /* Keep the shared instruction banner from covering the stopwatch. */
+  body:has(#hud[data-variant="level3"]) #message {
+    top: auto;
+    bottom: 1rem;
+    width: calc(100vw - 2rem);
+    min-width: 0;
+  }
+}
+
+/* Level 3: suspicion fills upward in a slim bar beside the classroom. */
+.l3-suspicion-meter {
+  position: fixed;
+  right: var(--l3-right-inset);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--l3-clock-size);
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  color: #fff;
   pointer-events: none;
 }
 
 .l3-suspicion-label {
-  margin-bottom: 5px;
-  color: #f6d8da;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-shadow: 2px 2px 0 #343944;
+  font-size: clamp(0.65rem, 1vw, 0.85rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  text-shadow: 0 2px 4px #000;
 }
 
-.l3-suspicion-mark {
+.l3-suspicion-track {
   position: relative;
-  width: 104px;
-  height: 220px;
-}
-
-.l3-suspicion-mark::before {
-  position: absolute;
-  display: block;
-  content: "";
-  background: linear-gradient(90deg, #eff3f7 0 14%, #8f99a7 15% 28%, #414953 29% 70%, #aeb8c5 71% 86%, #f8fbff 87%);
-  clip-path: polygon(12% 0, 88% 0, 100% 8%, 86% 17%, 86% 82%, 67% 100%, 33% 100%, 14% 82%, 14% 17%, 0 8%);
-  box-shadow: inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.32);
-}
-
-.l3-suspicion-mark::before {
-  inset: 16px 8px 45px;
-}
-
-.l3-suspicion-mark::after {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  left: 8px;
-  width: 88px;
-  height: 40px;
-  content: "";
-  background: linear-gradient(135deg, #fafdff 0 18%, #b8c0cb 19% 35%, #48515d 36% 68%, #9da8b5 69% 84%, #f9fbff 85%);
-  clip-path: polygon(20% 0, 80% 0, 100% 24%, 84% 100%, 16% 100%, 0 24%);
-  box-shadow: inset 0 7px 0 #202630, inset 0 12px 0 #11151b, inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.28);
-}
-
-.l3-suspicion-well {
-  position: absolute;
-  z-index: 1;
-  inset: 27px 27px 53px;
+  width: clamp(24px, 2.2vmin, 36px);
+  height: var(--l3-meter-height);
   overflow: hidden;
-  background: linear-gradient(90deg, #202630, #11151b 50%, #303844);
-  clip-path: polygon(11% 0, 89% 0, 100% 6%, 84% 88%, 66% 100%, 34% 100%, 16% 88%, 0 6%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  background: rgba(10, 16, 26, 0.72);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-.l3-suspicion-well::after {
+.l3-suspicion-fill {
+  position: absolute;
+  /* Bleed beneath the clipped frame to cover fractional-pixel edge seams. */
+  inset: -1px 0;
+  background: linear-gradient(to top, #e8a444, #f16b59 55%, #e63850);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+}
+
+/* Quarter marks stay visible over both the empty track and its fill. */
+.l3-suspicion-track::after {
   position: absolute;
   inset: 0;
   content: "";
-  background: linear-gradient(90deg, rgba(255,255,255,0.14), transparent 28%, transparent 70%, rgba(255,255,255,0.08));
-  pointer-events: none;
+  background: repeating-linear-gradient(to top, transparent 0 calc(25% - 1px), rgba(255, 255, 255, 0.3) calc(25% - 1px) 25%);
 }
 
-.l3-suspicion-dot {
-  position: absolute;
-  display: block;
-  content: "";
-  right: 25px;
-  bottom: 0;
-  width: 50px;
-  height: 42px;
-  background: linear-gradient(135deg, #fbfdff 0 19%, #9faab6 20% 36%, #444d58 37% 72%, #cbd3dc 73% 88%, #f9fbff 89%);
-  clip-path: polygon(18% 0, 82% 0, 100% 18%, 79% 100%, 21% 100%, 0 18%);
-  box-shadow: inset 3px 3px 0 rgba(255,255,255,0.72), inset -3px -3px 0 rgba(0,0,0,0.28);
+.l3-suspicion-track.is-danger {
+  transform: translateX(var(--shake-x, 0px)) rotate(var(--shake-rotation, 0deg));
 }
 
-/* The supplied art is the visible vessel; the glyph chamber sits behind it. */
-.l3-suspicion-mark {
-  width: 146px;
-  height: 268px;
-  overflow: hidden;
-}
-
-.l3-suspicion-mark::before,
-.l3-suspicion-mark::after,
-.l3-suspicion-dot {
-  display: none;
-}
-
-.l3-suspicion-well {
-  z-index: 1;
-  inset: 33px auto auto 36px;
-  width: 50px;
-  height: 218px;
-  /* Upper vessel, connecting neck, and the lower exclamation dot. */
-  clip-path: polygon(15% 0, 85% 0, 100% 6%, 86% 62%, 67% 69%, 60% 75%, 84% 79%, 90% 83%, 90% 100%, 10% 100%, 10% 83%, 16% 79%, 40% 75%, 33% 69%, 14% 62%, 0 6%);
-}
-
-.l3-suspicion-art {
-  position: absolute;
-  z-index: 2;
-  top: -18px;
-  left: -165px;
-  width: 468px;
-  height: 312px;
-  max-width: none;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  user-select: none;
-}
-
-.l3-suspicion-particle {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 10px;
-  height: 10px;
-  display: grid;
-  place-items: center;
-  color: #ff5963;
-  font: 800 12px/1 "Pixelify Sans", monospace;
-  text-shadow: 1px 1px 0 #5d1018, 0 0 5px rgba(255, 61, 74, 0.5);
-  will-change: transform;
+@media (prefers-reduced-motion: reduce) {
+  .l3-suspicion-track.is-danger { transform: none; }
 }
 
 .l3-suspicion-value {
-  min-width: 3.6em;
-  margin-top: 2px;
-  padding: 0.1rem 0.38rem;
-  border: 2px solid #d8dfe8;
-  border-radius: 4px;
-  background: #252b34;
-  color: #ff7c84;
-  font: 800 0.9rem/1.2 "Pixelify Sans", monospace;
-  text-align: center;
-  text-shadow: 1px 1px 0 #5d1018;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 4px #000;
+}
+
+@media (max-height: 500px) {
+  #hud[data-variant="level3"] { --l3-clock-size: clamp(120px, 20vmin, 160px); }
 }
 
 #instruction-card { position: fixed; inset: 0; display: grid; place-items: center; padding: 1.5rem; background: rgba(5, 8, 14, 0.58); z-index: 24; }
