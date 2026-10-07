@@ -166,6 +166,9 @@ export class Game {
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
     this.uiAudio.preload([RESULT_AUDIO]);
+    for (const preset of ["menu", "level1", "level2", "level3"]) {
+      this.uiAudio.preloadMusic(preset);
+    }
     this.isMusicEnabled = true;
     this.fpsFrames = 0;
     this.fpsElapsed = 0;
@@ -792,6 +795,7 @@ export class Game {
     this.setMessage(message);
 
     if (completedLevel === 3) {
+      this.currentLevel?.audio?.stopMusic?.({ fadeSeconds: 0.12, reset: true });
       this.uiAudio.playSegment(RESULT_AUDIO, {
         ...RESULT_CUES.success,
         volume: 0.62
@@ -836,6 +840,11 @@ export class Game {
     this.uiAudio.playSample(path, { volume, bus: "sfx" });
   }
 
+  playPersistentAudio(path, options = {}) {
+    if (this.isSoundMuted) return null;
+    return this.uiAudio.playSample(path, { bus: "sfx", ...options });
+  }
+
   // `failure` is a { title, reason, next } description from the level; a
   // plain sentence still works for older call sites.
   failLevel(failure) {
@@ -844,12 +853,16 @@ export class Game {
     if (this.isScoredJourney) {
       this.recordFailedAttempt(this.currentLevelNumber);
     }
-    if (this.currentLevelNumber === 3) {
-      this.uiAudio.playSegment(RESULT_AUDIO, {
-        ...RESULT_CUES.fail,
-        volume: 0.68
-      });
-    }
+
+    // Result audio belongs to the persistent game audio context so it survives
+    // level disposal. Fade gameplay music immediately so the failure sting is
+    // readable on every level rather than only Level 3.
+    this.currentLevel?.audio?.stopMusic?.({ fadeSeconds: 0.12, reset: true });
+    this.uiAudio.playSegment(RESULT_AUDIO, {
+      ...RESULT_CUES.fail,
+      volume: 0.68
+    });
+
     this.isTransitioning = true;
     this.setMessage(describeFailure(failure).title);
     this.fadeTransition(() => this.showFailure(failure));
