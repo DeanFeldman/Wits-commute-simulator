@@ -84,7 +84,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
     controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
     tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
-    previewLabel: "Actual Level 1 view — car, potholes and parking area"
+    previewLabel: "Live Level 1 practice — purple markers = parking goals"
   }],
   [2, {
     kicker: "LEVEL 02 // CROSS",
