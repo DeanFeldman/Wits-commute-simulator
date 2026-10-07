@@ -190,6 +190,36 @@ General UI/body text loaded through Google Fonts.
 
 Modified: No
 
+### Pencil Pete FONT (trial)
+
+Type: Font
+
+Source:
+https://www.1001fonts.com/pencilpete-font-font.html
+
+Author:
+JOEBOB graphics
+
+Licence:
+Free for personal use / trial licence; not free for commercial use according to
+the 1001 Fonts listing. The repository currently ships the trial TTF, so the team
+must confirm that redistribution in the submitted game is permitted or replace it
+with a font whose redistribution terms are clear.
+
+Used for:
+Level 3 handwritten hologram / answer-note text.
+
+File:
+`public/assets/fonts/pencil-pete-trial.ttf`
+
+Modified: No
+
+Added by:
+Gabriel Raz
+
+Status:
+Source identified, but **redistribution clearance still required before submission**.
+
 ---
 
 ## Models
@@ -327,6 +357,158 @@ Yes — individual vehicles are extracted from the pack and cloned per bay.
 
 Added by:
 Shayna Unterslak
+
+### Diesel Powered Thomas (reference source for project proxy)
+
+Type:
+Model / reference source
+
+Source:
+https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab
+
+Author:
+mrmrnaufal
+
+Licence:
+Creative Commons Attribution (CC BY), as displayed on the Sketchfab model page.
+
+Used for:
+Reference/source for the lightweight project-made `diesel-thomas-proxy-game.glb`
+and `diesel-thomas-proxy-lite.glb` files retained under `public/assets/cars/`.
+The proxy files are procedural stand-ins and are not a conversion of the source mesh.
+
+Modified:
+The source model itself is not shipped. The retained proxies were created separately
+from simple geometry for this project.
+
+Added by:
+Dean Feldman
+
+---
+
+## Foliage Models
+
+The current Level 1 foliage runtime paths in `ParkingFoliage.js` are:
+`low-poly-tree-pack.glb`, `giant-low-poly-tree.glb`,
+`lilac-bushes-lods.glb`, and `grass-pack-lods.glb`.
+
+### Grass Pack of 9 Variations
+
+Type: Model / foliage pack
+
+Source:
+https://sketchfab.com/3d-models/grass-pack-of-9-vars-lowpoly-game-ready-0561204a1fa14c17939300ee1108948b
+
+Author:
+LOLIPOP (@lolipop_1707)
+
+Licence:
+Creative Commons Attribution (CC BY) as listed by Sketchfab.
+
+Used for:
+Level 1 grass foliage instances.
+
+File:
+`public/assets/models/foliage/grass-pack-lods.glb`
+
+Modified:
+Yes — imported/processed for runtime use and instanced by `ParkingFoliage.js`.
+
+Added by:
+Gabriel Raz
+
+### Lilac Bush Pack (12 variations, LODs)
+
+Type: Model / foliage pack
+
+Source:
+https://sketchfab.com/3d-models/lilac-bush-pack-12-vars-lods-game-ready-10312697ec994fc99355cb94f1963a2e
+
+Author:
+LOLIPOP (@lolipop_1707)
+
+Licence:
+Creative Commons Attribution (CC BY) as listed by Sketchfab.
+
+Used for:
+Level 1 bush / understory foliage.
+
+File:
+`public/assets/models/foliage/lilac-bushes-lods.glb`
+
+Modified:
+Yes — imported/processed for runtime use and instanced by `ParkingFoliage.js`.
+
+Added by:
+Gabriel Raz
+
+### Giant Low Poly Tree
+
+Type: Model
+
+Source:
+https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572
+
+Author:
+Sahir Virmani (@sahirvirmani)
+
+Licence:
+Creative Commons Attribution (CC BY) as listed by Sketchfab.
+
+Used for:
+Level 1 hero / near-campus tree instances.
+
+File:
+`public/assets/models/foliage/giant-low-poly-tree.glb`
+
+Modified:
+Yes — normalised/scaled and instanced at runtime.
+
+Added by:
+Gabriel Raz
+
+### Low Poly Tree Pack
+
+Type: Model / foliage pack
+
+Source:
+https://sketchfab.com/3d-models/low-poly-tree-pack-1edaac90fe8d4bb28546740496684d96
+
+Author:
+Pasha (@Pasha.)
+
+Licence:
+Sketchfab Free Standard, as listed on the model page.
+
+Used for:
+Level 1 near and distant tree instances.
+
+File:
+`public/assets/models/foliage/low-poly-tree-pack.glb`
+
+Modified:
+Yes — selected subtrees are normalised/scaled and instanced at runtime.
+
+Added by:
+Gabriel Raz
+
+### Maple Trees Pack (historical / no longer loaded)
+
+Type: Model / foliage pack
+
+Source:
+https://sketchfab.com/3d-models/maple-trees-pack-lowpoly-game-ready-lods-b5d2833c258f4054a01ee2b4ef85adf0
+
+Author:
+LOLIPOP (@lolipop_1707)
+
+Licence:
+Creative Commons Attribution (CC BY) as listed by Sketchfab.
+
+Status:
+This pack was previously added as `maple-trees-lods.glb` but the current
+`ParkingFoliage.js` no longer loads it. Retained here only as historical
+provenance; it should not appear as a current runtime credit unless reintroduced.
 
 ---
 
@@ -606,6 +788,34 @@ lightweight runtime loop.
 Added by:
 Nadav Sundy
 
+### Level 2 Pedestrian Crossing Signal
+
+Type:
+Road-crossing ambience / traffic-light signal
+
+Source:
+https://freesound.org/people/MacFerret_20/sounds/231936/
+
+Author:
+MacFerret_20
+
+Licence:
+**Exact Freesound licence still to be verified before final submission.**
+
+Used for:
+A low traffic-light ticking layer that fades in only as the player approaches
+and crosses Yale Road in Level 2.
+
+Runtime file:
+`public/assets/audio/level2/crossing-signal.opus`
+
+Modified:
+Yes — leading silence removed, downmixed to mono, loop boundary crossfaded,
+normalised with headroom and encoded to Opus.
+
+Added by:
+Nadav Sundy
+
 ### Level 2 Vehicle Pass-bys
 
 Type:
@@ -852,6 +1062,32 @@ No — the short supplied WAV is preloaded/decoded for immediate playback.
 Added by:
 Nadav Sundy
 
+### Level 1 Normal Engine Idle
+
+Type:
+Sound effect / vehicle loop
+
+Source:
+https://freesound.org/people/GiocoSound/sounds/401552/
+
+Author:
+GiocoSound
+
+Licence:
+Creative Commons 0 (CC0)
+
+Used for:
+Normal Level 1 engine idle / low-speed engine bed after the startup cue.
+
+Runtime file:
+`public/assets/audio/level1/idle-car.opus`
+
+Modified:
+Yes — converted to compact Opus and circularly crossfaded for a cleaner loop.
+
+Added by:
+Nadav Sundy
+
 ### Level 1 Damaged Engine
 
 Type:
@@ -912,25 +1148,26 @@ Type:
 Sound effect
 
 Source:
-https://pixabay.com/sound-effects/film-special-effects-people-colliding-43479/
+https://freesound.org/people/foxboyprower/sounds/512568/
 
 Author:
-freesound_community
+foxboyprower
 
 Licence:
-Pixabay Content License
+Creative Commons 0 (CC0)
 
 Used for:
 Player-to-pedestrian bumps in Level 2.
 
 Runtime file:
-`public/assets/audio/level2/extra-sprite.opus`
+`public/assets/audio/level2/person-bump.opus`
 
 Modified:
-Yes — the useful collision section was cropped and packed into an Opus sprite.
+Yes — downmixed to mono, peak-normalised with headroom and encoded to Opus.
 
 Added by:
 Nadav Sundy
+
 
 ### Level 2 Vida Cup Pickup
 
@@ -938,28 +1175,27 @@ Type:
 Sound effect
 
 Source:
-https://pixabay.com/sound-effects/film-special-effects-achievement-badge-pop-sound-1-547860/
+https://freesound.org/people/Leszek_Szary/sounds/171579/
 
 Author:
-Vadim_Makes_Sound
+Leszek_Szary
 
 Licence:
-Pixabay Content License
-
-Source disclosure:
-Pixabay marks this source as AI modified or generated.
+Creative Commons 0 (CC0)
 
 Used for:
-Vida cup collection in Level 2.
+Immediate Vida cup collection feedback in Level 2.
 
 Runtime file:
-`public/assets/audio/level2/extra-sprite.opus`
+`public/assets/audio/level2/cup-pickup.opus`
 
 Modified:
-Yes — cropped and packed into an Opus sprite.
+Yes — the silent tail was removed, the useful cue was downmixed to mono,
+normalised with headroom and encoded to Opus.
 
 Added by:
 Nadav Sundy
+
 
 ### Level 3 Incorrect Answer
 
@@ -1019,49 +1255,76 @@ Used for:
 
 The pre-Level 1 story and asset-loading screen.
 
+
+### Main Menu Background
+
+Type:
+Image / UI artwork
+
+File:
+`public/assets/images/ui/main-menu-background.png`
+
+Source:
+Generated with OpenAI image generation via ChatGPT at Dean Feldman's direction
+for Wits Commute Simulator.
+
+Author:
+OpenAI-generated project asset, directed by Dean Feldman.
+
+Licence:
+Generated output — no third-party licence attaches. Note that the generating
+model was trained on third-party data.
+
+Used for:
+Main menu background artwork.
+
+Added by:
+Dean Feldman
+
+### Level 3 Story Loading Screen
+
+Type:
+Image / UI artwork
+
+File:
+`public/assets/images/ui/level3-story-loading-screen.png`
+
+Source:
+Generated with OpenAI image generation via ChatGPT at Dean Feldman's direction
+for Wits Commute Simulator.
+
+Author:
+OpenAI-generated project asset, directed by Dean Feldman.
+
+Licence:
+Generated output — no third-party licence attaches. Note that the generating
+model was trained on third-party data.
+
+Used for:
+The pre-Level 3 story/loading screen.
+
+Added by:
+Dean Feldman
+
 ### Original Level Soundtrack
 
 Type:
-Music / project-authored procedural composition rendered to WAV
+Music / pre-rendered WAV soundtrack
 
 Source:
-Recomposed with OpenAI/ChatGPT on 2026-10-05 for Issue #233. The replacement
-score was generated specifically for Wits Commute Simulator from a shared
-D-major / B-minor commute motif. No downloaded music, third-party samples, or
-external loops are used.
+Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/` and played directly by `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
 
 Files:
-- `menu-commute-theme.wav` — **"Commute Motif"**, 84 BPM
-- `level1-dusk-drive.wav` — **"After Class"**, 76 BPM
-- `level2-empire-rush.wav` — **"Crossing Rush"**, 116 BPM
-- `level3-dont-get-caught.wav` — **"Eyes Down"**, 88 BPM
+`menu-commute-theme.wav`, `level1-dusk-drive.wav`, `level2-empire-rush.wav`, `level3-dont-get-caught.wav`.
 
 Author:
-OpenAI-assisted original composition generated for the Wits Commute Simulator
-team.
+OpenAI-assisted composition generated for the Wits Commute Simulator team.
 
 Licence:
-Project-created generated output — no third-party audio licence attaches.
+Generated output - no third-party licence attaches. Note that the generating model was trained on third-party data.
 
 Used for:
-A single musical identity carried across the menu and all three levels:
-
-- **Menu:** warm electric-piano statement of the main commute motif.
-- **Level 1 / Parking:** slower, warmer and more spacious interpretation with
-  soft pads, restrained bass and very light percussion.
-- **Level 2 / Walking:** quicker plucked interpretation with syncopated chord
-  stabs and a clearer rhythmic pulse.
-- **Level 3 / Cheating:** sparse fragmented interpretation designed to leave
-  room for tutor footsteps, classroom ambience, heartbeat and clock audio.
-
-Mix direction:
-The tracks intentionally avoid the previous loud, continuously dense
-"game soundtrack" feel. They are designed to sit behind environmental audio,
-with the Level 3 score additionally ducked as suspicion and time pressure rise.
-
-Modified:
-The original 2026-09-25 soundtrack was completely replaced on 2026-10-05 as
-part of Issue #233.
+"Commute Theme" on the home page and level loading/story screens, Level 1 "Dusk Drive" (moody campus driving), Level 2 "Empire Rush" (fast arcade crossing), and Level 3 "Don't Get Caught" (sparse stealth tension).
 
 ### Classroom Brick Wall / Classroom Terrazzo Floor
 
@@ -1150,37 +1413,16 @@ Gabriel Raz
 
 ## Unresolved — Action Required
 
-### Normalised Vehicle Pack (aston, byd, honda, nissan, vw, diesel-thomas)
+### Historical normalised vehicle variants
 
-Type: Model
+The old Aston Martin, BYD, Honda, Nissan and Volkswagen `*-game/lite.glb`
+variants are no longer present in the current repository asset tree, so they
+require no current submission credit unless reintroduced.
 
-Source:
-**Not recorded.** These were converted from uploaded source archives that did not
-carry licence metadata — see `public/assets/cars/README.md`. The vehicles are
-identified in `car-library-manifest.json` as a 2008 Aston Martin V8 Vantage GT2,
-2024 BYD Atto 2, Honda Accord 11th Gen, 2020 Nissan GT-R50, 2022 Volkswagen
-Saveiro, and a "Diesel Powered Thomas" easter egg.
-
-Author:
-Unknown — **must be traced before submission.**
-
-Licence:
-Unknown — **must be traced before submission.**
-
-Used for:
-Parked cars and M1 background traffic in Level 1 (`*-game.glb` for near vehicles,
-`*-lite.glb` for distant ones).
-
-Files:
-`public/assets/cars/{aston,byd,honda,nissan,vw,diesel-thomas-proxy}-{game,lite}.glb`
-
-Modified:
-Yes — converted to `.glb`, decimated, textures stripped and replaced with vertex
-colours, normalised to a common scale and orientation. The `diesel-thomas-proxy`
-files are procedural stand-ins, not a conversion of the original mesh.
-
-Added by:
-Dean Feldman — **please supply the original download pages and licences.**
+The retained Diesel Thomas proxy files are documented separately above. Their
+reference source is mrmrnaufal's Sketchfab model under Creative Commons
+Attribution (CC BY), and the repository proxies are project-made procedural
+stand-ins rather than a conversion of that source mesh.
 
 ---
 
@@ -1194,6 +1436,7 @@ Original assets authored by the team:
 - Custom asphalt shader (`src/shaders/asphaltShader.js`)
 - Level 2 crossing grid and traffic layout
 - Level 3 classroom layout, desk grid and exam-paper canvas textures
+- Wits shark 3D model — created by Gabriel Raz using Wits Sharks Instagram imagery as visual reference supplied by Dean Feldman; the unused reference PNG has been removed
 - All UI, menus and HUD styling (`index.html`)
 
 ---
@@ -1222,12 +1465,11 @@ team-authored or properly licensed alternatives.
 
 | Runtime asset(s) | Current evidence | Required before submission |
 | --- | --- | --- |
-| `cars/{aston,byd,honda,nissan,vw}-{game,lite}.glb` | Converted from uploaded archives with no preserved metadata. | Original download URL, author and licence for each vehicle. |
-| `cars/diesel-thomas-proxy-{game,lite}.glb` | Procedural project proxy; uploaded Blender source was not converted. | Rights clearance for the character reference, or remove the easter egg. |
-| `audio/level1/idle-car.wav` | No embedded or repository source record. | Source URL, author and licence, or replacement. |
-| `models/characters/wits-shark.glb`, `models/characters/wits-shark.png` | Added without an attribution record. | Source/licence or team-authorship record. |
-| `textures/road/amic-fence.png`, `textures/road/amic-fence-reference.png`, `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` | Added without an attribution record. | Source/licence or team-authorship record. |
-| `images/ui/main-menu-background.png`, `images/ui/level2-story-loading-screen.png`, `images/ui/level3-story-loading-screen.png` | Added without a generation or source record. | Generation record or source/licence. |
+| `cars/{aston,byd,honda,nissan,vw}-{game,lite}.glb` | Historical Issue #160 record only. These files are no longer present in the current repository asset tree. | No current credit action unless these assets are reintroduced. |
+| `cars/diesel-thomas-proxy-{game,lite}.glb` | Procedural project proxy. Reference source: mrmrnaufal, “Diesel Powered Thomas,” Sketchfab, Creative Commons Attribution (CC BY). The uploaded Blender source was not converted. | Source/author/licence record complete; retain attribution if the proxy files remain distributed. |
+| `models/characters/wits-shark.glb` | Project-created by Gabriel Raz using the Wits Sharks Instagram account as visual reference supplied by Dean Feldman. The unused `wits-shark.png` reference file was removed because runtime code loads only the GLB. | Project-authorship/reference record complete for the retained GLB. |
+| `textures/road/amic-fence.png`, `textures/road/amic-fence-reference.png`, `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` | Directly edited/adapted by Dean Feldman from imagery in Crown Publications' “Bridging the divide” article; the article credits its images to eimage/Gareth Gilmour. | Confirm the article image reuse/redistribution terms for these adapted textures, or replace them with cleared/team-made equivalents. |
+| `images/ui/main-menu-background.png`, `images/ui/level2-story-loading-screen.png`, `images/ui/level3-story-loading-screen.png` | Dean Feldman confirmed main-menu-background.png and level3-story-loading-screen.png were generated with OpenAI image generation via ChatGPT. Level 2 story art remains unresolved in this group. | Main menu and Level 3 story generation records are now documented; Level 2 story art still needs its own generation/source record. |
 
 The in-game Credits screen mirrors this gate so an exported build does not imply
 that these resources have been cleared. The documented CC BY 4.0 models, CC0
@@ -1268,15 +1510,22 @@ The following resources have a recorded source/author/licence or a project-autho
 - Pixelify Sans — SIL Open Font License 1.1.
 - Inter — SIL Open Font License 1.1.
 - Whiteboard — tboiston — CC BY 4.0.
+- Plastic Chair (retained public asset) — Jazavac — CC BY 4.0.
 - Paper Tablet — NameSsis — CC BY 4.0.
 - Car Scene — toivo — CC BY 4.0.
 - Generic Passenger Car Pack — Comrade1280 — CC BY 4.0.
+- Diesel Powered Thomas reference — mrmrnaufal — Creative Commons Attribution (CC BY), as displayed on Sketchfab; retained project proxies are procedural stand-ins.
 - Asphalt 02 PBR set — Rob Tuytel / Poly Haven — CC0.
 - Joburg Central Sunset HDRI — Dimitrios Savva and Greg Zaal / Poly Haven — CC0.
+- Grass Pack of 9 Variations — LOLIPOP — CC BY.
+- Lilac Bush Pack — LOLIPOP — CC BY.
+- Giant Low Poly Tree — Sahir Virmani — CC BY.
+- Low Poly Tree Pack — Pasha — Sketchfab Free Standard.
 - Original menu / level soundtrack — OpenAI-assisted project-created audio.
-  Continuous gameplay music is intentionally disabled; menu/story presentation
-  retains music while Levels 1–3 use environmental and contextual sound.
 - Level 1 story loading screen — OpenAI-generated project asset.
+- Main menu background — OpenAI/ChatGPT-generated project asset directed by Dean Feldman.
+- Level 3 story loading screen — OpenAI/ChatGPT-generated project asset directed by Dean Feldman.
+- Wits shark 3D model — project-created by Gabriel Raz using Wits Sharks Instagram imagery as visual reference supplied by Dean Feldman. The unused reference PNG has been removed; gameplay loads only the GLB.
 - Level 3 classroom brick/floor textures — AI-generated by Gabriel Raz.
 - Level 3 zoom-hands UI — OpenAI-generated by Gabriel Raz.
 - Team-created environments, game systems, shaders and UI listed in the project-created section above.
@@ -1285,26 +1534,23 @@ The following resources have a recorded source/author/licence or a project-autho
 
 These remain **open** and are the reason Issue #245 must not be closed yet:
 
-### Vehicles
-- normalised Aston Martin, BYD, Honda, Nissan and Volkswagen runtime variants;
-- Diesel Thomas proxy/reference clearance.
+### Vehicles / retained car assets
+- Diesel Thomas provenance is resolved: reference source mrmrnaufal on Sketchfab, Creative Commons Attribution (CC BY); retained proxy GLBs are project-made procedural stand-ins.
+- The Aston Martin, BYD, Honda, Nissan and Volkswagen `*-game/lite.glb` files referenced by
+  the legacy `CAR_SPECS` table are **not present in the current repository asset tree** and
+  are therefore not part of the present distributed asset inventory.
 
-### Recorded Level 1 audio
-- `idle-car.wav`.
-
-The previous undocumented `car-crash.mp3` and `collision-hit.mp3` runtime files
-were removed after licensed replacements were integrated under Issue #233.
 
 ### Font
-- `pencil-pete-trial.ttf`.
+- `pencil-pete-trial.ttf` — source and author are now identified, but the trial
+  licence still needs redistribution clearance or replacement.
 
 ### Level 1 foliage / environment assets
-- `giant-low-poly-tree.glb`;
-- `grass-pack-lods.glb`;
-- `lilac-bushes-lods.glb`;
-- `low-poly-tree-pack.glb`;
+- **Foliage model provenance resolved:** `giant-low-poly-tree.glb`,
+  `grass-pack-lods.glb`, `lilac-bushes-lods.glb`, and
+  `low-poly-tree-pack.glb` now have recorded sources/authors/licences above.
 - stylized grass albedo / normal / roughness / AO texture set;
-- `east-precast-wall-texture.jpg`.
+- `east-precast-wall-texture.jpg` — image found online via Google Images, with the original source traced to Precast Walling Pros; directly edited/adapted by Dean Feldman for the game.
 
 ### Level 2 player / NPC assets
 - student backpack;
@@ -1326,18 +1572,28 @@ the `classroom-*` replacement files instead. Their provenance relationship
 must be confirmed before carrying those older credits across to the runtime replacements.
 
 ### Other runtime assets
-- Wits shark model/texture;
-- AMIC fence/reference textures;
+- Wits shark: the 3D model authorship/reference source is recorded. `wits-shark.png` was unused by gameplay and has been removed from the repository; only the project-created GLB remains.
+- AMIC fence/reference textures and the Level 2 AMIC deck texture
+  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — source imagery found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), then directly edited/adapted by Dean Feldman for the game.
 - At Wits End logo;
-- main-menu background images;
-- Level 2 and Level 3 story images;
+- `main-menu-v3-background.png`;
+- Level 2 story image;
 - suspicion-meter artwork.
+
+The separate `main-menu-background.png` and Level 3 story image now have OpenAI/ChatGPT generation records supplied by Dean Feldman.
 
 For each unresolved item, the final action is one of:
 
 1. record the original source, author and licence;
 2. record a truthful team-authorship / generation record; or
 3. replace/remove the asset before submission.
+
+### Level 2 crossing-signal licence verification
+
+The source and author for `crossing-signal.opus` are recorded as MacFerret_20,
+Freesound sound 231936. Confirm the exact licence displayed on that specific
+Freesound page before final submission; do not infer it from the author's other
+recordings.
 
 ## Still required before final submission
 
@@ -1351,3 +1607,114 @@ For each unresolved item, the final action is one of:
 - Have a second team member independently cross-check the final register.
 
 **Issue #245 should remain open until all of the above are complete.**
+
+
+## 7 October 2026 source follow-up
+
+Gabriel Raz supplied source links for the foliage assets and re-confirmed the
+already-recorded Asphalt 02, Car Scene, Generic Passenger Car Pack, Paper Tablet
+and Whiteboard sources. The current runtime foliage mapping was rechecked against
+`src/levels/parking/ParkingFoliage.js`.
+
+The Maple Trees Pack source was also supplied, but that pack is no longer loaded
+by the current runtime code, so it is retained only as historical provenance.
+
+The Pencil Pete source was identified as JOEBOB graphics' trial font. This closes
+the "unknown source" part of that item, but not the redistribution/licence-clearance
+part; it remains open until the team confirms the trial licence permits shipping
+the TTF with the project or replaces it.
+
+
+---
+
+# Whole-Repo Credits Re-audit — 7 October 2026
+
+A second audit was performed against the complete repository tree on the
+`docs/245-raz-source-followup` branch after the Raz source follow-up.
+
+## Audit scope
+
+- all 85 files under `public/assets/`;
+- all 57 JavaScript/CSS/HTML source files that can reference shipped assets;
+- current runtime asset references in Levels 1–3 and shared systems;
+- assets retained under `public/` even where current gameplay no longer loads them;
+- Git history used to identify the team member who introduced each unresolved asset.
+
+Because Vite copies `public/` into the production output, retained third-party
+assets still need either a valid credit/provenance record or removal from the
+final submitted asset set, even when they are not referenced by current gameplay.
+
+## Corrections from the re-audit
+
+1. The Level 2 AMIC deck texture
+   `public/assets/textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png`
+   is actively loaded by `CrossingStrip.js` and must remain on the unresolved list.
+2. The Aston Martin, BYD, Honda, Nissan and Volkswagen normalised `*-game/lite.glb`
+   files are not present in the current repository tree. They are stale/historical
+   references, not current distributed assets.
+3. `plastic-chair.glb` remains in `public/assets/models/props/` and is already
+   attributable to Jazavac under CC BY 4.0, even though current Level 3 gameplay
+   loads `classroom-plastic-chair.glb`.
+4. `cartoon-desk.glb` remains in the public asset folder and already has a
+   project-authorship record; the live classroom replacement
+   `classroom-desk.glb` still needs its own provenance relationship confirmed.
+5. `collision-hit.mp3` and `wits-shark.png` are retained in `public/` but were
+   not found as current direct runtime references. They still need provenance or
+   should be removed before the final asset freeze.
+6. The four foliage packs currently loaded by `ParkingFoliage.js` now have source
+   records. The supplied Maple Trees Pack source is historical only because that
+   model is no longer present/loaded in the current repository.
+
+## Current unresolved distributed assets
+
+### Gabriel Raz
+- `pencil-pete-trial.ttf` — source/author found; distribution permission still
+  needs confirmation or replacement.
+- Level 1 stylized grass texture set.
+- Level 2 student backpack.
+- Level 2 male/female student rig + textured model sets.
+- Level 2 standing/walk and player idle/run/selection animation files.
+- Level 2 player rig/textured model.
+- Level 3 tutor rig/textured model.
+- Level 3 seated-student animation.
+- `classroom-desk.glb` and `classroom-plastic-chair.glb` replacement provenance.
+- At Wits End logo.
+- `main-menu-v3-background.png`.
+- Level 2 story-loading image.
+- `suspicion-meter.png`.
+- `car-crash.mp3`, `car-door-shut.mp3`, and `idle-car.wav`.
+
+### Dean Feldman
+- `east-precast-wall-texture.jpg` — found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.
+- Wits shark — Gabriel Raz created the 3D model; Dean supplied the Wits Sharks Instagram visual reference. The unused reference PNG has been removed; runtime uses only the GLB.
+- `amic-fence.png`, `amic-fence-reference.png`, and
+  `2695c241-17bb-416d-9d1d-7f061ccf7976.png` — found online, traced to Crown Publications' “Bridging the divide” (article images credited to eimage/Gareth Gilmour), then directly edited/adapted by Dean for the game.
+- `main-menu-background.png` — OpenAI image generation via ChatGPT, directed by Dean Feldman; generation record complete.
+- Level 3 story-loading image — OpenAI image generation via ChatGPT, directed by Dean Feldman; generation record complete.
+
+### Liora Rosenberg
+- `collision-hit.mp3` — likely traceable from the original source filename, but
+  the exact source page, author and licence still need to be recorded.
+
+## 7 October 2026 Dean source follow-up
+
+Dean Feldman supplied the following provenance details for the assets attributed to him in the re-audit:
+
+- **Diesel Powered Thomas source:** https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab — author **mrmrnaufal**, licence **Creative Commons Attribution (CC BY)** as displayed on Sketchfab. The repository ships only lightweight project-made procedural proxy GLBs, not a conversion of that Blender mesh. This provenance item is resolved.
+
+- **East precast wall:** found online via Google Images, with the original image traced to Precast Walling Pros at `precastwallingpros.co.za`; directly edited/adapted by Dean Feldman for the game.
+- **Wits shark:** Gabriel Raz created the 3D model using his modelling workflow. Dean supplied imagery from the Wits Sharks Instagram account as the visual reference. The unused `wits-shark.png` reference image was removed because runtime code loads only `wits-shark.glb`.
+- **AMIC fence/reference and deck texture:** source imagery found online and traced to Crown Publications' article “Bridging the divide” (`https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide`), which credits its images to eimage/Gareth Gilmour; directly edited/adapted by Dean Feldman for the game.
+- **Main menu background:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
+- **Level 3 story/loading image:** generated with OpenAI image generation via ChatGPT at Dean's direction for this project.
+
+These records resolve the missing generation/authorship history for the two AI-generated UI images and the Diesel Thomas source/author/licence record. They also identify the source/reference history for the wall, shark and AMIC assets without inventing licence terms that have not been confirmed.
+
+---
+
+## Final rule
+
+Issue #245 remains open. Before it can close, the final production asset set must
+be frozen, every unresolved item above must either gain a truthful source/licence
+or team-authorship record or be removed/replaced, and the final LAMP build must be
+checked against this ledger.
