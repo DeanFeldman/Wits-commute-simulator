@@ -1403,6 +1403,7 @@ export class ParkingLevel {
     this.parkingConfirmationDuration = 0.75;
 
     this.completed = false;
+    this.tutorialPose = null;
   }
 
 async load() {
@@ -2493,6 +2494,72 @@ createParkingSurface(potholes = []) {
     this.audio.setMuted(muted);
   }
 
+
+  beginTutorial() {
+    if (!this.car || !this.vehicle || this.tutorialPose) return;
+    this.tutorialPose = {
+      position: this.car.position.clone(),
+      rotationY: this.car.rotation.y,
+      cameraMode: this.cameraMode
+    };
+    this.vehicle.stop();
+  }
+
+  updateTutorial(dt) {
+    if (!this.car || !this.vehicle || !this.controls) return;
+
+    if (this.controls.wasPressed("cycleCamera")) this.cycleCameraMode();
+
+    const previousPosition = this.car.position.clone();
+    const previousRotationY = this.car.rotation.y;
+
+    this.vehicle.update(dt, {
+      throttle: (this.controls.isDown("accelerate") ? 1 : 0) - (this.controls.isDown("brake") ? 1 : 0),
+      steering: (this.controls.isDown("steerLeft") ? 1 : 0) - (this.controls.isDown("steerRight") ? 1 : 0)
+    });
+
+    this.car.position.x = clamp(
+      this.car.position.x,
+      PARKING_LAYOUT.mainLot.x - PARKING_LAYOUT.mainLot.width / 2 + 0.5,
+      PARKING_LAYOUT.mainLot.x + PARKING_LAYOUT.mainLot.width / 2 - 0.5
+    );
+    this.car.position.z = clamp(
+      this.car.position.z,
+      PARKING_LAYOUT.mainLot.z - PARKING_LAYOUT.mainLot.depth / 2 + 0.5,
+      44.5
+    );
+
+    this.syncPlayerCollisionVolumes();
+    let hit = null;
+    for (const volume of this.playerCollisionVolumes) {
+      hit = this.collisionWorld.firstHit(
+        volume.object,
+        volume.size,
+        (collider) => collider.tag !== "pothole",
+        volume.bevel
+      );
+      if (hit) break;
+    }
+    if (hit) revertToSafePose(this.car, this.vehicle, previousPosition, previousRotationY);
+
+    this.updateVehicleVisuals(dt);
+    this.updateAsphalt(dt);
+    this.environment?.update(dt);
+    this.updateParkingWaypoints(dt);
+    this.updateCamera(dt);
+  }
+
+  endTutorial() {
+    if (!this.tutorialPose || !this.car || !this.vehicle) return;
+    const { position, rotationY, cameraMode } = this.tutorialPose;
+    this.car.position.copy(position);
+    this.car.rotation.y = rotationY;
+    this.vehicle.stop();
+    this.syncPlayerCollisionVolumes();
+    this.setCameraMode(cameraMode);
+    this.updateCamera(1);
+    this.tutorialPose = null;
+  }
 
   update(dt) {
     if(!this.car)return;
