@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { setAudioVolumes } from "../shared/LevelAudio.js";
 
 const STORAGE_KEY = "wits-commute-graphics-settings";
 
@@ -8,7 +9,7 @@ const PRESETS = Object.freeze({
   high: { resolution: "1", antialiasing: "on", shadows: "high", effects: "on", viewDistance: "far" }
 });
 
-const DEFAULT_SETTINGS = Object.freeze({ preset: "auto", ...PRESETS.medium });
+const DEFAULT_SETTINGS = Object.freeze({ preset: "auto", musicVolume: "100", soundEffectsVolume: "100", ...PRESETS.medium });
 
 function loadSettings() {
   try {
@@ -37,11 +38,16 @@ export class GraphicsSettings {
       effects: document.querySelector("#graphics-effects"),
       viewDistance: document.querySelector("#graphics-view-distance")
     };
+    this.audioControls = {
+      musicVolume: document.querySelector("#settings-music-volume"),
+      soundEffectsVolume: document.querySelector("#settings-effects-volume")
+    };
     this.settings = loadSettings();
     if (this.settings.preset === "auto") {
       Object.assign(this.settings, this.resolvePreset("auto"));
     }
 
+    this.form.addEventListener("input", (event) => this.onAudioInput(event));
     this.form.addEventListener("change", (event) => this.onChange(event));
     this.element.addEventListener("click", (event) => this.onClick(event));
     this.syncControls();
@@ -93,6 +99,7 @@ export class GraphicsSettings {
   }
 
   onChange(event) {
+    if (event.target.type === "range") return;
     const changed = event.target.id;
     if (changed === "graphics-preset") {
       this.settings.preset = this.controls.preset.value;
@@ -116,6 +123,22 @@ export class GraphicsSettings {
     return (navigator.deviceMemory ?? 4) <= 4 ? PRESETS.low : PRESETS.medium;
   }
 
+  onAudioInput(event) {
+    const entry = Object.entries(this.audioControls).find(([, control]) => control === event.target);
+    if (!entry) return;
+    const [key, control] = entry;
+    this.settings[key] = control.value;
+    this.applyAudio();
+  }
+
+  applyAudio() {
+    setAudioVolumes(Number(this.settings.musicVolume) / 100, Number(this.settings.soundEffectsVolume) / 100);
+    Object.entries(this.audioControls).forEach(([key, control]) => {
+      control.value = this.settings[key];
+      document.querySelector(`#${control.id}-value`).textContent = `${control.value}%`;
+    });
+  }
+
   syncControls() {
     Object.entries(this.controls).forEach(([key, control]) => {
       control.value = this.settings[key];
@@ -123,6 +146,7 @@ export class GraphicsSettings {
   }
 
   apply() {
+    this.applyAudio();
     const pixelRatio = Math.min(window.devicePixelRatio * Number(this.settings.resolution), 2);
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.shadowMap.enabled = this.settings.shadows !== "off";

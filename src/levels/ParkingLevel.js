@@ -2387,7 +2387,7 @@ createParkingSurface(potholes = []) {
 
     const idleAudio = new Audio("./assets/audio/level1/idle-car.wav");
     idleAudio.loop = true;
-    idleAudio.volume = 0.15;
+    this.audio.trackSoundEffect(idleAudio, 0.15);
     idleAudio.muted = this.game.isSoundMuted;
     this.carIdleAudio = idleAudio;
     idleAudio.play().catch(() => {
@@ -2407,7 +2407,7 @@ createParkingSurface(potholes = []) {
     }
 
     const hit = this.collisionHitAudio.cloneNode();
-    hit.volume = THREE.MathUtils.lerp(0.45, 1, THREE.MathUtils.clamp(speedFactor, 0, 1));
+    this.audio.trackSoundEffect(hit, THREE.MathUtils.lerp(0.45, 1, THREE.MathUtils.clamp(speedFactor, 0, 1)));
     this.collisionHitPlaying.add(hit);
     hit.addEventListener("ended", () => this.collisionHitPlaying.delete(hit), { once: true });
     hit.play().catch(() => {

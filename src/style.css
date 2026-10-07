@@ -2604,12 +2604,15 @@ body.graphics-effects-off #level2-vignette {
   user-select: none;
 }
 
-/* The selected source has 20px more top padding on its 724px canvas. */
+/* Align the selected plate with the dull artwork while keeping its side accents. */
 .journey-button-selected {
   position: absolute;
-  inset: 0;
+  left: -2.78%;
+  top: -0.29%;
+  width: 105.43%;
+  height: 101.38%;
+  object-fit: fill;
   opacity: 0;
-  transform: translateY(-2.7%);
 }
 #home-menu-primary-action:is(:hover, :focus-visible):not(:disabled) .journey-button-selected { opacity: 1; }
 #home-menu-primary-action:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
@@ -2660,10 +2663,10 @@ body.graphics-effects-off #level2-vignette {
 }
 
 .home-menu-actions {
-  left: 70%;
+  left: min(70%, calc(100% - min(38.25vw, 30.6rem) - 1rem));
   right: auto;
   transform: translateX(-50%);
-  width: min(60vw, 48rem);
+  width: min(76.5vw, 61.2rem);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 1rem;
 }
@@ -2695,3 +2698,34 @@ body.graphics-effects-off #level2-vignette {
 /* Lift keyboard selection, then give the hovered button highest priority. */
 .home-menu-actions button:focus-visible { z-index: 2; }
 .home-menu-actions button:hover { z-index: 3; }
+
+#menu.menu-credits {
+  background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.3)),
+    url("../public/assets/images/ui/main-menu-v3-background.png") center / cover no-repeat;
+}
+
+#menu.menu-credits .menu-card {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  height: min(88vh, 760px);
+  overflow: hidden;
+}
+
+#menu.menu-credits #menu-primary-action {
+  order: -1;
+  justify-self: start;
+  margin: 0 0 0.8rem;
+}
+
+#menu.menu-credits #menu-copy {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.75rem;
+}
+
+#menu.menu-credits [data-game-action="settings"] { display: none; }
+
+.audio-volume-control { display: flex; align-items: center; gap: 0.6rem; }
+.audio-volume-control input { width: 100%; min-width: 0; accent-color: #243556; }
+.audio-volume-control output { min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; }
+.graphics-settings-card { max-height: 90vh; overflow-y: auto; }

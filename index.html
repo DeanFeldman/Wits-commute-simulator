@@ -221,8 +221,14 @@
     <section id="graphics-settings" hidden aria-labelledby="graphics-settings-title">
       <form id="graphics-settings-form" class="graphics-settings-card">
         <p class="menu-kicker">SETTINGS</p>
-        <h2 id="graphics-settings-title">Graphics</h2>
+        <h2 id="graphics-settings-title">Settings</h2>
         <p class="graphics-settings-copy">Changes preview immediately and are saved when applied. Anti-aliasing applies after reloading the page.</p>
+        <label for="settings-music-volume">Music
+          <span class="audio-volume-control"><input id="settings-music-volume" type="range" min="0" max="100" step="1" value="100" /><output id="settings-music-volume-value" for="settings-music-volume">100%</output></span>
+        </label>
+        <label for="settings-effects-volume">Sound effects
+          <span class="audio-volume-control"><input id="settings-effects-volume" type="range" min="0" max="100" step="1" value="100" /><output id="settings-effects-volume-value" for="settings-effects-volume">100%</output></span>
+        </label>
         <label>Preset
           <select id="graphics-preset">
             <option value="auto">Auto</option>

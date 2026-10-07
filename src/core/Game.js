@@ -834,7 +834,7 @@ export class Game {
   playOneShotAudio(path, volume = 1) {
     if (this.isSoundMuted) return;
     const audio = new Audio(path);
-    audio.volume = volume;
+    this.uiAudio.trackSoundEffect(audio, volume);
     audio.play().catch(() => {
       // Browsers can block this if the game's initial click did not count as
       // a user activation. The level transition remains usable in that case.
@@ -1093,7 +1093,7 @@ export class Game {
   showCredits() {
     this.menuTitleElement.textContent = "Credits";
     this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
-    this.menuPrimaryAction.textContent = "Back to menu";
+    this.menuPrimaryAction.textContent = "Back";
     this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
       <section class="credits-section" aria-label="${heading}">
         <h2>${heading}</h2>
