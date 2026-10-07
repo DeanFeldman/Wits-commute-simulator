@@ -1406,11 +1406,8 @@ body.level-2 #level2-vignette{opacity:1}
 @keyframes tutorial-demo-status {
   45% { transform: translateX(-50%) scale(1.04); background: #fff8df; }
 }
-.tutorial-demo-layer[data-level="1"] .tutorial-demo-marker { display: none; }
-.tutorial-demo-layer[data-level="2"] .tutorial-demo-marker {
-  top: 62%;
-  background: rgba(91,126,77,.94);
-}
+.tutorial-demo-layer[data-level="1"] .tutorial-demo-marker,
+.tutorial-demo-layer[data-level="2"] .tutorial-demo-marker { display: none; }
 .tutorial-preview-frame:has(.tutorial-demo-layer.is-level3) { cursor: crosshair; }
 .tutorial-demo-layer.is-level3 .tutorial-demo-marker {
   top: 50%;
