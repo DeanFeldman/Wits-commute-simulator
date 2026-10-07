@@ -3021,3 +3021,51 @@ body.graphics-effects-off #level2-vignette {
   min-height: 0;
   max-height: none;
 }
+
+/* Keep the title, controls and dev links in separate viewport-sized rows. */
+#home-menu { grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); }
+#home-menu .home-menu-card {
+  min-height: 0;
+  max-height: 100vh;
+  justify-self: center;
+  display: grid;
+  grid-template-rows: minmax(0, 44fr) minmax(0, 46fr) minmax(4rem, 10fr);
+  padding: 2vh 4vw 0;
+  box-sizing: border-box;
+}
+#home-menu .home-menu-logo {
+  position: relative;
+  top: auto;
+  align-self: center;
+  width: min(80vw, 1060px);
+  height: 100%;
+  max-height: 100%;
+}
+#home-menu .home-menu-actions {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  align-self: center;
+  justify-self: end;
+  width: min(86vw, 82vh, 61.2rem);
+  max-width: 100%;
+  gap: clamp(0.5rem, 1.5vh, 1rem);
+}
+#home-menu .home-menu-actions #home-menu-settings-action,
+#home-menu .home-menu-actions #home-menu-credits-action { width: 100%; }
+#home-menu #dev-level-select {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  align-self: end;
+  justify-self: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+@media (max-aspect-ratio: 1/1) {
+  #home-menu .home-menu-actions { justify-self: center; }
+}

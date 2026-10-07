@@ -4,8 +4,8 @@ import { setAudioVolumes } from "../shared/LevelAudio.js";
 const STORAGE_KEY = "wits-commute-graphics-settings";
 
 const PRESETS = Object.freeze({
-  low: { resolution: "0.5", antialiasing: "off", shadows: "off", effects: "off", viewDistance: "near" },
-  medium: { resolution: "0.75", antialiasing: "on", shadows: "low", effects: "on", viewDistance: "standard" },
+  low: { resolution: "1", antialiasing: "off", shadows: "off", effects: "off", viewDistance: "near" },
+  medium: { resolution: "1", antialiasing: "on", shadows: "low", effects: "on", viewDistance: "standard" },
   high: { resolution: "1", antialiasing: "on", shadows: "high", effects: "on", viewDistance: "far" }
 });
 
@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS = Object.freeze({ preset: "auto", musicVolume: "100", sou
 
 function loadSettings() {
   try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") };
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}"), resolution: "1" };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
