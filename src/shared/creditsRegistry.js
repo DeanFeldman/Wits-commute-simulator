@@ -56,6 +56,11 @@ export const CREDITS = [
         url: "https://sketchfab.com/3d-models/whiteboard-d0b05bd140734a799666f0a29e1fe1bb"
       },
       {
+        name: "Plastic Chair (retained asset)",
+        detail: `Jazavac — ${CC_BY_4}. plastic-chair.glb remains in the distributed public asset folder, although current Level 3 code loads classroom-plastic-chair.glb instead.`,
+        url: "https://sketchfab.com/3d-models/plastic-chair-be3d5131e634424e89ffd57ebb19804e"
+      },
+      {
         name: "Paper Tablet",
         detail: `NameSsis — ${CC_BY_4}. Level 3 answer tablets; rescaled and given runtime answer textures.`,
         url: "https://sketchfab.com/3d-models/paper-tablet-f2b7978367164eb38167dd4832978288"
@@ -141,10 +146,6 @@ export const CREDITS = [
     heading: "Pending provenance before final submission",
     entries: [
       {
-        name: "Normalised vehicle variants",
-        detail: "Aston Martin, BYD, Honda, Nissan and Volkswagen runtime variants were converted from uploaded archives that did not preserve original source, author or licence metadata. Supply those records or replace the assets."
-      },
-      {
         name: "Diesel Thomas proxy",
         detail: "The runtime mesh is a project-made procedural proxy, but the underlying character reference still needs rights clearance or removal."
       },
@@ -174,8 +175,8 @@ export const CREDITS = [
         detail: "wits-shark.glb and wits-shark.png still need a source/licence or team-authorship record."
       },
       {
-        name: "AMIC fence textures",
-        detail: "amic-fence.png and amic-fence-reference.png are loaded by the current game and still need source/licence or team-authorship records."
+        name: "AMIC / Level 2 deck textures",
+        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png are loaded by the current game and still need source/licence or team-authorship records."
       },
       {
         name: "UI artwork still awaiting provenance records",
