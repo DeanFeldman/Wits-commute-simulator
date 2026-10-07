@@ -51,6 +51,12 @@ const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
 
 const LEVEL1_IMPACT_AUDIO = "./assets/audio/level1/impact-sprite.opus";
+const LEVEL1_PARKING_AMBIENCE_AUDIO = "./assets/audio/level2/traffic-ambience.opus";
+const LEVEL1_DISTANT_PASSBY_AUDIO = "./assets/audio/level2/vehicle-passbys.opus";
+const LEVEL1_DISTANT_PASSBY_CUES = Object.freeze([
+  Object.freeze({ start: 0.10, duration: 5.2 }),
+  Object.freeze({ start: 5.40, duration: 5.2 })
+]);
 const LEVEL1_IMPACT_CUES = Object.freeze({
   collision: Object.freeze({ start: 0, duration: 0.94 }),
   pothole: Object.freeze({ start: 1.04, duration: 1.25 }),
@@ -1349,7 +1355,14 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
-    this.audio.preload([LEVEL1_IMPACT_AUDIO, "./assets/audio/level1/idle-car.wav"]);
+    this.audio.preload([
+      LEVEL1_IMPACT_AUDIO,
+      LEVEL1_PARKING_AMBIENCE_AUDIO,
+      LEVEL1_DISTANT_PASSBY_AUDIO,
+      "./assets/audio/level1/idle-car.wav"
+    ]);
+    this.parkingAmbienceStarted = false;
+    this.distantPassbyTimer = 6 + Math.random() * 6;
     this.environment = null;
     this.impactCooldown = 0;
 
@@ -1392,7 +1405,11 @@ export class ParkingLevel {
   }
 
 async load() {
-  await this.audio.waitForPreload([LEVEL1_IMPACT_AUDIO]);
+  await this.audio.waitForPreload([
+    LEVEL1_IMPACT_AUDIO,
+    LEVEL1_PARKING_AMBIENCE_AUDIO,
+    LEVEL1_DISTANT_PASSBY_AUDIO
+  ]);
 
   const scene = this.game.scene;
 
@@ -2390,6 +2407,49 @@ createParkingSurface(potholes = []) {
 
   startCarIdleAudio() {
     this.audio.startEngineLoop("./assets/audio/level1/idle-car.wav");
+    this.startParkingAmbience();
+  }
+
+  startParkingAmbience() {
+    if (this.parkingAmbienceStarted) return;
+    this.parkingAmbienceStarted = true;
+
+    // A quiet campus/road bed replaces the missing soundtrack without making
+    // the parking lot sound like the active Yale Road crossing in Level 2.
+    this.audio.startLoop("level1-parking-bed-a", LEVEL1_PARKING_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.11,
+      playbackRate: 0.96,
+      pan: -0.16
+    });
+    this.audio.startLoop("level1-parking-bed-b", LEVEL1_PARKING_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.065,
+      playbackRate: 1.04,
+      pan: 0.18,
+      startTime: 1.8
+    });
+  }
+
+  updateParkingAmbience(dt) {
+    if (!this.parkingAmbienceStarted) return;
+    this.distantPassbyTimer -= dt;
+    if (this.distantPassbyTimer > 0) return;
+
+    const cue = LEVEL1_DISTANT_PASSBY_CUES[
+      Math.floor(Math.random() * LEVEL1_DISTANT_PASSBY_CUES.length)
+    ];
+    this.audio.playSegment(LEVEL1_DISTANT_PASSBY_AUDIO, {
+      ...cue,
+      bus: "ambience",
+      volume: 0.13 + Math.random() * 0.07,
+      pan: -0.75 + Math.random() * 1.5,
+      playbackRate: 0.92 + Math.random() * 0.12
+    });
+
+    // Long irregular gaps keep these as distant campus-road events instead of
+    // making the parking lot sound like a busy traffic lane.
+    this.distantPassbyTimer = 11 + Math.random() * 10;
   }
 
   // The impact sprite is preloaded so the transient lands on the collision
@@ -2483,6 +2543,7 @@ this.vehicle.update(dt, {
 });
 
 this.audio.updateEngine(this.vehicle.speed);
+this.updateParkingAmbience(dt);
 
 this.environment?.update(dt);
 
