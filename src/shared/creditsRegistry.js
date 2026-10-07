@@ -74,6 +74,11 @@ export const CREDITS = [
         name: "Generic Passenger Car Pack",
         detail: `Comrade1280 — ${CC_BY_4}. Level 1 parked-car population; individual vehicles are extracted and cloned.`,
         url: "https://sketchfab.com/3d-models/generic-passenger-car-pack-20f9af9b8a404d5cb022ac6fe87f21f5"
+      },
+      {
+        name: "Diesel Powered Thomas reference",
+        detail: "mrmrnaufal — Creative Commons Attribution (CC BY), as listed on Sketchfab. The repo retains lightweight project-made procedural proxy GLBs rather than a conversion of the source mesh.",
+        url: "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
       }
     ]
   },
@@ -158,11 +163,6 @@ export const CREDITS = [
   {
     heading: "Pending provenance before final submission",
     entries: [
-      {
-        name: "Diesel Thomas proxy",
-        detail: "Project-made procedural proxy based on the supplied Sketchfab Diesel Powered Thomas source. Source is now recorded; the source-page licence/redistribution terms still need confirmation.",
-        url: "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
-      },
       {
         name: "Level 1 recorded audio",
         detail: "car-crash.mp3, car-door-shut.mp3, idle-car.wav and collision-hit.mp3 still need complete source/author/licence records or replacement."
