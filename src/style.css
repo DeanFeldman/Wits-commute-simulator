@@ -1334,6 +1334,7 @@ body.level-2 #level2-vignette{opacity:1}
 }
 .tutorial-preview-frame {
   position: relative;
+  cursor: default;
   margin: 0;
   overflow: hidden;
   border: 4px solid var(--tutorial-edge-soft);
@@ -1360,6 +1361,83 @@ body.level-2 #level2-vignette{opacity:1}
   transition: transform 140ms ease-out, filter 140ms ease-out;
   will-change: transform, filter;
 }
+.tutorial-demo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.tutorial-demo-marker {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  display: grid;
+  place-items: center;
+  min-width: 46px;
+  min-height: 34px;
+  padding: .25rem .45rem;
+  border: 3px solid #fff5d8;
+  border-radius: 3px;
+  background: rgba(75,47,22,.88);
+  color: #fff9e8;
+  box-shadow: 3px 3px 0 rgba(32,18,7,.5);
+  font: 900 .68rem/1 "Pixelify Sans",monospace;
+  letter-spacing: .05em;
+  transform: translate(-50%,-50%);
+  transition: transform 110ms ease-out, background 120ms ease, border-color 120ms ease;
+}
+.tutorial-demo-status {
+  position: absolute;
+  top: .65rem;
+  left: 50%;
+  max-width: calc(100% - 1.3rem);
+  padding: .42rem .65rem;
+  border: 2px solid rgba(75,47,22,.55);
+  border-radius: 3px;
+  background: rgba(251,243,216,.94);
+  color: var(--tutorial-edge);
+  box-shadow: 2px 2px 0 rgba(45,27,12,.2);
+  font: 900 .68rem/1.2 "Pixelify Sans",monospace;
+  letter-spacing: .06em;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.tutorial-demo-status.is-pulse { animation: tutorial-demo-status 180ms ease-out; }
+@keyframes tutorial-demo-status {
+  45% { transform: translateX(-50%) scale(1.04); background: #fff8df; }
+}
+.tutorial-demo-layer[data-level="1"] .tutorial-demo-marker {
+  top: 66%;
+  background: rgba(190,119,45,.94);
+}
+.tutorial-demo-layer[data-level="2"] .tutorial-demo-marker {
+  top: 62%;
+  background: rgba(91,126,77,.94);
+}
+.tutorial-preview-frame:has(.tutorial-demo-layer.is-level3) { cursor: crosshair; }
+.tutorial-demo-layer.is-level3 .tutorial-demo-marker {
+  top: 50%;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(75,47,22,.25);
+  font: 900 1.2rem/1 monospace;
+}
+.tutorial-demo-layer.is-level3 .tutorial-demo-marker::before,
+.tutorial-demo-layer.is-level3 .tutorial-demo-marker::after {
+  position: absolute;
+  content: "";
+  background: #fff8df;
+}
+.tutorial-demo-layer.is-level3 .tutorial-demo-marker::before { width: 18px; height: 2px; }
+.tutorial-demo-layer.is-level3 .tutorial-demo-marker::after { width: 2px; height: 18px; }
+.tutorial-demo-layer.is-peeking .tutorial-demo-marker {
+  border-color: var(--tutorial-accent-strong);
+  background: rgba(200,141,75,.32);
+  transform: scale(1.22);
+}
+
 .tutorial-preview-label {
   position: absolute;
   left: .65rem;
