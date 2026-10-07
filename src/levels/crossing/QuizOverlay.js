@@ -245,6 +245,8 @@ export class QuizOverlay {
   }
 
   dispose() {
+    this.close();
+    this.onComplete = null;
     this.submitBtn.removeEventListener("click", this.boundTrySubmit);
   }
 }
