@@ -324,7 +324,6 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
-    this.audio.preloadMusic("level3");
     this.audio.preload([
       RESULT_AUDIO,
       LEVEL3_CORRECT_AUDIO,
@@ -394,8 +393,7 @@ this.patrolPoints = [
     await this.loadHologramFont();
 
     scene.add(this.root);
-    if (!this.game.isLevelIntroActive) this.audio.startMusic("level3");
-    this.collisionWorld = new CollisionWorld(this.root);
+      this.collisionWorld = new CollisionWorld(this.root);
 
     const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 1.35);
     this.root.add(ambient);
