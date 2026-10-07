@@ -3,11 +3,14 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { InputManager } from "./InputManager.js";
 import { applyRendererBaseline } from "./renderSettings.js";
+import { GraphicsSettings, loadSavedGraphicsSettings } from "./GraphicsSettings.js";
 import { createGpuTimer } from "./gpuTimer.js";
 import { SetbackBanner, describeFailure } from "./FailureReport.js";
 import { RoadFogShader } from "../shaders/roadFogShader.js";
+import { ToonStyleShader } from "../shaders/toonStyleShader.js";
 import { ParkingLevel } from "../levels/ParkingLevel.js";
 import { CrossingLevel } from "../levels/crossing/CrossingLevel.js";
 import { CheatingLevel } from "../levels/CheatingLevel.js";
@@ -77,10 +80,40 @@ const LEVEL_INTRO_CONFIG = new Map([
   ]
 ]);
 
+const LEVEL_TUTORIAL_CONFIG = new Map([
+  [1, {
+    kicker: "LEVEL 01 // PARK",
+    title: "Park at Wits",
+    objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
+    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
+    tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
+    previewLabel: "Live Level 1 practice — purple markers = parking goals"
+  }],
+  [2, {
+    kicker: "LEVEL 02 // CROSS",
+    title: "Campus Crossing",
+    objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
+    controls: [["WASD / ARROWS", "Move across the route"], ["C", "Camera view"], ["P", "Pause / settings"]],
+    tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
+    previewLabel: "Live Level 2 practice — move the actual student"
+  }],
+  [3, {
+    kicker: "LEVEL 03 // CHEAT",
+    title: "Don't Get Caught",
+    objective: "Copy the correct answers and finish the test before time runs out without reaching 100% suspicion.",
+    controls: [["MOUSE", "Look around"], ["HOLD LEFT CLICK", "Zoom and reveal an answer"], ["TYPE + ENTER", "Submit at your desk"], ["P", "Pause / settings"]],
+    tip: "Only peek when it is safe. Release the mouse, look back at your desk, and type the answer before suspicion gets too high.",
+    previewLabel: "Live Level 3 practice — look, peek and type"
+  }]
+]);
+
 export class Game {
   constructor(container) {
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    const savedGraphics = loadSavedGraphicsSettings();
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: savedGraphics.antialiasing !== "off"
+    });
 
     // Tone mapping, output colour space, shadow filtering and the pixel
     // ratio cap all live in renderSettings.js, which documents why each
@@ -115,12 +148,16 @@ export class Game {
 
     this.suspicionComposer.addPass(this.suspicionRenderPass);
     this.suspicionComposer.addPass(this.suspicionPass);
+    this.suspicionToonPass = new ShaderPass(ToonStyleShader);
+    this.suspicionComposer.addPass(this.suspicionToonPass);
+    this.suspicionFxaaPass = new ShaderPass(FXAAShader);
+    this.suspicionComposer.addPass(this.suspicionFxaaPass);
     this.suspicionComposer.addPass(this.suspicionOutputPass);
 
     this.clock = new THREE.Clock();
     this.input = new InputManager(this.renderer.domElement);
     this.globalControls = this.input.registerBindings({
-      pause: "KeyP",
+      pause: ["KeyP", "Escape"],
       levelOne: "Digit1",
       levelTwo: "Digit2",
       levelThree: "Digit3",
@@ -142,6 +179,13 @@ export class Game {
     this.isTransitioning = false;
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
+    this.isTutorialActive = false;
+    this.tutorialDemoKeys = new Set();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook = { x: 0, y: 0 };
+    this.tutorialDemoPosition = { x: 0, y: 0 };
+    this.tutorialTypingTimer = null;
     this.levelIntroStoryIndex = 0;
     this.levelIntroConfig = null;
     this.levelIntroArtPreloads = new Map();
@@ -180,17 +224,15 @@ export class Game {
     this.menuCreditsAction = document.querySelector("#menu-credits-action");
     this.menuHomeAction = document.querySelector("#menu-home-action");
     this.menuMusicAction = document.querySelector("#menu-music-action");
-    this.menuPreviewAction = document.querySelector("#menu-preview-action");
-    this.menuPreviewElement = document.querySelector("#menu-preview");
-    this.menuPreviewMusicAction = document.querySelector("#menu-preview-music-action");
+    this.homeMenuElement = document.querySelector("#home-menu");
+    this.homeMenuPrimaryAction = document.querySelector("#home-menu-primary-action");
     this.pauseMenuElement = document.querySelector("#pause-menu");
     this.pauseKickerElement = document.querySelector("#pause-kicker");
-    this.pauseSoundAction = document.querySelector("[data-pause-action='sound']");
-    this.pauseMusicAction = document.querySelector("[data-pause-action='music']");
     this.lookSensitivityInput = document.querySelector("#look-sensitivity");
     this.lookSensitivityValue = document.querySelector("#look-sensitivity-value");
     this.sensitivityControl = document.querySelector("#sensitivity-control");
     this.instructionElement = document.querySelector("#instruction-card");
+    this.instructionKicker = document.querySelector("#instruction-kicker");
     this.instructionTitle = document.querySelector("#instruction-title");
     this.instructionCopy = document.querySelector("#instruction-copy");
     this.levelIntroElement = document.querySelector("#level-intro");
@@ -209,14 +251,37 @@ export class Game {
     this.onPauseMenuClick = this.onPauseMenuClick.bind(this);
     this.onLookSensitivityInput = this.onLookSensitivityInput.bind(this);
     this.onInstructionClick = this.onInstructionClick.bind(this);
+    this.onTutorialDemoKeyDown = this.onTutorialDemoKeyDown.bind(this);
+    this.onTutorialDemoKeyUp = this.onTutorialDemoKeyUp.bind(this);
+    this.onTutorialDemoPointerMove = this.onTutorialDemoPointerMove.bind(this);
+    this.onTutorialDemoPointerDown = this.onTutorialDemoPointerDown.bind(this);
+    this.onTutorialDemoPointerUp = this.onTutorialDemoPointerUp.bind(this);
     this.onLevelIntroClick = this.onLevelIntroClick.bind(this);
 
     window.addEventListener("resize", this.onResize);
+    // Browsers consume Escape to release pointer lock, so handle that release too.
+    this.wasPointerLocked = false;
+    document.addEventListener("pointerlockchange", () => {
+      const locked = document.pointerLockElement === this.renderer.domElement;
+      if (this.wasPointerLocked && !locked && !this.isPaused &&
+          !this.isLoading && !this.isTransitioning &&
+          !this.isLevelIntroActive && !this.isTutorialActive) {
+        this.pause();
+      }
+      this.wasPointerLocked = locked;
+    });
     this.menuElement.addEventListener("click", this.onMenuClick);
-    this.menuPreviewElement.addEventListener("click", this.onMenuClick);
+    this.homeMenuElement.addEventListener("click", this.onMenuClick);
+    this.homeMenuElement.addEventListener("dragstart", (event) => event.preventDefault());
     this.pauseMenuElement.addEventListener("click", this.onPauseMenuClick);
     this.lookSensitivityInput.addEventListener("input", this.onLookSensitivityInput);
     this.instructionElement.addEventListener("click", this.onInstructionClick);
+    window.addEventListener("keydown", this.onTutorialDemoKeyDown, true);
+    window.addEventListener("keyup", this.onTutorialDemoKeyUp, true);
+    this.instructionPreview.addEventListener("pointermove", this.onTutorialDemoPointerMove);
+    this.instructionPreview.addEventListener("pointerdown", this.onTutorialDemoPointerDown);
+    this.instructionPreview.addEventListener("pointerup", this.onTutorialDemoPointerUp);
+    this.instructionPreview.addEventListener("pointerleave", this.onTutorialDemoPointerUp);
     this.levelIntroElement.addEventListener("click", this.onLevelIntroClick);
     this.devLevelSelect.hidden = !import.meta.env.DEV;
     this.selectedPlayerVariant = 0;
@@ -241,7 +306,27 @@ export class Game {
 
     this.roadFogComposer.addPass(this.roadFogRenderPass);
     this.roadFogComposer.addPass(this.roadFogPass);
+    this.roadFogToonPass = new ShaderPass(ToonStyleShader);
+    this.roadFogComposer.addPass(this.roadFogToonPass);
+    this.roadFogFxaaPass = new ShaderPass(FXAAShader);
+    this.roadFogComposer.addPass(this.roadFogFxaaPass);
     this.roadFogComposer.addPass(this.roadFogOutputPass);
+
+    this.toonComposer = new EffectComposer(this.renderer);
+    this.toonRenderPass = new RenderPass(this.scene, this.camera);
+    this.toonPass = new ShaderPass(ToonStyleShader);
+    this.toonFxaaPass = new ShaderPass(FXAAShader);
+    this.toonOutputPass = new OutputPass();
+    this.toonComposer.addPass(this.toonRenderPass);
+    this.toonComposer.addPass(this.toonPass);
+    this.toonComposer.addPass(this.toonFxaaPass);
+    this.toonComposer.addPass(this.toonOutputPass);
+    this.fxaaResolution = new THREE.Vector2();
+
+    this.graphicsSettings = new GraphicsSettings({
+      renderer: this.renderer,
+      composers: [this.roadFogComposer, this.suspicionComposer, this.toonComposer]
+    });
   }
 
   start() {
@@ -273,15 +358,6 @@ export class Game {
     this.setMessage("");
     this.menuTitleElement.textContent = "Wits Commute Simulator";
 
-    const menu = this.menuTitleElement.closest(".menu, .main-menu, body");
-    if (menu) {
-      menu.style.backgroundImage =
-        'url("/assets/images/ui/main-menu-background.png")';
-      menu.style.backgroundSize = "100% auto";
-      menu.style.backgroundPosition = "center";
-      menu.style.backgroundColor = "#8bc0f2";
-      menu.style.minHeight = "100vh";
-    }
     this.menuCopyElement.textContent = "Park. Cross. Cheat.";
     this.menuPrimaryAction.textContent = "Start journey";
     this.menuPrimaryAction.classList.add("pixel-menu-button");
@@ -291,14 +367,14 @@ export class Game {
     this.menuMusicAction.hidden = false;
     this.updateMenuMusicAction();
     this.menuHomeAction.hidden = true;
-    this.menuElement.classList.remove("menu-credits");
+    this.menuElement.classList.remove("menu-credits", "menu-results");
     this.menuPrimaryAction.dataset.gameAction = "start";
     this.menuElement.classList.add("menu-home");
     this.devLevelSelect.hidden = false;
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
-    this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.hideInstruction();
+    this.menuElement.hidden = true;
+    this.homeMenuElement.hidden = false;
     document.body.classList.remove("level-2");
     this.updateStartAvailability();
   }
@@ -326,29 +402,17 @@ export class Game {
   updateStartAvailability() {
     if (this.state !== "menu") return;
 
-    const waitingForCharacters =
-      !this.characterSelectFlow.isReady && !this.characterSelectFlow.didFail;
-
-    this.menuPrimaryAction.disabled = waitingForCharacters;
-    this.menuPrimaryAction.setAttribute("aria-busy", String(waitingForCharacters));
-    this.menuPrimaryAction.textContent = waitingForCharacters
-      ? "Loading characters…"
-      : "Start journey";
+    const startAction = this.homeMenuPrimaryAction;
+    startAction.disabled = false;
+    startAction.removeAttribute("aria-busy");
+    startAction.querySelector(".journey-button-label").textContent = "Begin Journey";
 
     if (this.characterSelectFlow.didFail) {
-      this.menuPrimaryAction.title =
+      startAction.title =
         "Character previews could not be preloaded; fallback loading will be used.";
     } else {
-      this.menuPrimaryAction.removeAttribute("title");
+      startAction.removeAttribute("title");
     }
-  }
-
-  showMenuPreview() {
-    this.menuElement.hidden = true;
-    this.menuPreviewElement.style.backgroundImage =
-      'url("./assets/images/ui/main-menu-v3-background.png")';
-    this.menuPreviewElement.hidden = false;
-    this.updateMenuMusicAction();
   }
 
   showResults(keepFade = false) {
@@ -390,12 +454,13 @@ export class Game {
     this.menuCreditsAction.textContent = "Credits & licences";
     this.menuCreditsAction.dataset.gameAction = "credits";
     this.menuHomeAction.hidden = false;
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-credits");
+    this.menuElement.classList.add("menu-results");
     this.devLevelSelect.hidden = true;
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     document.body.classList.remove("level-2");
   }
 
@@ -481,8 +546,9 @@ export class Game {
     this.isLoading = true;
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
+    this.hideInstruction();
     this.menuElement.hidden = true;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
     this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
@@ -543,16 +609,18 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
+    if (!showIntro) this.showInstruction(level);
   }
 
   showCharacterSelect() {
     this.cancelTransition();
     this.hideLevelIntro();
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuElement.hidden = true;
     this.setHUD("");
     this.setMessage("");
+    this.homeMenuElement.hidden = true;
     this.characterSelectFlow.show(this.selectedPlayerVariant);
   }
 
@@ -738,12 +806,9 @@ export class Game {
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
     // Gameplay uses environmental/interaction audio rather than a continuous
-    // soundtrack. Menu music ends when the player enters the level.
+    // soundtrack. Menu music ends as the level tutorial opens.
     this.uiAudio.stopMusic();
-    // The Continue click is a user gesture, so it can immediately return
-    // focus and mouse control to the loaded level without a second click.
-    this.input.requestPointerLock();
-    this.clock.getDelta();
+    this.showInstruction(this.currentLevel);
   }
 
   setCheckpoint(checkpoint) {
@@ -861,7 +926,7 @@ export class Game {
     this.setHUD("");
     this.setMessage("");
     this.pauseMenuElement.hidden = true;
-    this.instructionElement.hidden = true;
+    this.hideInstruction();
     this.menuTitleElement.textContent = title;
     // The card says what went wrong and what Retry will do, rather than the
     // single line the message strip used to flash before the fade covered it.
@@ -874,7 +939,7 @@ export class Game {
     this.menuCreditsAction.hidden = false;
     this.menuCreditsAction.textContent = "Back to menu";
     this.menuCreditsAction.dataset.gameAction = "menu";
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-results");
     this.menuMusicAction.hidden = true;
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
@@ -931,9 +996,6 @@ export class Game {
     this.pauseMenuElement.hidden = false;
     this.pauseKickerElement.textContent = `LEVEL ${this.currentLevelNumber} PAUSED`;
     this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
-    this.pauseSoundAction.textContent = this.isSoundMuted ? "Sound: off" : "Sound: on";
-    this.pauseSoundAction.setAttribute("aria-pressed", String(this.isSoundMuted));
-    this.updatePauseMusicAction();
     // Releasing pointer lock is what returns the visible cursor immediately;
     // no Escape key or extra click should be required to use this menu.
     if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock?.();
@@ -985,10 +1047,11 @@ export class Game {
   }
 
   updateGlobalControls() {
-    if (this.isLevelIntroActive) return;
+    if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
-      this.togglePause();
+      if (this.input.wasPressed("Escape")) this.pause();
+      else this.togglePause();
       return;
     }
 
@@ -1029,13 +1092,6 @@ export class Game {
     if (startsLoad && this.isLoading) return;
 
     if (action === "start") {
-      if (
-        this.state === "menu" &&
-        !this.characterSelectFlow.isReady &&
-        !this.characterSelectFlow.didFail
-      ) {
-        return;
-      }
       this.showCharacterSelect();
       return;
     }
@@ -1046,7 +1102,7 @@ export class Game {
     }
 
     if (action === "credits") {
-      this.menuPreviewElement.hidden = true;
+      this.homeMenuElement.hidden = true;
       this.showCredits();
       return;
     }
@@ -1061,8 +1117,23 @@ export class Game {
       return;
     }
 
-    if (action === "preview-menu") {
-      this.showMenuPreview();
+    if (action === "end-screen") {
+      // Sample results let the team inspect the full ending without a scored run.
+      const samples = [
+        { time: 48, condition: 90, containmentPercent: 98, alignmentErrorDegrees: 2 },
+        { time: 35, impacts: 1, backwardSteps: 2 },
+        { time: 52, incorrectAnswers: 1, suspicion: 15 }
+      ];
+      this.isScoredJourney = false;
+      this.journeyLevelResults = new Map(samples.map((performance, index) =>
+        [index + 1, scoreLevel(index + 1, performance)]));
+      this.journeyTime = samples.reduce((total, performance) => total + performance.time, 0);
+      this.showResults();
+      return;
+    }
+
+    if (action === "settings") {
+      this.graphicsSettings.open();
       return;
     }
 
@@ -1074,19 +1145,12 @@ export class Game {
   updateMenuMusicAction() {
     this.menuMusicAction.textContent = this.isMusicEnabled ? "Pause music" : "Play music";
     this.menuMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
-    this.menuPreviewMusicAction.textContent = this.menuMusicAction.textContent;
-    this.menuPreviewMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
-  }
-
-  updatePauseMusicAction() {
-    this.pauseMusicAction.textContent = this.isMusicEnabled ? "Music: on" : "Music: off";
-    this.pauseMusicAction.setAttribute("aria-pressed", String(!this.isMusicEnabled));
   }
 
   showCredits() {
     this.menuTitleElement.textContent = "Credits";
     this.menuCopyElement.textContent = "Wits Commute Simulator — COMS3006A / COMS3025A. Built with Three.js by the project team.";
-    this.menuPrimaryAction.textContent = "Back to menu";
+    this.menuPrimaryAction.textContent = "Back";
     this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
       <section class="credits-section" aria-label="${heading}">
         <h2>${heading}</h2>
@@ -1103,29 +1167,260 @@ export class Game {
     this.menuHomeAction.hidden = true;
     this.menuMusicAction.hidden = true;
     this.menuPrimaryAction.dataset.gameAction = "menu";
-    this.menuElement.classList.remove("menu-home");
+    this.menuElement.classList.remove("menu-home", "menu-results");
     this.devLevelSelect.hidden = true;
     this.menuElement.hidden = false;
-    this.menuPreviewElement.hidden = true;
+    this.homeMenuElement.hidden = true;
   }
 
   showInstruction(level) {
-    const briefs = {
-      1: "Drive with W/S and steer with A/D. Watch out for potholes — they slow the car and reduce its condition. Stop straight inside the cyan bay.",
-      //2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect Vida cups for power-ups, wait for gaps in the traffic, and reach Engineering.",
-      2: "Tap WASD or the arrow keys to step, or hold to keep walking. Collect every Vida cup and reach Engineering in under 30 seconds. Flat Whites reduce your recorded time.",
-      3: "Click for mouse-look. Hold left click to zoom and reveal a surrounding tablet's answer. Release, look down at your own desk, type your answer, and press Enter. P opens settings."
-    };
-    this.instructionTitle.textContent = level.name;
-    this.instructionCopy.textContent = briefs[this.currentLevelNumber] ?? "Complete the objective to continue.";
+    const config = LEVEL_TUTORIAL_CONFIG.get(this.currentLevelNumber);
+    if (!config || !level) return;
+    document.exitPointerLock?.();
+    this.input.clearTransientState();
+    this.isTutorialActive = true;
+    this.instructionElement.dataset.level = String(this.currentLevelNumber);
+    this.instructionKicker.textContent = config.kicker;
+    this.instructionTitle.textContent = config.title;
+    this.instructionObjective.textContent = config.objective;
+    this.instructionControls.innerHTML = config.controls.map(([keys, action], index) => `<li data-control-index="${index}"><kbd>${keys}</kbd><span>${action}</span></li>`).join("");
+    this.instructionTip.textContent = config.tip;
+    this.instructionPreviewLabel.textContent = config.previewLabel;
     this.instructionElement.hidden = false;
+    this.currentLevel?.beginTutorial?.();
+    this.resetTutorialDemo();
+    this.configureTutorialDemo();
+    this.captureTutorialPreview();
+    requestAnimationFrame(() => this.instructionStart?.focus());
+  }
+
+  captureTutorialPreview() {
+    requestAnimationFrame(() => this.syncTutorialPreviewFrame());
+  }
+
+  syncTutorialPreviewFrame() {
+    const preview = this.instructionPreview, source = this.renderer.domElement;
+    if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    const now = performance.now();
+    if (now - (this.lastTutorialPreview ?? 0) < 1000 / 30) return;
+    this.lastTutorialPreview = now;
+    const ctx = preview.getContext("2d");
+    if (!ctx) return;
+    const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
+    const srcRatio = sw / sh, dstRatio = dw / dh;
+    let sx = 0, sy = 0, cw = sw, ch = sh;
+    if (srcRatio > dstRatio) {
+      cw = sh * dstRatio;
+      sx = (sw - cw) / 2;
+    } else {
+      ch = sw / dstRatio;
+      sy = (sh - ch) / 2;
+    }
+    ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
+  }
+
+  configureTutorialDemo() {
+    const level = this.currentLevelNumber;
+    this.instructionDemo.dataset.level = String(level);
+    this.instructionDemoMarker.textContent = level === 1 ? "CAR" : level === 2 ? "YOU" : "+";
+    this.instructionDemoStatus.textContent = level === 1
+      ? "DRIVE THE ACTUAL CAR • PRESS C"
+      : level === 2
+        ? "MOVE THE ACTUAL PLAYER • PRESS C"
+        : "MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE";
+    this.instructionDemo.classList.toggle("is-level3", level === 3);
+    this.instructionDemoMarker.style.transform = "";
+  }
+
+  setTutorialDemoStatus(text) {
+    this.instructionDemoStatus.textContent = text;
+    this.instructionDemoStatus.classList.remove("is-pulse");
+    void this.instructionDemoStatus.offsetWidth;
+    this.instructionDemoStatus.classList.add("is-pulse");
+  }
+
+  moveTutorialDemo(code) {
+    const p = this.tutorialDemoPosition;
+    if (code === "KeyW" || code === "ArrowUp") p.y -= 9;
+    if (code === "KeyS" || code === "ArrowDown") p.y += 9;
+    if (code === "KeyA" || code === "ArrowLeft") p.x -= 9;
+    if (code === "KeyD" || code === "ArrowRight") p.x += 9;
+    p.x = THREE.MathUtils.clamp(p.x, -70, 70);
+    p.y = THREE.MathUtils.clamp(p.y, -42, 42);
+    this.instructionDemoMarker.style.transform = `translate(${p.x}px, ${p.y}px)`;
+  }
+
+  tutorialControlIndex(code) {
+    if (this.currentLevelNumber === 1) {
+      if (code === "KeyW" || code === "ArrowUp") return 0;
+      if (code === "KeyS" || code === "ArrowDown") return 1;
+      if (["KeyA", "KeyD", "ArrowLeft", "ArrowRight"].includes(code)) return 2;
+      if (code === "KeyC") return 3;
+    }
+    if (this.currentLevelNumber === 2) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) return 0;
+      if (code === "KeyC") return 1;
+      if (code === "KeyP") return 2;
+    }
+    if (this.currentLevelNumber === 3) {
+      if (code === "KeyP") return 3;
+      if (code === "Enter" || /^Key[A-Z]$/.test(code)) return 2;
+    }
+    return -1;
+  }
+
+  setTutorialControlActive(index, active) {
+    if (index < 0) return;
+    this.instructionControls.querySelector(`[data-control-index="${index}"]`)?.classList.toggle("is-active", active);
+  }
+
+  applyTutorialDemoMotion() {
+    const preview = this.instructionPreview;
+    if (!preview) return;
+    if (this.currentLevelNumber === 3) {
+      const scale = this.tutorialPeekDemo ? 1.1 : 1.025;
+      preview.style.transform = `translate(${this.tutorialLook.x}px, ${this.tutorialLook.y}px) scale(${scale})`;
+      preview.style.filter = this.tutorialPeekDemo ? "contrast(1.1) saturate(1.12)" : "";
+      this.instructionDemoMarker.style.transform = `translate(${-this.tutorialLook.x * 2}px, ${-this.tutorialLook.y * 2}px)`;
+      this.instructionDemo.classList.toggle("is-peeking", this.tutorialPeekDemo);
+      return;
+    }
+
+    const x = this.tutorialDemoPosition.x * .14;
+    const y = this.tutorialDemoPosition.y * .12;
+    const rotation = this.tutorialDemoPosition.x * .012;
+    const scale = (this.tutorialCameraDemo ? 1.065 : 1) + (this.tutorialDemoPosition.y < 0 ? .012 : 0);
+    preview.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
+    preview.style.filter = this.tutorialCameraDemo ? "contrast(1.06) saturate(1.08)" : "";
+    preview.closest(".tutorial-preview-frame")?.classList.toggle("is-camera-demo", this.tutorialCameraDemo);
+  }
+
+  onTutorialDemoKeyDown(event) {
+    if (!this.isTutorialActive) return;
+    const index = this.tutorialControlIndex(event.code);
+    if (index < 0) return;
+    event.preventDefault();
+    this.setTutorialControlActive(index, true);
+
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
+      const action = event.code === "KeyW" || event.code === "ArrowUp" ? (this.currentLevelNumber === 1 ? "ACCELERATE" : "WALK FORWARD")
+        : event.code === "KeyS" || event.code === "ArrowDown" ? (this.currentLevelNumber === 1 ? "BRAKE / REVERSE" : "WALK BACK")
+        : event.code === "KeyA" || event.code === "ArrowLeft" ? (this.currentLevelNumber === 1 ? "STEER LEFT" : "WALK LEFT")
+        : event.code === "KeyD" || event.code === "ArrowRight" ? (this.currentLevelNumber === 1 ? "STEER RIGHT" : "WALK RIGHT")
+        : event.code === "KeyC" ? "CAMERA VIEW"
+        : "PAUSE / SETTINGS";
+      this.setTutorialDemoStatus(action);
+      if (event.code === "KeyP") event.stopImmediatePropagation();
+      return;
+    }
+
+    if (event.code === "KeyP") {
+      this.setTutorialDemoStatus("PAUSE / SETTINGS");
+      event.stopImmediatePropagation();
+      return;
+    }
+
+    if (this.currentLevelNumber === 3 && index === 2) {
+      const label = event.code === "Enter" ? "ENTER" : event.code.replace("Key", "");
+      this.setTutorialDemoStatus(`TYPING: ${label}`);
+      this.instructionPreview.classList.remove("is-typing-demo");
+      void this.instructionPreview.offsetWidth;
+      this.instructionPreview.classList.add("is-typing-demo");
+      window.clearTimeout(this.tutorialTypingTimer);
+      this.tutorialTypingTimer = window.setTimeout(() => {
+        this.instructionPreview.classList.remove("is-typing-demo");
+        this.setTutorialControlActive(2, false);
+      }, 180);
+    }
+  }
+
+  onTutorialDemoKeyUp(event) {
+    if (!this.isTutorialActive) return;
+    const index = this.tutorialControlIndex(event.code);
+    if (index < 0) return;
+    event.preventDefault();
+
+    if (this.currentLevelNumber === 1 || this.currentLevelNumber === 2) {
+      this.setTutorialControlActive(index, false);
+      return;
+    }
+
+    if (this.currentLevelNumber === 3 && event.code === "KeyP") {
+      this.setTutorialControlActive(index, false);
+      event.stopImmediatePropagation();
+      return;
+    }
+    this.tutorialDemoKeys.delete(event.code);
+    if (event.code !== "KeyC") this.setTutorialControlActive(index, false);
+    this.applyTutorialDemoMotion();
+  }
+
+  onTutorialDemoPointerMove(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    this.currentLevel?.moveTutorialLook?.(event.movementX, event.movementY);
+    this.setTutorialControlActive(0, true);
+    this.setTutorialDemoStatus("LOOK AROUND");
+  }
+
+  onTutorialDemoPointerDown(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3 || event.button !== 0) return;
+    event.preventDefault();
+    this.instructionPreview.setPointerCapture?.(event.pointerId);
+    this.currentLevel?.setTutorialMouseDown?.(true);
+    this.setTutorialControlActive(1, true);
+    this.setTutorialDemoStatus("PEEKING — HOLD LEFT CLICK");
+  }
+
+  onTutorialDemoPointerUp(event) {
+    if (!this.isTutorialActive || this.currentLevelNumber !== 3) return;
+    this.currentLevel?.setTutorialMouseDown?.(false);
+    this.instructionPreview.releasePointerCapture?.(event?.pointerId);
+    this.setTutorialControlActive(1, false);
+    this.setTutorialControlActive(0, false);
+    this.setTutorialDemoStatus("MOVE MOUSE OVER PREVIEW • HOLD LEFT CLICK • TYPE");
+  }
+
+  resetTutorialDemo() {
+    this.tutorialDemoKeys.clear();
+    this.tutorialCameraDemo = false;
+    this.tutorialPeekDemo = false;
+    this.tutorialLook.x = 0;
+    this.tutorialLook.y = 0;
+    this.tutorialDemoPosition.x = 0;
+    this.tutorialDemoPosition.y = 0;
+    window.clearTimeout(this.tutorialTypingTimer);
+    this.tutorialTypingTimer = null;
+    if (this.instructionPreview) {
+      this.instructionPreview.style.transform = "";
+      this.instructionPreview.style.filter = "";
+      this.instructionPreview.classList.remove("is-typing-demo");
+      this.instructionPreview.closest(".tutorial-preview-frame")?.classList.remove("is-camera-demo");
+    }
+    if (this.instructionDemo) {
+      this.instructionDemo.classList.remove("is-peeking");
+      this.instructionDemoMarker.style.transform = "";
+      this.instructionDemoStatus.classList.remove("is-pulse");
+    }
+    this.instructionControls?.querySelectorAll(".is-active").forEach((element) => element.classList.remove("is-active"));
+  }
+
+  hideInstruction() {
+    this.currentLevel?.endTutorial?.();
+    this.isTutorialActive = false;
+    this.resetTutorialDemo();
+    this.instructionElement.hidden = true;
   }
 
   onInstructionClick(event) {
-    if (event.target.closest("[data-instruction-action='dismiss']")) {
-      this.instructionElement.hidden = true;
-    }
+    if (!event.target.closest("[data-instruction-action='dismiss']")) return;
+    this.hideInstruction();
+    this.input.clearTransientState();
+    this.uiAudio.stopMusic();
+    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
+    this.input.requestPointerLock();
+    this.clock.getDelta();
   }
+
   onPauseMenuClick(event) {
     if (event.target.closest("[data-pause-action='resume']")) {
       this.resume();
@@ -1145,12 +1440,10 @@ export class Game {
       return;
     }
 
-    if (event.target.closest("[data-pause-action='sound']")) {
-      this.setSoundMuted(!this.isSoundMuted);
-      return;
-    }
 
-    if (event.target.closest("[data-pause-action='music']")) this.setMusicEnabled(!this.isMusicEnabled);
+    if (event.target.closest("[data-pause-action='settings']")) {
+      this.graphicsSettings.open();
+    }
   }
 
   setMusicEnabled(enabled) {
@@ -1158,7 +1451,6 @@ export class Game {
     this.uiAudio.setMusicEnabled(enabled);
     this.currentLevel?.audio?.setMusicEnabled?.(enabled);
     this.updateMenuMusicAction();
-    this.updatePauseMusicAction();
   }
 
   setSoundMuted(muted) {
@@ -1166,8 +1458,6 @@ export class Game {
     this.uiAudio.setMuted(muted);
     this.currentLevel?.audio?.setMuted?.(muted);
     this.currentLevel?.setMuted?.(muted);
-    this.pauseSoundAction.textContent = muted ? "Sound: off" : "Sound: on";
-    this.pauseSoundAction.setAttribute("aria-pressed", String(muted));
   }
 
   onLookSensitivityInput(event) {
@@ -1188,6 +1478,7 @@ export class Game {
     // path is timed on the same terms as the direct one.
     this.gpuTimer?.begin();
     this.render();
+    this.syncTutorialPreviewFrame();
     this.gpuTimer?.end();
     this.gpuTimer?.poll();
     this.input.endFrame();
@@ -1215,11 +1506,17 @@ export class Game {
   update(dt) {
     this.updateGlobalControls();
 
+    if (this.isTutorialActive) {
+      this.currentLevel?.updateTutorial?.(dt);
+      return;
+    }
+
     if (
       !this.isPaused &&
       !this.isLoading &&
       !this.isTransitioning &&
       !this.isLevelIntroActive &&
+      !this.isTutorialActive &&
       this.currentLevel
     ) {
       this.journeyTime += dt;
@@ -1230,8 +1527,21 @@ export class Game {
   render(){
     if(this.isLoading)return;
 
-    const level1Fog=this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
-    if((level1Fog||this.currentLevelNumber===2)&&this.currentLevel){
+    const effectsEnabled = this.graphicsSettings.effectsEnabled;
+    const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.fxaaResolution.set(
+      1 / Math.max(drawingBufferSize.x, 1),
+      1 / Math.max(drawingBufferSize.y, 1)
+    );
+    this.roadFogToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.suspicionToonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    this.toonPass.uniforms.uResolution.value.copy(drawingBufferSize);
+    [this.roadFogFxaaPass, this.suspicionFxaaPass, this.toonFxaaPass].forEach((pass) => {
+      pass.enabled = this.graphicsSettings.settings.antialiasing !== "off";
+      pass.uniforms.resolution.value.copy(this.fxaaResolution);
+    });
+    const level1Fog=effectsEnabled&&this.currentLevelNumber===1&&this.currentLevel&&!this.currentLevel.skyViewActive;
+    if((level1Fog||(effectsEnabled&&this.currentLevelNumber===2))&&this.currentLevel){
       this.roadFogRenderPass.scene=this.scene;
       this.roadFogRenderPass.camera=this.camera;
       const u=this.roadFogPass.uniforms;
@@ -1241,11 +1551,12 @@ export class Game {
       u.uTime.value=this.clock.elapsedTime;
       if(level1Fog){
         const fog=this.currentLevel.roadFogConfig??{};
+        const distanceScale = this.graphicsSettings.viewDistanceScale;
         u.uRadialMode.value=1;
         u.uFogCenterX.value=0;
         u.uFogCenterZ.value=-8;
-        u.uFogStart.value=fog.fogStart??82;
-        u.uFogEnd.value=fog.fogEnd??130;
+        u.uFogStart.value=(fog.fogStart??82)*distanceScale;
+        u.uFogEnd.value=(fog.fogEnd??130)*distanceScale;
         u.uDensity.value=fog.density??0.9;
       }else{
         u.uRadialMode.value=0;
@@ -1261,12 +1572,19 @@ export class Game {
       return;
     }
 
-    if(this.currentLevelNumber===3&&this.currentLevel){
+    if(effectsEnabled&&this.currentLevelNumber===3&&this.currentLevel){
       this.suspicionRenderPass.scene=this.scene;
       this.suspicionRenderPass.camera=this.camera;
       this.suspicionPass.uniforms.uSuspicion.value=THREE.MathUtils.clamp((this.currentLevel.suspicion??0)/100,0,1);
       this.suspicionComposer.render();
       this.currentLevel.renderOverlay?.(this.renderer);
+      return;
+    }
+
+    if (effectsEnabled && this.currentLevel) {
+      this.toonRenderPass.scene = this.scene;
+      this.toonRenderPass.camera = this.camera;
+      this.toonComposer.render();
       return;
     }
 
@@ -1296,7 +1614,9 @@ export class Game {
     }
 
     this.renderer.setSize(width, height);
+    this.graphicsSettings?.apply();
     this.roadFogComposer.setSize(width, height);
     this.suspicionComposer.setSize(width, height);
+    this.toonComposer.setSize(width, height);
   }
 }
