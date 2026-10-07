@@ -165,7 +165,10 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
-    this.uiAudio.preload([RESULT_AUDIO]);
+    this.uiAudio.preload([
+      RESULT_AUDIO,
+      "./assets/audio/level1/car-door-shut.mp3"
+    ]);
     for (const preset of ["menu", "level1", "level2", "level3"]) {
       this.uiAudio.preloadMusic(preset);
     }
