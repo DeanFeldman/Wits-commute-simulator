@@ -1358,9 +1358,7 @@ export class ParkingLevel {
     this.audio = new LevelAudio();
     this.audio.preload([
       LEVEL1_IMPACT_AUDIO,
-      LEVEL1_PARKING_AMBIENCE_AUDIO,
       LEVEL1_CAR_START_AUDIO,
-      LEVEL1_DAMAGED_ENGINE_AUDIO,
       LEVEL1_IDLE_AUDIO
     ]);
     this.parkingAmbienceStarted = false;
