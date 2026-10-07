@@ -210,12 +210,26 @@
 
 
 
-    <section id="instruction-card" hidden aria-live="polite">
-      <div class="menu-card">
-        <p class="menu-kicker">LEVEL BRIEF</p>
-        <h2 id="instruction-title"></h2>
-        <p id="instruction-copy"></p>
-        <button data-instruction-action="dismiss" type="button">Got it</button>
+    <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
+      <div class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="instruction-title">
+        <header class="tutorial-header">
+          <p id="instruction-kicker" class="tutorial-kicker"></p>
+          <h2 id="instruction-title"></h2>
+          <p id="instruction-objective" class="tutorial-objective"></p>
+        </header>
+        <div class="tutorial-grid">
+          <div id="instruction-diagram" class="tutorial-wireframe" aria-hidden="true">
+            <span id="instruction-diagram-start" class="tutorial-node"></span>
+            <span class="tutorial-route"><i></i><b id="instruction-diagram-route"></b></span>
+            <span id="instruction-diagram-end" class="tutorial-node tutorial-node-end"></span>
+          </div>
+          <div class="tutorial-controls-panel">
+            <p class="tutorial-panel-title">Controls</p>
+            <ul id="instruction-controls" class="tutorial-controls"></ul>
+          </div>
+        </div>
+        <p class="tutorial-tip"><strong>Watch for:</strong> <span id="instruction-tip"></span></p>
+        <button class="tutorial-start" data-instruction-action="dismiss" type="button">Start level</button>
       </div>
     </section>
     <section id="quiz-overlay" hidden aria-label="Questionnaire">
