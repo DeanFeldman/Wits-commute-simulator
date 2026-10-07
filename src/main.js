@@ -1,4 +1,3 @@
-import "./style.css";
 import { Game } from "./core/Game.js";
 
 const container = document.querySelector("#game-container");
