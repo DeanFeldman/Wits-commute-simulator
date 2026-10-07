@@ -263,12 +263,30 @@
 
 
 
-    <section id="instruction-card" hidden aria-live="polite">
-      <div class="menu-card">
-        <p class="menu-kicker">LEVEL BRIEF</p>
-        <h2 id="instruction-title"></h2>
-        <p id="instruction-copy"></p>
-        <button data-instruction-action="dismiss" type="button">Got it</button>
+    <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
+      <div class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="instruction-title">
+        <header class="tutorial-header">
+          <p id="instruction-kicker" class="tutorial-kicker"></p>
+          <h2 id="instruction-title"></h2>
+          <p id="instruction-objective" class="tutorial-objective"></p>
+        </header>
+        <div class="tutorial-grid">
+          <figure class="tutorial-preview-frame">
+            <canvas id="instruction-preview" class="tutorial-preview" width="1280" height="720" aria-label="Preview captured from the loaded game level"></canvas>
+            <div id="instruction-demo" class="tutorial-demo-layer" aria-hidden="true">
+              <span id="instruction-demo-marker" class="tutorial-demo-marker"></span>
+              <span id="instruction-demo-status" class="tutorial-demo-status">TRY THE CONTROLS</span>
+            </div>
+            <figcaption id="instruction-preview-label" class="tutorial-preview-label">Actual level view</figcaption>
+          </figure>
+          <div class="tutorial-controls-panel">
+            <p class="tutorial-panel-title">Controls</p>
+            <ul id="instruction-controls" class="tutorial-controls"></ul>
+            <p class="tutorial-demo-hint">Try the controls here — the preview reacts while the level timer stays paused.</p>
+          </div>
+        </div>
+        <p class="tutorial-tip"><strong>Watch for:</strong> <span id="instruction-tip"></span></p>
+        <button class="tutorial-start" data-instruction-action="dismiss" type="button">Start level</button>
       </div>
     </section>
     <section id="quiz-overlay" hidden aria-label="Questionnaire">
