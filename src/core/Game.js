@@ -81,9 +81,9 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
   [1, {
     kicker: "LEVEL 01 // PARK",
     title: "Park at Wits",
-    objective: "Get the car into the highlighted bay with condition remaining, then stop straight inside it.",
+    objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
     controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
-    tip: "Potholes slow the car and damage its condition. Avoid obstacles and line the car up before stopping.",
+    tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
     previewLabel: "Actual Level 1 view — car, potholes and parking area"
   }],
   [2, {
@@ -1169,6 +1169,7 @@ export class Game {
     this.instructionTip.textContent = config.tip;
     this.instructionPreviewLabel.textContent = config.previewLabel;
     this.instructionElement.hidden = false;
+    this.currentLevel?.beginTutorial?.();
     this.resetTutorialDemo();
     this.configureTutorialDemo();
     this.captureTutorialPreview();
@@ -1176,37 +1177,38 @@ export class Game {
   }
 
   captureTutorialPreview() {
+    requestAnimationFrame(() => this.syncTutorialPreviewFrame());
+  }
+
+  syncTutorialPreviewFrame() {
     const preview = this.instructionPreview;
     const source = this.renderer.domElement;
-    if (!preview || !source || !this.currentLevel) return;
-
-    requestAnimationFrame(() => {
-      if (!this.isTutorialActive) return;
-      this.render();
-      const ctx = preview.getContext("2d");
-      if (!ctx) return;
-      const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
-      const srcRatio = sw / sh, dstRatio = dw / dh;
-      let sx = 0, sy = 0, cw = sw, ch = sh;
-      if (srcRatio > dstRatio) {
-        cw = sh * dstRatio;
-        sx = (sw - cw) / 2;
-      } else {
-        ch = sw / dstRatio;
-        sy = (sh - ch) / 2;
-      }
-      ctx.clearRect(0, 0, dw, dh);
-      ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
-    });
+    if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    const ctx = preview.getContext("2d");
+    if (!ctx) return;
+    const sw = source.width, sh = source.height, dw = preview.width, dh = preview.height;
+    const srcRatio = sw / sh, dstRatio = dw / dh;
+    let sx = 0, sy = 0, cw = sw, ch = sh;
+    if (srcRatio > dstRatio) {
+      cw = sh * dstRatio;
+      sx = (sw - cw) / 2;
+    } else {
+      ch = sw / dstRatio;
+      sy = (sh - ch) / 2;
+    }
+    ctx.clearRect(0, 0, dw, dh);
+    ctx.drawImage(source, sx, sy, cw, ch, 0, 0, dw, dh);
   }
 
   configureTutorialDemo() {
     const level = this.currentLevelNumber;
     this.instructionDemo.dataset.level = String(level);
     this.instructionDemoMarker.textContent = level === 1 ? "CAR" : level === 2 ? "YOU" : "+";
-    this.instructionDemoStatus.textContent = level === 3
-      ? "MOVE MOUSE • HOLD LEFT CLICK • TYPE"
-      : "TRY WASD / ARROWS • PRESS C";
+    this.instructionDemoStatus.textContent = level === 1
+      ? "DRIVE THE ACTUAL CAR • PRESS C"
+      : level === 3
+        ? "MOVE MOUSE • HOLD LEFT CLICK • TYPE"
+        : "TRY WASD / ARROWS • PRESS C";
     this.instructionDemo.classList.toggle("is-level3", level === 3);
     this.instructionDemoMarker.style.transform = "";
   }
@@ -1279,8 +1281,19 @@ export class Game {
     const index = this.tutorialControlIndex(event.code);
     if (index < 0) return;
     event.preventDefault();
-    event.stopImmediatePropagation();
     this.setTutorialControlActive(index, true);
+
+    if (this.currentLevelNumber === 1) {
+      const action = event.code === "KeyW" || event.code === "ArrowUp" ? "ACCELERATE"
+        : event.code === "KeyS" || event.code === "ArrowDown" ? "BRAKE / REVERSE"
+        : event.code === "KeyA" || event.code === "ArrowLeft" ? "STEER LEFT"
+        : event.code === "KeyD" || event.code === "ArrowRight" ? "STEER RIGHT"
+        : "CAMERA VIEW";
+      this.setTutorialDemoStatus(action);
+      return;
+    }
+
+    event.stopImmediatePropagation();
 
     if (event.code === "KeyC" && this.currentLevelNumber !== 3) {
       if (!event.repeat) this.tutorialCameraDemo = !this.tutorialCameraDemo;
@@ -1324,6 +1337,12 @@ export class Game {
     const index = this.tutorialControlIndex(event.code);
     if (index < 0) return;
     event.preventDefault();
+
+    if (this.currentLevelNumber === 1) {
+      this.setTutorialControlActive(index, false);
+      return;
+    }
+
     event.stopImmediatePropagation();
     this.tutorialDemoKeys.delete(event.code);
     if (event.code !== "KeyC") this.setTutorialControlActive(index, false);
@@ -1383,6 +1402,7 @@ export class Game {
   }
 
   hideInstruction() {
+    this.currentLevel?.endTutorial?.();
     this.isTutorialActive = false;
     this.resetTutorialDemo();
     this.instructionElement.hidden = true;
@@ -1460,6 +1480,7 @@ export class Game {
     // path is timed on the same terms as the direct one.
     this.gpuTimer?.begin();
     this.render();
+    this.syncTutorialPreviewFrame();
     this.gpuTimer?.end();
     this.gpuTimer?.poll();
     this.input.endFrame();
@@ -1486,6 +1507,11 @@ export class Game {
 
   update(dt) {
     this.updateGlobalControls();
+
+    if (this.isTutorialActive && this.currentLevelNumber === 1) {
+      this.currentLevel?.updateTutorial?.(dt);
+      return;
+    }
 
     if (
       !this.isPaused &&
