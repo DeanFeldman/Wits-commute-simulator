@@ -174,7 +174,7 @@ export const CREDITS = [
       },
       {
         name: "Level 1 environment textures still unresolved",
-        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was directly edited/adapted from a Precast Walling Pros image by Dean Feldman; reuse/redistribution terms have not yet been confirmed.",
+        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.",
         url: "https://precastwallingpros.co.za/"
       },
       {
@@ -187,7 +187,7 @@ export const CREDITS = [
       },
       {
         name: "AMIC / Level 2 deck textures",
-        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were directly edited/adapted by Dean Feldman from imagery in Crown Publications' “Bridging the divide” article. The article credits its images to eimage/Gareth Gilmour; reuse/redistribution permission still needs confirmation.",
+        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), and directly edited/adapted by Dean Feldman for the game.",
         url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
       },
       {
