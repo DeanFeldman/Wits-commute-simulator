@@ -117,7 +117,6 @@ export const CREDITS = [
       }
     ]
   },
-
   { heading: "Sound effects", entries: [
     { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
     { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
@@ -192,9 +191,8 @@ export const CREDITS = [
     heading: "Pending provenance before final submission",
     entries: [
       {
-        name: "Level 2 pedestrian crossing signal licence",
-        detail: "MacFerret_20 / Freesound sound 231936 is integrated for testing; confirm the exact licence shown on the Freesound sound page before final submission.",
-        url: "https://freesound.org/people/MacFerret_20/sounds/231936/"
+        name: "Level 1 recorded audio",
+        detail: "The old undocumented Level 1 crash/collision/door/idle files have been replaced or retired. Current runtime Level 1 audio has source records in the Sound effects section."
       },
       {
         name: "Pencil Pete trial font",
