@@ -324,11 +324,15 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
+    this.audio.preloadMusic("level3");
     this.audio.preload([
       RESULT_AUDIO,
       LEVEL3_CORRECT_AUDIO,
       LEVEL3_INTERACTION_AUDIO,
-      LEVEL3_TUTOR_STEP_AUDIO
+      LEVEL3_TUTOR_STEP_AUDIO,
+      LEVEL3_CLASSROOM_AMBIENCE_AUDIO,
+      LEVEL3_HEARTBEAT_AUDIO,
+      LEVEL3_CLOCK_AUDIO
     ]);
     this.gameplayAudioStarted = false;
 
@@ -1499,9 +1503,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     this.ensureGameplayAudio();
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
-    // The old once-per-second oscillator tick was intentionally removed.
-    // A real clock sample will be introduced only once the cleared asset is
-    // supplied, with urgency increasing near the end of the test.
+    // Clock/heartbeat urgency is mixed below from the cleared recordings.
     this.updateMouseLook();
     this.updateDeskTargeting();
     this.updatePlayerPaperPose(dt);
