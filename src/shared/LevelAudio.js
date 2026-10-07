@@ -263,7 +263,7 @@ export class LevelAudio {
     }, Math.ceil((attack + hold) * 1000));
   }
 
-  primeSamplePool(path, targetSize = 3) {
+  primeSamplePool(path, targetSize = 1) {
     if (!path) return;
     const pool = this.sampleCache.get(path) ?? [];
     while (pool.length < targetSize) {
