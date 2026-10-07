@@ -76,8 +76,10 @@
         3.9
       ],
       "randomWeight": 0.01,
-      "note": "Project-made primitive proxy because the uploaded source is a .blend and Blender was unavailable; source URL recorded, licence/redistribution terms still require confirmation.",
-      "source": "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab"
+      "note": "Project-made primitive proxy because the uploaded source is a .blend and Blender was unavailable; source, author and CC BY licence recorded.",
+      "source": "https://sketchfab.com/3d-models/diesel-powered-thomas-7e94742d88a84ca9aacb6b7881aec2ab",
+      "author": "mrmrnaufal",
+      "licence": "Creative Commons Attribution (CC BY)"
     }
   ]
 }
