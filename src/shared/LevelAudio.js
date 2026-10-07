@@ -552,7 +552,10 @@ export class LevelAudio {
     const existing = this.loops.get(name);
     if (existing) return existing.element;
 
-    const audio = this.createSampleElement(path);
+    // Long ambience/engine loops stream from one media element. Do not
+    // route them through the short-SFX pool, which intentionally keeps
+    // multiple warmed copies for overlapping one-shots.
+    const audio = new Audio(path);
     audio.loop = true;
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
