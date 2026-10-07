@@ -86,9 +86,11 @@ Integrated in the latest pass:
 - [x] immediate licensed collision impact;
 - [x] dedicated low pothole thump;
 - [x] wet-pothole water splash layered over the thump;
-- [x] quiet two-layer parking/campus road ambience using the cleared traffic bed;
-- [x] occasional distant pass-bys with long irregular gaps so Level 1 feels occupied
-  without sounding like the active road crossing in Level 2.
+- [x] dedicated FunWithSound CC0 parking-lot ambience replaces the temporary
+  Level 2 traffic-bed reuse;
+- [x] GiocoSound CC0 exterior car-start cue plays once at Level 1 startup;
+- [x] LHermanns CC BY 4.0 engine loop crossfades in progressively below 35%
+  vehicle condition as a high-damage layer.
 
 The old undocumented `car-crash.mp3` and `collision-hit.mp3` files have been
 removed from the branch because they are no longer used.
@@ -149,7 +151,8 @@ Implemented after the full audit:
 
 Remaining audio blocker is provenance-only:
 
-- `public/assets/audio/level1/idle-car.wav`
+- `public/assets/audio/level1/idle-car.wav` — still used as the normal healthy
+  engine loop after the startup cue.
 
 Failure-flow hardening:
 - decoded Web Audio one-shots now dispose safely even if they are still playing;
