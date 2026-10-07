@@ -192,11 +192,14 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
+    this.audio.preloadMusic("level2");
     this.audio.preload([
       LEVEL2_VEHICLE_IMPACT_AUDIO,
       LEVEL2_EXTRA_AUDIO,
       LEVEL2_PASSBY_AUDIO,
-      LEVEL2_FOOTSTEP_AUDIO
+      LEVEL2_FOOTSTEP_AUDIO,
+      LEVEL2_TRAFFIC_AMBIENCE_AUDIO,
+      LEVEL2_INTERACTION_AUDIO
     ]);
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
@@ -1132,9 +1135,18 @@ export class CrossingLevel {
   ensureGameplayAudio() {
     if (this.gameplayAudioStarted) return;
     this.gameplayAudioStarted = true;
-    this.audio.startLoop("level2-traffic", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
+    // Layer the short ambience recording at two offsets/rates so the source's
+    // 3.74-second loop boundary is not perceived as an obvious repeating cycle.
+    this.audio.startLoop("level2-traffic-a", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
       bus: "ambience",
-      volume: 0.2
+      volume: 0.12,
+      playbackRate: 1
+    });
+    this.audio.startLoop("level2-traffic-b", LEVEL2_TRAFFIC_AMBIENCE_AUDIO, {
+      bus: "ambience",
+      volume: 0.08,
+      playbackRate: 0.93,
+      startTime: 1.65
     });
   }
 
@@ -1158,8 +1170,11 @@ export class CrossingLevel {
         Infinity
       );
     const roadProximity = 1 - THREE.MathUtils.clamp(nearestRoadDistance / 9, 0, 1);
-    this.audio.setLoopParameters("level2-traffic", {
-      volume: THREE.MathUtils.lerp(0.2, 0.62, roadProximity)
+    this.audio.setLoopParameters("level2-traffic-a", {
+      volume: THREE.MathUtils.lerp(0.12, 0.36, roadProximity)
+    });
+    this.audio.setLoopParameters("level2-traffic-b", {
+      volume: THREE.MathUtils.lerp(0.08, 0.22, roadProximity)
     });
 
     this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
@@ -1201,7 +1216,7 @@ export class CrossingLevel {
       });
 
       vehicle.audioPassArmed = false;
-      this.trafficPassCooldown = 0.85;
+      this.trafficPassCooldown = 2.8;
       break;
     }
   }
@@ -1503,12 +1518,17 @@ checkFinish() {
   failAtCheckpoint(wasTaxi) {
     this.attempts += 1;
     this.game.flashHUD();
-    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+
+    const impactOptions = {
       volume: 0.96,
       playbackRate: wasTaxi ? 0.96 : 1.02
-    });
+    };
 
     if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
+      // The level is disposed ~280 ms after failLevel(). Route the fatal
+      // impact through the persistent UI audio context so its full tail is not
+      // cut off during the transition.
+      this.game.playPersistentAudio(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
       this.game.setCheckpoint("start");
       this.game.failLevel({
         title: "Too many impacts",
@@ -1518,6 +1538,7 @@ checkFinish() {
       return;
     }
 
+    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
     this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
     this.impactTimer = 0.42;
     this.cameraShakeTime = 0.34;
