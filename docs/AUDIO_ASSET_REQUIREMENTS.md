@@ -27,9 +27,11 @@ Runtime assets:
 Implementation details:
 - footsteps trigger only after a completed grid step and rotate through cropped
   samples with small playback-rate variation;
-- traffic ambience is deliberately quiet and sits on the ambience bus;
+- traffic ambience is preloaded and layered twice with different offsets/rates,
+  making the short source loop much harder to perceive as a repeating cycle;
 - pass-by sounds trigger only when a nearby car crosses the player, are
-  rate-limited, and are stereo-panned so every traffic vehicle is not noisy;
+  stereo-panned, and use a 2.8-second global cooldown to prevent long pass-by
+  recordings from stacking into a wall of sound;
 - the old synthetic taxi beep has been removed;
 - questionnaire selections use the pencil mark and opening/submission uses paper
   foley.
@@ -55,7 +57,8 @@ Runtime assets:
 Implementation details:
 - tutor footsteps are cropped into individual steps, randomly varied, panned,
   and attenuated using the tutor's actual classroom distance from the player;
-- classroom room tone is a quiet continuous ambience layer;
+- classroom room tone, heartbeat and clock are all preloaded before gameplay;
+- the Level 3 interaction sprite contains only the two active peek-rustle cues;
 - the heartbeat starts silent and fades in as suspicion rises above 20%, or as
   the final 15 seconds become urgent;
 - heartbeat volume and playback rate both increase with tension while the music
@@ -121,6 +124,33 @@ Integrated in the latest pass:
 Optional:
 - a subtle additional pencil/writing bed could be layered very quietly into
   the classroom if the current room tone feels too empty.
+
+## Final timing / mix audit
+
+Implemented after the full audit:
+
+- [x] current `main` merged into the audio branch, including the latest Level 2
+  crowd/pathing and quiz-disposal changes;
+- [x] master dynamics limiter added after the shared music/ambience/SFX buses to
+  catch stacked gameplay peaks without flattening the normal mix;
+- [x] gameplay music and long ambience loops are preloaded during level loading;
+- [x] Level 2 fatal vehicle impact is routed through persistent game audio so the
+  tail survives level disposal;
+- [x] all failure stings now use persistent game audio on Levels 1–3;
+- [x] gameplay music fades over 120 ms before fail/success stings;
+- [x] Level 2 pass-by overlap reduced with a 2.8-second cooldown;
+- [x] short Level 2 traffic ambience de-repeated with two offset/rate layers;
+- [x] Level 3 interaction sprite repacked to remove unused legacy answer clips;
+- [x] Level 1 completion door sound preloaded.
+
+Remaining audio blockers are provenance-only:
+
+- `public/assets/audio/level1/idle-car.wav`
+- `public/assets/audio/level1/car-door-shut.mp3`
+
+No additional gameplay sound category is required for issue #233. Parking-confirm,
+Level 2 checkpoint confirmation and extra classroom writing texture remain optional
+polish only.
 
 ## Delivery rules
 
