@@ -218,11 +218,10 @@
           <p id="instruction-objective" class="tutorial-objective"></p>
         </header>
         <div class="tutorial-grid">
-          <div id="instruction-diagram" class="tutorial-wireframe" aria-hidden="true">
-            <span id="instruction-diagram-start" class="tutorial-node"></span>
-            <span class="tutorial-route"><i></i><b id="instruction-diagram-route"></b></span>
-            <span id="instruction-diagram-end" class="tutorial-node tutorial-node-end"></span>
-          </div>
+          <figure class="tutorial-preview-frame">
+            <canvas id="instruction-preview" class="tutorial-preview" width="1280" height="720" aria-label="Preview captured from the loaded game level"></canvas>
+            <figcaption id="instruction-preview-label" class="tutorial-preview-label">Actual level view</figcaption>
+          </figure>
           <div class="tutorial-controls-panel">
             <p class="tutorial-panel-title">Controls</p>
             <ul id="instruction-controls" class="tutorial-controls"></ul>
