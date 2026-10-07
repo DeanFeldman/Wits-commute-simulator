@@ -56,10 +56,11 @@ const LEVEL2_PASSBY_CUES = Object.freeze([
 ]);
 const LEVEL2_EXTRA_AUDIO = "./assets/audio/level2/extra-sprite.opus";
 const LEVEL2_EXTRA_CUES = Object.freeze({
-  horn: Object.freeze({ start: 0, duration: 1.09 }),
-  personBump: Object.freeze({ start: 1.19, duration: 1.3 }),
-  cupCollect: Object.freeze({ start: 2.59, duration: 1.5 })
+  horn: Object.freeze({ start: 0, duration: 1.09 })
 });
+const LEVEL2_CUP_PICKUP_AUDIO = "./assets/audio/level2/cup-pickup.opus";
+const LEVEL2_PERSON_BUMP_AUDIO = "./assets/audio/level2/person-bump.opus";
+const LEVEL2_CROSSING_SIGNAL_AUDIO = "./assets/audio/level2/crossing-signal.opus";
 
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
@@ -198,7 +199,10 @@ export class CrossingLevel {
       LEVEL2_PASSBY_AUDIO,
       LEVEL2_FOOTSTEP_AUDIO,
       LEVEL2_TRAFFIC_AMBIENCE_AUDIO,
-      LEVEL2_INTERACTION_AUDIO
+      LEVEL2_INTERACTION_AUDIO,
+      LEVEL2_CUP_PICKUP_AUDIO,
+      LEVEL2_PERSON_BUMP_AUDIO,
+      LEVEL2_CROSSING_SIGNAL_AUDIO
     ]);
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
@@ -233,7 +237,9 @@ export class CrossingLevel {
       LEVEL2_EXTRA_AUDIO,
       LEVEL2_FOOTSTEP_AUDIO,
       LEVEL2_INTERACTION_AUDIO,
-      LEVEL2_PASSBY_AUDIO
+      LEVEL2_PASSBY_AUDIO,
+      LEVEL2_CUP_PICKUP_AUDIO,
+      LEVEL2_PERSON_BUMP_AUDIO
     ]);
 
     // Survey completion belongs to this Level 2 run only.
@@ -1197,6 +1203,11 @@ export class CrossingLevel {
       playbackRate: 0.93,
       startTime: 1.65
     });
+    this.audio.startLoop("level2-crossing-signal", LEVEL2_CROSSING_SIGNAL_AUDIO, {
+      bus: "ambience",
+      volume: 0,
+      playbackRate: 1
+    });
   }
 
   playPlayerFootstep() {
@@ -1218,18 +1229,25 @@ export class CrossingLevel {
         (nearest, lane) => Math.min(nearest, Math.abs(lane.z - this.player.position.z)),
         Infinity
       );
-    // Road bed is silent away from Yale Road. It fades in only once the
-    // player is genuinely near the kerb and reaches full level in the lanes.
-    const roadProximity = 1 - THREE.MathUtils.clamp(
-      (nearestRoadDistance - 0.75) / 3.75,
+    // A grid move is 1.2 m. By the time the player is one move from the
+    // road edge, the nearest lane centre is about one strip (2.4 m) away.
+    // Give that first approach a clear floor, then rise smoothly in the road.
+    const proximityCurve = 1 - THREE.MathUtils.clamp(
+      (nearestRoadDistance - 0.6) / 3.0,
       0,
       1
     );
+    const oneMoveApproach = nearestRoadDistance <= STRIP_DEPTH ? 0.62 : 0;
+    const roadProximity = Math.max(proximityCurve, oneMoveApproach);
+
     this.audio.setLoopParameters("level2-traffic-a", {
-      volume: 0.52 * roadProximity
+      volume: 0.58 * roadProximity
     });
     this.audio.setLoopParameters("level2-traffic-b", {
-      volume: 0.30 * roadProximity
+      volume: 0.34 * roadProximity
+    });
+    this.audio.setLoopParameters("level2-crossing-signal", {
+      volume: 0.26 * roadProximity
     });
 
     this.trafficPassCooldown = Math.max(0, this.trafficPassCooldown - dt);
@@ -1358,10 +1376,8 @@ export class CrossingLevel {
     this.hopController.bump(direction);
     this.cameraShakeTime = 0.18;
     this.cameraShakeStrength = 0.35;
-    this.audio.duckMusic({ scale: 0.45, hold: 0.3 });
-    this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
-      ...LEVEL2_EXTRA_CUES.personBump,
-      volume: 0.72,
+    this.audio.playSample(LEVEL2_PERSON_BUMP_AUDIO, {
+      volume: 0.78,
       playbackRate: 0.97 + Math.random() * 0.06
     });
     const { droppedCup } = this.crowd.bump(person, this.player.position);
@@ -1471,13 +1487,11 @@ export class CrossingLevel {
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
     this.game.setMessage(`${type.label}! ${type.blurb}.`);
-    // Yes: every Vida pickup has a dedicated collection cue. Duck the score
-    // briefly so the pickup is obvious even in the busiest traffic section.
-    this.audio.duckMusic({ scale: 0.3, hold: 0.42 });
-    this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
-      ...LEVEL2_EXTRA_CUES.cupCollect,
-      volume: 1,
-      playbackRate: 0.97 + Math.random() * 0.06
+    // A short dedicated cue is decoded before gameplay so collection feedback
+    // lands on the exact frame the cup disappears.
+    this.audio.playSample(LEVEL2_CUP_PICKUP_AUDIO, {
+      volume: 0.92,
+      playbackRate: 0.98 + Math.random() * 0.04
     });
   }
 
