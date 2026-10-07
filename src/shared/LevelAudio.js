@@ -276,6 +276,35 @@ export class LevelAudio {
     return audio;
   }
 
+  async waitForPreload(paths = [], timeoutMs = 1800) {
+    this.preload(paths);
+    await Promise.all(paths.map((path) => new Promise((resolve) => {
+      const pool = this.sampleCache.get(path) ?? [];
+      if (pool.some((audio) => audio.readyState >= 1)) {
+        resolve();
+        return;
+      }
+
+      const audio = pool[0];
+      if (!audio) {
+        resolve();
+        return;
+      }
+
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(finish, timeoutMs);
+      audio.addEventListener("loadedmetadata", finish, { once: true });
+      audio.addEventListener("error", finish, { once: true });
+      audio.load?.();
+    })));
+  }
+
   playSample(path, {
     volume = 1,
     pan = 0,
