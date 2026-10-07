@@ -56,6 +56,11 @@ export const CREDITS = [
         url: "https://sketchfab.com/3d-models/whiteboard-d0b05bd140734a799666f0a29e1fe1bb"
       },
       {
+        name: "Plastic Chair (retained asset)",
+        detail: `Jazavac — ${CC_BY_4}. plastic-chair.glb remains in the distributed public asset folder, although current Level 3 code loads classroom-plastic-chair.glb instead.`,
+        url: "https://sketchfab.com/3d-models/plastic-chair-be3d5131e634424e89ffd57ebb19804e"
+      },
+      {
         name: "Paper Tablet",
         detail: `NameSsis — ${CC_BY_4}. Level 3 answer tablets; rescaled and given runtime answer textures.`,
         url: "https://sketchfab.com/3d-models/paper-tablet-f2b7978367164eb38167dd4832978288"
@@ -79,6 +84,26 @@ export const CREDITS = [
         name: "Asphalt 02 PBR set",
         detail: `Rob Tuytel / Poly Haven — ${CC0}. Diffuse, roughness, displacement and OpenGL normal textures used by the Level 1 and Level 2 asphalt shader.`,
         url: "https://polyhaven.com/a/asphalt_02"
+      },
+      {
+        name: "Grass Pack of 9 Variations",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 grass foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/grass-pack-of-9-vars-lowpoly-game-ready-0561204a1fa14c17939300ee1108948b"
+      },
+      {
+        name: "Lilac Bush Pack",
+        detail: "LOLIPOP (@lolipop_1707) — CC BY. Used for Level 1 bush/understory foliage; processed and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/lilac-bush-pack-12-vars-lods-game-ready-10312697ec994fc99355cb94f1963a2e"
+      },
+      {
+        name: "Giant Low Poly Tree",
+        detail: "Sahir Virmani (@sahirvirmani) — CC BY. Used for Level 1 hero/near-campus trees; normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/giant-low-poly-tree-acfd2b7f80894848b56c2ac8e7e59572"
+      },
+      {
+        name: "Low Poly Tree Pack",
+        detail: "Pasha (@Pasha.) — Sketchfab Free Standard. Used for Level 1 near/distant trees; selected subtrees are normalised/scaled and instanced at runtime.",
+        url: "https://sketchfab.com/3d-models/low-poly-tree-pack-1edaac90fe8d4bb28546740496684d96"
       },
       {
         name: "Joburg Central Sunset HDRI",
@@ -121,10 +146,6 @@ export const CREDITS = [
     heading: "Pending provenance before final submission",
     entries: [
       {
-        name: "Normalised vehicle variants",
-        detail: "Aston Martin, BYD, Honda, Nissan and Volkswagen runtime variants were converted from uploaded archives that did not preserve original source, author or licence metadata. Supply those records or replace the assets."
-      },
-      {
         name: "Diesel Thomas proxy",
         detail: "The runtime mesh is a project-made procedural proxy, but the underlying character reference still needs rights clearance or removal."
       },
@@ -134,11 +155,12 @@ export const CREDITS = [
       },
       {
         name: "Pencil Pete trial font",
-        detail: "pencil-pete-trial.ttf is loaded by Level 3 but its source and redistribution licence are not yet recorded."
+        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit clearance or replacement.",
+        url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {
-        name: "Foliage and environment assets",
-        detail: "The runtime foliage packs, stylized grass texture set and east precast-wall texture are used in Level 1 but still need source/licence or team-authorship records."
+        name: "Level 1 environment textures still unresolved",
+        detail: "The runtime foliage model sources are now recorded. The stylized grass texture set and east precast-wall texture still need source/licence or team-authorship records."
       },
       {
         name: "Level 2 character assets",
@@ -153,8 +175,8 @@ export const CREDITS = [
         detail: "wits-shark.glb and wits-shark.png still need a source/licence or team-authorship record."
       },
       {
-        name: "AMIC fence textures",
-        detail: "amic-fence.png and amic-fence-reference.png are loaded by the current game and still need source/licence or team-authorship records."
+        name: "AMIC / Level 2 deck textures",
+        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png are loaded by the current game and still need source/licence or team-authorship records."
       },
       {
         name: "UI artwork still awaiting provenance records",
