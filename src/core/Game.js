@@ -92,7 +92,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
     controls: [["WASD / ARROWS", "Move across the route"], ["C", "Camera view"], ["P", "Pause / settings"]],
     tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
-    previewLabel: "Actual Level 2 crossing view"
+    previewLabel: "Live Level 2 practice — move the actual student"
   }],
   [3, {
     kicker: "LEVEL 03 // CHEAT",
@@ -100,7 +100,7 @@ const LEVEL_TUTORIAL_CONFIG = new Map([
     objective: "Copy the correct answers and finish the test before time runs out without reaching 100% suspicion.",
     controls: [["MOUSE", "Look around"], ["HOLD LEFT CLICK", "Zoom and reveal an answer"], ["TYPE + ENTER", "Submit at your desk"], ["P", "Pause / settings"]],
     tip: "Only peek when it is safe. Release the mouse, look back at your desk, and type the answer before suspicion gets too high.",
-    previewLabel: "Actual Level 3 classroom view"
+    previewLabel: "Live Level 3 practice — look, peek and type"
   }]
 ]);
 
