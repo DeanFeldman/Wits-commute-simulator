@@ -1393,6 +1393,8 @@ export class ParkingLevel {
   }
 
 async load() {
+  await this.audio.waitForPreload([LEVEL1_IMPACT_AUDIO]);
+
   const scene = this.game.scene;
 
   const skyColor = new THREE.Color(0x8ec9ee);
