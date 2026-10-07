@@ -154,6 +154,42 @@ Local development and production bundling.
 
 Modified: No
 
+### Pixelify Sans
+
+Type: Font
+
+Source:
+https://fonts.google.com/specimen/Pixelify+Sans
+
+Author:
+Stefie Justprince
+
+Licence:
+SIL Open Font License 1.1
+
+Used for:
+Display text, headings and buttons throughout the UI.
+
+Modified: No
+
+### Inter
+
+Type: Font
+
+Source:
+https://fonts.google.com/specimen/Inter
+
+Author:
+Rasmus Andersson
+
+Licence:
+SIL Open Font License 1.1
+
+Used for:
+General UI/body text loaded through Google Fonts.
+
+Modified: No
+
 ---
 
 ## Models
@@ -536,20 +572,25 @@ Original assets authored by the team:
 
 # Outstanding Housekeeping
 
-- Trace the source and licence of the normalised vehicle pack (see above).
-- The in-game credits screen (`Game.js`, `showCredits`) currently names only
-  Three.js and the team. CC BY 4.0 requires the five model authors above to be
-  credited in the distributed work, so they need to appear there too.
+- Trace or replace the unresolved assets listed in the current Issue #245 audit below.
+- The in-game Credits screen now includes the verified library, font, CC BY 4.0,
+  CC0, music and recorded AI/project-created acknowledgements from the current
+  registry. Do not mark the credits work complete until the remaining provenance
+  gaps are resolved and the final production build is re-audited.
 
 ---
 
 ## Runtime Asset Provenance Gate (Issue #160)
 
-This audit was performed against every file under `public/assets/` that is loaded
-at runtime. Entries already documented above have a source and licence. The
-following files cannot be credited truthfully from the repository alone and are
-submission blockers until their original source records are supplied or the files
-are replaced with team-authored or properly licensed alternatives.
+This is the earlier provenance gate created under Issue #160 and is retained as
+historical audit context. It captured the known blockers at that point in the
+project, but it is **not the complete current inventory**. The broader Issue #245
+audit below supersedes it for final-submission checking.
+
+The following files identified during that earlier pass could not be credited
+truthfully from the repository evidence available at the time and remain blockers
+unless their source records are supplied or the files are replaced with
+team-authored or properly licensed alternatives.
 
 | Runtime asset(s) | Current evidence | Required before submission |
 | --- | --- | --- |
