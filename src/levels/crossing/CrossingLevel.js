@@ -198,11 +198,9 @@ export class CrossingLevel {
       LEVEL2_EXTRA_AUDIO,
       LEVEL2_PASSBY_AUDIO,
       LEVEL2_FOOTSTEP_AUDIO,
-      LEVEL2_TRAFFIC_AMBIENCE_AUDIO,
       LEVEL2_INTERACTION_AUDIO,
       LEVEL2_CUP_PICKUP_AUDIO,
-      LEVEL2_PERSON_BUMP_AUDIO,
-      LEVEL2_CROSSING_SIGNAL_AUDIO
+      LEVEL2_PERSON_BUMP_AUDIO
     ]);
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
