@@ -361,15 +361,27 @@ export class LevelAudio {
       gain.connect(this.getBus(bus));
     }
 
-    const handle = { source, gain, panner };
-    this.oneShots.add(handle);
-    const cleanup = () => {
-      source.disconnect();
-      gain.disconnect();
-      panner?.disconnect();
-      this.oneShots.delete(handle);
+    let cleaned = false;
+    const handle = {
+      source,
+      gain,
+      panner,
+      cleanup: () => {
+        if (cleaned) return;
+        cleaned = true;
+        try {
+          source.stop();
+        } catch {
+          // Buffer sources throw if they have already ended/stopped.
+        }
+        source.disconnect();
+        gain.disconnect();
+        panner?.disconnect();
+        this.oneShots.delete(handle);
+      }
     };
-    source.addEventListener("ended", cleanup, { once: true });
+    this.oneShots.add(handle);
+    source.addEventListener("ended", handle.cleanup, { once: true });
 
     const offset = Math.max(0, Math.min(start, Math.max(0, buffer.duration - 0.001)));
     if (Number.isFinite(duration) && duration > 0) {
@@ -700,13 +712,19 @@ export class LevelAudio {
     this.stopMusic({ fadeSeconds: 0, reset: true });
     for (const name of [...this.loops.keys()]) this.stopLoop(name);
     for (const handle of [...this.oneShots]) {
-      if (handle.cleanup) handle.cleanup();
-      else {
-        handle.audio.pause();
-        handle.source?.disconnect();
-        handle.gain?.disconnect();
-        handle.panner?.disconnect();
+      if (handle.cleanup) {
+        handle.cleanup();
+        continue;
       }
+      handle.audio?.pause?.();
+      try {
+        handle.source?.stop?.();
+      } catch {
+        // Already-ended Web Audio sources do not need further cleanup.
+      }
+      handle.source?.disconnect?.();
+      handle.gain?.disconnect?.();
+      handle.panner?.disconnect?.();
     }
     this.oneShots.clear();
     this.sampleCache.clear();
