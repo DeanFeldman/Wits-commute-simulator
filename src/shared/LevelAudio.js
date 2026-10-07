@@ -18,6 +18,7 @@ export class LevelAudio {
   constructor() {
     this.context = null;
     this.master = null;
+    this.masterLimiter = null;
     this.musicBus = null;
     this.ambienceBus = null;
     this.sfxBus = null;
@@ -60,6 +61,7 @@ export class LevelAudio {
 
     this.context = new AudioContext();
     this.master = this.context.createGain();
+    this.masterLimiter = this.context.createDynamicsCompressor();
     this.musicBus = this.context.createGain();
     this.ambienceBus = this.context.createGain();
     this.sfxBus = this.context.createGain();
@@ -72,7 +74,16 @@ export class LevelAudio {
     this.musicBus.connect(this.master);
     this.ambienceBus.connect(this.master);
     this.sfxBus.connect(this.master);
-    this.master.connect(this.context.destination);
+
+    // Catch short gameplay peaks when layered effects coincide (for example
+    // engine + pothole thump + splash, or impact + shield + traffic) without
+    // flattening the whole mix.
+    this.masterLimiter.threshold.value = -3;
+    this.masterLimiter.knee.value = 2;
+    this.masterLimiter.ratio.value = 12;
+    this.masterLimiter.attack.value = 0.002;
+    this.masterLimiter.release.value = 0.12;
+    this.master.connect(this.masterLimiter).connect(this.context.destination);
 
     this.armUnlock();
     this.unlockAudio();
@@ -86,6 +97,11 @@ export class LevelAudio {
     return this.sfxBus;
   }
 
+  preloadMusic(preset) {
+    const src = MUSIC_FILES[preset];
+    if (src) this.preload([src]);
+  }
+
   startMusic(preset, { fadeSeconds = 0.55 } = {}) {
     const src = MUSIC_FILES[preset];
     if (!src) return;
@@ -96,7 +112,7 @@ export class LevelAudio {
 
     this.stopMusic({ fadeSeconds: Math.min(0.25, fadeSeconds), reset: true });
 
-    const music = new Audio(src);
+    const music = this.createSampleElement(src);
     music.loop = true;
     music.preload = "auto";
     music.volume = 1;
@@ -223,6 +239,19 @@ export class LevelAudio {
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
+    const applyStartTime = () => {
+      if (startTime <= 0) return;
+      try {
+        const duration = Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : startTime;
+        audio.currentTime = Math.min(startTime, Math.max(0, duration - 0.01));
+      } catch {
+        // Metadata may not be ready yet; loadedmetadata retries below.
+      }
+    };
+    if (audio.readyState >= 1) applyStartTime();
+    else audio.addEventListener("loadedmetadata", applyStartTime, { once: true });
 
     if (!this.ensure()) {
       audio.volume = clamp01(volume);
@@ -336,13 +365,14 @@ export class LevelAudio {
     volume = 1,
     playbackRate = 1,
     pan = 0,
-    bus = "ambience"
+    bus = "ambience",
+    startTime = 0
   } = {}) {
     if (!name || !path) return null;
     const existing = this.loops.get(name);
     if (existing) return existing.element;
 
-    const audio = new Audio(path);
+    const audio = this.createSampleElement(path);
     audio.loop = true;
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
@@ -515,6 +545,7 @@ export class LevelAudio {
       globalThis.removeEventListener?.("keydown", this.unlockAudio);
     }
 
+    this.masterLimiter?.disconnect?.();
     this.context?.close?.();
     this.context = null;
   }
