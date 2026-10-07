@@ -1349,7 +1349,6 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
-    this.audio.preloadMusic("level1");
     this.audio.preload([LEVEL1_IMPACT_AUDIO, "./assets/audio/level1/idle-car.wav"]);
     this.environment = null;
     this.impactCooldown = 0;
@@ -1403,7 +1402,6 @@ async load() {
   this.chaseFog = null;
 
   scene.add(this.root);
-  if (!this.game.isLevelIntroActive) this.audio.startMusic("level1");
 
   // Raised from 0.75 for ACES, 2026-09-08, with the dusk sun below. Level 1
   // is the darkest scene in the game, and three's ACES curve is sub-unity
