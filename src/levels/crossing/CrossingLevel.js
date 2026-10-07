@@ -225,6 +225,7 @@ export class CrossingLevel {
 
     this.gridSize = STRIP_DEPTH;
     this.completed = false;
+    this.tutorialPose = null;
   }
   async load() {
     await this.audio.waitForPreload([
@@ -1029,6 +1030,47 @@ export class CrossingLevel {
     this.shieldBubble.name = "level2-shield-bubble";
     this.shieldBubble.visible = false;
     this.root.add(this.shieldBubble);
+  }
+
+  beginTutorial() {
+    if (!this.player || !this.hopController || this.tutorialPose) return;
+    this.tutorialPose = {
+      position: this.player.position.clone(),
+      rotationY: this.player.rotation.y,
+      cameraMode: this.cameraMode,
+      distanceWalked: this.hopController.distanceWalked,
+      targetYaw: this.hopController.targetYaw,
+      onBlocked: this.hopController.onBlocked
+    };
+    this.hopController.reset(this.player.position);
+    this.hopController.setHeldDirection(null);
+    this.hopController.onBlocked = null;
+  }
+
+  updateTutorial(dt) {
+    if (!this.player || !this.hopController || !this.controls) return;
+    if (this.controls.wasPressed("cycleCamera")) this.cycleCameraMode();
+    this.capturePlayerInput();
+    this.hopController.update(dt);
+    this.updatePlayerGroundHeight();
+    this.updatePlayerAnimation(dt);
+    this.cups?.update(dt);
+    this.updateCamera(dt);
+  }
+
+  endTutorial() {
+    if (!this.tutorialPose || !this.player || !this.hopController) return;
+    const { position, rotationY, cameraMode, distanceWalked, targetYaw, onBlocked } = this.tutorialPose;
+    this.hopController.reset(position);
+    this.hopController.setHeldDirection(null);
+    this.hopController.distanceWalked = distanceWalked;
+    this.hopController.targetYaw = targetYaw;
+    this.hopController.onBlocked = onBlocked;
+    this.player.rotation.y = rotationY;
+    this.updatePlayerGroundHeight();
+    this.setCameraMode(cameraMode);
+    this.updateCamera(1);
+    this.tutorialPose = null;
   }
 
     update(dt) {
