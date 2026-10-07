@@ -26,15 +26,6 @@ import {
 // How long a checkpoint setback banner lingers while play continues.
 const SETBACK_DISPLAY_TIME = 2600;
 
-const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
-const RESULT_CUES = Object.freeze({
-  // Leave a wide guard band before the success cue. Browser media timers can
-  // wake late under frame load; the shorter fail slice prevents any success
-  // transient leaking through on a failed run.
-  fail: Object.freeze({ start: 0, duration: 2.4 }),
-  success: Object.freeze({ start: 2.95, duration: 1.7 })
-});
-
 const LEVEL_STATES = new Map([
   [1, "level1"],
   [2, "level2"],
@@ -168,10 +159,7 @@ export class Game {
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
-    this.uiAudio.preload([
-      RESULT_AUDIO,
-      "./assets/audio/level1/car-door-shut.mp3"
-    ]);
+    this.uiAudio.preload([]);
     for (const preset of ["menu", "level1", "level2", "level3"]) {
       this.uiAudio.preloadMusic(preset);
     }
@@ -749,8 +737,9 @@ export class Game {
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
+    // Gameplay uses environmental/interaction audio rather than a continuous
+    // soundtrack. Menu music ends when the player enters the level.
     this.uiAudio.stopMusic();
-    this.currentLevel?.audio?.startMusic?.(`level${this.currentLevelNumber}`);
     // The Continue click is a user gesture, so it can immediately return
     // focus and mouse control to the loaded level without a second click.
     this.input.requestPointerLock();
@@ -800,24 +789,6 @@ export class Game {
     this.isTransitioning = true;
     this.setMessage(message);
 
-    if (completedLevel === 3) {
-      this.currentLevel?.audio?.stopMusic?.({ fadeSeconds: 0.12, reset: true });
-      this.uiAudio.playSegment(RESULT_AUDIO, {
-        ...RESULT_CUES.success,
-        volume: 0.62
-      });
-    }
-
-    if (completedLevel === 1) {
-      // ParkingLevel is disposed before the Level 2 intro appears, so this
-      // completion cue is owned by the game rather than the parking level.
-      // It fires immediately when the parking confirmation reaches 100%.
-      this.playOneShotAudio(
-        "./assets/audio/level1/car-door-shut.mp3",
-        0.4875
-      );
-    }
-
     this.fadeTransition(() => {
       if (nextLevel <= 3) {
         this.showLevelIntro(nextLevel);
@@ -860,15 +831,8 @@ export class Game {
       this.recordFailedAttempt(this.currentLevelNumber);
     }
 
-    // Result audio belongs to the persistent game audio context so it survives
-    // level disposal. Fade gameplay music immediately so the failure sting is
-    // readable on every level rather than only Level 3.
-    this.currentLevel?.audio?.stopMusic?.({ fadeSeconds: 0.12, reset: true });
-    this.uiAudio.playSegment(RESULT_AUDIO, {
-      ...RESULT_CUES.fail,
-      volume: 0.68
-    });
-
+    // Failure is communicated visually; there is intentionally no generic
+    // success/failure sting. Contextual gameplay impacts remain audible.
     this.isTransitioning = true;
     this.setMessage(describeFailure(failure).title);
     this.fadeTransition(() => this.showFailure(failure));
