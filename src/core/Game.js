@@ -28,8 +28,11 @@ const SETBACK_DISPLAY_TIME = 2600;
 
 const RESULT_AUDIO = "./assets/audio/shared/result-sprite.opus";
 const RESULT_CUES = Object.freeze({
-  fail: Object.freeze({ start: 0, duration: 2.85 }),
-  success: Object.freeze({ start: 2.95, duration: 1.76 })
+  // Leave a wide guard band before the success cue. Browser media timers can
+  // wake late under frame load; the shorter fail slice prevents any success
+  // transient leaking through on a failed run.
+  fail: Object.freeze({ start: 0, duration: 2.4 }),
+  success: Object.freeze({ start: 2.95, duration: 1.7 })
 });
 
 const LEVEL_STATES = new Map([
