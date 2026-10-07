@@ -907,8 +907,15 @@ export class Game {
 
   disposeCurrentLevel() {
     if (this.currentLevel) {
-      this.currentLevel.dispose();
+      const level = this.currentLevel;
       this.currentLevel = null;
+      try {
+        level.dispose();
+      } catch (error) {
+        // A cleanup failure must never trap the player behind the fade overlay.
+        // Log it for debugging, then continue rebuilding the game state.
+        console.error("Level cleanup failed:", error);
+      }
     }
 
     this.scene.clear();
