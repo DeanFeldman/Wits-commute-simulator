@@ -608,6 +608,7 @@ export class Game {
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
     if (showIntro) this.setLevelIntroLoadState("ready");
+    if (levelNumber === 1 && this.staticParkingTutorial && !this.staticParkingTutorial.hidden) this.updateStaticParkingReady();
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
 
     if (this.currentMessage === loadingMessage) {
@@ -786,7 +787,7 @@ export class Game {
     const story = this.levelIntroConfig?.story ?? [];
     this.levelIntroDialogueCopy.textContent = story[this.levelIntroStoryIndex] ?? "";
     const isFinalBox = this.levelIntroStoryIndex === story.length - 1;
-    const waitingForLevel = isFinalBox && !this.isLevelIntroReady;
+    const waitingForLevel = isFinalBox && !this.isLevelIntroReady && this.currentLevelNumber !== 1;
 
     this.levelIntroDialogueContinue.disabled = waitingForLevel;
     this.levelIntroDialogueContinue.firstChild.textContent = waitingForLevel
@@ -804,12 +805,13 @@ export class Game {
       return;
     }
 
-    if (!this.isLevelIntroReady) return;
+    if (!this.isLevelIntroReady && this.currentLevelNumber !== 1) return;
 
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
-    this.showInstruction(this.currentLevel);
+    if (this.currentLevelNumber === 1) this.showStaticParkingTutorial();
+    else this.showInstruction(this.currentLevel);
   }
 
   setCheckpoint(checkpoint) {
@@ -1169,7 +1171,41 @@ export class Game {
     this.homeMenuElement.hidden = true;
   }
 
+  updateStaticParkingReady() {
+    if (!this.staticParkingStart) return;
+    const ready = !this.isLoading && !!this.currentLevel;
+    this.staticParkingStart.disabled = !ready;
+    this.staticParkingStart.textContent = ready ? "START LEVEL" : "LOADING LEVEL 1…";
+  }
+
+  showStaticParkingTutorial() {
+    this.staticParkingTutorial ??= document.querySelector("#static-parking-tutorial");
+    this.staticParkingStart ??= document.querySelector("#static-parking-start");
+    if (!this.staticParkingTutorial || !this.staticParkingStart) return;
+    this.input.clearTransientState();
+    document.exitPointerLock?.();
+    this.isTutorialActive = true;
+    this.instructionElement.hidden = true;
+    this.staticParkingTutorial.hidden = false;
+    this.updateStaticParkingReady();
+    if (!this.staticParkingStart.dataset.bound) {
+      this.staticParkingStart.dataset.bound = "true";
+      this.staticParkingStart.addEventListener("click", () => {
+        if (this.isLoading || !this.currentLevel || this.currentLevelNumber !== 1) return;
+        this.hideInstruction();
+        this.input.clearTransientState();
+        this.uiAudio.stopMusic();
+        this.input.requestPointerLock();
+        this.clock.getDelta();
+      });
+    }
+  }
+
   showInstruction(level) {
+    if (this.currentLevelNumber === 1) {
+      this.showStaticParkingTutorial();
+      return;
+    }
     const config = LEVEL_TUTORIAL_CONFIG.get(this.currentLevelNumber);
     if (!config || !level) return;
     document.exitPointerLock?.();
@@ -1196,7 +1232,7 @@ export class Game {
 
   syncTutorialPreviewFrame() {
     const preview = this.instructionPreview, source = this.renderer.domElement;
-    if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    if (this.currentLevelNumber === 1 || !this.isTutorialActive || !preview || !source || !this.currentLevel) return;
     const now = performance.now();
     if (now - (this.lastTutorialPreview ?? 0) < 1000 / 30) return;
     this.lastTutorialPreview = now;
@@ -1405,6 +1441,7 @@ export class Game {
     this.isTutorialActive = false;
     this.resetTutorialDemo();
     this.instructionElement.hidden = true;
+    if (this.staticParkingTutorial) this.staticParkingTutorial.hidden = true;
   }
 
   onInstructionClick(event) {
@@ -1504,7 +1541,7 @@ export class Game {
     this.updateGlobalControls();
 
     if (this.isTutorialActive) {
-      this.currentLevel?.updateTutorial?.(dt);
+      if (this.currentLevelNumber !== 1) this.currentLevel?.updateTutorial?.(dt);
       return;
     }
 
@@ -1522,7 +1559,7 @@ export class Game {
   }
 
   render(){
-    if(this.isLoading)return;
+    if(this.isLoading || (this.currentLevelNumber === 1 && this.isTutorialActive))return;
 
     const effectsEnabled = this.graphicsSettings.effectsEnabled;
     const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());
