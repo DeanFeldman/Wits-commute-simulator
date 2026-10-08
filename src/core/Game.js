@@ -251,9 +251,13 @@ export class Game {
     this.wasPointerLocked = false;
     document.addEventListener("pointerlockchange", () => {
       const locked = document.pointerLockElement === this.renderer.domElement;
+      // A level may release the pointer on purpose (e.g. to show a clickable
+      // form); that is not the player asking to pause.
+      const levelReleasedPointer = this.currentLevel?.isPointerReleaseExpected?.() ?? false;
       if (this.wasPointerLocked && !locked && !this.isPaused &&
           !this.isLoading && !this.isTransitioning &&
-          !this.isLevelIntroActive && !this.isTutorialActive) {
+          !this.isLevelIntroActive && !this.isTutorialActive &&
+          !levelReleasedPointer) {
         this.pause();
       }
       this.wasPointerLocked = locked;
