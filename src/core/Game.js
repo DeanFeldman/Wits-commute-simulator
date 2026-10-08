@@ -190,6 +190,8 @@ export class Game {
     this.levelIntroConfig = null;
     this.levelIntroArtPreloads = new Map();
     this.levelIntroArtRequest = 0;
+    this.staticParkingImagesReady = false;
+    this.staticParkingImagesPreload = null;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -635,6 +637,7 @@ export class Game {
     this.journeyLevelResults.clear();
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = true;
+    void this.preloadStaticParkingImages();
     this.showLevelIntro(1);
     this.startLevel(1, "start", false, true);
   }
@@ -647,6 +650,34 @@ export class Game {
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = false;
     this.startLevel(levelNumber);
+  }
+
+  preloadStaticParkingImages() {
+    if (this.staticParkingImagesPreload) return this.staticParkingImagesPreload;
+    const sources = [
+      "./assets/images/ui/level1-tutorial-driving.webp",
+      "./assets/images/ui/level1-tutorial-parking.webp"
+    ];
+    this.staticParkingImagesPreload = Promise.all(sources.map((src) => {
+      const image = new Image();
+      image.src = src;
+      return typeof image.decode === "function" ? image.decode() :
+        new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          if (image.complete) image.naturalWidth ? resolve() : reject(new Error(src));
+        });
+    })).then(() => {
+      this.staticParkingImagesReady = true;
+      if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
+      return true;
+    }).catch((error) => {
+      console.warn("Static parking tutorial images could not load.", error);
+      this.staticParkingImagesReady = false;
+      if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
+      return false;
+    });
+    return this.staticParkingImagesPreload;
   }
 
   preloadLevelIntroArt(levelNumber) {
@@ -787,7 +818,7 @@ export class Game {
     const story = this.levelIntroConfig?.story ?? [];
     this.levelIntroDialogueCopy.textContent = story[this.levelIntroStoryIndex] ?? "";
     const isFinalBox = this.levelIntroStoryIndex === story.length - 1;
-    const waitingForLevel = isFinalBox && !this.isLevelIntroReady && this.currentLevelNumber !== 1;
+    const waitingForLevel = isFinalBox && (this.currentLevelNumber === 1 ? !this.staticParkingImagesReady : !this.isLevelIntroReady);
 
     this.levelIntroDialogueContinue.disabled = waitingForLevel;
     this.levelIntroDialogueContinue.firstChild.textContent = waitingForLevel
@@ -805,7 +836,7 @@ export class Game {
       return;
     }
 
-    if (!this.isLevelIntroReady && this.currentLevelNumber !== 1) return;
+    if (this.currentLevelNumber === 1 ? !this.staticParkingImagesReady : !this.isLevelIntroReady) return;
 
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
