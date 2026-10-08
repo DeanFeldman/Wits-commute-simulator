@@ -1581,9 +1581,6 @@ async load() {
     cycleCamera: ["KeyC"]
   });
 
-  this.game.setMessage(
-    "Every bay is taken but three. Follow a purple marker. W/S = throttle, A/D = steer, C = camera, Ctrl+R = restart."
-  );
 
   this.viewToggle = document.querySelector("#level1-view-toggle");
   this.minimapElement = document.querySelector("#level1-minimap");

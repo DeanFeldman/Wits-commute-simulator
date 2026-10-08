@@ -3069,3 +3069,174 @@ body.graphics-effects-off #level2-vignette {
 @media (max-aspect-ratio: 1/1) {
   #home-menu .home-menu-actions { justify-self: center; }
 }
+
+
+/* Issue #244 — Pass 1: shared presentation across the game's existing UI.
+   Reference: tutorial's warm paper surfaces and character-select's clear type.
+   Deliberately excludes the home artwork/alignment, tutorial and selectors. */
+:root {
+  --game-ui-ink: #243556;
+  --game-ui-paper: #ffffff;
+  --game-ui-surface: rgba(248, 252, 255, 0.97);
+  --game-ui-accent: #68d7d0;
+  --game-ui-outline: 3px solid var(--game-ui-ink);
+  --game-ui-radius: 8px;
+  --game-ui-depth: 5px 5px 0 rgba(36, 53, 86, 0.92);
+  --game-ui-copy-font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --game-ui-display-font: "Pixelify Sans", monospace;
+}
+
+/* Story and loading copy: one readable panel rather than multiple thick
+   decorative outlines. Art, positions, and loading state logic are unchanged. */
+.level-intro-dialogue {
+  border: var(--game-ui-outline);
+  border-radius: var(--game-ui-radius);
+  background: var(--game-ui-surface);
+  color: var(--game-ui-ink);
+  box-shadow: var(--game-ui-depth);
+}
+#level-intro-dialogue-copy {
+  font-family: var(--game-ui-copy-font);
+  font-weight: 700;
+  line-height: 1.4;
+  text-shadow: none;
+  overflow-wrap: anywhere;
+}
+.level-intro-status {
+  border: 2px solid var(--game-ui-ink);
+  border-radius: var(--game-ui-radius);
+  background: var(--game-ui-surface);
+  color: var(--game-ui-ink);
+  box-shadow: 3px 3px 0 rgba(36, 53, 86, 0.85);
+  font-family: var(--game-ui-copy-font);
+}
+.level-intro-status-light { border-color: var(--game-ui-ink); }
+#level-intro-dialogue-continue {
+  border: var(--game-ui-outline);
+  border-radius: var(--game-ui-radius);
+  background: var(--game-ui-accent);
+  color: var(--game-ui-ink);
+  box-shadow: 3px 3px 0 var(--game-ui-ink);
+  font-family: var(--game-ui-display-font);
+  text-transform: uppercase;
+}
+#level-intro-dialogue-continue:is(:hover, :focus-visible):not(:disabled) {
+  background: #8de7df;
+  box-shadow: 4px 4px 0 var(--game-ui-ink);
+}
+#level-intro-dialogue-continue:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Shared menu treatment: retain existing sizes, positions and unique content. */
+#menu:not(.menu-home) .menu-card,
+#pause-menu .pause-card {
+  border: 4px solid var(--game-ui-ink);
+  border-radius: var(--game-ui-radius);
+  background: var(--game-ui-surface);
+  color: var(--game-ui-ink);
+  box-shadow: 7px 7px 0 var(--game-ui-ink);
+}
+#menu:not(.menu-home) .menu-kicker,
+#pause-menu .menu-kicker { color: #286a71; }
+#menu:not(.menu-home) button,
+#pause-menu .pause-actions button {
+  border: var(--game-ui-outline);
+  border-radius: var(--game-ui-radius);
+  background: var(--game-ui-accent);
+  color: var(--game-ui-ink);
+  box-shadow: var(--game-ui-depth);
+}
+#menu:not(.menu-home) button:is(:hover, :focus-visible):not(:disabled),
+#pause-menu .pause-actions button:is(:hover, :focus-visible):not(:disabled) {
+  background: #8de7df;
+  transform: translate(2px, 2px);
+  box-shadow: 3px 3px 0 var(--game-ui-ink);
+}
+#menu:not(.menu-home) button:focus-visible,
+#pause-menu .pause-actions button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+#pause-menu .pause-actions .pause-home,
+#menu:not(.menu-home) #dev-level-select button {
+  background: var(--game-ui-paper);
+  color: var(--game-ui-ink);
+}
+/* Credits and results contain dense information: keep real text legible. */
+#menu.menu-credits .menu-card,
+#menu.menu-credits .credit-entry p,
+#menu.menu-credits .menu-card h2,
+#menu.menu-credits .menu-card h3,
+#menu:not(.menu-home) #menu-copy {
+  font-family: var(--game-ui-copy-font);
+}
+
+/* Small in-game overlays share the UI shell without moving game controls. */
+#hud:not([data-variant="level3"]),
+#message,
+.setback-banner {
+  border: 2px solid var(--game-ui-ink);
+  border-radius: var(--game-ui-radius);
+  background: rgba(248, 252, 255, 0.96);
+  color: var(--game-ui-ink);
+  box-shadow: 3px 3px 0 rgba(36, 53, 86, 0.85);
+  font-family: var(--game-ui-copy-font);
+}
+#hud:not([data-variant="level3"]) { backdrop-filter: blur(8px); }
+/* HUD text was originally authored for dark translucent cards. Give the
+   Level 1/2 light cards explicit high-contrast ink, including their numbers. */
+#hud[data-variant="level1"] .hud-label,
+#hud[data-variant="level2"] .hud-label { color: #455c7c; }
+#hud[data-variant="level1"] :is(.hud-metric, .hud-split),
+#hud[data-variant="level2"] :is(.hud-metric, .hud-split) { color: #344967; }
+#hud[data-variant="level1"] :is(.hud-metric, .hud-split) strong,
+#hud[data-variant="level2"] :is(.hud-metric, .hud-split) strong { color: #172d4c; }
+#hud[data-variant="level1"] .hud-tip,
+#hud[data-variant="level2"] .hud-tip {
+  color: #265f75;
+  border-top-color: rgba(36, 53, 86, 0.2);
+}
+#hud[data-variant="level1"] .hud-confirm,
+#hud[data-variant="level2"] .hud-confirm { color: #78520d; }
+#hud[data-variant="level1"] .meter,
+#hud[data-variant="level2"] .meter { background: rgba(36, 53, 86, 0.12); }
+#hud[data-variant="level1"] .meter.condition i,
+#hud[data-variant="level2"] .meter.condition i { background: #e9a337; }
+#hud[data-variant="level1"] .meter.progress i,
+#hud[data-variant="level2"] .meter.progress i { background: #279b9a; }
+/* Make the end-of-journey breakdown belong to the same white/navy UI. */
+#menu.menu-results .result-level-card {
+  background: #eaf5fa;
+  border-color: rgba(36, 53, 86, 0.25);
+  color: var(--game-ui-ink);
+}
+#menu.menu-results .result-total strong { color: #176e85; }
+#menu.menu-results .result-records { border-top-color: rgba(36, 53, 86, 0.24); }
+
+.setback-banner {
+  border-left: 5px solid #b84034;
+}
+.setback-kicker { color: #a03430; }
+.setback-reason, .setback-next { color: var(--game-ui-ink); }
+#message:empty { display: none; }
+
+@media (max-width: 640px) {
+  .level-intro-dialogue {
+    width: min(calc(100% - 1rem), 68rem);
+    padding: 0.85rem;
+    max-height: calc(100dvh - 6rem);
+    overflow-y: auto;
+  }
+  .level-intro-status {
+    right: 0.5rem;
+    bottom: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #level-intro-dialogue-continue,
+  #menu:not(.menu-home) button,
+  #pause-menu .pause-actions button { transition: none; }
+}
