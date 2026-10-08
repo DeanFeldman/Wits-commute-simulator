@@ -1457,6 +1457,7 @@ export class CrossingLevel {
     // NPC bubble first, then the player's answer.
     this.quizPaused = true;
     person.chasing = false;
+    person.moving = false;
     person.caught = false;
     person.chaseArmed = false;
     person.surveyCooldown = Math.max(person.surveyCooldown ?? 0, 1.2);
@@ -1472,6 +1473,13 @@ export class CrossingLevel {
   updateSurveyConversation(dt) {
     const conversation = this.surveyConversation;
     if (!conversation) return;
+
+    // An already-completed survey may be triggered by bumping the NPC from
+    // behind. Gameplay is paused during the reply, so the usual crowd update
+    // never turns the NPC towards the person they're speaking to. Turn and
+    // animate them in place here before sending them off on their next route.
+    this.crowd.faceTowards?.(conversation.person, this.player.position, dt);
+    this.crowd.animate?.(conversation.person, dt);
 
     conversation.remaining -= dt;
     if (conversation.remaining > 0) return;
