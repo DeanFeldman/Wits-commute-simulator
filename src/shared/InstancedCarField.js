@@ -48,13 +48,17 @@ function enableInstancedBodyPaint(material) {
       `#include <map_fragment>
 #ifdef USE_INSTANCING_COLOR
   float sourceBrightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  float paintedAmount = smoothstep(0.12, 0.32, sourceBrightness);
-  vec3 bodyPaint = vColor * (0.72 + sourceBrightness * 0.8);
-  diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, paintedAmount * 0.94);
+  // Lift shadowed paint instead of multiplying it by an even darker tone.
+  // Keep a little original map detail without letting its baked dark pigment
+  // cancel the new instance colour.
+  float textureDetail = clamp(sourceBrightness, 0.0, 1.0);
+  vec3 brightPaint = mix(vColor, vec3(1.0), 0.20);
+  vec3 bodyPaint = brightPaint * (0.90 + 0.20 * textureDetail);
+  diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, 0.94);
 #endif`
     );
   };
-  material.customProgramCacheKey = () => "parking-body-instance-paint-v2";
+  material.customProgramCacheKey = () => "parking-body-instance-paint-v3";
 }
 
 // Spatial hash means nearby bays don't repeat the same paint just because
