@@ -106,6 +106,15 @@ const SPEAKER_TITLES = {
   robot: "Wits Bot"
 };
 
+// Some speech bubbles (notably the player's completed-survey reply) are
+// produced by interaction events rather than the named CampusCrowd roster.
+// Never render "undefined · You" when an event speaker has no name.
+export function getCrowdSpeakerLabel(person) {
+  const name = typeof person.name === "string" ? person.name.trim() : "";
+  const title = SPEAKER_TITLES[person.kind] ?? "";
+  return [name, title].filter(Boolean).join(" · ");
+}
+
 const COMPLETED_SURVEY_LINES = Object.freeze({
   psychQuizzer: Object.freeze([
     "I already did your survey 😭",
@@ -467,7 +476,7 @@ export class CrossingLevel {
       playerVariant: this.selectedPlayerVariant,
       variantCount: STUDENT_MODEL_VARIANTS.length,
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
-        speaker: SPEAKER_TITLES[person.kind] ? `${person.name} · ${SPEAKER_TITLES[person.kind]}` : person.name,
+        speaker: getCrowdSpeakerLabel(person),
         tone
       })
     });
