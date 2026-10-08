@@ -625,7 +625,12 @@ export class CampusCrowd {
       // returning also include stationary turning and blocked waypoints.
       const moving = person.reactTimer === 0 && Boolean(person.moving);
       const speed = person.chasing ? CHASE_SPEED : person.leaving || person.returning ? LEAVE_SPEED : person.speed;
-      this.animatedFactory.setMoving(person.animation, moving, speed, person.chasing);
+      // On departure/return, the first translating frame must already be a
+      // full walk pose. A normal 0.18s crossfade makes the feet visibly slide
+      // while the character is moving away after a repeated survey dialogue.
+      const startingRouteWalk = (person.leaving || person.returning) &&
+        moving && person.animation.active !== person.animation.walk;
+      this.animatedFactory.setMoving(person.animation, moving, speed, person.chasing, startingRouteWalk);
       person.animation.mixer.update(dt);
       return;
     }
