@@ -3076,8 +3076,8 @@ body.graphics-effects-off #level2-vignette {
    Deliberately excludes the home artwork/alignment, tutorial and selectors. */
 :root {
   --game-ui-ink: #243556;
-  --game-ui-paper: #fbf3d8;
-  --game-ui-surface: rgba(251, 243, 216, 0.96);
+  --game-ui-paper: #ffffff;
+  --game-ui-surface: rgba(248, 252, 255, 0.97);
   --game-ui-accent: #68d7d0;
   --game-ui-outline: 3px solid var(--game-ui-ink);
   --game-ui-radius: 8px;
@@ -3179,12 +3179,42 @@ body.graphics-effects-off #level2-vignette {
 .setback-banner {
   border: 2px solid var(--game-ui-ink);
   border-radius: var(--game-ui-radius);
-  background: rgba(251, 243, 216, 0.94);
+  background: rgba(248, 252, 255, 0.96);
   color: var(--game-ui-ink);
   box-shadow: 3px 3px 0 rgba(36, 53, 86, 0.85);
   font-family: var(--game-ui-copy-font);
 }
 #hud:not([data-variant="level3"]) { backdrop-filter: blur(8px); }
+/* HUD text was originally authored for dark translucent cards. Give the
+   Level 1/2 light cards explicit high-contrast ink, including their numbers. */
+#hud[data-variant="level1"] .hud-label,
+#hud[data-variant="level2"] .hud-label { color: #455c7c; }
+#hud[data-variant="level1"] :is(.hud-metric, .hud-split),
+#hud[data-variant="level2"] :is(.hud-metric, .hud-split) { color: #344967; }
+#hud[data-variant="level1"] :is(.hud-metric, .hud-split) strong,
+#hud[data-variant="level2"] :is(.hud-metric, .hud-split) strong { color: #172d4c; }
+#hud[data-variant="level1"] .hud-tip,
+#hud[data-variant="level2"] .hud-tip {
+  color: #265f75;
+  border-top-color: rgba(36, 53, 86, 0.2);
+}
+#hud[data-variant="level1"] .hud-confirm,
+#hud[data-variant="level2"] .hud-confirm { color: #78520d; }
+#hud[data-variant="level1"] .meter,
+#hud[data-variant="level2"] .meter { background: rgba(36, 53, 86, 0.12); }
+#hud[data-variant="level1"] .meter.condition i,
+#hud[data-variant="level2"] .meter.condition i { background: #e9a337; }
+#hud[data-variant="level1"] .meter.progress i,
+#hud[data-variant="level2"] .meter.progress i { background: #279b9a; }
+/* Make the end-of-journey breakdown belong to the same white/navy UI. */
+#menu.menu-results .result-level-card {
+  background: #eaf5fa;
+  border-color: rgba(36, 53, 86, 0.25);
+  color: var(--game-ui-ink);
+}
+#menu.menu-results .result-total strong { color: #176e85; }
+#menu.menu-results .result-records { border-top-color: rgba(36, 53, 86, 0.24); }
+
 .setback-banner {
   border-left: 5px solid #b84034;
 }
