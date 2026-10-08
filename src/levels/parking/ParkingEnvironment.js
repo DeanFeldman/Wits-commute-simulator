@@ -1314,7 +1314,10 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   // South reuses the existing campus road, pavement and secondary parking as
   // its foreground. Its sibling root begins beyond those systems and adds the
   // close architectural stage visible from the normal playable area.
+  // South and west vegetation is intentionally hidden below. Avoid fetching
+  // and instancing it at all; only their architecture is part of the scene.
   const southDiorama = createSouthDiorama({
+    loadAssets: false,
     roadSegments: [
       PARKING_LAYOUT.bridgeRoad,
       PARKING_LAYOUT.bridgeRoadExtension,
@@ -1326,7 +1329,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   // The playable parking lot itself is the foreground of the west view. This
   // sibling begins beyond its west boundary and supplies the dense campus
   // architecture, curved roofs and skyline without duplicating gameplay cars.
-  const westDiorama = createWestDiorama();
+  const westDiorama = createWestDiorama({ loadAssets: false });
   root.add(westDiorama.root);
 
   // Remove Flower Hall / west / south foreground vegetation
@@ -1350,11 +1353,10 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   return {
     root,
     update,
+    // Only visible foliage belongs on the startup readiness path.
     ready: Promise.all([
       northDiorama.ready,
-      eastDiorama.ready,
-      southDiorama.ready,
-      westDiorama.ready
+      eastDiorama.ready
     ]),
     northDiorama: northDiorama.root,
     northDioramaStats: northDiorama.stats,
