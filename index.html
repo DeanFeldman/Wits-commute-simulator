@@ -274,6 +274,30 @@
 
 
 
+
+    <!-- WIP #259: static Level 1 tutorial; no live preview or extra 3D scene. -->
+    <section id="static-parking-tutorial" hidden aria-label="Level 1 parking tutorial">
+      <div class="static-parking-card" role="dialog" aria-modal="true" aria-labelledby="static-parking-title">
+        <header><small>WITS COMMUTE SIMULATOR // LEVEL 1</small>
+          <h2 id="static-parking-title">LEVEL 1 // PARK AT WITS</h2>
+          <strong>PARKING TUTORIAL</strong>
+          <p>Drive through the parking area, avoid potholes, and park neatly in one of the 3 highlighted bays.</p>
+        </header>
+        <div class="static-parking-content">
+          <div class="static-parking-pictures">
+            <figure><img src="./assets/images/ui/level1-tutorial-driving.svg" alt="Orange car driving between parked cars and scattered potholes" /><figcaption>01 // DRIVE &amp; AVOID POTHOLES</figcaption></figure>
+            <span class="static-parking-arrow" aria-hidden="true">→</span>
+            <figure><img src="./assets/images/ui/level1-tutorial-parking.svg" alt="Orange car approaching an empty purple highlighted parking bay" /><figcaption>02 // PARK IN A PURPLE BAY</figcaption></figure>
+          </div>
+          <div class="static-parking-notes">
+            <section><h3>CONTROLS</h3><p><kbd>W</kbd> Accelerate &nbsp; <kbd>S</kbd> Brake / reverse</p><p><kbd>A</kbd> <kbd>D</kbd> Steer &nbsp; <kbd>C</kbd> Camera</p><p><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> Alternative controls</p></section>
+            <section><h3>OBJECTIVE</h3><p>① Avoid potholes</p><p>② Find one of three purple bays</p><p>③ Park straight inside it and stop</p></section>
+            <section><h3>WATCH FOR</h3><p>Impacts reduce condition. Potholes also slow you down. Your position and angle matter.</p></section>
+          </div>
+        </div>
+        <footer><span>Level 1 loads while you read</span><button id="static-parking-start" type="button" disabled>LOADING LEVEL 1…</button></footer>
+      </div>
+    </section>
     <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
       <div class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="instruction-title">
         <header class="tutorial-header">
@@ -328,6 +352,7 @@
         <p class="pause-hint">Press P to resume</p>
       </div>
     </section>
+    <link rel="stylesheet" href="./src/static-parking-tutorial.css" />
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
