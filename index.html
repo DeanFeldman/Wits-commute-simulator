@@ -268,6 +268,42 @@
 
 
 
+    <!-- Level 1 uses one decoded static poster, not a live WebGL tutorial preview. -->
+    <section id="static-parking-tutorial" hidden aria-label="Level 1 parking tutorial">
+      <div class="static-parking-card" role="dialog" aria-modal="true" aria-label="Level 1 parking tutorial">
+        <img id="static-parking-art" class="static-parking-art" width="1672" height="941"
+          alt="Level 1 Park at Wits. Drive through the parking area, avoid potholes, and park neatly in one of three purple-highlighted bays. W or up to accelerate, S or down to brake and reverse, A D or left right to steer. Impacts reduce condition, potholes slow you down, and parking position and angle matter."
+          hidden />
+        <div class="static-parking-footer">
+          <span id="static-parking-status" role="status" aria-live="polite">Preparing tutorial…</span>
+          <button id="static-parking-start" type="button" disabled>LOADING…</button>
+        </div>
+      </div>
+    </section>
+    <!-- Level 2: one optimized static poster with a real gated Start button. -->
+    <section id="static-crossing-tutorial" hidden aria-label="Level 2 crossing tutorial">
+      <div class="static-parking-card" role="dialog" aria-modal="true" aria-label="Level 2 crossing tutorial">
+        <img id="static-crossing-art" class="static-parking-art" width="1672" height="941"
+          alt="Level 2 Campus Crossing: Collect ALL Vida cups, avoid distractions, and reach the end before your exam starts. Flat White counts toward your cup total; Double Shot lets you walk faster; Iced Latte slows traffic; Red Cappuccino protects against one hit. Move with WASD or arrow keys. Watch for traffic, crowds, and surveys."
+          hidden />
+        <div class="static-parking-footer">
+          <span id="static-crossing-status" role="status" aria-live="polite">Preparing tutorial…</span>
+          <button id="static-crossing-start" type="button" disabled>LOADING…</button>
+        </div>
+      </div>
+    </section>
+    <!-- Level 3: a single decoded static illustration, with gameplay loading behind it. -->
+    <section id="static-exam-tutorial" hidden aria-label="Level 3 cheating tutorial">
+      <div class="static-parking-card" role="dialog" aria-modal="true" aria-label="Level 3 cheating tutorial">
+        <img id="static-exam-art" class="static-parking-art" width="1672" height="941"
+          alt="Level 3 Don't Get Caught: Copy five correct answers in 100 seconds. Look around seven answer tablets with the mouse, hold left-click to peek and reveal a word, and remember some answers are wrong. Release left-click, look down until your paper lifts, type the answer and press Enter. Don't let the tutor see you peeking: 100% suspicion means game over."
+          hidden />
+        <div class="static-parking-footer">
+          <span id="static-exam-status" role="status" aria-live="polite">Preparing Level 3…</span>
+          <button id="static-exam-start" type="button" disabled>LOADING…</button>
+        </div>
+      </div>
+    </section>
     <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
       <div class="tutorial-card" role="dialog" aria-modal="true" aria-labelledby="instruction-title">
         <header class="tutorial-header">
@@ -322,6 +358,7 @@
         <p class="pause-hint">Press P to resume</p>
       </div>
     </section>
+    <link rel="stylesheet" href="./src/static-parking-tutorial.css" />
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

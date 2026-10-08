@@ -169,6 +169,10 @@ export const CREDITS = [
         detail: `level3-story-loading-screen.png — generated with OpenAI image generation via ChatGPT under the direction of Dean Feldman for this project — ${GENERATED}.`
       },
       {
+        name: "Level 1–3 static tutorial posters",
+        detail: "OpenAI/ChatGPT AI-assisted illustrations, designed and iteratively reviewed by Shayna Unterslak using team gameplay screenshots as references. Compressed WebP images replace live tutorial previews; existing third-party game-asset credits remain applicable."
+      },
+      {
         name: "Wits shark 3D model",
         detail: "Project-created by Gabriel Raz using Wits Sharks Instagram imagery as visual reference supplied by Dean Feldman. The separate reference PNG was removed because gameplay loads only the GLB.",
         url: "https://www.instagram.com/wits_sharks/"

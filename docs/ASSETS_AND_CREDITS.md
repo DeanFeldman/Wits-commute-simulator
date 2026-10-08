@@ -1311,6 +1311,46 @@ The pre-Level 3 story/loading screen.
 Added by:
 Dean Feldman
 
+### Level 1–3 Static Tutorial Posters
+
+Type:
+AI-assisted images / UI tutorial artwork
+
+Runtime files:
+- `public/assets/images/ui/level1-static-tutorial.webp`
+- `public/assets/images/ui/level2-static-tutorial.webp`
+- `public/assets/images/ui/level3-static-tutorial.webp`
+
+Source:
+Generated and iteratively refined with OpenAI image generation through ChatGPT
+on 2026-10-08, using the Wits Commute Simulator team's own gameplay screenshots,
+UI designs and in-game scenes as visual references.
+
+Creative direction and review:
+Shayna Unterslak, including gameplay accuracy, layout consistency, instructions
+and visual corrections across all three levels.
+
+Generation:
+OpenAI image generation / ChatGPT.
+
+Provenance and attribution:
+These are AI-assisted composite tutorial illustrations, not unmodified screenshots
+or downloaded stock illustrations. The underlying game visuals reference existing
+models, textures and other assets; their source credits and any applicable
+third-party licence requirements remain in force as documented elsewhere here.
+
+Used for:
+The static Level 1 parking, Level 2 campus-crossing and Level 3 exam tutorial
+cards that replace the previous live 3D tutorial previews. The Start Level
+buttons are functional UI elements, separate from the artwork.
+
+Modified:
+Yes — refined across multiple iterations and exported as optimised WebP assets
+for faster loading and lower tutorial-screen rendering cost.
+
+Added by:
+Shayna Unterslak.
+
 ### Original Level Soundtrack
 
 Type:

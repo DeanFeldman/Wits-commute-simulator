@@ -80,32 +80,7 @@ const LEVEL_INTRO_CONFIG = new Map([
   ]
 ]);
 
-const LEVEL_TUTORIAL_CONFIG = new Map([
-  [1, {
-    kicker: "LEVEL 01 // PARK",
-    title: "Park at Wits",
-    objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
-    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
-    tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
-    previewLabel: "Live Level 1 practice — purple markers = parking goals"
-  }],
-  [2, {
-    kicker: "LEVEL 02 // CROSS",
-    title: "Campus Crossing",
-    objective: "Collect every Vida cup and reach Engineering before the 30 second limit.",
-    controls: [["WASD / ARROWS", "Move across the route"], ["C", "Camera view"], ["P", "Pause / settings"]],
-    tip: "Traffic is lethal. Flat Whites reduce your recorded time, but the Vida cups are required to finish.",
-    previewLabel: "Live Level 2 practice — move the actual student"
-  }],
-  [3, {
-    kicker: "LEVEL 03 // CHEAT",
-    title: "Don't Get Caught",
-    objective: "Copy the correct answers and finish the test before time runs out without reaching 100% suspicion.",
-    controls: [["MOUSE", "Look around"], ["HOLD LEFT CLICK", "Zoom and reveal an answer"], ["TYPE + ENTER", "Submit at your desk"], ["P", "Pause / settings"]],
-    tip: "Only peek when it is safe. Release the mouse, look back at your desk, and type the answer before suspicion gets too high.",
-    previewLabel: "Live Level 3 practice — look, peek and type"
-  }]
-]);
+const LEVEL_TUTORIAL_CONFIG = new Map();
 
 export class Game {
   constructor(container) {
@@ -190,6 +165,15 @@ export class Game {
     this.levelIntroConfig = null;
     this.levelIntroArtPreloads = new Map();
     this.levelIntroArtRequest = 0;
+    this.staticParkingImagesReady = false;
+    this.staticParkingImagesPreload = null;
+    this.staticParkingImageError = false;
+    this.staticCrossingImageReady = false;
+    this.staticCrossingImagePreload = null;
+    this.staticCrossingImageError = false;
+    this.staticExamImageReady = false;
+    this.staticExamImagePreload = null;
+    this.staticExamImageError = false;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -612,6 +596,9 @@ export class Game {
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
     if (showIntro) this.setLevelIntroLoadState("ready");
+    if (levelNumber === 1 && this.staticParkingTutorial && !this.staticParkingTutorial.hidden) this.updateStaticParkingReady();
+    if (levelNumber === 2 && this.staticCrossingTutorial && !this.staticCrossingTutorial.hidden) this.updateStaticCrossingReady();
+    if (levelNumber === 3 && this.staticExamTutorial && !this.staticExamTutorial.hidden) this.updateStaticExamReady();
     if (keepFade) requestAnimationFrame(() => this.fadeElement.classList.remove("visible"));
 
     if (this.currentMessage === loadingMessage) {
@@ -638,6 +625,7 @@ export class Game {
     this.journeyLevelResults.clear();
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = true;
+    void this.preloadStaticParkingImages();
     this.showLevelIntro(1);
     this.startLevel(1, "start", false, true);
   }
@@ -649,7 +637,113 @@ export class Game {
     this.journeyLevelResults.clear();
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = false;
+    if (levelNumber === 1) void this.preloadStaticParkingImages();
+    if (levelNumber === 2) void this.preloadStaticCrossingImage();
+    if (levelNumber === 3) void this.preloadStaticExamImage();
     this.startLevel(levelNumber);
+  }
+
+  preloadStaticParkingImages() {
+    if (this.staticParkingImagesPreload) return this.staticParkingImagesPreload;
+    const src = "./assets/images/ui/level1-static-tutorial.webp";
+    const image = new Image();
+    image.decoding = "async";
+    image.src = src;
+
+    const ready = typeof image.decode === "function"
+      ? image.decode()
+      : new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          if (image.complete) image.naturalWidth ? resolve() : reject(new Error(src));
+        });
+
+    this.staticParkingImagesPreload = ready.then(() => {
+      if (!image.naturalWidth) throw new Error("Tutorial art decoded without image dimensions.");
+      this.staticParkingImagesReady = true;
+      const poster = document.querySelector("#static-parking-art");
+      if (poster) {
+        poster.src = image.currentSrc || image.src;
+        poster.hidden = false;
+      }
+      this.updateStaticParkingReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
+      return true;
+    }).catch((error) => {
+      console.error("Unable to load Level 1 tutorial artwork.", error);
+      this.staticParkingImageError = true;
+      this.updateStaticParkingReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
+      return false;
+    });
+    return this.staticParkingImagesPreload;
+  }
+
+  preloadStaticCrossingImage() {
+    if (this.staticCrossingImagePreload) return this.staticCrossingImagePreload;
+    const image = new Image();
+    image.decoding = "async";
+    image.src = "./assets/images/ui/level2-static-tutorial.webp";
+    const ready = typeof image.decode === "function"
+      ? image.decode()
+      : new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          if (image.complete) image.naturalWidth ? resolve() : reject(new Error(image.src));
+        });
+    this.staticCrossingImagePreload = ready.then(() => {
+      if (!image.naturalWidth) throw new Error("Level 2 poster decoded without dimensions");
+      this.staticCrossingImageReady = true;
+      const poster = document.querySelector("#static-crossing-art");
+      if (poster) {
+        poster.src = image.currentSrc || image.src;
+        poster.hidden = false;
+      }
+      this.updateStaticCrossingReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 2) this.renderLevelIntroStory();
+      return true;
+    }).catch((error) => {
+      console.error("Unable to load Level 2 tutorial poster.", error);
+      this.staticCrossingImageError = true;
+      this.updateStaticCrossingReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 2) this.renderLevelIntroStory();
+      return false;
+    });
+    return this.staticCrossingImagePreload;
+  }
+
+  preloadStaticExamImage() {
+    if (this.staticExamImagePreload) return this.staticExamImagePreload;
+    const image = new Image();
+    image.decoding = "async";
+    image.src = "./assets/images/ui/level3-static-tutorial.webp";
+
+    const ready = typeof image.decode === "function"
+      ? image.decode()
+      : new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = reject;
+          if (image.complete) image.naturalWidth ? resolve() : reject(new Error(image.src));
+        });
+    this.staticExamImagePreload = ready.then(() => {
+      if (!image.naturalWidth) throw new Error("Level 3 tutorial poster has no image dimensions");
+      this.staticExamImageReady = true;
+      const poster = document.querySelector("#static-exam-art");
+      if (poster) {
+        poster.src = image.currentSrc || image.src;
+        poster.hidden = false;
+      }
+      this.updateStaticExamReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 3) this.renderLevelIntroStory();
+      return true;
+    }).catch((error) => {
+      console.error("Unable to load Level 3 tutorial poster.", error);
+      this.staticExamImageError = true;
+      this.updateStaticExamReady();
+      if (this.isLevelIntroActive && this.currentLevelNumber === 3) this.renderLevelIntroStory();
+      return false;
+    });
+    return this.staticExamImagePreload;
   }
 
   preloadLevelIntroArt(levelNumber) {
@@ -750,6 +844,8 @@ export class Game {
     this.uiAudio.setMusicEnabled(this.isMusicEnabled);
     this.uiAudio.setMuted(this.isSoundMuted);
     this.levelIntroConfig = config;
+    if (levelNumber === 2) void this.preloadStaticCrossingImage();
+    if (levelNumber === 3) void this.preloadStaticExamImage();
     this.isLevelIntroActive = true;
     this.isLevelIntroReady = false;
     this.levelIntroStoryIndex = 0;
@@ -790,11 +886,19 @@ export class Game {
     const story = this.levelIntroConfig?.story ?? [];
     this.levelIntroDialogueCopy.textContent = story[this.levelIntroStoryIndex] ?? "";
     const isFinalBox = this.levelIntroStoryIndex === story.length - 1;
-    const waitingForLevel = isFinalBox && !this.isLevelIntroReady;
+    const waitingForLevel = isFinalBox && (
+      this.currentLevelNumber === 1 ? !this.staticParkingImagesReady :
+      this.currentLevelNumber === 2 ? !this.staticCrossingImageReady :
+      this.currentLevelNumber === 3 ? !this.staticExamImageReady :
+      !this.isLevelIntroReady
+    );
 
     this.levelIntroDialogueContinue.disabled = waitingForLevel;
     this.levelIntroDialogueContinue.firstChild.textContent = waitingForLevel
-      ? "Loading... "
+      ? ((this.currentLevelNumber === 1 && this.staticParkingImageError) ||
+          (this.currentLevelNumber === 2 && this.staticCrossingImageError) ||
+          (this.currentLevelNumber === 3 && this.staticExamImageError)
+          ? "IMAGE ERROR " : "Loading... ")
       : "Continue ";
   }
 
@@ -808,12 +912,20 @@ export class Game {
       return;
     }
 
-    if (!this.isLevelIntroReady) return;
+    if (
+      this.currentLevelNumber === 1 ? !this.staticParkingImagesReady :
+      this.currentLevelNumber === 2 ? !this.staticCrossingImageReady :
+      this.currentLevelNumber === 3 ? !this.staticExamImageReady :
+      !this.isLevelIntroReady
+    ) return;
 
     const nextLevel = (this.currentLevelNumber ?? 0) + 1;
     this.hideLevelIntro();
     if (nextLevel <= 3) void this.preloadLevelIntroArt(nextLevel);
-    this.showInstruction(this.currentLevel);
+    if (this.currentLevelNumber === 1) this.showStaticParkingTutorial();
+    else if (this.currentLevelNumber === 2) this.showStaticCrossingTutorial();
+    else if (this.currentLevelNumber === 3) this.showStaticExamTutorial();
+    else this.showInstruction(this.currentLevel);
   }
 
   setCheckpoint(checkpoint) {
@@ -1177,7 +1289,151 @@ export class Game {
     this.homeMenuElement.hidden = true;
   }
 
+  updateStaticParkingReady() {
+    const start = this.staticParkingStart ?? document.querySelector("#static-parking-start");
+    const status = document.querySelector("#static-parking-status");
+    const poster = document.querySelector("#static-parking-art");
+    if (!start) return;
+
+    const imageReady = this.staticParkingImagesReady && !!poster?.getAttribute("src");
+    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1;
+    start.disabled = !imageReady || !levelReady;
+    start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
+    if (status) {
+      status.hidden = imageReady;
+      status.textContent = this.staticParkingImageError
+        ? "Unable to load tutorial image. Refresh to retry."
+        : "Preparing tutorial…";
+    }
+  }
+
+  showStaticParkingTutorial() {
+    this.staticParkingTutorial ??= document.querySelector("#static-parking-tutorial");
+    this.staticParkingStart ??= document.querySelector("#static-parking-start");
+    if (!this.staticParkingTutorial || !this.staticParkingStart) return;
+
+    this.input.clearTransientState();
+    document.exitPointerLock?.();
+    this.isTutorialActive = true;
+    this.instructionElement.hidden = true;
+    this.staticParkingTutorial.hidden = false;
+
+    void this.preloadStaticParkingImages();
+    this.updateStaticParkingReady();
+
+    if (!this.staticParkingStart.dataset.bound) {
+      this.staticParkingStart.dataset.bound = "true";
+      this.staticParkingStart.addEventListener("click", () => {
+        if (this.staticParkingStart.disabled || this.isLoading ||
+            !this.currentLevel || this.currentLevelNumber !== 1) return;
+        this.hideInstruction();
+        this.input.clearTransientState();
+        this.uiAudio.stopMusic();
+        this.input.requestPointerLock();
+        this.clock.getDelta();
+      });
+    }
+  }
+
+  updateStaticCrossingReady() {
+    const start = this.staticCrossingStart ?? document.querySelector("#static-crossing-start");
+    const poster = document.querySelector("#static-crossing-art");
+    const status = document.querySelector("#static-crossing-status");
+    if (!start) return;
+    const imageReady = this.staticCrossingImageReady && !!poster?.getAttribute("src");
+    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 2;
+    start.disabled = !imageReady || !levelReady;
+    start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
+    if (status) {
+      status.hidden = imageReady;
+      status.textContent = this.staticCrossingImageError
+        ? "Unable to load tutorial image. Refresh to retry."
+        : "Preparing tutorial…";
+    }
+  }
+
+  showStaticCrossingTutorial() {
+    this.staticCrossingTutorial ??= document.querySelector("#static-crossing-tutorial");
+    this.staticCrossingStart ??= document.querySelector("#static-crossing-start");
+    if (!this.staticCrossingTutorial || !this.staticCrossingStart) return;
+    this.input.clearTransientState();
+    document.exitPointerLock?.();
+    this.isTutorialActive = true;
+    this.instructionElement.hidden = true;
+    this.staticCrossingTutorial.hidden = false;
+    void this.preloadStaticCrossingImage();
+    this.updateStaticCrossingReady();
+    if (!this.staticCrossingStart.dataset.bound) {
+      this.staticCrossingStart.dataset.bound = "true";
+      this.staticCrossingStart.addEventListener("click", () => {
+        if (this.staticCrossingStart.disabled || this.isLoading ||
+            !this.currentLevel || this.currentLevelNumber !== 2) return;
+        this.hideInstruction();
+        this.input.clearTransientState();
+        this.uiAudio.stopMusic();
+        this.input.requestPointerLock();
+        this.clock.getDelta();
+      });
+    }
+  }
+
+  updateStaticExamReady() {
+    const start = this.staticExamStart ?? document.querySelector("#static-exam-start");
+    const poster = document.querySelector("#static-exam-art");
+    const status = document.querySelector("#static-exam-status");
+    if (!start) return;
+    const imageReady = this.staticExamImageReady && !!poster?.getAttribute("src");
+    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 3;
+    start.disabled = !imageReady || !levelReady;
+    start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
+    if (status) {
+      status.hidden = imageReady && levelReady;
+      status.textContent = this.staticExamImageError
+        ? "Unable to load tutorial artwork. Refresh to retry."
+        : "Preparing Level 3…";
+    }
+  }
+
+  showStaticExamTutorial() {
+    this.staticExamTutorial ??= document.querySelector("#static-exam-tutorial");
+    this.staticExamStart ??= document.querySelector("#static-exam-start");
+    if (!this.staticExamTutorial || !this.staticExamStart) return;
+
+    this.input.clearTransientState();
+    document.exitPointerLock?.();
+    this.isTutorialActive = true;
+    this.instructionElement.hidden = true;
+    this.staticExamTutorial.hidden = false;
+    void this.preloadStaticExamImage();
+    this.updateStaticExamReady();
+
+    if (!this.staticExamStart.dataset.bound) {
+      this.staticExamStart.dataset.bound = "true";
+      this.staticExamStart.addEventListener("click", () => {
+        if (this.staticExamStart.disabled || this.isLoading ||
+            !this.currentLevel || this.currentLevelNumber !== 3) return;
+        this.hideInstruction();
+        this.input.clearTransientState();
+        this.uiAudio.stopMusic();
+        this.input.requestPointerLock();
+        this.clock.getDelta();
+      });
+    }
+  }
+
   showInstruction(level) {
+    if (this.currentLevelNumber === 1) {
+      this.showStaticParkingTutorial();
+      return;
+    }
+    if (this.currentLevelNumber === 2) {
+      this.showStaticCrossingTutorial();
+      return;
+    }
+    if (this.currentLevelNumber === 3) {
+      this.showStaticExamTutorial();
+      return;
+    }
     const config = LEVEL_TUTORIAL_CONFIG.get(this.currentLevelNumber);
     if (!config || !level) return;
     document.exitPointerLock?.();
@@ -1204,7 +1460,7 @@ export class Game {
 
   syncTutorialPreviewFrame() {
     const preview = this.instructionPreview, source = this.renderer.domElement;
-    if (!this.isTutorialActive || !preview || !source || !this.currentLevel) return;
+    if ([1, 2, 3].includes(this.currentLevelNumber) || !this.isTutorialActive || !preview || !source || !this.currentLevel) return;
     const now = performance.now();
     if (now - (this.lastTutorialPreview ?? 0) < 1000 / 30) return;
     this.lastTutorialPreview = now;
@@ -1300,7 +1556,9 @@ export class Game {
   }
 
   onTutorialDemoKeyDown(event) {
-    if (!this.isTutorialActive) return;
+    // The old live tutorial is hidden while any static poster is displayed.
+    // Do not steal Enter/Space key activation from the real Start button.
+    if (!this.isTutorialActive || this.instructionElement.hidden) return;
     const index = this.tutorialControlIndex(event.code);
     if (index < 0) return;
     event.preventDefault();
@@ -1339,7 +1597,7 @@ export class Game {
   }
 
   onTutorialDemoKeyUp(event) {
-    if (!this.isTutorialActive) return;
+    if (!this.isTutorialActive || this.instructionElement.hidden) return;
     const index = this.tutorialControlIndex(event.code);
     if (index < 0) return;
     event.preventDefault();
@@ -1413,6 +1671,9 @@ export class Game {
     this.isTutorialActive = false;
     this.resetTutorialDemo();
     this.instructionElement.hidden = true;
+    if (this.staticParkingTutorial) this.staticParkingTutorial.hidden = true;
+    if (this.staticCrossingTutorial) this.staticCrossingTutorial.hidden = true;
+    if (this.staticExamTutorial) this.staticExamTutorial.hidden = true;
   }
 
   onInstructionClick(event) {
@@ -1512,7 +1773,7 @@ export class Game {
     this.updateGlobalControls();
 
     if (this.isTutorialActive) {
-      this.currentLevel?.updateTutorial?.(dt);
+      if (![1, 2, 3].includes(this.currentLevelNumber)) this.currentLevel?.updateTutorial?.(dt);
       return;
     }
 
@@ -1530,7 +1791,7 @@ export class Game {
   }
 
   render(){
-    if(this.isLoading)return;
+    if(this.isLoading || ([1, 2, 3].includes(this.currentLevelNumber) && this.isTutorialActive))return;
 
     const effectsEnabled = this.graphicsSettings.effectsEnabled;
     const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());

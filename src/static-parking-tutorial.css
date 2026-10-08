@@ -1,0 +1,96 @@
+/* The illustrated Level 1 tutorial is one decoded image with one real button.
+   Keep the original story art as the backdrop and do not run a live preview. */
+#static-parking-tutorial[hidden],
+#static-parking-art[hidden],
+#static-parking-status[hidden]{display:none!important}
+#static-parking-tutorial{
+  position:fixed;inset:0;z-index:42;
+  display:flex;align-items:center;justify-content:center;
+  overflow:auto;padding:12px;
+  background:#182a3d url("/assets/images/ui/level1-story-loading-screen.png") center/cover no-repeat;
+}
+.static-parking-card{
+  /* Reserve room for the real Start button and page padding at all heights. */
+  width:min(92vw,calc((100vh - 160px)*1.777),1480px);
+  width:min(92vw,calc((100dvh - 160px)*1.777),1480px);
+  max-width:100%;position:relative;margin:auto;
+  overflow:hidden;border:4px solid #142744;border-radius:14px;
+  background:#fff;box-shadow:6px 7px 0 #142744;
+}
+.static-parking-art{display:block;width:100%;height:auto;aspect-ratio:1672 / 941;object-fit:contain}
+.static-parking-footer{
+  min-height:clamp(53px,5vw,74px);display:flex;
+  align-items:center;justify-content:flex-end;gap:15px;
+  padding:6px clamp(14px,2.3vw,34px) 10px;
+  background:#fff;
+}
+#static-parking-status{
+  margin-right:auto;color:#274460;font:700 clamp(12px,1vw,15px)/1.4 system-ui,sans-serif;
+}
+#static-parking-start{
+  flex-shrink:0;min-width:clamp(148px,18vw,255px);
+  min-height:clamp(41px,4vw,62px);padding:8px 20px;
+  border:4px solid #142744;border-radius:7px;
+  color:#102c4d;background:linear-gradient(180deg,#ffdd6a,#ffb428);
+  box-shadow:3px 3px 0 #142744;cursor:pointer;
+  font:900 clamp(14px,1.6vw,23px)/1.1 system-ui,sans-serif;
+  letter-spacing:.03em;
+}
+#static-parking-start:hover:not(:disabled){background:#ffe38b}
+#static-parking-start:focus-visible{outline:3px solid #008da1;outline-offset:4px}
+#static-parking-start:disabled{
+  cursor:wait;background:#cdd4d9;color:#617080;box-shadow:none;
+}
+@media(max-width:540px){
+  #static-parking-tutorial{padding:7px}
+  .static-parking-card{width:min(94vw,calc((100vh - 145px)*1.777))}
+  .static-parking-card{width:min(94vw,calc((100dvh - 145px)*1.777))}
+  .static-parking-footer{min-height:52px;padding:5px 9px}
+  #static-parking-start{min-width:125px}
+}
+
+/* Level 2 static poster: share Level 1's responsive card/button design. */
+#static-crossing-tutorial[hidden],#static-crossing-art[hidden],#static-crossing-status[hidden]{display:none!important}
+#static-crossing-tutorial{
+  position:fixed;inset:0;z-index:42;
+  display:flex;align-items:center;justify-content:center;
+  overflow:auto;padding:12px;
+  background:#182a3d url("/assets/images/ui/level2-story-loading-screen.png") center/cover no-repeat;
+}
+#static-crossing-status{margin-right:auto;color:#274460;font:700 clamp(12px,1vw,15px)/1.4 system-ui,sans-serif}
+#static-crossing-start{
+  flex-shrink:0;min-width:clamp(148px,18vw,255px);
+  min-height:clamp(41px,4vw,62px);padding:8px 20px;
+  border:4px solid #142744;border-radius:7px;
+  color:#102c4d;background:linear-gradient(180deg,#ffdd6a,#ffb428);
+  box-shadow:3px 3px 0 #142744;cursor:pointer;
+  font:900 clamp(14px,1.6vw,23px)/1.1 system-ui,sans-serif;
+  letter-spacing:.03em;
+}
+#static-crossing-start:hover:not(:disabled){background:#ffe38b}
+#static-crossing-start:focus-visible{outline:3px solid #008da1;outline-offset:4px}
+#static-crossing-start:disabled{cursor:wait;background:#cdd4d9;color:#617080;box-shadow:none}
+@media(max-width:540px){#static-crossing-tutorial{padding:7px}#static-crossing-start{min-width:125px}}
+
+/* Level 3 static tutorial: identical card dimensions and button to Levels 1–2. */
+#static-exam-tutorial[hidden],#static-exam-art[hidden],#static-exam-status[hidden]{display:none!important}
+#static-exam-tutorial{
+  position:fixed;inset:0;z-index:42;
+  display:flex;align-items:center;justify-content:center;
+  overflow:auto;padding:12px;
+  background:#182a3d url("/assets/images/ui/level3-story-loading-screen.png") center/cover no-repeat;
+}
+#static-exam-status{margin-right:auto;color:#274460;font:700 clamp(12px,1vw,15px)/1.4 system-ui,sans-serif}
+#static-exam-start{
+  flex-shrink:0;min-width:clamp(148px,18vw,255px);
+  min-height:clamp(41px,4vw,62px);padding:8px 20px;
+  border:4px solid #142744;border-radius:7px;
+  color:#102c4d;background:linear-gradient(180deg,#ffdd6a,#ffb428);
+  box-shadow:3px 3px 0 #142744;cursor:pointer;
+  font:900 clamp(14px,1.6vw,23px)/1.1 system-ui,sans-serif;
+  letter-spacing:.03em;
+}
+#static-exam-start:hover:not(:disabled){background:#ffe38b}
+#static-exam-start:focus-visible{outline:3px solid #008da1;outline-offset:4px}
+#static-exam-start:disabled{cursor:wait;background:#cdd4d9;color:#617080;box-shadow:none}
+@media(max-width:540px){#static-exam-tutorial{padding:7px}#static-exam-start{min-width:125px}}
