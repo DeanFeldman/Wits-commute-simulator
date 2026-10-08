@@ -261,11 +261,20 @@ export class AnimatedNpcFactory {
     return this.createHeldCup?.(holding) ?? null;
   }
 
-  setMoving(animation, moving, speed = 1, running = false) {
+  setMoving(animation, moving, speed = 1, running = false, immediateWalk = false) {
     const next = running ? animation.run : moving ? animation.walk : animation.idle;
     if (next !== animation.active) {
-      next.reset().play();
-      animation.active.crossFadeTo(next, 0.18, false);
+      if (immediateWalk && moving && !running) {
+        // Survey NPCs used to translate during the 0.18-second fade from
+        // idle/run into walk. At departure speed that looks like foot sliding,
+        // especially after the second (already-completed) conversation.
+        // Complete the transition before the first travelling frame instead.
+        animation.active.stop();
+        next.reset().setEffectiveWeight(1).play();
+      } else {
+        next.reset().play();
+        animation.active.crossFadeTo(next, 0.18, false);
+      }
       animation.active = next;
     }
     animation.walk.timeScale = THREE.MathUtils.clamp(speed / 1.1, 0.75, 1.8);
