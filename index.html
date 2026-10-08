@@ -285,17 +285,17 @@
         </header>
         <div class="static-parking-content">
           <div class="static-parking-pictures">
-            <figure><img src="./assets/images/ui/level1-tutorial-driving.svg" alt="Orange car driving between parked cars and scattered potholes" /><figcaption>01 // DRIVE &amp; AVOID POTHOLES</figcaption></figure>
+            <figure><img src="./assets/images/ui/level1-tutorial-driving.webp" alt="Orange car driving between parked cars and scattered potholes" /><figcaption>01 // DRIVE &amp; AVOID POTHOLES</figcaption></figure>
             <span class="static-parking-arrow" aria-hidden="true">→</span>
-            <figure><img src="./assets/images/ui/level1-tutorial-parking.svg" alt="Orange car approaching an empty purple highlighted parking bay" /><figcaption>02 // PARK IN A PURPLE BAY</figcaption></figure>
+            <figure><img src="./assets/images/ui/level1-tutorial-parking.webp" alt="Orange car approaching an empty purple highlighted parking bay" /><figcaption>02 // PARK IN A PURPLE BAY</figcaption></figure>
           </div>
           <div class="static-parking-notes">
-            <section><h3>CONTROLS</h3><p><kbd>W</kbd> Accelerate &nbsp; <kbd>S</kbd> Brake / reverse</p><p><kbd>A</kbd> <kbd>D</kbd> Steer &nbsp; <kbd>C</kbd> Camera</p><p><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> Alternative controls</p></section>
-            <section><h3>OBJECTIVE</h3><p>① Avoid potholes</p><p>② Find one of three purple bays</p><p>③ Park straight inside it and stop</p></section>
-            <section><h3>WATCH FOR</h3><p>Impacts reduce condition. Potholes also slow you down. Your position and angle matter.</p></section>
+            <section class="static-panel-controls"><h3>CONTROLS</h3><div class="static-keys"><div><div class="static-key-row"><kbd>W</kbd><kbd>↑</kbd></div><span>ACCELERATE</span></div><div><div class="static-key-row"><kbd>S</kbd><kbd>↓</kbd></div><span>BRAKE / REVERSE</span></div><div><div class="static-key-row"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></div><span>STEER</span></div><div><div class="static-key-row"><kbd>C</kbd></div><span>CAMERA VIEW</span></div></div></section>
+            <section class="static-panel-objective"><h3>OBJECTIVE</h3><ol><li>Avoid potholes</li><li>Find one of three purple bays</li><li>Park straight inside the highlighted space and stop</li></ol></section>
+            <section class="static-panel-warning"><h3>WATCH FOR</h3><div class="static-watch-items"><div><span aria-hidden="true">♥</span><small>IMPACTS REDUCE CONDITION</small></div><div><span aria-hidden="true">◉</span><small>POTHOLES SLOW YOU DOWN</small></div><div><span aria-hidden="true">↗</span><small>ANGLE &amp; POSITION MATTER</small></div></div></section>
           </div>
         </div>
-        <footer><span>Level 1 loads while you read</span><button id="static-parking-start" type="button" disabled>LOADING LEVEL 1…</button></footer>
+        <footer><span></span><button id="static-parking-start" type="button" disabled>LOADING LEVEL 1…</button></footer>
       </div>
     </section>
     <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
