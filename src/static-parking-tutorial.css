@@ -10,7 +10,9 @@
   background:#182a3d url("/assets/images/ui/level1-story-loading-screen.png") center/cover no-repeat;
 }
 .static-parking-card{
-  width:min(96vw,calc((100vh - 96px)*1.777),1672px);
+  /* Reserve room for the real Start button and page padding at all heights. */
+  width:min(92vw,calc((100vh - 160px)*1.777),1480px);
+  width:min(92vw,calc((100dvh - 160px)*1.777),1480px);
   max-width:100%;position:relative;margin:auto;
   overflow:hidden;border:4px solid #142744;border-radius:14px;
   background:#fff;box-shadow:6px 7px 0 #142744;
@@ -41,7 +43,8 @@
 }
 @media(max-width:540px){
   #static-parking-tutorial{padding:7px}
-  .static-parking-card{width:98vw}
+  .static-parking-card{width:min(94vw,calc((100vh - 145px)*1.777))}
+  .static-parking-card{width:min(94vw,calc((100dvh - 145px)*1.777))}
   .static-parking-footer{min-height:52px;padding:5px 9px}
   #static-parking-start{min-width:125px}
 }
