@@ -49,12 +49,12 @@ function enableInstancedBodyPaint(material) {
 #ifdef USE_INSTANCING_COLOR
   float sourceBrightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   float paintedAmount = smoothstep(0.12, 0.32, sourceBrightness);
-  vec3 bodyPaint = vColor * (0.48 + sourceBrightness * 0.85);
+  vec3 bodyPaint = vColor * (0.72 + sourceBrightness * 0.8);
   diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, paintedAmount * 0.94);
 #endif`
     );
   };
-  material.customProgramCacheKey = () => "parking-body-instance-paint-v1";
+  material.customProgramCacheKey = () => "parking-body-instance-paint-v2";
 }
 
 // Spatial hash means nearby bays don't repeat the same paint just because
