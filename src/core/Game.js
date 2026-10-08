@@ -175,6 +175,8 @@ export class Game {
     this.staticExamImagePreload = null;
     this.staticExamImageError = false;
     this.loadVersion = 0;
+    this.levelOneWarmupFrames = 0;
+    this.levelOneGraphicsReady = false;
     this.animationFrameId = null;
     this.transitionTimer = null;
     this.collisionDebug = false;
@@ -527,6 +529,8 @@ export class Game {
 
     if (!keepFade) this.cancelTransition();
     const loadVersion = ++this.loadVersion;
+    this.levelOneWarmupFrames = 0;
+    this.levelOneGraphicsReady = levelNumber !== 1;
     const loadingMessage = `Loading Level ${levelNumber}…`;
 
     this.state = LEVEL_STATES.get(levelNumber);
@@ -595,7 +599,7 @@ export class Game {
     level.audio?.setMuted?.(this.isSoundMuted);
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
-    if (showIntro) this.setLevelIntroLoadState("ready");
+    if (showIntro && (levelNumber !== 1 || this.levelOneGraphicsReady)) this.setLevelIntroLoadState("ready");
     if (levelNumber === 1 && this.staticParkingTutorial && !this.staticParkingTutorial.hidden) this.updateStaticParkingReady();
     if (levelNumber === 2 && this.staticCrossingTutorial && !this.staticCrossingTutorial.hidden) this.updateStaticCrossingReady();
     if (levelNumber === 3 && this.staticExamTutorial && !this.staticExamTutorial.hidden) this.updateStaticExamReady();
@@ -1296,7 +1300,7 @@ export class Game {
     if (!start) return;
 
     const imageReady = this.staticParkingImagesReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1;
+    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1 && this.levelOneGraphicsReady;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
@@ -1744,10 +1748,26 @@ export class Game {
     // path is timed on the same terms as the direct one.
     this.gpuTimer?.begin();
     this.render();
+    this.advanceLevelOneWarmup();
     this.syncTutorialPreviewFrame();
     this.gpuTimer?.end();
     this.gpuTimer?.poll();
     this.input.endFrame();
+  }
+
+  // A loaded scene is not necessarily ready to draw: the first real frames also
+  // compile GPU programs, upload textures and initialise shadow/render targets.
+  // Warm those paths underneath the intro/tutorial without advancing gameplay.
+  advanceLevelOneWarmup() {
+    if (this.currentLevelNumber !== 1 || this.isLoading ||
+        !this.currentLevel || this.levelOneGraphicsReady) return;
+
+    this.levelOneWarmupFrames += 1;
+    if (this.levelOneWarmupFrames < 3) return;
+
+    this.levelOneGraphicsReady = true;
+    if (this.isLevelIntroActive) this.setLevelIntroLoadState("ready");
+    this.updateStaticParkingReady();
   }
 
   updateFps(rawDt) {
@@ -1791,7 +1811,11 @@ export class Game {
   }
 
   render(){
-    if(this.isLoading || ([1, 2, 3].includes(this.currentLevelNumber) && this.isTutorialActive))return;
+    if (this.isLoading) return;
+    // Level 1 must exercise its full rendering path before Start becomes
+    // clickable. Its simulation is still paused by update() above.
+    if (this.isTutorialActive &&
+        (this.currentLevelNumber !== 1 || !this.currentLevel)) return;
 
     const effectsEnabled = this.graphicsSettings.effectsEnabled;
     const drawingBufferSize = this.renderer.getDrawingBufferSize(new THREE.Vector2());
