@@ -269,7 +269,9 @@ export class AnimatedNpcFactory {
         // idle/run into walk. At departure speed that looks like foot sliding,
         // especially after the second (already-completed) conversation.
         // Complete the transition before the first travelling frame instead.
-        animation.active.stop();
+        // A repeated chase can leave more than one action fading. This
+        // mixer belongs to this NPC alone, so clear every stale blend.
+        animation.mixer.stopAllAction();
         next.reset().setEffectiveWeight(1).play();
       } else {
         next.reset().play();
