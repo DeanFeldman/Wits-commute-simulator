@@ -293,8 +293,24 @@ test("survey NPCs run only while chasing and walk away after completion", () => 
   crowd.animate(person, 1 / 60);
   assert.deepEqual(
     { moving: animationStates.at(-1).moving, running: animationStates.at(-1).running },
+    { moving: false, running: false },
+    "departure starts at rest while the NPC turns to face its route"
+  );
+
+  const player = new THREE.Vector3(0, 0.95, 0);
+  let startedWalking = false;
+  for (let frame = 0; frame < 180; frame++) {
+    crowd.update(1 / 60, player);
+    if (person.moving) {
+      startedWalking = true;
+      break;
+    }
+  }
+  assert.equal(startedWalking, true, "the NPC eventually walks along the route");
+  assert.deepEqual(
+    { moving: animationStates.at(-1).moving, running: animationStates.at(-1).running },
     { moving: true, running: false },
-    "the post-survey departure switches back to walking"
+    "the post-survey route uses the walk animation, not the chase"
   );
 });
 
