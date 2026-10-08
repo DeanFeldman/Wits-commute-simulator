@@ -1401,6 +1401,12 @@ export class CrossingLevel {
     }
   }
 
+  // Survey/quiz forms release pointer lock so the player can click answers.
+  // Game asks this so it doesn't mistake that release for an Escape-pause.
+  isPointerReleaseExpected() {
+    return Boolean(this.quiz?.isOpen);
+  }
+
   // Stops the player for a psychQuizzer/ccduAdvisor person.
   // Each distinct survey can only be completed once per Level 2 run. After
   // that, the NPC still chases and catches the player, but gets an "already
