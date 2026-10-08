@@ -427,9 +427,6 @@ this.patrolPoints = [
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("keydown", this.onTypingKeyDown, true);
     document.addEventListener("pointerlockchange", this.onPointerLockChange);
-    this.game.setMessage(
-      "Hold LEFT CLICK to zoom and reveal a tablet's answer. Then look down at your own desk to type your answer."
-    );
   }
 
   async loadSkybox(scene) {
