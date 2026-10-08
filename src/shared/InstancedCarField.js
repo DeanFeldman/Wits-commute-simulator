@@ -21,44 +21,14 @@ const BODY_PALETTE = [
 // Not every part of an imported car is bodywork. Preserve glass, tyres,
 // headlamps, trim and textured detail rather than recolouring entire cars.
 function isPaintMaterial(material, meshName = "") {
-  if (!material?.color || material.transparent || material.opacity < 1) return false;
-  // Verified in the GLB diagnostic: Body_3 uses a colour texture, while
-  // Glass_3, Optics_3 and Wheel_2 are separate materials.
+  if (!material?.color || material.map || material.transparent || material.opacity < 1) return false;
   const name = `${material.name ?? ""} ${meshName}`.toLowerCase();
-  return /(^|[^a-z])(body|bodywork|paint|exterior)([^a-z]|$)/.test(name)
-    && !/(glass|window|wheel|tire|tyre|optic|lamp|light)/.test(name);
-}
-
-// Recolour the body *after* sampling its source texture. Multiplying instance
-// tint over the original yellow/cyan texture never produces the intended hue.
-// This preserves the source texture's brightness/detail while allowing
-// individual instances to have truly different body paint.
-function enableInstancedBodyPaint(material) {
-  material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <color_fragment>",
-      `#include <color_fragment>
-#ifdef USE_INSTANCING_COLOR
-  // Apply paint after the texture sample, not as a multiplier before it.
-  diffuseColor.rgb = vec3(1.0);
-#endif`
-    );
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <map_fragment>",
-      `#include <map_fragment>
-#ifdef USE_INSTANCING_COLOR
-  float sourceBrightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  // Lift shadowed paint instead of multiplying it by an even darker tone.
-  // Keep a little original map detail without letting its baked dark pigment
-  // cancel the new instance colour.
-  float textureDetail = clamp(sourceBrightness, 0.0, 1.0);
-  vec3 brightPaint = mix(vColor, vec3(1.0), 0.20);
-  vec3 bodyPaint = brightPaint * (0.90 + 0.20 * textureDetail);
-  diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, 0.94);
-#endif`
-    );
-  };
-  material.customProgramCacheKey = () => "parking-body-instance-paint-v3";
+  if (/(glass|window|windscreen|windshield|wheel|tire|tyre|rim|rubber|lamp|light|head|tail|brake|interior|seat|grille|grill|chrome|badge|license|number.?plate|black|trim)/.test(name)) return false;
+  if (/(paint|body|carpaint|exterior|shell)/.test(name)) return true;
+  // A brightly coloured non-metallic surface is likely baked body paint.
+  // Dark rubber, silver trim, and near-white glass stay exactly as imported.
+  const { h, s, l } = material.color.getHSL({ h: 0, s: 0, l: 0 });
+  return s > 0.38 && l > 0.17 && l < 0.88 && (material.metalness ?? 0) < 0.75;
 }
 
 // Spatial hash means nearby bays don't repeat the same paint just because
@@ -112,11 +82,6 @@ export async function createInstancedCarField(placements, { variant = "lite" } =
       const material = paintable ? part.material.clone() : part.material;
       if (paintable) {
         material.color.set(0xffffff);
-        // A small paint-only emissive fill improves bodywork visibility in
-        // shadows without lifting the road, sky, or global exposure.
-        material.emissive?.set(0x34465a);
-        material.emissiveIntensity = 0.26;
-        enableInstancedBodyPaint(material);
         material.userData = { ...material.userData, localPaintInstance: true };
       }
       const mesh = new THREE.InstancedMesh(part.geometry, material, group.length);
