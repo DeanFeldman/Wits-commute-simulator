@@ -315,6 +315,7 @@ export class CampusCrowd {
     person.surveyCooldown = SURVEY_COOLDOWN;
     person.caught = false;
     person.returning = false;
+    person.moving = false;
     // A previous bump can leave the idle/reaction animation locked on while
     // the NPC moves away. Clear that reaction when the survey is finished.
     person.reactTimer = 0;
