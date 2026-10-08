@@ -112,6 +112,10 @@ export async function createInstancedCarField(placements, { variant = "lite" } =
       const material = paintable ? part.material.clone() : part.material;
       if (paintable) {
         material.color.set(0xffffff);
+        // A small paint-only emissive fill improves bodywork visibility in
+        // shadows without lifting the road, sky, or global exposure.
+        material.emissive?.set(0x34465a);
+        material.emissiveIntensity = 0.26;
         enableInstancedBodyPaint(material);
         material.userData = { ...material.userData, localPaintInstance: true };
       }
