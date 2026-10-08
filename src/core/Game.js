@@ -878,14 +878,18 @@ export class Game {
     });
   }
 
-  playOneShotAudio(path, volume = 1) {
+  playOneShotAudio(path, volume = 1, options = {}) {
     if (this.isSoundMuted) return;
-    const audio = new Audio(path);
-    this.uiAudio.trackSoundEffect(audio, volume);
-    audio.play().catch(() => {
-      // Browsers can block this if the game's initial click did not count as
-      // a user activation. The level transition remains usable in that case.
-    });
+    return this.uiAudio.playSample(path, { ...options, volume });
+  }
+
+  playTransitionSafeAudioSegment(path, options = {}) {
+    if (this.isSoundMuted) return null;
+    return this.uiAudio.playSegment(path, options);
+  }
+
+  preloadTransitionSafeAudio(paths) {
+    return this.uiAudio.waitForPreload(paths);
   }
 
   // `failure` is a { title, reason, next } description from the level; a

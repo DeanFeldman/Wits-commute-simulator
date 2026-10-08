@@ -1116,7 +1116,7 @@ itself is unchanged.
 Added by:
 Nadav Sundy
 
-### Level 2 Taxi Horn
+### Level 2 Traffic Warning Horn
 
 Type:
 Sound effect
@@ -1131,7 +1131,8 @@ Licence:
 Pixabay Content License
 
 Used for:
-Taxi stops in Level 2.
+A warning only when the player is standing directly in a Yale Road lane and a
+vehicle is approaching. Taxi spawning/stopping does not trigger it.
 
 Runtime file:
 `public/assets/audio/level2/extra-sprite.opus`
@@ -1215,7 +1216,7 @@ Used for:
 Audible incorrect-answer feedback in Level 3.
 
 Runtime file:
-`public/assets/audio/shared/result-sprite.opus`
+`public/assets/audio/level3/incorrect-answer.opus`
 
 Modified:
 Yes — cropped to the useful error cue, encoded to Opus and played at a stronger
@@ -1223,6 +1224,10 @@ gain than the previous incorrect sound.
 
 Added by:
 Nadav Sundy
+
+The older `public/assets/audio/shared/result-sprite.opus` is retained as a
+retired source artifact but is not referenced or loaded at runtime. It must not
+be presented as the active incorrect-answer or generic result cue.
 
 ---
 
@@ -1312,7 +1317,7 @@ Type:
 Music / pre-rendered WAV soundtrack
 
 Source:
-Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/` and played directly by `src/shared/LevelAudio.js`. No third-party samples or downloaded music files are used.
+Generated with OpenAI/ChatGPT on 2026-09-25 at the project team's request. The rendered WAV files are stored under `public/assets/audio/music/`. Only `menu-commute-theme.wav` is currently mapped for runtime menu/story playback; the three level tracks remain retained, unused repository assets. No third-party samples or downloaded music files are used.
 
 Files:
 `menu-commute-theme.wav`, `level1-dusk-drive.wav`, `level2-empire-rush.wav`, `level3-dont-get-caught.wav`.
