@@ -563,7 +563,10 @@ export class CampusCrowd {
   // grid route, then stand on that cell (animate's idle branch takes over).
   updateLeaving(person, dt, player) {
     if (!this.followRoute(person, dt, player)) return;
-    person.moving = false;
+    // The final waypoint can be reached during a travelling frame. Keep the
+    // departure state active until the next stationary frame so the final step
+    // is animated as walking rather than rendered as an idle slide.
+    if (person.moving) return;
     if (person.leaving) person.chaseArmed = person.surveyCooldown === 0;
     person.leaving = false;
     person.returning = false;
