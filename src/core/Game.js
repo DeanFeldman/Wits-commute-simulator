@@ -654,11 +654,8 @@ export class Game {
 
   preloadStaticParkingImages() {
     if (this.staticParkingImagesPreload) return this.staticParkingImagesPreload;
-    const sources = [
-      "./assets/images/ui/level1-tutorial-driving.webp",
-      "./assets/images/ui/level1-tutorial-parking.webp"
-    ];
-    this.staticParkingImagesPreload = Promise.all(sources.map((src) => {
+    const names = ["driving", "parking"];
+    const decodeImage = (src) => {
       const image = new Image();
       image.src = src;
       return typeof image.decode === "function" ? image.decode() :
@@ -667,13 +664,23 @@ export class Game {
           image.onerror = reject;
           if (image.complete) image.naturalWidth ? resolve() : reject(new Error(src));
         });
-    })).then(() => {
+    };
+    this.staticParkingImagesPreload = Promise.all(names.map(async (name) => {
+      // SVG fallback keeps the WIP playable even before screenshot assets are added.
+      const webp = `./assets/images/ui/level1-tutorial-${name}.webp`;
+      const svg = `./assets/images/ui/level1-tutorial-${name}.svg`;
+      try { await decodeImage(webp); return webp; }
+      catch { await decodeImage(svg); return svg; }
+    })).then((sources) => {
       this.staticParkingImagesReady = true;
+      document.querySelectorAll("#static-parking-tutorial .static-parking-pictures img")
+        .forEach((element, index) => { element.src = sources[index]; });
       if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
       return true;
     }).catch((error) => {
-      console.warn("Static parking tutorial images could not load.", error);
-      this.staticParkingImagesReady = false;
+      console.warn("Level 1 tutorial art unavailable.", error);
+      // Never strand the player on the final story dialogue due to a missing image.
+      this.staticParkingImagesReady = true;
       if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
       return false;
     });
