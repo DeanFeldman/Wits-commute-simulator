@@ -235,6 +235,10 @@ function addInstancedVariant(root, prototype, placements, name, { normalizeToUni
 }
 
 async function addPackInstances(root, kind, variants, placements, options = {}) {
+  // Do not download and parse an entire GLB for an empty foliage batch.
+  // South currently has no placements, and other layouts can filter to zero.
+  if (placements.length === 0) return;
+
   const scene = await getPack(kind);
   const placementsByVariant = new Map();
 
