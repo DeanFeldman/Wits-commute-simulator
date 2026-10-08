@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CrossingLevel } from "../src/levels/crossing/CrossingLevel.js";
+import { CrossingLevel, getCrowdSpeakerLabel } from "../src/levels/crossing/CrossingLevel.js";
+
+test("Level 2 player survey replies use You rather than an undefined speaker name (#265)", () => {
+  const eventPlayer = { kind: "player", mesh: {}, talkCooldown: 0 };
+  assert.equal(getCrowdSpeakerLabel(eventPlayer), "You");
+  assert.doesNotMatch(getCrowdSpeakerLabel(eventPlayer), /undefined/);
+});
+
+test("named NPC speakers retain their names and titles; missing names fall back to roles", () => {
+  assert.equal(getCrowdSpeakerLabel({ kind: "psychQuizzer", name: "Lerato" }), "Lerato · Psych Elective");
+  assert.equal(getCrowdSpeakerLabel({ kind: "guard", name: "Thabo" }), "Thabo · Campus Protection");
+  assert.equal(getCrowdSpeakerLabel({ kind: "guard" }), "Campus Protection");
+  assert.equal(getCrowdSpeakerLabel({ kind: "student", name: "Ayesha" }), "Ayesha");
+  assert.equal(getCrowdSpeakerLabel({ kind: "commuter" }), "");
+});
 
 function createHarness(completed = []) {
   const openedQuizzes = [];
