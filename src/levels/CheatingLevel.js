@@ -313,11 +313,10 @@ this.patrolPoints = [
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
-    this.audio.preload([
-      LEVEL3_INCORRECT_AUDIO,
-      LEVEL3_CORRECT_AUDIO,
-      LEVEL3_INTERACTION_AUDIO,
-      LEVEL3_TUTOR_STEP_AUDIO
+    this.audio.preloadStreams([
+      LEVEL3_CLASSROOM_AMBIENCE_AUDIO,
+      LEVEL3_HEARTBEAT_AUDIO,
+      LEVEL3_CLOCK_AUDIO
     ]);
     this.gameplayAudioStarted = false;
 

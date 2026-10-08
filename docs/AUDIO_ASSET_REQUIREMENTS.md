@@ -53,6 +53,7 @@ Runtime assets:
 - `public/assets/audio/level3/heartbeat.opus`
 - `public/assets/audio/level3/clock-tick.opus`
 - `public/assets/audio/level3/correct-tick.opus`
+- `public/assets/audio/level3/incorrect-answer.opus`
 
 Implementation details:
 - tutor footsteps are cropped into individual steps, randomly varied, panned,
@@ -97,7 +98,8 @@ removed from the branch because they are no longer used.
 
 Still required before submission:
 
-- provenance or a cleared replacement for `idle-car.wav`.
+- no Level 1 audio provenance is currently outstanding; the active healthy
+  engine is `idle-car.opus`, sourced from GiocoSound 401552 under CC0.
 
 The old end-of-Level-1 door-close cue has been removed from gameplay, so
 `car-door-shut.mp3` is no longer required.
@@ -109,7 +111,7 @@ Still optional:
 
 Integrated in the latest pass:
 
-- [x] taxi horn;
+- [x] contextual road-warning horn (never tied to taxi spawn/stop);
 - [x] person collision / bump;
 - [x] Vida cup collection cue;
 - [x] stronger road-proximity traffic ambience;
@@ -147,12 +149,10 @@ Implemented after the full audit:
 - [x] Level 2 pass-by overlap reduced with a 2.8-second cooldown;
 - [x] short Level 2 traffic ambience de-repeated with two offset/rate layers;
 - [x] Level 3 interaction sprite repacked to remove unused legacy answer clips;
-- [x] Level 1 completion door sound preloaded.
+- [x] Level 1 completion door sound removed; completion has no generic cue.
 
-Remaining audio blocker is provenance-only:
-
-- `public/assets/audio/level1/idle-car.wav` — still used as the normal healthy
-  engine loop after the startup cue.
+The remaining provenance blocker is the MacFerret_20 crossing-signal licence,
+which still requires verification from the original Freesound record.
 
 Failure-flow hardening:
 - decoded Web Audio one-shots now dispose safely even if they are still playing;

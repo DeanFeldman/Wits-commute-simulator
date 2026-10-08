@@ -119,7 +119,7 @@ test("a correct answer advances the full question round and redistributes all ta
   const level = new CheatingLevel({});
   const desks = Array.from({ length: 7 }, () => ({ word: "", hologram: {} }));
 
-  level.audio = { cue() {} };
+  level.audio = { playSample() {} };
   level.drawHologramText = () => {};
   level.updatePlayerPaper = () => {};
   level.cheatDesks = desks;

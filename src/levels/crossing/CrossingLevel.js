@@ -62,6 +62,32 @@ const LEVEL2_CUP_PICKUP_AUDIO = "./assets/audio/level2/cup-pickup.opus";
 const LEVEL2_PERSON_BUMP_AUDIO = "./assets/audio/level2/person-bump.opus";
 const LEVEL2_CROSSING_SIGNAL_AUDIO = "./assets/audio/level2/crossing-signal.opus";
 
+export function getRoadAudioProximity(nearestRoadDistance, stripDepth = STRIP_DEPTH) {
+  const proximityCurve = 1 - THREE.MathUtils.clamp(
+    (nearestRoadDistance - 0.6) / 3.0,
+    0,
+    1
+  );
+  const oneMoveApproach = nearestRoadDistance <= stripDepth ? 0.62 : 0;
+  return Math.max(proximityCurve, oneMoveApproach);
+}
+
+export function shouldWarnWithHorn({
+  dx,
+  dz,
+  direction,
+  hornArmed = true,
+  cooldown = 0
+}) {
+  const absX = Math.abs(dx);
+  return hornArmed &&
+    cooldown <= 0 &&
+    Math.abs(dz) <= 1.05 &&
+    dx * direction < 0 &&
+    absX >= 2.2 &&
+    absX <= 5.5;
+}
+
 const DIRECTIONS = Object.freeze({
   up: Object.freeze({ x: 0, z: -1 }),
   down: Object.freeze({ x: 0, z: 1 }),
@@ -193,14 +219,10 @@ export class CrossingLevel {
     this.parkingRoadTextures = null;
     this.parkingMaterial = null;
     this.audio = new LevelAudio();
-    this.audio.preload([
-      LEVEL2_VEHICLE_IMPACT_AUDIO,
-      LEVEL2_EXTRA_AUDIO,
-      LEVEL2_PASSBY_AUDIO,
-      LEVEL2_FOOTSTEP_AUDIO,
-      LEVEL2_INTERACTION_AUDIO,
-      LEVEL2_CUP_PICKUP_AUDIO,
-      LEVEL2_PERSON_BUMP_AUDIO
+    this.audio.preload([LEVEL2_PASSBY_AUDIO]);
+    this.audio.preloadStreams([
+      LEVEL2_TRAFFIC_AMBIENCE_AUDIO,
+      LEVEL2_CROSSING_SIGNAL_AUDIO
     ]);
     this.gameplayAudioStarted = false;
     this.footstepIndex = 0;
@@ -230,13 +252,16 @@ export class CrossingLevel {
     this.tutorialPose = null;
   }
   async load() {
-    await this.audio.waitForPreload([
-      LEVEL2_VEHICLE_IMPACT_AUDIO,
-      LEVEL2_EXTRA_AUDIO,
-      LEVEL2_FOOTSTEP_AUDIO,
-      LEVEL2_INTERACTION_AUDIO,
-      LEVEL2_CUP_PICKUP_AUDIO,
-      LEVEL2_PERSON_BUMP_AUDIO
+    await Promise.all([
+      this.audio.waitForPreload([
+        LEVEL2_VEHICLE_IMPACT_AUDIO,
+        LEVEL2_EXTRA_AUDIO,
+        LEVEL2_FOOTSTEP_AUDIO,
+        LEVEL2_INTERACTION_AUDIO,
+        LEVEL2_CUP_PICKUP_AUDIO,
+        LEVEL2_PERSON_BUMP_AUDIO
+      ]),
+      this.game.preloadTransitionSafeAudio?.([LEVEL2_VEHICLE_IMPACT_AUDIO])
     ]);
 
     // Survey completion belongs to this Level 2 run only.
@@ -1229,13 +1254,7 @@ export class CrossingLevel {
     // A grid move is 1.2 m. By the time the player is one move from the
     // road edge, the nearest lane centre is about one strip (2.4 m) away.
     // Give that first approach a clear floor, then rise smoothly in the road.
-    const proximityCurve = 1 - THREE.MathUtils.clamp(
-      (nearestRoadDistance - 0.6) / 3.0,
-      0,
-      1
-    );
-    const oneMoveApproach = nearestRoadDistance <= STRIP_DEPTH ? 0.62 : 0;
-    const roadProximity = Math.max(proximityCurve, oneMoveApproach);
+    const roadProximity = getRoadAudioProximity(nearestRoadDistance);
 
     this.audio.setLoopParameters("level2-traffic-a", {
       volume: 0.58 * roadProximity
@@ -1262,16 +1281,13 @@ export class CrossingLevel {
 
       // A warning horn is contextual only: the player must be physically in
       // this lane, and the vehicle must be approaching from a few metres away.
-      const directlyInPath = absZ <= 1.05;
-      const approaching = dx * vehicle.lane.direction < 0;
-      if (
-        vehicle.hornArmed &&
-        this.trafficHornCooldown <= 0 &&
-        directlyInPath &&
-        approaching &&
-        absX >= 2.2 &&
-        absX <= 5.5
-      ) {
+      if (shouldWarnWithHorn({
+        dx,
+        dz,
+        direction: vehicle.lane.direction,
+        hornArmed: vehicle.hornArmed,
+        cooldown: this.trafficHornCooldown
+      })) {
         this.audio.playSegment(LEVEL2_EXTRA_AUDIO, {
           ...LEVEL2_EXTRA_CUES.horn,
           volume: 0.34,
@@ -1623,9 +1639,18 @@ checkFinish() {
 
     // This now uses a pre-decoded Web Audio buffer, so the transient starts on
     // the collision frame before any checkpoint/reset state is changed.
-    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
+    const fatalImpact = this.attempts >= MAX_LEVEL_2_ATTEMPTS;
+    if (fatalImpact) {
+      this.game.playOneShotAudio(
+        LEVEL2_VEHICLE_IMPACT_AUDIO,
+        impactOptions.volume,
+        impactOptions
+      );
+    } else {
+      this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
+    }
 
-    if (this.attempts >= MAX_LEVEL_2_ATTEMPTS) {
+    if (fatalImpact) {
       this.game.setCheckpoint("start");
       this.game.failLevel({
         title: "Too many impacts",
