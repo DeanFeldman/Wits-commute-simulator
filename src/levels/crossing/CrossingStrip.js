@@ -455,6 +455,25 @@ export class CrossingStrip {
     "wits-arm-main"
   );
 
+  // Narrow, low-contrast masonry courses give the large plain wall a
+  // readable low-poly facade without adding high-frequency texture detail.
+  // Kept below the window rows, so the existing window layout stays intact.
+  const foundationTrim = new THREE.MeshStandardMaterial({
+    color: 0x735144,
+    roughness: 0.96,
+    flatShading: true
+  });
+  for (const y of [0.36, 0.78]) {
+    for (const side of [-1, 1]) {
+      addBox(
+        [0.065, 0.085, buildingDepth - 0.16],
+        [side * (buildingWidth / 2 + 0.025), y, 0],
+        foundationTrim,
+        "wits-arm-foundation-course"
+      );
+    }
+  }
+
   // Roof slab.
   addBox(
     [
