@@ -315,6 +315,11 @@ export class CampusCrowd {
     person.surveyCooldown = SURVEY_COOLDOWN;
     person.caught = false;
     person.returning = false;
+    // A previous bump can leave the idle/reaction animation locked on while
+    // the NPC moves away. Clear that reaction when the survey is finished.
+    person.reactTimer = 0;
+    person.recoil = 0;
+    person.facePlayer = null;
     person.route = this.planRoute(person, this.lastPlayer, { leave: true });
     person.leaving = true;
   }
@@ -408,16 +413,31 @@ export class CampusCrowd {
     const dx = target.x - position.x;
     const dz = target.z - position.z;
     const distance = Math.hypot(dx, dz);
+    const yaw = Math.atan2(dx, dz);
+    // When walking away after a face-to-face survey, the character was
+    // looking at the player. Turn towards the next waypoint before moving,
+    // otherwise the model visibly slides backwards or sideways.
+    if (distance > 1e-4) {
+      const facingError = Math.atan2(
+        Math.sin(yaw - person.mesh.rotation.y),
+        Math.cos(yaw - person.mesh.rotation.y)
+      );
+      if (Math.abs(facingError) > 0.3) {
+        person.moving = false;
+        this.turnTo(person, yaw, dt);
+        return false;
+      }
+    }
+
     const step = Math.min(LEAVE_SPEED * dt, distance);
     if (distance > 1e-4) {
-      const yaw = Math.atan2(dx, dz);
       position.x += (dx / distance) * step;
       position.z += (dz / distance) * step;
       person.restYaw = yaw;
       this.turnTo(person, yaw, dt);
     }
     person.stride += step;
-    person.moving = true;
+    person.moving = step > 1e-4;
     if (distance - step < 0.01) {
       position.x = target.x;
       position.z = target.z;
@@ -601,7 +621,9 @@ export class CampusCrowd {
 
   animate(person, dt) {
     if (person.animation) {
-      const moving = person.reactTimer === 0 && Boolean(person.moving || person.chasing || person.leaving || person.returning);
+      // Animate footsteps only when the NPC actually moves. Leaving and
+      // returning also include stationary turning and blocked waypoints.
+      const moving = person.reactTimer === 0 && Boolean(person.moving);
       const speed = person.chasing ? CHASE_SPEED : person.leaving || person.returning ? LEAVE_SPEED : person.speed;
       this.animatedFactory.setMoving(person.animation, moving, speed, person.chasing);
       person.animation.mixer.update(dt);
