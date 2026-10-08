@@ -1,44 +1,47 @@
-#static-parking-tutorial[hidden]{display:none}
-#static-parking-tutorial{position:fixed;inset:0;z-index:42;display:grid;place-items:center;padding:clamp(10px,2vw,30px);background:#1c2633 url('/assets/images/ui/level1-story-loading-screen.png') center/cover no-repeat;color:#203651;overflow:auto}
-.static-parking-card{width:min(1240px,96vw);padding:clamp(15px,2.2vw,30px);border:5px solid #182a48;border-radius:12px;background:rgba(255,255,255,.97);box-shadow:10px 10px 0 rgba(7,20,42,.8);font-family:Arial,system-ui,sans-serif}
-.static-parking-card header small{color:#008f9b;font-weight:800;letter-spacing:.13em}
-.static-parking-card h2{margin:.2em 0 0;font-size:clamp(25px,3.5vw,50px);line-height:1.06;color:#123557;text-shadow:3px 3px #6de1dc}
-.static-parking-card header strong{display:block;margin-top:6px;font:900 clamp(15px,1.8vw,24px) monospace;letter-spacing:.18em}
-.static-parking-card header p{margin:.7em 0 1em;padding-top:10px;border-top:3px solid #6cd7d6;font-size:clamp(13px,1.3vw,18px)}
-.static-parking-content{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(255px,1fr);gap:20px}
-.static-parking-pictures{display:grid;grid-template-columns:minmax(0,1fr) 30px minmax(0,1fr);gap:8px;align-items:center}
-.static-parking-pictures figure{min-width:0;margin:0;border:3px solid #203651;border-radius:7px;overflow:hidden;background:#cee1ec}
-.static-parking-pictures img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover}
-.static-parking-pictures figcaption{padding:9px 3px;text-align:center;font:bold clamp(10px,1vw,14px) monospace;letter-spacing:.02em}
-.static-parking-arrow{text-align:center;color:#08799a;font-size:38px;font-weight:900}
-.static-parking-notes{display:grid;gap:12px;align-content:stretch}
-.static-parking-notes section{padding:12px 15px;border:3px solid #203651;border-radius:6px;background:#f1fafb}
-.static-parking-notes section:last-child{background:#fff5d3}
-.static-parking-notes h3{display:inline-block;margin:-22px 0 8px -9px;padding:5px 13px;border:3px solid #203651;border-radius:5px;background:#ffcf53;font-size:18px}
-.static-parking-notes p{margin:7px 0;font-size:clamp(12px,1.05vw,15px);line-height:1.35;font-weight:600}
-.static-parking-notes kbd{padding:2px 5px;border:2px solid #203651;border-radius:3px;background:white;font:700 13px monospace}
-.static-parking-card footer{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-top:15px;padding-top:12px;border-top:2px solid #b8d7d7;font-size:12px}
-#static-parking-start{padding:13px 27px;border:4px solid #203651;border-radius:7px;background:#ffd25d;box-shadow:4px 4px #203651;color:#173252;font:900 clamp(14px,1.6vw,20px) monospace;cursor:pointer}
-#static-parking-start:disabled{background:#becbd0;cursor:wait;box-shadow:none}
-@media(max-width:830px){.static-parking-content{grid-template-columns:1fr}.static-parking-pictures img{aspect-ratio:16/10}.static-parking-card{margin:auto}.static-parking-notes{grid-template-columns:repeat(3,minmax(0,1fr))}.static-parking-notes section{padding:9px}.static-parking-notes h3{font-size:13px}}
-@media(max-width:540px){.static-parking-notes{grid-template-columns:1fr}.static-parking-card footer{flex-wrap:wrap}}
-
-/* Polished Level 1 info cards; graphics remain native HTML/CSS. */
-.static-parking-notes section{position:relative;padding:20px 16px 14px}
-.static-parking-notes h3{margin:-31px 0 12px -8px;padding:5px 14px;font-size:19px;box-shadow:3px 3px 0 #223a59}
-.static-keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 9px;text-align:center}
-.static-keys>div{min-width:0;padding:5px 2px}
-.static-key-row{display:flex;justify-content:center;align-items:center;gap:3px;min-height:28px}
-.static-keys span{display:block;margin-top:8px;font:800 10px/1.2 monospace;letter-spacing:.02em}
-.static-keys kbd{display:inline-grid;place-items:center;min-width:22px;min-height:25px;padding:2px;font-size:13px;box-shadow:2px 2px 0 #203651}
-.static-panel-objective ol{padding:0;margin:4px 0;list-style:none;counter-reset:parking-objective}
-.static-panel-objective li{display:flex;align-items:center;gap:10px;margin:10px 0;font-size:14px;font-weight:700}
-.static-panel-objective li:before{counter-increment:parking-objective;content:counter(parking-objective,decimal-leading-zero);flex:0 0 30px;padding:4px;border:2px solid #203651;border-radius:4px;background:#73dcd4;text-align:center;font:800 13px monospace}
-.static-watch-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;text-align:center}
-.static-watch-items>div{padding:2px 4px;border-right:1px solid #b5aa78}
-.static-watch-items>div:last-child{border:0}
-.static-watch-items span{display:block;color:#d65a38;text-shadow:2px 2px #203651;font:bold 29px monospace}
-.static-watch-items small{display:block;margin-top:6px;font:800 10px/1.3 monospace}
-.static-parking-card footer{justify-content:flex-end}
-.static-parking-pictures img{image-rendering:auto}
-@media(max-width:830px){.static-keys{grid-template-columns:repeat(2,minmax(0,1fr))}.static-watch-items{grid-template-columns:1fr}.static-watch-items>div{border:0}.static-parking-notes h3{font-size:14px}}
+/* The illustrated Level 1 tutorial is one decoded image with one real button.
+   Keep the original story art as the backdrop and do not run a live preview. */
+#static-parking-tutorial[hidden],
+#static-parking-art[hidden],
+#static-parking-status[hidden]{display:none!important}
+#static-parking-tutorial{
+  position:fixed;inset:0;z-index:42;
+  display:flex;align-items:center;justify-content:center;
+  overflow:auto;padding:12px;
+  background:#182a3d url("/assets/images/ui/level1-story-loading-screen.png") center/cover no-repeat;
+}
+.static-parking-card{
+  width:min(96vw,calc((100vh - 96px)*1.777),1672px);
+  max-width:100%;position:relative;margin:auto;
+  overflow:hidden;border:4px solid #142744;border-radius:14px;
+  background:#fff;box-shadow:6px 7px 0 #142744;
+}
+.static-parking-art{display:block;width:100%;height:auto;aspect-ratio:1672 / 941;object-fit:contain}
+.static-parking-footer{
+  min-height:clamp(53px,5vw,74px);display:flex;
+  align-items:center;justify-content:flex-end;gap:15px;
+  padding:6px clamp(14px,2.3vw,34px) 10px;
+  background:#fff;
+}
+#static-parking-status{
+  margin-right:auto;color:#274460;font:700 clamp(12px,1vw,15px)/1.4 system-ui,sans-serif;
+}
+#static-parking-start{
+  flex-shrink:0;min-width:clamp(148px,18vw,255px);
+  min-height:clamp(41px,4vw,62px);padding:8px 20px;
+  border:4px solid #142744;border-radius:7px;
+  color:#102c4d;background:linear-gradient(180deg,#ffdd6a,#ffb428);
+  box-shadow:3px 3px 0 #142744;cursor:pointer;
+  font:900 clamp(14px,1.6vw,23px)/1.1 system-ui,sans-serif;
+  letter-spacing:.03em;
+}
+#static-parking-start:hover:not(:disabled){background:#ffe38b}
+#static-parking-start:focus-visible{outline:3px solid #008da1;outline-offset:4px}
+#static-parking-start:disabled{
+  cursor:wait;background:#cdd4d9;color:#617080;box-shadow:none;
+}
+@media(max-width:540px){
+  #static-parking-tutorial{padding:7px}
+  .static-parking-card{width:98vw}
+  .static-parking-footer{min-height:52px;padding:5px 9px}
+  #static-parking-start{min-width:125px}
+}

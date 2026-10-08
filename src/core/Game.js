@@ -81,14 +81,6 @@ const LEVEL_INTRO_CONFIG = new Map([
 ]);
 
 const LEVEL_TUTORIAL_CONFIG = new Map([
-  [1, {
-    kicker: "LEVEL 01 // PARK",
-    title: "Park at Wits",
-    objective: "Drive to any purple marker — each one marks an available parking bay. Park straight inside it with condition remaining.",
-    controls: [["W / ↑", "Accelerate"], ["S / ↓", "Brake / reverse"], ["A D / ← →", "Steer"], ["C", "Camera view"]],
-    tip: "Purple markers are your parking goals. Potholes slow the car and damage its condition, so avoid them on the way.",
-    previewLabel: "Live Level 1 practice — purple markers = parking goals"
-  }],
   [2, {
     kicker: "LEVEL 02 // CROSS",
     title: "Campus Crossing",
@@ -192,6 +184,7 @@ export class Game {
     this.levelIntroArtRequest = 0;
     this.staticParkingImagesReady = false;
     this.staticParkingImagesPreload = null;
+    this.staticParkingImageError = false;
     this.loadVersion = 0;
     this.animationFrameId = null;
     this.transitionTimer = null;
@@ -649,38 +642,40 @@ export class Game {
     this.journeyLevelResults.clear();
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = false;
+    if (levelNumber === 1) void this.preloadStaticParkingImages();
     this.startLevel(levelNumber);
   }
 
   preloadStaticParkingImages() {
     if (this.staticParkingImagesPreload) return this.staticParkingImagesPreload;
-    const names = ["driving", "parking"];
-    const decodeImage = (src) => {
-      const image = new Image();
-      image.src = src;
-      return typeof image.decode === "function" ? image.decode() :
-        new Promise((resolve, reject) => {
+    const src = "./assets/images/ui/level1-static-tutorial.webp";
+    const image = new Image();
+    image.decoding = "async";
+    image.src = src;
+
+    const ready = typeof image.decode === "function"
+      ? image.decode()
+      : new Promise((resolve, reject) => {
           image.onload = resolve;
           image.onerror = reject;
           if (image.complete) image.naturalWidth ? resolve() : reject(new Error(src));
         });
-    };
-    this.staticParkingImagesPreload = Promise.all(names.map(async (name) => {
-      // SVG fallback keeps the WIP playable even before screenshot assets are added.
-      const webp = `./assets/images/ui/level1-tutorial-${name}.webp`;
-      const svg = `./assets/images/ui/level1-tutorial-${name}.svg`;
-      try { await decodeImage(webp); return webp; }
-      catch { await decodeImage(svg); return svg; }
-    })).then((sources) => {
+
+    this.staticParkingImagesPreload = ready.then(() => {
+      if (!image.naturalWidth) throw new Error("Tutorial art decoded without image dimensions.");
       this.staticParkingImagesReady = true;
-      document.querySelectorAll("#static-parking-tutorial .static-parking-pictures img")
-        .forEach((element, index) => { element.src = sources[index]; });
+      const poster = document.querySelector("#static-parking-art");
+      if (poster) {
+        poster.src = image.currentSrc || image.src;
+        poster.hidden = false;
+      }
+      this.updateStaticParkingReady();
       if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
       return true;
     }).catch((error) => {
-      console.warn("Level 1 tutorial art unavailable.", error);
-      // Never strand the player on the final story dialogue due to a missing image.
-      this.staticParkingImagesReady = true;
+      console.error("Unable to load Level 1 tutorial artwork.", error);
+      this.staticParkingImageError = true;
+      this.updateStaticParkingReady();
       if (this.isLevelIntroActive && this.currentLevelNumber === 1) this.renderLevelIntroStory();
       return false;
     });
@@ -829,7 +824,7 @@ export class Game {
 
     this.levelIntroDialogueContinue.disabled = waitingForLevel;
     this.levelIntroDialogueContinue.firstChild.textContent = waitingForLevel
-      ? "Loading... "
+      ? (this.currentLevelNumber === 1 && this.staticParkingImageError ? "IMAGE ERROR " : "Loading... ")
       : "Continue ";
   }
 
@@ -1210,26 +1205,42 @@ export class Game {
   }
 
   updateStaticParkingReady() {
-    if (!this.staticParkingStart) return;
-    const ready = !this.isLoading && !!this.currentLevel;
-    this.staticParkingStart.disabled = !ready;
-    this.staticParkingStart.textContent = ready ? "START LEVEL" : "LOADING LEVEL 1…";
+    const start = this.staticParkingStart ?? document.querySelector("#static-parking-start");
+    const status = document.querySelector("#static-parking-status");
+    const poster = document.querySelector("#static-parking-art");
+    if (!start) return;
+
+    const imageReady = this.staticParkingImagesReady && !!poster?.getAttribute("src");
+    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1;
+    start.disabled = !imageReady || !levelReady;
+    start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
+    if (status) {
+      status.hidden = imageReady;
+      status.textContent = this.staticParkingImageError
+        ? "Unable to load tutorial image. Refresh to retry."
+        : "Preparing tutorial…";
+    }
   }
 
   showStaticParkingTutorial() {
     this.staticParkingTutorial ??= document.querySelector("#static-parking-tutorial");
     this.staticParkingStart ??= document.querySelector("#static-parking-start");
     if (!this.staticParkingTutorial || !this.staticParkingStart) return;
+
     this.input.clearTransientState();
     document.exitPointerLock?.();
     this.isTutorialActive = true;
     this.instructionElement.hidden = true;
     this.staticParkingTutorial.hidden = false;
+
+    void this.preloadStaticParkingImages();
     this.updateStaticParkingReady();
+
     if (!this.staticParkingStart.dataset.bound) {
       this.staticParkingStart.dataset.bound = "true";
       this.staticParkingStart.addEventListener("click", () => {
-        if (this.isLoading || !this.currentLevel || this.currentLevelNumber !== 1) return;
+        if (this.staticParkingStart.disabled || this.isLoading ||
+            !this.currentLevel || this.currentLevelNumber !== 1) return;
         this.hideInstruction();
         this.input.clearTransientState();
         this.uiAudio.stopMusic();

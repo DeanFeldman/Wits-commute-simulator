@@ -275,27 +275,16 @@
 
 
 
-    <!-- WIP #259: static Level 1 tutorial; no live preview or extra 3D scene. -->
+    <!-- Level 1 uses one decoded static poster, not a live WebGL tutorial preview. -->
     <section id="static-parking-tutorial" hidden aria-label="Level 1 parking tutorial">
-      <div class="static-parking-card" role="dialog" aria-modal="true" aria-labelledby="static-parking-title">
-        <header><small>WITS COMMUTE SIMULATOR // LEVEL 1</small>
-          <h2 id="static-parking-title">LEVEL 1 // PARK AT WITS</h2>
-          <strong>PARKING TUTORIAL</strong>
-          <p>Drive through the parking area, avoid potholes, and park neatly in one of the 3 highlighted bays.</p>
-        </header>
-        <div class="static-parking-content">
-          <div class="static-parking-pictures">
-            <figure><img src="./assets/images/ui/level1-tutorial-driving.webp" alt="Orange car driving between parked cars and scattered potholes" /><figcaption>01 // DRIVE &amp; AVOID POTHOLES</figcaption></figure>
-            <span class="static-parking-arrow" aria-hidden="true">→</span>
-            <figure><img src="./assets/images/ui/level1-tutorial-parking.webp" alt="Orange car approaching an empty purple highlighted parking bay" /><figcaption>02 // PARK IN A PURPLE BAY</figcaption></figure>
-          </div>
-          <div class="static-parking-notes">
-            <section class="static-panel-controls"><h3>CONTROLS</h3><div class="static-keys"><div><div class="static-key-row"><kbd>W</kbd><kbd>↑</kbd></div><span>ACCELERATE</span></div><div><div class="static-key-row"><kbd>S</kbd><kbd>↓</kbd></div><span>BRAKE / REVERSE</span></div><div><div class="static-key-row"><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd></div><span>STEER</span></div><div><div class="static-key-row"><kbd>C</kbd></div><span>CAMERA VIEW</span></div></div></section>
-            <section class="static-panel-objective"><h3>OBJECTIVE</h3><ol><li>Avoid potholes</li><li>Find one of three purple bays</li><li>Park straight inside the highlighted space and stop</li></ol></section>
-            <section class="static-panel-warning"><h3>WATCH FOR</h3><div class="static-watch-items"><div><span aria-hidden="true">♥</span><small>IMPACTS REDUCE CONDITION</small></div><div><span aria-hidden="true">◉</span><small>POTHOLES SLOW YOU DOWN</small></div><div><span aria-hidden="true">↗</span><small>ANGLE &amp; POSITION MATTER</small></div></div></section>
-          </div>
+      <div class="static-parking-card" role="dialog" aria-modal="true" aria-label="Level 1 parking tutorial">
+        <img id="static-parking-art" class="static-parking-art" width="1672" height="941"
+          alt="Level 1 Park at Wits. Drive through the parking area, avoid potholes, and park neatly in one of three purple-highlighted bays. W or up to accelerate, S or down to brake and reverse, A D or left right to steer. Impacts reduce condition, potholes slow you down, and parking position and angle matter."
+          hidden />
+        <div class="static-parking-footer">
+          <span id="static-parking-status" role="status" aria-live="polite">Preparing tutorial…</span>
+          <button id="static-parking-start" type="button" disabled>LOADING…</button>
         </div>
-        <footer><span></span><button id="static-parking-start" type="button" disabled>LOADING LEVEL 1…</button></footer>
       </div>
     </section>
     <section id="instruction-card" hidden aria-live="polite" aria-label="Level tutorial">
