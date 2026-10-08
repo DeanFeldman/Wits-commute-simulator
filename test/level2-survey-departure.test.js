@@ -186,3 +186,66 @@ test("ordinary NPC walks still blend from idle instead of snapping", () => {
   animation.mixer.update(0.2);
   assert.ok(animation.walk.getEffectiveWeight() > 0.9);
 });
+
+test("bumping a completed survey NPC from behind makes them face the player before walking away (#275)", () => {
+  for (const kind of ["psychQuizzer", "ccduAdvisor"]) {
+    const { crowd, person } = harness({ x: 0, z: 3 });
+    crowd.animatedFactory = new AnimatedNpcFactory();
+    crowd.random = () => 0;
+    const animation = makeMixerActions();
+    person.kind = kind;
+    person.mesh = animation.root;
+    person.animation = animation;
+    person.mesh.rotation.y = 0; // Facing +Z, with the player behind at -Z.
+    person.mesh.position.set(0, 0, 0);
+    const playerPosition = new THREE.Vector3(0, 0, -1.2);
+    crowd.lastPlayer = playerPosition;
+
+    const level = {
+      quizPaused: false,
+      surveyConversation: null,
+      crowd,
+      player: { position: playerPosition }
+    };
+
+    CrossingLevel.prototype.startCompletedSurveyConversation.call(level, person);
+    assert.equal(level.quizPaused, true);
+    assert.equal(person.moving, false);
+
+    for (let frame = 0; frame < 60 && level.surveyConversation; frame++) {
+      CrossingLevel.prototype.updateSurveyConversation.call(level, 1 / 60);
+      assert.equal(person.mesh.position.z, 0, "the NPC remains still during the conversation");
+    }
+    assert.equal(level.surveyConversation, null);
+    assert.equal(level.quizPaused, false);
+    const facingPlayerError = Math.abs(
+      Math.atan2(Math.sin(Math.PI - person.mesh.rotation.y),
+        Math.cos(Math.PI - person.mesh.rotation.y))
+    );
+    assert.ok(facingPlayerError < 0.1,
+      `${kind}: NPC turns to acknowledge the player who approached from behind`);
+    assert.equal(person.leaving, true);
+
+    let firstWalkingFrame = false;
+    let lastWalkingFrame = false;
+    for (let frame = 0; frame < 240; frame++) {
+      const oldZ = person.mesh.position.z;
+      const wasLeaving = person.leaving;
+      crowd.updateLeaving(person, 1 / 60, playerPosition);
+      crowd.animate(person, 1 / 60);
+      if (person.mesh.position.z !== oldZ) {
+        firstWalkingFrame = true;
+        assert.ok(Math.abs(animation.walk.getEffectiveWeight() - 1) < 1e-6,
+          `${kind}: walk is full-weight on every travelling frame`);
+      }
+      if (wasLeaving && !person.leaving) {
+        lastWalkingFrame = true;
+        assert.equal(person.moving, false,
+          "finish the route only on a stationary frame, not while translating");
+        break;
+      }
+    }
+    assert.ok(firstWalkingFrame, `${kind}: NPC eventually walks away`);
+    assert.ok(lastWalkingFrame, `${kind}: NPC completes the departure route`);
+  }
+});
