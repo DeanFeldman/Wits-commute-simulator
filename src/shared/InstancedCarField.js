@@ -47,14 +47,26 @@ function enableInstancedBodyPaint(material) {
       "#include <map_fragment>",
       `#include <map_fragment>
 #ifdef USE_INSTANCING_COLOR
+  // Even a nearly black source texel should retain the selected car colour.
+  // The old brightness threshold left dark painted cars almost black.
   float sourceBrightness = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  float paintedAmount = smoothstep(0.12, 0.32, sourceBrightness);
-  vec3 bodyPaint = vColor * (0.48 + sourceBrightness * 0.85);
-  diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, paintedAmount * 0.94);
+  vec3 bodyPaint = vColor * (0.87 + 0.20 * sourceBrightness);
+  diffuseColor.rgb = mix(diffuseColor.rgb, bodyPaint, 0.96);
 #endif`
     );
+    // Guarantee a readable, lit-looking body colour after the PBR light pass.
+    // Only the bodywork's shader gets this lift: wheels, glass, terrain and
+    // global exposure retain their existing rendering.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <opaque_fragment>",
+      `#ifdef USE_INSTANCING_COLOR
+  vec3 minimumVisiblePaint = mix(vColor, vec3(0.28), 0.33);
+  outgoingLight = max(outgoingLight, minimumVisiblePaint);
+#endif
+#include <opaque_fragment>`
+    );
   };
-  material.customProgramCacheKey = () => "parking-body-instance-paint-v1";
+  material.customProgramCacheKey = () => "parking-body-instance-paint-v4";
 }
 
 // Spatial hash means nearby bays don't repeat the same paint just because
