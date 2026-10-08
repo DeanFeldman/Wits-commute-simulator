@@ -370,9 +370,6 @@ export class CrossingLevel {
       moveRight: ["KeyD", "ArrowRight"],
       cycleCamera: ["KeyC"]
     });
-    this.game.setMessage(
-      "Collect every Vida cup and reach Engineering as fast as you can. Press C to change camera."
-    );
     this.setupDevControls();
   }
 
