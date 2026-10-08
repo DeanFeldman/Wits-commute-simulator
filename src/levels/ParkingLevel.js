@@ -63,6 +63,10 @@ const LEVEL1_IMPACT_CUES = Object.freeze({
   pothole: Object.freeze({ start: 1.04, duration: 1.25 }),
   puddle: Object.freeze({ start: 2.39, duration: 1.8 })
 });
+
+export function getLevelOneDamageBlend(condition) {
+  return THREE.MathUtils.clamp((35 - condition) / 25, 0, 1);
+}
 const PLAYER_CAR_COLLIDER_SIZE = [2.1, 1.1, 4];
 const PLAYER_CAR_HITBOX_BEVEL = 0.35;
 const LARGE_PARKING_CAR_IDS = new Set([
@@ -1356,10 +1360,9 @@ export class ParkingLevel {
     this.potholeSplash = null;
     this.headlightWorldPosition =new THREE.Vector3();
     this.audio = new LevelAudio();
-    this.audio.preload([
-      LEVEL1_IMPACT_AUDIO,
-      LEVEL1_CAR_START_AUDIO,
-      LEVEL1_IDLE_AUDIO
+    this.audio.preloadStreams([
+      LEVEL1_IDLE_AUDIO,
+      LEVEL1_PARKING_AMBIENCE_AUDIO
     ]);
     this.parkingAmbienceStarted = false;
     this.gameplayAudioStarted = false;
@@ -1408,9 +1411,12 @@ export class ParkingLevel {
   }
 
 async load() {
-  await this.audio.waitForPreload([
-    LEVEL1_IMPACT_AUDIO,
-    LEVEL1_CAR_START_AUDIO
+  await Promise.all([
+    this.audio.waitForPreload([
+      LEVEL1_IMPACT_AUDIO,
+      LEVEL1_CAR_START_AUDIO
+    ]),
+    this.game.preloadTransitionSafeAudio?.([LEVEL1_IMPACT_AUDIO])
   ]);
 
   const scene = this.game.scene;
@@ -2445,11 +2451,7 @@ createParkingSurface(potholes = []) {
 
     // The damaged loop starts appearing below 35% condition and is effectively
     // dominant by 10%. This is a crossfade, not a binary switch.
-    const damageBlend = THREE.MathUtils.clamp(
-      (35 - this.condition) / 25,
-      0,
-      1
-    );
+    const damageBlend = getLevelOneDamageBlend(this.condition);
 
     // Do not fetch the large damaged-engine loop on clean runs. Start it a
     // little before its audible crossfade range so the browser has time to
@@ -2483,8 +2485,8 @@ createParkingSurface(potholes = []) {
 
   // The impact sprite is preloaded so the transient lands on the collision
   // frame instead of waiting for a cold media element to buffer.
-  playCollisionSound(speedFactor = 1) {
-    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+  playCollisionSound(speedFactor = 1, transitionSafe = false) {
+    const options = {
       ...LEVEL1_IMPACT_CUES.collision,
       volume: THREE.MathUtils.lerp(
         0.58,
@@ -2496,7 +2498,12 @@ createParkingSurface(potholes = []) {
         1.04,
         THREE.MathUtils.clamp(speedFactor, 0, 1)
       )
-    });
+    };
+    if (transitionSafe) {
+      this.game.playTransitionSafeAudioSegment?.(LEVEL1_IMPACT_AUDIO, options);
+      return;
+    }
+    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, options);
   }
 
   setMuted(muted) {
@@ -2675,6 +2682,7 @@ if (hit) {
 
   if (this.impactCooldown <= 0) {
     this.condition = applyLevelOneDamage(this.condition, hit.tag);
+    const transitionSafeImpact = this.condition <= 0;
 
     this.cameraShake = Math.max(
       this.cameraShake,
@@ -2685,13 +2693,18 @@ if (hit) {
 
     if (hit.tag === "parked-car") {
       this.pushParkedCar(hit, crashSpeedFactor);
-      this.playCollisionSound(crashSpeedFactor);
+      this.playCollisionSound(crashSpeedFactor, transitionSafeImpact);
     } else {
-      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      const options = {
         ...LEVEL1_IMPACT_CUES.collision,
         volume: THREE.MathUtils.lerp(0.42, 0.78, crashSpeedFactor),
         playbackRate: THREE.MathUtils.lerp(0.92, 1.04, crashSpeedFactor)
-      });
+      };
+      if (transitionSafeImpact) {
+        this.game.playTransitionSafeAudioSegment?.(LEVEL1_IMPACT_AUDIO, options);
+      } else {
+        this.audio.playSegment(LEVEL1_IMPACT_AUDIO, options);
+      }
     }
 
     this.impactCooldown = 0.55;
@@ -3584,18 +3597,29 @@ if (hit) {
     }
 
     this.audio.duckMusic({ scale: 0.38, hold: 0.36 });
-    this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+    const transitionSafeImpact = this.condition - impact.damage <= 0;
+    const potholeOptions = {
       ...LEVEL1_IMPACT_CUES.pothole,
       volume: THREE.MathUtils.clamp(0.42 + feedbackScale * 0.38, 0, 0.88),
       playbackRate: THREE.MathUtils.lerp(0.92, 1.05, speedFactor)
-    });
+    };
+    if (transitionSafeImpact) {
+      this.game.playTransitionSafeAudioSegment?.(LEVEL1_IMPACT_AUDIO, potholeOptions);
+    } else {
+      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, potholeOptions);
+    }
 
     if (contactedPothole.userData.isWet) {
-      this.audio.playSegment(LEVEL1_IMPACT_AUDIO, {
+      const puddleOptions = {
         ...LEVEL1_IMPACT_CUES.puddle,
         volume: THREE.MathUtils.clamp(0.28 + speedFactor * 0.42, 0, 0.72),
         playbackRate: THREE.MathUtils.lerp(0.94, 1.06, speedFactor)
-      });
+      };
+      if (transitionSafeImpact) {
+        this.game.playTransitionSafeAudioSegment?.(LEVEL1_IMPACT_AUDIO, puddleOptions);
+      } else {
+        this.audio.playSegment(LEVEL1_IMPACT_AUDIO, puddleOptions);
+      }
     }
 
     const travelDirection =

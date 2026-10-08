@@ -5,11 +5,11 @@ const MIX = Object.freeze({
   sfx: 1
 });
 
+// Gameplay deliberately has no continuous soundtrack. Keeping only the menu
+// preset here makes an accidental `startMusic("levelX")` call a no-op while the
+// retained level tracks remain available as repository/story assets.
 const MUSIC_FILES = {
-  menu: "./assets/audio/music/menu-commute-theme.wav",
-  level1: "./assets/audio/music/level1-dusk-drive.wav",
-  level2: "./assets/audio/music/level2-empire-rush.wav",
-  level3: "./assets/audio/music/level3-dont-get-caught.wav"
+  menu: "./assets/audio/music/menu-commute-theme.wav"
 };
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
@@ -46,23 +46,30 @@ export class LevelAudio {
     this.loops = new Map();
     this.oneShots = new Set();
     this.sampleCache = new Map();
+    this.streamCache = new Map();
     this.bufferCache = new Map();
     this.bufferPromises = new Map();
+    this.preloadAbortController = new AbortController();
     this.tickTimer = 0;
     this.stepTimer = 0;
 
     this.isMuted = false;
     this.musicEnabled = true;
     this.unlockAudio = null;
+    this.disposed = false;
   }
 
   armUnlock() {
     if (this.unlockAudio) return;
     this.unlockAudio = () => {
       this.context?.resume?.().catch(() => {});
-      if (this.musicEnabled && this.music?.paused) this.music.play().catch(() => {});
+      if (!this.isMuted && this.musicEnabled && this.music?.paused) {
+        this.music.play().catch(() => {});
+      }
       for (const loop of this.loops.values()) {
-        if (loop.shouldPlay && loop.element.paused) loop.element.play().catch(() => {});
+        if (!this.isMuted && loop.shouldPlay && loop.element.paused) {
+          loop.element.play().catch(() => {});
+        }
       }
     };
     globalThis.addEventListener?.("pointerdown", this.unlockAudio, { passive: true });
@@ -70,6 +77,7 @@ export class LevelAudio {
   }
 
   ensure() {
+    if (this.disposed) return false;
     if (this.context) return true;
     const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
     if (!AudioContext) return false;
@@ -117,7 +125,7 @@ export class LevelAudio {
 
   preloadMusic(preset) {
     const src = MUSIC_FILES[preset];
-    if (src) this.preload([src]);
+    if (src) this.preloadStreams([src]);
   }
 
   startMusic(preset, { fadeSeconds = 0.55 } = {}) {
@@ -130,7 +138,8 @@ export class LevelAudio {
 
     this.stopMusic({ fadeSeconds: Math.min(0.25, fadeSeconds), reset: true });
 
-    const music = this.createSampleElement(src);
+    const music = this.streamCache.get(src) ?? new Audio(src);
+    this.streamCache.delete(src);
     music.loop = true;
     music.preload = "auto";
     music.volume = 1;
@@ -154,7 +163,7 @@ export class LevelAudio {
       music.volume = MIX.music * musicVolume;
     }
 
-    if (this.musicEnabled) music.play().catch(() => {});
+    if (this.musicEnabled && !this.isMuted) music.play().catch(() => {});
   }
 
   stopMusic({ fadeSeconds = 0.3, reset = true } = {}) {
@@ -199,7 +208,7 @@ export class LevelAudio {
   }
 
   resumeMusic() {
-    if (this.musicEnabled) this.music?.play().catch(() => {});
+    if (this.musicEnabled && !this.isMuted) this.music?.play().catch(() => {});
   }
 
   isMusicPaused() {
@@ -264,7 +273,12 @@ export class LevelAudio {
   }
 
   primeSamplePool(path, targetSize = 1) {
-    if (!path) return;
+    if (
+      !path ||
+      typeof Audio !== "function" ||
+      this.disposed ||
+      this.bufferCache.has(path)
+    ) return;
     const pool = this.sampleCache.get(path) ?? [];
     while (pool.length < targetSize) {
       const audio = new Audio(path);
@@ -277,6 +291,17 @@ export class LevelAudio {
 
   preload(paths = []) {
     for (const path of paths) this.primeSamplePool(path);
+  }
+
+  preloadStreams(paths = []) {
+    if (this.disposed || typeof Audio !== "function") return;
+    for (const path of paths) {
+      if (!path || this.streamCache.has(path)) continue;
+      const audio = new Audio(path);
+      audio.preload = "auto";
+      audio.load?.();
+      this.streamCache.set(path, audio);
+    }
   }
 
   createSampleElement(path) {
@@ -302,10 +327,14 @@ export class LevelAudio {
 
     const promise = (async () => {
       if (!this.ensure() || typeof fetch !== "function") return null;
-      const response = await fetch(path);
+      const response = await fetch(path, {
+        signal: this.preloadAbortController.signal
+      });
       if (!response.ok) return null;
       const bytes = await response.arrayBuffer();
+      if (this.disposed) return null;
       const buffer = await this.context.decodeAudioData(bytes.slice(0));
+      if (this.disposed) return null;
       this.bufferCache.set(path, buffer);
       return buffer;
     })().catch(() => null).finally(() => {
@@ -317,39 +346,26 @@ export class LevelAudio {
   }
 
   async waitForPreload(paths = [], timeoutMs = 1800) {
-    this.preload(paths);
-
-    const metadataReady = Promise.all(paths.map((path) => new Promise((resolve) => {
-      const pool = this.sampleCache.get(path) ?? [];
-      if (pool.some((audio) => audio.readyState >= 1)) {
-        resolve();
-        return;
-      }
-
-      const audio = pool[0];
-      if (!audio) {
-        resolve();
-        return;
-      }
-
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(finish, timeoutMs);
-      audio.addEventListener("loadedmetadata", finish, { once: true });
-      audio.addEventListener("error", finish, { once: true });
-      audio.load?.();
-    })));
-
     const decodedReady = Promise.all(paths.map((path) => this.preloadBuffer(path)));
-    await Promise.race([
-      Promise.all([metadataReady, decodedReady]),
-      new Promise((resolve) => setTimeout(resolve, timeoutMs))
+    let timeout = null;
+    const result = await Promise.race([
+      decodedReady.then((buffers) => ({ timedOut: false, buffers })),
+      new Promise((resolve) => {
+        timeout = setTimeout(() => resolve({ timedOut: true, buffers: [] }), timeoutMs);
+      })
     ]);
+    if (timeout) clearTimeout(timeout);
+
+    // Decode is the timing-accurate path. Only warm media-element fallbacks if
+    // decoding failed or exceeded the bounded level-load wait; otherwise each
+    // short cue would make both a Fetch and a Media request for the same bytes.
+    if (result.timedOut) {
+      this.preload(paths);
+      return;
+    }
+    result.buffers.forEach((buffer, index) => {
+      if (!buffer) this.primeSamplePool(paths[index]);
+    });
   }
 
   playDecoded(path, {
@@ -419,13 +435,14 @@ export class LevelAudio {
 
     const decoded = this.playDecoded(path, { volume, pan, playbackRate, bus });
     if (decoded) return decoded;
+    if (typeof Audio !== "function") return null;
 
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
     if (!this.ensure()) {
       audio.volume = clamp01(volume * soundEffectsVolume);
-      audio.play().catch(() => {});
+      if (!this.isMuted) audio.play().catch(() => {});
       return audio;
     }
 
@@ -476,6 +493,7 @@ export class LevelAudio {
       bus
     });
     if (decoded) return decoded;
+    if (typeof Audio !== "function") return null;
 
     const audio = this.createSampleElement(path);
     audio.preload = "auto";
@@ -548,14 +566,15 @@ export class LevelAudio {
     bus = "ambience",
     startTime = 0
   } = {}) {
-    if (!name || !path) return null;
+    if (!name || !path || typeof Audio !== "function" || this.disposed) return null;
     const existing = this.loops.get(name);
     if (existing) return existing.element;
 
     // Long ambience/engine loops stream from one media element. Do not
     // route them through the short-SFX pool, which intentionally keeps
     // multiple warmed copies for overlapping one-shots.
-    const audio = new Audio(path);
+    const audio = this.streamCache.get(path) ?? new Audio(path);
+    this.streamCache.delete(path);
     audio.loop = true;
     audio.preload = "auto";
     audio.playbackRate = playbackRate;
@@ -600,7 +619,7 @@ export class LevelAudio {
     this.loops.set(name, handle);
 
     const begin = () => {
-      if (!handle.shouldPlay) return;
+      if (!handle.shouldPlay || this.isMuted) return;
       if (startTime > 0) {
         try {
           const maxStart = Number.isFinite(audio.duration) && audio.duration > 0
@@ -665,29 +684,6 @@ export class LevelAudio {
       playbackRate: 0.86 + intensity * 0.34,
       volume: (0.14 + intensity * 0.2) * clamp01(volumeScale)
     });
-  }
-
-  cue(frequency = 440, duration = 0.08, volume = 0.08, pan = 0) {
-    if (!this.ensure() || this.isMuted) return;
-    const oscillator = this.context.createOscillator();
-    const gain = this.context.createGain();
-    const panner = this.context.createStereoPanner?.();
-
-    oscillator.type = "sine";
-    oscillator.frequency.value = frequency;
-    gain.gain.setValueAtTime(volume, this.context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.context.currentTime + duration);
-    oscillator.connect(gain);
-
-    if (panner) {
-      panner.pan.value = Math.max(-1, Math.min(1, pan));
-      gain.connect(panner).connect(this.sfxBus);
-    } else {
-      gain.connect(this.sfxBus);
-    }
-
-    oscillator.start();
-    oscillator.stop(this.context.currentTime + duration);
   }
 
   updateTutorFootsteps(dt, walking, tutorX, playerX, samples = [], distance = null) {
@@ -769,10 +765,23 @@ export class LevelAudio {
   setMuted(muted) {
     this.isMuted = muted;
     this.applyVolumes();
+    if (muted) {
+      this.music?.pause();
+      for (const loop of this.loops.values()) loop.element.pause();
+      return;
+    }
+
+    if (this.musicEnabled) this.music?.play().catch(() => {});
+    for (const loop of this.loops.values()) {
+      if (loop.shouldPlay) loop.element.play().catch(() => {});
+    }
   }
 
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     audioInstances.delete(this);
+    this.preloadAbortController.abort();
     this.stopMusic({ fadeSeconds: 0, reset: true });
     for (const name of [...this.loops.keys()]) this.stopLoop(name);
     for (const handle of [...this.oneShots]) {
@@ -792,6 +801,12 @@ export class LevelAudio {
     }
     this.oneShots.clear();
     this.sampleCache.clear();
+    for (const audio of this.streamCache.values()) {
+      audio.pause();
+      audio.removeAttribute?.("src");
+      audio.load?.();
+    }
+    this.streamCache.clear();
     this.bufferCache.clear();
     this.bufferPromises.clear();
 
