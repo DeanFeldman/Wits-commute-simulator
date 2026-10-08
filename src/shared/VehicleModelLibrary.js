@@ -104,6 +104,39 @@ const prototypeCache = new Map();
 let parkingPackPromise = null;
 let playerCarPrototypePromise = null;
 
+// Opt-in asset inspection for #244. The GitHub file API does not expose
+// the binary GLB here, so report the actual loaded mesh/material metadata
+// from the browser rather than guessing which pieces contain paint.
+// Launch with ?inspectParkingMaterials=1; then copy(window.__parkingMaterialReport).
+function inspectParkingMaterials(scene) {
+  if (typeof window === "undefined"
+      || !new URLSearchParams(window.location.search).has("inspectParkingMaterials")) return;
+  const report = [];
+  scene.traverse((child) => {
+    if (!child.isMesh) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    materials.forEach((material, materialIndex) => {
+      if (!material) return;
+      report.push({
+        mesh: child.name || "(unnamed)",
+        materialIndex,
+        material: material.name || "(unnamed)",
+        color: material.color?.getHexString?.() ?? null,
+        map: material.map?.name || material.map?.image?.src || !!material.map,
+        vertexColors: !!material.vertexColors,
+        transparent: !!material.transparent,
+        metalness: material.metalness ?? null,
+        roughness: material.roughness ?? null,
+        geometryColors: !!child.geometry?.getAttribute?.("color"),
+        geometryMaterialGroups: child.geometry?.groups?.length ?? 0
+      });
+    });
+  });
+  window.__parkingMaterialReport = report;
+  console.info("[#244] Parking pack material report:", report);
+  console.table(report);
+}
+
 function preserveSharedVehicleResources(scene) {
   scene.traverse((child) => {
     if (!child.isMesh) return;
@@ -246,6 +279,7 @@ async function getPrototype(spec, variant) {
             child.receiveShadow = true;
           });
 
+          inspectParkingMaterials(scene);
           preserveSharedVehicleResources(scene);
 
           return scene;
