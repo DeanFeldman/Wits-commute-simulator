@@ -14,7 +14,7 @@ export class SpeechBubbles {
   }
 
   // One bubble per speaker: a new line replaces whatever they were saying.
-  say(target, text, { speaker = "", tone = "neutral", duration = 2.8, height = 1.35 } = {}) {
+  say(target, text, { speaker = "", tone = "neutral", duration = 2.8, height = 1.35, avatarUrl = null } = {}) {
     let bubble = this.bubbles.get(target);
     if (!bubble) {
       const element = document.createElement("div");
@@ -24,6 +24,20 @@ export class SpeechBubbles {
       this.layer.appendChild(element);
       bubble = { element, target, height, life: 0 };
       this.bubbles.set(target, bubble);
+    }
+    // Only branded bubbles opt in to an avatar; Level 2 remains unchanged.
+    let avatar = bubble.element.querySelector(".speech-avatar");
+    if (avatarUrl) {
+      if (!avatar) {
+        avatar = document.createElement("img");
+        avatar.className = "speech-avatar";
+        avatar.alt = "";
+        avatar.decoding = "async";
+        bubble.element.querySelector(".speech-inner").prepend(avatar);
+      }
+      avatar.src = avatarUrl;
+    } else {
+      avatar?.remove();
     }
     bubble.element.dataset.tone = tone;
     bubble.element.querySelector(".speech-speaker").textContent = speaker;
