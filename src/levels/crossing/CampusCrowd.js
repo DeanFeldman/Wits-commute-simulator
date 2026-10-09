@@ -541,6 +541,16 @@ export class CampusCrowd {
   // Post-quiz departure (or settling back after a chase): follow the planned
   // grid route, then stand on that cell (animate's idle branch takes over).
   updateLeaving(person, dt, player) {
+    // Bumped mid-walk: stop, face the player and react, then carry on along
+    // the route. Without this, reactTimer never counts down here, so animate()
+    // keeps the idle pose while followRoute still moves the NPC (it glides).
+    if (person.reactTimer > 0) {
+      person.reactTimer = Math.max(0, person.reactTimer - dt);
+      this.faceTowards(person, person.facePlayer, dt);
+      if (person.reactTimer === 0) person.facePlayer = null;
+      person.moving = false;
+      return;
+    }
     if (!this.followRoute(person, dt, player)) return;
     person.moving = false;
     if (person.leaving) person.chaseArmed = person.surveyCooldown === 0;
