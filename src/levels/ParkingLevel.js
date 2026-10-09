@@ -42,6 +42,8 @@ import { EAST_DIORAMA_CONFIG } from "./parking/EastDiorama.js";
 import { SOUTH_DIORAMA_CONFIG } from "./parking/SouthDiorama.js";
 import { WEST_DIORAMA_CONFIG } from "./parking/WestDiorama.js";
 import { measurePoolCoverage } from "./parking/poolCoverage.js";
+import { SpeechBubbles } from "./crossing/SpeechBubbles.js";
+import { chooseSharkPothole, sharkEmergence, SHARK_TOTAL_SECONDS } from "./parking/witsSharkEncounter.js";
 
 const LEVEL_ONE_ASPHALT_Y = 0.035;
 const WATER_FILLED_FRACTION = 0.35;
@@ -1293,7 +1295,10 @@ export function rigPlayerCarWheels(model) {
 
 export class ParkingLevel {
   constructor(game) {
-    this.potholeSharks = [];
+    this.sharkEncounterUsed = false;
+    this.sharkEncounter = null;
+    this.sharkSpeech = null;
+    this.sharkProjection = new THREE.Vector3();
 
     this.game = game;
     this.name = "Level 1 — Park at Wits";
@@ -1471,6 +1476,7 @@ async load() {
   this.createRoadMarkings();
   const parkedCarsReady = this.createParkedCars();
   await this.loadPotholeShark();
+  this.sharkSpeech = new SpeechBubbles();
   this.createPotholes();
   this.createPotholeSplashSystem();
   this.createParkingWaypoints();
@@ -2145,27 +2151,6 @@ createParkingSurface(potholes = []) {
         water.name =
           `pothole-water-${index}`;
 
-    if (Math.random() < 0.35 && potholeSharkModel) {
-       //if (potholeSharkModel) { 
-        const shark = potholeSharkModel.clone();
-        
-        shark.scale.set(2,2,2);
-        //shark.position.set(0,-1.5,0);
-
-        
-        shark.userData.baseY=-1.5;
-        shark.userData.popY=0.8;
-        shark.userData.floatOffset=Math.random()*10;
-        shark.userData.popped=false;
-        shark.userData.popProgress=0;
-        shark.position.y=-0.6;
-
-        water.add(shark);
-        shark.userData.worldX=x;
-        shark.userData.worldZ=z;
-        this.potholeSharks.push(shark);
-      }
-      
         water.castShadow =
           false;
 
@@ -2579,41 +2564,8 @@ createParkingSurface(potholes = []) {
     this.ensureGameplayAudio();
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
-    this.potholeSharks?.forEach((shark,index)=>{
-      const dx=shark.userData.worldX-this.car.position.x;
-      const dz=shark.userData.worldZ-this.car.position.z;
-      const distance=Math.hypot(dx,dz);
-
-      if(distance<8){
-        shark.userData.popped=true;
-      }else{
-        shark.userData.popped=false;
-      }
-
-      const target=shark.userData.popped?1:0;
-
-      shark.userData.popProgress=THREE.MathUtils.lerp(
-        shark.userData.popProgress,
-        target,
-        dt*5
-      );
-
-      const rise=THREE.MathUtils.lerp(
-        shark.userData.baseY,
-        shark.userData.popY,
-        shark.userData.popProgress
-      );
-
-      const bob=Math.sin(
-        performance.now()*0.01+index
-      )*0.08;
-
-      shark.position.y=rise+bob;
-
-      shark.rotation.y=Math.sin(
-        performance.now()*0.003+index
-      )*0.15;
-    });
+    if (this.completed) return;
+    this.updateSharkEncounter(dt);
 
     if (this.completed) {
       return;
@@ -2718,6 +2670,8 @@ if (hit) {
     this.checkParking(dt);
     this.updateParkingWaypoints(dt);
     this.updateCamera(dt);
+    const canvas = this.game.renderer.domElement;
+    this.sharkSpeech?.update(dt, this.game.camera, canvas.clientWidth, canvas.clientHeight);
 
     const checks = [
       ["Inside bay", this.parkingStatus.containment],
@@ -2742,6 +2696,47 @@ if (hit) {
         reason: "The condition meter hit 0%. Potholes, kerbs and parked cars each take a bite out of it, so you never made the exam.",
         next: "Retry restarts Level 1 with a full condition meter."
       });
+    }
+  }
+
+  updateSharkEncounter(dt) {
+    if (!this.sharkEncounterUsed && potholeSharkModel) {
+      const camera = this.game.camera;
+      const pothole = chooseSharkPothole(
+        this.potholes,
+        this.car.position.x,
+        this.car.position.z,
+        candidate => {
+          this.sharkProjection.set(candidate.position.x, 0.8, candidate.position.z);
+          this.sharkProjection.project(camera);
+          return this.sharkProjection.z > -1 && this.sharkProjection.z < 1 &&
+            Math.abs(this.sharkProjection.x) < 0.78 && Math.abs(this.sharkProjection.y) < 0.75;
+        }
+      );
+      if (pothole) {
+        // Mark consumed on creation, not on disappearance: turning around or
+        // approaching another wet pothole cannot trigger the Easter egg again.
+        this.sharkEncounterUsed = true;
+        const shark = potholeSharkModel.clone();
+        shark.scale.setScalar(2);
+        shark.position.y = -1.5;
+        pothole.userData.waterMesh.add(shark);
+        this.sharkEncounter = { shark, pothole, elapsed: 0 };
+        this.sharkSpeech?.say(shark,
+          "When did Wits add swimming pools to third year parking?",
+          { speaker: "WITS SHARKS", duration: 3.4, height: 1.7,
+            avatarUrl: "./assets/images/wits-sharks-badge.svg", tone: "wits-sharks" });
+      }
+    }
+    const encounter = this.sharkEncounter;
+    if (!encounter) return;
+    encounter.elapsed += dt;
+    const amount = sharkEmergence(encounter.elapsed);
+    encounter.shark.position.y = THREE.MathUtils.lerp(-1.5, 0.8, amount);
+    encounter.shark.rotation.y = Math.sin(encounter.elapsed * 2) * 0.12;
+    if (encounter.elapsed >= SHARK_TOTAL_SECONDS) {
+      encounter.shark.parent?.remove(encounter.shark);
+      this.sharkEncounter = null;
     }
   }
 
@@ -3948,6 +3943,8 @@ if (hit) {
   }
 
   dispose() {
+    this.sharkSpeech?.dispose();
+    this.sharkSpeech = null;
     this.audio.dispose();
     this.controls?.dispose();
     this.viewToggle?.removeEventListener("click", this.onViewToggle);
