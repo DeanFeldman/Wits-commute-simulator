@@ -8,6 +8,7 @@ A three-level browser game built with Three.js and WebGL for
 Group: **Git Push Pray**
 
 Link: https://wmc.ms.wits.ac.za/students/sgroup3883/index.html
+
 ---
 
 ## Game Concept
