@@ -298,6 +298,46 @@ test("survey NPCs run only while chasing and walk away after completion", () => 
   );
 });
 
+test("a survey NPC bumped while walking away stops to react instead of gliding", () => {
+  const animation = { mixer: { update() {} } };
+  const animationStates = [];
+  const animatedFactory = {
+    create() {
+      const mesh = new THREE.Group();
+      mesh.userData.animation = animation;
+      mesh.userData.rig = {};
+      mesh.userData.soleOffset = 0;
+      return mesh;
+    },
+    setMoving(activeAnimation, moving) {
+      animationStates.push(moving);
+    }
+  };
+  const crowd = new CampusCrowd({ root: new THREE.Group(), factory: new PedestrianFactory(), animatedFactory, random: () => 0 });
+  const person = crowd.add({ kind: "psychQuizzer", x: 0, z: 0, yaw: 0 });
+  const player = new THREE.Vector3(0, 0.95, 1.2);
+
+  crowd.update(1 / 60, player);
+  crowd.sendOff(person);
+  assert.ok(person.route.length > 0, "the NPC has somewhere to walk to");
+
+  // Bumped repeatedly during the post-survey walk: while reacting, the NPC
+  // plays its idle pose, so it must also stand still (no gliding).
+  for (let bump = 0; bump < 3; bump++) {
+    crowd.bump(person, player);
+    while (person.reactTimer > 0) {
+      const before = person.mesh.position.clone();
+      crowd.update(1 / 60, player);
+      assert.ok(person.mesh.position.distanceTo(before) < 1e-6, "the NPC stands still while reacting to a bump");
+      if (person.reactTimer > 0) assert.equal(animationStates.at(-1), false, "the reaction uses the idle pose");
+    }
+    for (let frame = 0; frame < 20; frame++) crowd.update(1 / 60, player);
+  }
+
+  for (let frame = 0; frame < 900 && person.leaving; frame++) crowd.update(1 / 60, player);
+  assert.equal(person.leaving, false, "the NPC finishes walking away after reacting");
+});
+
 test("survey NPCs only walk on route cells after a survey or a chase", () => {
   const step = 1.2;
   // Railings beyond |x| > 1.2, a road row at z <= -2.4, a building cell at (0, 2.4).
