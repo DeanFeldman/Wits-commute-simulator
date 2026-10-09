@@ -1757,6 +1757,24 @@ These records resolve the missing generation/authorship history for the two AI-g
 
 ---
 
+## 9 October 2026 — Wits Sharks pothole Easter egg branding
+
+Type: External community-brand reference (circular logo and Instagram-style caption).
+
+Source/credit: **Wits Sharks** — https://www.instagram.com/wits_sharks/ (the account is already linked in the in-game 3D shark model credit).
+
+Files: `public/assets/images/wits-sharks-badge.svg` (a 112 × 112 badge wrapping the supplied circular reference logo).
+
+Used for: One-time Level 1 water-pothole shark speech bubble, showing the attribution **WITS SHARKS** and the caption "When did Wits add swimming pools to third year parking?"
+
+Modified: Yes — reference image converted/embedded in a compact SVG badge for presentation in the game. The 3D shark itself is a separate project-made model credited to Gabriel Raz.
+
+Provided via: Project conversation supplied the logo and caption; the exact Instagram story containing the caption has **not** been independently checked.
+
+Permission status: **Needs confirmation** before final redistribution. Crediting the original Instagram account does not by itself establish a licence to reuse its logo. Confirm approval/usage terms or replace with an original project-made badge if necessary.
+
+---
+
 ## Final rule
 
 Issue #245 remains open. Before it can close, the final production asset set must
