@@ -57,7 +57,7 @@ def add_card(head, sub, seconds):
           f"drawbox=x=270:y=715:w=1380:h=7:color=0xfcc647:t=fill,"
           f"drawtext={txt}:text='{esc(head)}':fontsize=108:y=365,"
           f"drawtext={txt}:text='{esc(sub)}':fontsize=39:y=575,"
-          f"fade=t=in:st=0:d=.2,fade=t=out:st={seconds-.25}:d=.25[v{i}]")
+          f"fade=t=in:st=0:d=0.2,fade=t=out:st={seconds-.25}:d=0.25[v{i}]")
     filt.extend([vf, f"anullsrc=r=44100:cl=stereo,atrim=duration={seconds},asetpts=PTS-STARTPTS[a{i}]"])
     tracks.append(i); lengths.append(seconds)
 
@@ -66,7 +66,7 @@ def add_shot(fi, start, speed):
     base = (f"[{fi}:v:0]trim=start={start:.3f}:duration={dur:.3f},setpts=(PTS-STARTPTS)/{speed:.3f},"
             f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},"
             f"format=yuv420p,eq=contrast=1.06:saturation=1.08,"
-            f"fade=t=in:st=0:d=.12,fade=t=out:st={SHOT-.12}:d=.12[v{i}]")
+            f"fade=t=in:st=0:d=0.12,fade=t=out:st={SHOT-.12}:d=0.12[v{i}]")
     if details[fi][1]:
         aud = (f"[{fi}:a:0]atrim=start={start:.3f}:duration={dur:.3f},asetpts=PTS-STARTPTS,"
                f"atempo={speed:.3f},aresample=44100,aformat=channel_layouts=stereo,"
@@ -108,7 +108,7 @@ filt.extend([f"{chain}concat=n={len(tracks)}:v=1:a=1[vconcat][gameaudio]",
              "[gameaudio]volume=.40[game]",
              f"[{len(files)}:a:0]atrim=duration={total},asetpts=PTS-STARTPTS,aresample=44100,aformat=channel_layouts=stereo,volume=.80[music]",
              f"[game][music]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=.93,"
-             f"afade=t=in:st=0:d=.5,afade=t=out:st={total-1.8}:d=1.8[outaudio]"])
+             f"afade=t=in:st=0:d=0.5,afade=t=out:st={total-1.8}:d=1.8[outaudio]"])
 print(f"Rendering {total:.1f}s trailer from {len(files)} recording(s)...", flush=True)
 run(["ffmpeg", "-hide_banner", "-y", *inputs, "-filter_complex", ";".join(filt),
      "-map", "[vconcat]", "-map", "[outaudio]", "-t", str(total),
