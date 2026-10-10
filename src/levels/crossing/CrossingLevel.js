@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { disposeObject3D } from "../../shared/disposeObject3D.js";
 import { CollisionWorld } from "../../shared/CollisionWorld.js";
 import { GridHopController } from "./GridHopController.js";
+import { PlayerRagdoll, RAGDOLL_DURATION } from "./PlayerRagdoll.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
 import { createWitsTerrain } from "./WitsTerrain.js";
 import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
@@ -171,6 +172,8 @@ export class CrossingLevel {
     this.bumpCooldown = 0;
     this.routeMessageCooldown = 0;
     this.pendingRespawn = null;
+    this.playerRagdoll = null;
+    this.pendingFatalImpact = false;
     this.level2PlayerSpawn = null;
     this.cameraPositionTarget = new THREE.Vector3();
     this.cameraLookTarget = new THREE.Vector3();
@@ -251,6 +254,8 @@ export class CrossingLevel {
     this.surveyConversation = null;
     this.aura = null;
     this.shieldBubble = null;
+    this.frostOverlay = null;
+    this.frostFadeInElapsed = 0;
 
     this.startZ = 0;
     this.finishZ = 0;
@@ -261,6 +266,7 @@ export class CrossingLevel {
     this.tutorialPose = null;
   }
   async load() {
+    this.frostOverlay = document.querySelector("#level2-frost-overlay");
     await Promise.all([
       this.audio.waitForPreload([
         LEVEL2_VEHICLE_IMPACT_AUDIO,
@@ -1128,6 +1134,19 @@ export class CrossingLevel {
 
     this.updateInvulnerability(dt);
     this.updateImpact(dt);
+    if (this.completed) return;
+    if (this.playerRagdoll) {
+      // Grid movement, pickups and NPC interactions resume at the checkpoint.
+      this.crossingTime += dt;
+      this.powerUps.update(dt);
+      this.updateFrostOverlay(dt);
+      this.updateTraffic(dt * this.powerUps.trafficScale);
+      this.crowd.update(dt * this.powerUps.trafficScale, this.player.position);
+      this.updateCamera(dt);
+      this.updateSpeech(dt);
+      this.updateHUD();
+      return;
+    }
     this.crossingTime += dt;
     this.bumpCooldown = Math.max(0, this.bumpCooldown - dt);
     this.routeMessageCooldown = Math.max(0, this.routeMessageCooldown - dt);
@@ -1144,7 +1163,7 @@ export class CrossingLevel {
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
-    this.crowd.update(dt, this.player.position);
+    this.crowd.update(dt * this.powerUps.trafficScale, this.player.position);
     this.handleChaseCatches();
     this.checkCollisions();
     this.updatePlayerEffects(dt);
@@ -1520,7 +1539,22 @@ export class CrossingLevel {
     });
   }
 
+  updateFrostOverlay(dt) {
+    if (!this.frostOverlay) return;
+    const remaining = this.powerUps.timers.icedLatte;
+    this.frostFadeInElapsed = remaining > 0 ? this.frostFadeInElapsed + dt : 0;
+    // One second to frost over; thaw during the final 1.2 seconds.
+    // Refreshing the collectible extends the effect without restarting the fade.
+    const opacity = Math.min(
+      THREE.MathUtils.smoothstep(this.frostFadeInElapsed, 0, 1),
+      THREE.MathUtils.smoothstep(remaining, 0, 1.2)
+    );
+    this.frostOverlay.style.opacity = String(opacity);
+    this.frostOverlay.style.visibility = opacity > 0 ? "visible" : "hidden";
+  }
+
   updatePlayerEffects(dt) {
+    this.updateFrostOverlay(dt);
     const time = this.playerAnimationTime;
     const timed = this.powerUps.active.filter((effect) => effect.type.duration > 0);
     this.aura.visible = timed.length > 0;
@@ -1576,7 +1610,7 @@ checkFinish() {
       if (!playerBox.intersectsBox(vehicleBox)) continue;
       this.impactCount += 1;
       if (this.powerUps.consumeShield()) this.saveWithShield(vehicle.isTaxi);
-      else this.failAtCheckpoint(vehicle.isTaxi);
+      else this.failAtCheckpoint(vehicle.isTaxi, vehicle);
       return;
     }
   }
@@ -1640,7 +1674,7 @@ checkFinish() {
     return distance > 4.5 ? "Next gap: GO" : "Next gap: WAIT";
   }
 
-  failAtCheckpoint(wasTaxi) {
+  failAtCheckpoint(wasTaxi, vehicle) {
     this.attempts += 1;
     this.game.flashHUD();
 
@@ -1662,29 +1696,49 @@ checkFinish() {
       this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
     }
 
-    if (fatalImpact) {
-      this.game.setCheckpoint("start");
-      this.game.failLevel({
-        title: "Too many impacts",
-        reason: `You were hit ${MAX_LEVEL_2_ATTEMPTS} times while crossing Yale Road.`,
-        next: "Retry restarts Level 2 from the beginning."
-      });
-      return;
-    }
-
+    this.pendingFatalImpact = fatalImpact;
     this.pendingRespawn = { x: this.checkpoint.x, y: PLAYER_Y, z: this.checkpoint.z };
-    this.impactTimer = 0.58;
+    this.playerRagdoll = new PlayerRagdoll(this.player, this.playerMixer);
+    this.playerRagdoll.launch(vehicle);
+    this.impactTimer = RAGDOLL_DURATION;
     this.cameraShakeTime = 0.34;
     this.cameraShakeStrength = 1;
-    this.invulnerabilityTimer = 0.9;
-    this.hopController.delay(this.impactTimer);
+    this.invulnerabilityTimer = RAGDOLL_DURATION + 0.9;
+    // Cancel a mid-step before the ragdoll takes over the player transform.
+    this.hopController.reset(this.player.position);
+    this.hopController.setHeldDirection(null);
+    this.game.input.clearTransientState();
+    this.aura.visible = false;
+    this.shieldBubble.visible = false;
   }
 
   updateImpact(dt) {
     if (this.impactTimer <= 0) return;
-    this.impactTimer = Math.max(0, this.impactTimer - dt);
+    if (this.playerRagdoll) {
+      const finished = this.playerRagdoll.update(dt);
+      this.impactTimer = Math.max(0, RAGDOLL_DURATION - this.playerRagdoll.elapsed);
+      if (!finished) return;
+      this.game.input.clearTransientState();
+      if (this.pendingFatalImpact) {
+        this.pendingFatalImpact = false;
+        this.pendingRespawn = null;
+        this.completed = true;
+        this.game.setCheckpoint("start");
+        this.game.failLevel({
+          title: "Too many impacts",
+          reason: "You were hit " + MAX_LEVEL_2_ATTEMPTS + " times while crossing Yale Road.",
+          next: "Retry restarts Level 2 from the beginning."
+        });
+        return;
+      }
+      this.playerRagdoll.restore();
+      this.playerRagdoll = null;
+    } else {
+      this.impactTimer = Math.max(0, this.impactTimer - dt);
+    }
     if (this.impactTimer === 0 && this.pendingRespawn) {
       this.hopController.reset(this.pendingRespawn);
+      this.player.rotation.set(0, Math.PI, 0);
       this.hopController.targetYaw = Math.PI;
       this.pendingRespawn = null;
     }
@@ -1723,6 +1777,10 @@ checkFinish() {
   }
 
   dispose() {
+    if (this.frostOverlay) {
+      this.frostOverlay.style.opacity = "0";
+      this.frostOverlay.style.visibility = "hidden";
+    }
     this.audio.dispose();
     this.controls?.dispose();
     this.speech?.dispose();
@@ -1759,6 +1817,8 @@ checkFinish() {
       this.walkableToggle.textContent = "Show walkable area";
       this.walkableToggle.setAttribute("aria-pressed", "false");
     }
+    this.playerRagdoll?.restore();
+    this.playerRagdoll = null;
     this.playerMixer?.stopAllAction();
     for (const visual of this.playerModelCache.values()) visual.userData.animation?.mixer.stopAllAction();
     for (const visual of this.characterPreviewModels.values()) visual.userData.animation?.mixer.stopAllAction();

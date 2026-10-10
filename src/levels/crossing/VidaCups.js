@@ -6,7 +6,7 @@ import * as THREE from "three";
 // gameplay effect:
 // - flatWhite:  route collectible only
 // - doubleShot: walk faster for a few seconds
-// - icedLatte:  traffic slows down for a few seconds
+// - icedLatte:  traffic and the campus crowd slow down for a few seconds
 // - shield:     the next vehicle hit knocks you over instead of sending you back
 export const CUP_TYPES = Object.freeze({
   flatWhite: Object.freeze({
@@ -19,7 +19,7 @@ export const CUP_TYPES = Object.freeze({
   }),
   icedLatte: Object.freeze({
     id: "icedLatte", label: "Iced Latte", sleeve: "#3a86c8", ink: "#eaf7ff", glow: 0x8fdcff,
-    duration: 5, trafficScale: 0.4, blurb: "Chill: traffic slows down"
+    duration: 5, trafficScale: 0.4, blurb: "Chill: cars and students slow down"
   }),
   shield: Object.freeze({
     id: "shield", label: "Red Cappuccino", sleeve: "#d9a526", ink: "#3b1d05", glow: 0xffd257,

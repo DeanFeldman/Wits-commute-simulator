@@ -137,6 +137,7 @@ export class Game {
       levelTwo: "Digit2",
       levelThree: "Digit3",
       restart: "KeyR", // Ctrl modifier is required in updateGlobalControls().
+      developerTools: "BracketLeft",
       debugColliders: "F3"
     });
 
@@ -180,6 +181,8 @@ export class Game {
     this.animationFrameId = null;
     this.transitionTimer = null;
     this.collisionDebug = false;
+    this.developerToolsVisible = false;
+    document.body.classList.remove("developer-tools-visible");
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.journeyLevelResults = new Map();
@@ -594,6 +597,7 @@ export class Game {
       return;
     }
 
+    this.setDeveloperToolsVisible(this.developerToolsVisible);
     this.levelNameElement.textContent = level.name;
     level.audio?.setMusicEnabled?.(this.isMusicEnabled);
     level.audio?.setMuted?.(this.isSoundMuted);
@@ -1166,7 +1170,24 @@ export class Game {
     this.messageElement.classList.toggle("hidden", text.length === 0);
   }
 
+  setDeveloperToolsVisible(visible) {
+    this.developerToolsVisible = visible;
+    document.body.classList.toggle("developer-tools-visible", visible);
+
+    // Levels own their controls; only reveal the active level's panel.
+    const level = this.currentLevel;
+    if (level?.devToggle) {
+      level.devToggle.hidden = !visible;
+      level.devToggle.setAttribute("aria-expanded", String(visible));
+    }
+    if (level?.devMenu) level.devMenu.hidden = !visible;
+  }
+
   updateGlobalControls() {
+    if (this.globalControls.wasPressed("developerTools")) {
+      this.setDeveloperToolsVisible(!this.developerToolsVisible);
+    }
+
     if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
