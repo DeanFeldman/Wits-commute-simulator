@@ -131,7 +131,9 @@ def main():
              "-t", str(total), "-movflags", "+faststart", str(finished)])
         d, _ = probe(finished)
         if d < total - 1: sys.exit(f"Trailer validation failed: output only {d:.1f}s")
-        os.replace(finished, OUT)
+        staging = OUT.with_name(OUT.stem + ".rendering.mp4")
+        shutil.copy2(finished, staging)
+        os.replace(staging, OUT)
     print(f"FINISHED: {OUT} ({OUT.stat().st_size / 1e6:.1f} MB)", flush=True)
 
 if __name__ == "__main__":
