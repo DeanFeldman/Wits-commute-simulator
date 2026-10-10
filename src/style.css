@@ -3328,3 +3328,23 @@ body.graphics-effects-off #level2-vignette {
   pointer-events: none;
   z-index: 9;
 }
+
+/* Double Shot streaks stay at the edges, below HUD and menus. */
+#level2-double-shot-effect {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 9;
+}
+.double-shot-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0;
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform, opacity;
+}

@@ -3,6 +3,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { disposeObject3D } from "../../shared/disposeObject3D.js";
 import { CollisionWorld } from "../../shared/CollisionWorld.js";
+import { DoubleShotScreenEffect } from "../../ui/DoubleShotScreenEffect.js";
 import { GridHopController } from "./GridHopController.js";
 import { PlayerRagdoll, RAGDOLL_DURATION } from "./PlayerRagdoll.js";
 import { LevelAudio } from "../../shared/LevelAudio.js";
@@ -256,6 +257,7 @@ export class CrossingLevel {
     this.shieldBubble = null;
     this.frostOverlay = null;
     this.frostFadeInElapsed = 0;
+    this.doubleShotScreenEffect = null;
 
     this.startZ = 0;
     this.finishZ = 0;
@@ -267,6 +269,7 @@ export class CrossingLevel {
   }
   async load() {
     this.frostOverlay = document.querySelector("#level2-frost-overlay");
+    this.doubleShotScreenEffect = new DoubleShotScreenEffect(document.querySelector("#level2-double-shot-effect"));
     await Promise.all([
       this.audio.waitForPreload([
         LEVEL2_VEHICLE_IMPACT_AUDIO,
@@ -1527,6 +1530,7 @@ export class CrossingLevel {
     const cup = this.cups.collectNear(this.player.position);
     if (!cup) return;
     const type = this.powerUps.apply(cup.type.id);
+    if (type.id === "doubleShot") this.doubleShotScreenEffect?.activate();
     this.celebrateTimer = 0.55;
     const color = `#${type.glow.toString(16).padStart(6, "0")}`;
     this.speech.popup(cup.mesh.position, `+ ${type.label}`, color);
@@ -1540,6 +1544,7 @@ export class CrossingLevel {
   }
 
   updateFrostOverlay(dt) {
+    this.doubleShotScreenEffect?.update(dt, this.powerUps.timers.doubleShot);
     if (!this.frostOverlay) return;
     const remaining = this.powerUps.timers.icedLatte;
     this.frostFadeInElapsed = remaining > 0 ? this.frostFadeInElapsed + dt : 0;
@@ -1777,6 +1782,7 @@ checkFinish() {
   }
 
   dispose() {
+    this.doubleShotScreenEffect?.dispose();
     if (this.frostOverlay) {
       this.frostOverlay.style.opacity = "0";
       this.frostOverlay.style.visibility = "hidden";
