@@ -39,6 +39,7 @@ def beat(path, seconds):
 if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
     sys.exit("Install FFmpeg first: sudo apt update && sudo apt install -y ffmpeg fonts-dejavu-core")
 files = [Path(x) for x in sys.argv[1:]] or sorted(p for p in Path(".").glob("*.mp4") if p.name != OUT.name)
+if len(files) > 2 and len(sys.argv) == 1: sys.exit("Multiple videos found. Pass gameplay filenames explicitly to avoid unrelated videos.")
 files = files[:3]
 if not files: sys.exit("Place your gameplay MP4s in this folder, or pass their paths as arguments.")
 details = [probe(f) for f in files]
