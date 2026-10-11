@@ -1,6 +1,6 @@
 const CC_BY_4 = "CC BY 4.0";
 const CC0 = "CC0 (public domain)";
-const GENERATED = "AI-generated / AI-assisted; no third-party licence attaches";
+const GENERATED = "AI-generated / AI-assisted project output (generation process documented; third-party inputs, if any, require separate clearance)";
 
 /**
  * Concise in-game counterpart of docs/ASSETS_AND_CREDITS.md.
@@ -56,7 +56,7 @@ export const CREDITS = [
         url: "https://sketchfab.com/3d-models/whiteboard-d0b05bd140734a799666f0a29e1fe1bb"
       },
       {
-        name: "Plastic Chair (retained asset)",
+        name: "Plastic Chair (retained public asset)",
         detail: `Jazavac — ${CC_BY_4}. plastic-chair.glb remains in the distributed public asset folder, although current Level 3 code loads classroom-plastic-chair.glb instead.`,
         url: "https://sketchfab.com/3d-models/plastic-chair-be3d5131e634424e89ffd57ebb19804e"
       },
@@ -200,12 +200,30 @@ export const CREDITS = [
     heading: "Pending provenance before final submission",
     entries: [
       {
-        name: "Level 1 recorded audio",
-        detail: "The old undocumented Level 1 crash/collision/door/idle files have been replaced or retired. Current runtime Level 1 audio has source records in the Sound effects section."
+        name: "Retired Level 1 audio (historical)",
+        detail: "The old crash/collision/door/idle files are absent from the current public asset tree. Current Level 1 cues have separate source records above; this is not a current missing-licence item."
+      },
+      {
+        name: "Unverified UI/menu and stopwatch artwork",
+        detail: "The At Wits End logo, main-menu-v3 background, Level 2 story screen, suspicion meter, six selected/unselected menu-button art files, and the Level 3 stopwatch base/hand images are shipped but still require team-authorship, AI-generation or third-party source/licence records. See the 11 October 2026 audit in docs/ASSETS_AND_CREDITS.md."
+      },
+      {
+        name: "Retained and unreferenced public assets",
+        detail: "Some former music and sound assets remain distributed despite no current direct gameplay/audio references. They require a final source/permission or removal check and must not be described as active gameplay."
+      },
+      {
+        name: "Level 2 crossing signal licence",
+        detail: "MacFerret_20 on Freesound (231936) is source/author-identified; the licence for this exact sound remains unverified.",
+        url: "https://freesound.org/people/MacFerret_20/sounds/231936/"
+      },
+      {
+        name: "Wits Sharks reused logo",
+        detail: "The Level 1 Wits Sharks badge includes an adapted third-party logo. Attribution is recorded above but reuse permission is still not verified.",
+        url: "https://www.instagram.com/wits_sharks/"
       },
       {
         name: "Pencil Pete trial font",
-        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit clearance or replacement.",
+        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit embedding and redistribution permission or replacement; publisher trial terms prohibit embedding.",
         url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {
