@@ -224,10 +224,11 @@ Source identified, but **redistribution clearance still required before submissi
 
 ## Models
 
-> **Attribution notice.** Every model below is CC BY 4.0. That licence *requires*
-> visible credit to the author wherever the work is distributed. Author, licence
-> and source URL for each are also embedded in the `.glb` files themselves
-> (`asset.extras`), which is where the details below were read from.
+> **Attribution notice.** The five imported Sketchfab models immediately below
+> are documented as CC BY 4.0 and require attribution when redistributed. Their
+> author, licence and source were recorded from the GLBs' metadata. The later
+> **Diesel Powered Thomas reference** is a separate reference/proxy entry; do not
+> assume it is one of the five shipped CC BY model meshes.
 
 ### Whiteboard
 
@@ -269,7 +270,9 @@ Licence:
 CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 Used for:
-Level 3 classroom — student seating at every desk.
+Retained under the distributed public assets, but the current Level 3 code loads
+`classroom-plastic-chair.glb` instead. Do not carry this asset's provenance over
+to the replacement without confirming their relationship.
 
 File:
 `public/assets/models/props/plastic-chair.glb`
@@ -1781,3 +1784,134 @@ Issue #245 remains open. Before it can close, the final production asset set mus
 be frozen, every unresolved item above must either gain a truthful source/licence
 or team-authorship record or be removed/replaced, and the final LAMP build must be
 checked against this ledger.
+
+
+---
+
+# 11 October 2026 — Current-main re-audit for Issue #245
+
+This is a **new snapshot**, not a claim that the project is ready for final
+submission. Earlier 7 October findings above are historical and may include
+assets since removed or source records since resolved.
+
+## Verification boundary
+
+- Examined the GitHub \`main\` tree (tree SHA
+  \`f058d41245bf1599d49f73c1a30966132823bd03\`) and the live
+  \`docs/ASSETS_AND_CREDITS.md\` and \`src/shared/creditsRegistry.js\`.
+- Identified **101 public asset payloads** under \`public/assets/\`,
+  excluding \`.gitkeep\` and the three car-library metadata files
+  (\`README.md\`, \`car-library-manifest.json\`, \`conversion-report.tsv\`).
+  Assets retained in \`public/\` can still be copied into the production
+  distribution even when JavaScript no longer requests them.
+- Cross-checked the UI, audio and most level/asset-loading source files for
+  explicit asset references. This is a **static source/tree audit**; indirect
+  dynamic references, metadata inside every binary, actual browser rendering,
+  and the final LAMP deployment still require independent verification.
+- The full current asset inventory is the Git tree; this appendix records
+  **credit gaps and action owners**, not invented provenance records.
+
+## Corrections to earlier status
+
+- **Resolved:** the old \`car-crash.mp3\`, \`car-door-shut.mp3\`,
+  \`idle-car.wav\` and \`collision-hit.mp3\` files are no longer in the
+  current \`public/assets/\` tree. Their replacement Level 1 cues have
+  source/author/licence records in the sound-effects section above.
+- **Resolved as attribution:** the Diesel Thomas proxy reference, Wits shark
+  GLB authorship, four foliage packs, and Dean's generated main menu and
+  Level 3 story images are already recorded. Attribution is distinct from
+  permission to reproduce any separate borrowed artwork.
+- **Corrected:** \`plastic-chair.glb\` is an attributable **retained** file,
+  not proof that \`classroom-plastic-chair.glb\` is cleared. Likewise the
+  project-created \`cartoon-desk.glb\` does not establish provenance for
+  \`classroom-desk.glb\`.
+- **Retained not used:** \`audio/shared/result-sprite.opus\`, the
+  non-menu level soundtrack WAVs, and \`audio/level2/paper-sprite.opus\`
+  appear in the public tree but are not direct references in the audited
+  gameplay/audio code. \`paper-sprite.opus\` has a source record; verify the
+  origin of any remaining retired composite before keeping it in a release.
+  Source retention is not the same thing as active gameplay use.
+
+## Confirmed additional UI artwork gap
+
+The 7 October list identified the logo, \`main-menu-v3-background.png\`,
+Level 2 story image and suspicion-meter artwork. The 11 October source pass
+also found **eight more directly referenced UI payloads** missing individual
+generation/source records:
+
+| Runtime asset | Confirmed consumer | Required evidence |
+| --- | --- | --- |
+| \`images/ui/begin-journey-selected.png\` | \`index.html\` | Origin/creator, licence or generation record |
+| \`images/ui/begin-journey-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/credits-selected.png\` | \`index.html\` | Same |
+| \`images/ui/credits-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/settings-selected.png\` | \`index.html\` | Same |
+| \`images/ui/settings-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/level3-stopwatch-base.png\` | \`src/levels/CheatingLevel.js\` | Same |
+| \`images/ui/level3-stopwatch-hand.png\` | \`src/levels/CheatingLevel.js\` | Same |
+
+The **four previously identified unresolved UI files** are:
+\`images/ui/at-wits-end-logo-v2.png\`,
+\`images/ui/main-menu-v3-background.png\`,
+\`images/ui/level2-story-loading-screen.png\`, and
+\`images/ui/suspicion-meter.png\`.
+For all 12, the responsible asset contributor should state whether the file
+is team-made, AI-generated (tool and prompt-direction credit), or sourced
+from a third party (author, URL and licence), with supporting records. Do
+**not** infer licence from the surrounding asset's credit.
+
+## Outstanding distribution and permissions blockers
+
+1. **Pencil Pete trial font** — \`fonts/pencil-pete-trial.ttf\` is referenced
+   in Level 3. JOEBOB graphics' public FAQ says trial fonts cannot be embedded
+   and the 1001 Fonts listing calls this personal-use only. Merely
+   attributing it is not clearance. Replace with a properly licensed
+   handwriting typeface or obtain explicit permission to embed/redistribute
+   the file. Sources:
+   https://www.joebobgraphics.com/faq/ and
+   https://www.1001fonts.com/pencilpete-font-font.html .
+2. **Edited third-party image textures** —
+   \`textures/parking/east-precast-wall-texture.jpg\`,
+   \`textures/road/amic-fence.png\`,
+   \`textures/road/amic-fence-reference.png\`, and
+   \`textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png\`
+   have source attribution but no confirmed adaptation and redistribution
+   permission. Replace them or obtain permission. Google Images is not a
+   licence.
+3. **Wits Sharks badge** — \`images/wits-sharks-badge.svg\` is directly
+   referenced in \`ParkingLevel.js\` and contains adapted external branding.
+   Permission to reproduce the supplied logo is not yet evidenced. This is
+   separate from the project-created Wits shark GLB, whose authorship is
+   recorded.
+4. **Level 2 crossing-signal** — \`audio/level2/crossing-signal.opus\`
+   source and author are known (MacFerret_20, Freesound 231936), but its
+   exact recording-specific licence has not been verified. Do not assign
+   an inferred licence.
+5. **Environment / models** — the four
+   \`textures/ground/stylized-grass-*.png\` files, Level 2 backpack,
+   NPC and player GLB/FBX rigs/animations, Level 3 tutor and seated-student
+   GLB/FBX assets, and \`models/props/classroom-desk.glb\` and
+   \`models/props/classroom-plastic-chair.glb\` retain their
+   source/licence or project-authorship questions as recorded above.
+6. **Retained assets** — remove unused payloads once the final set is frozen,
+   including any retired audio that is not supported by a provenance record.
+   Do not mark removal complete without checking that no indirect runtime
+   reference remains.
+
+## Final verification still blocked
+
+- [ ] Obtain the missing **source/licence or authorship/generation** evidence
+      from the relevant team contributors; do not silently mark assets cleared.
+- [ ] Replace/remove resources whose distribution rights cannot be confirmed.
+- [ ] Re-check all **final** \`public/assets/\` paths and runtime references,
+      with a second team member independently reviewing this ledger.
+- [ ] Verify the complete Credits screen is accessible, legible, and scrollable
+      on the actual final build, including small screens.
+- [ ] Run the final production build, deploy on Wits LAMP, and verify that
+      distributed assets and visible Credits match this register.
+- [ ] Once frozen, separate **active** and **retained/historical** credits so
+      no unused item is represented as active gameplay.
+
+**Issue #245 remains open.** This appendix reflects documentation/registry
+audit fixes only; it does not certify external licence permissions or LAMP
+testing.
