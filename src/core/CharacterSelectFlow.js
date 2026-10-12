@@ -334,8 +334,11 @@ export class CharacterSelectFlow {
         scene.add(visual);
         try {
           renderer.render(scene, camera);
-          canvas.getContext("2d")?.drawImage(this.previewCanvas, 0, 0, 96, 96);
-          canvas.hidden = false;
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.drawImage(this.previewCanvas, 0, 0, 96, 96);
+            canvas.hidden = false;
+          }
         } finally {
           scene.remove(visual);
         }
