@@ -80,7 +80,7 @@ export class CharacterSelectFlow {
 
             <div class="character-start__identity">
               <span data-character-start-code>01 / 06</span>
-              <strong data-character-start-name>Thabo</strong>
+              <strong data-character-start-name>Luca</strong>
               <small>WITS STUDENT</small>
             </div>
 
