@@ -6,7 +6,7 @@ test("character selection has six distinct names without gender-number labels", 
   assert.equal(STUDENT_MODEL_VARIANTS.length, 6);
   assert.equal(new Set(STUDENT_DISPLAY_NAMES).size, 6);
   assert.deepEqual(STUDENT_MODEL_VARIANTS.map((student) => student.label), STUDENT_DISPLAY_NAMES);
-  assert.ok(STUDENT_MODEL_VARIANTS.every((student) => !/^(male|female)\\s*\\d+$/i.test(student.label)));
+  assert.ok(STUDENT_MODEL_VARIANTS.every((student) => !/^(male|female)\s*\d+$/i.test(student.label)));
 });
 
 test("renaming player options does not change existing model ids or order", () => {
