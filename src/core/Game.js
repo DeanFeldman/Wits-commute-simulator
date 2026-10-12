@@ -425,6 +425,9 @@ export class Game {
 
     this.loadVersion += 1;
     this.disposeCurrentLevel();
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "results";
