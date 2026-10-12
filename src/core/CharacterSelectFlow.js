@@ -12,12 +12,6 @@ function clampVariant(index) {
     : DEFAULT_PLAYER_VARIANT;
 }
 
-function displayLabel(label) {
-  return String(label ?? "")
-    .replace(/([A-Za-z])(\d)/g, "$1 $2")
-    .trim();
-}
-
 export class CharacterSelectFlow {
   constructor({ onContinue, onBack } = {}) {
     this.onContinue = onContinue;
@@ -85,8 +79,8 @@ export class CharacterSelectFlow {
             ></canvas>
 
             <div class="character-start__identity">
-              <span data-character-start-code>M-01</span>
-              <strong data-character-start-name>Male 1</strong>
+              <span data-character-start-code>01 / 06</span>
+              <strong data-character-start-name>Neo</strong>
               <small>WITS STUDENT</small>
             </div>
 
@@ -266,6 +260,9 @@ export class CharacterSelectFlow {
         this.factoryReady = true;
         this.factoryError = null;
         this.previewStatus.textContent = "";
+        try { this.renderPortraits(); } catch (error) {
+          console.warn("Could not render character portraits; keeping numbered choices.", error);
+        }
       })
       .catch((error) => {
         this.factoryError = error;
@@ -291,16 +288,66 @@ export class CharacterSelectFlow {
         );
         button.setAttribute("aria-pressed", "false");
 
+        const portrait = document.createElement("canvas");
+        portrait.className = "character-start__portrait";
+        portrait.width = portrait.height = 96;
+        portrait.hidden = true;
+        portrait.setAttribute("aria-hidden", "true");
+
         const name = document.createElement("strong");
-        name.textContent = displayLabel(variant.label);
+        name.textContent = variant.label;
 
         const type = document.createElement("small");
-        type.textContent = index < 3 ? "Male student" : "Female student";
+        type.textContent = "Wits student";
 
-        button.append(name, type);
+        button.append(portrait, name, type);
         return button;
       })
     );
+  }
+
+  renderPortraits() {
+    const renderer = this.previewRenderer, scene = this.previewScene, camera = this.previewCamera;
+    const size = renderer.getSize(new THREE.Vector2());
+    const position = camera.position.clone(), rotation = camera.quaternion.clone(), aspect = camera.aspect;
+    const current = this.previewVisual;
+    if (current) scene.remove(current);
+    try {
+      renderer.setSize(96, 96, false);
+      camera.aspect = 1;
+      camera.position.set(0, 1.38, 2.75);
+      camera.lookAt(0, 1.35, 0);
+      camera.updateProjectionMatrix();
+      for (let index = 0; index < STUDENT_MODEL_VARIANTS.length; index += 1) {
+        const canvas = this.optionsElement.querySelector(`[data-character-variant="${index}"] canvas`);
+        if (!canvas) continue;
+        let visual = this.previewModels.get(index);
+        if (!visual) {
+          visual = this.factory.create({ variant: index });
+          visual.rotation.y = 0;
+          this.previewModels.set(index, visual);
+        }
+        const animation = visual.userData.animation;
+        animation.mixer.stopAllAction();
+        animation.selection.reset().play();
+        animation.mixer.update(0.15);
+        scene.add(visual);
+        try {
+          renderer.render(scene, camera);
+          canvas.getContext("2d")?.drawImage(this.previewCanvas, 0, 0, 96, 96);
+          canvas.hidden = false;
+        } finally {
+          scene.remove(visual);
+        }
+      }
+    } finally {
+      camera.position.copy(position);
+      camera.quaternion.copy(rotation);
+      camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      renderer.setSize(size.x, size.y, false);
+      if (current) scene.add(current);
+    }
   }
 
   async showCharacterPreview(variant) {
@@ -352,10 +399,8 @@ export class CharacterSelectFlow {
       button.setAttribute("aria-pressed", String(selected));
     }
 
-    const label = displayLabel(definition.label);
-    const code = `${this.pendingVariant < 3 ? "M" : "F"}-${String(
-      (this.pendingVariant % 3) + 1
-    ).padStart(2, "0")}`;
+    const label = definition.label;
+    const code = `${String(this.pendingVariant + 1).padStart(2, "0")} / ${String(STUDENT_MODEL_VARIANTS.length).padStart(2, "0")}`;
 
     this.selectionElement.textContent = `Selected: ${label}`;
     this.nameElement.textContent = label;
