@@ -1055,21 +1055,21 @@ function createMainParkingBoundary(root, collisionWorld) {
   }
 }
 
-// Throat of asphalt joining the campus road to the lot. It overlaps the lot
-// edge and the road edge so neither join shows a seam, and it uses the shared
-// road material so all three surfaces read as one piece of tarmac.
+// Butt the throat against the lot instead of covering its shader surface.
+// The former 0.8 m overlap sat higher than the lot and made a straight line
+// where the standard road material covered the playable asphalt.
+export function getParkingEntranceThroatBounds(entrance, layout = PARKING_LAYOUT) {
+  const back = Math.max(...layout.mainLot.outline.map(([, z]) => z));
+  const front = layout.campusRoad.z - layout.campusRoad.depth / 2;
+  const depth = front - back + 0.8; // Retain the overlap with the campus road.
+  return { x: entrance.x, width: entrance.width, back, depth, centerZ: back + depth / 2 };
+}
+
 function createOpenParkingEntrance(root, entrance, roadMaterial) {
   const asphalt = roadMaterial ?? material(COLORS.asphalt, 0.93);
-  const front = PARKING_LAYOUT.campusRoad.z - PARKING_LAYOUT.campusRoad.depth / 2;
-  const back = 33.2;
-  const depth = front - back + 0.8;
-  const throat = box(
-    root,
-    [entrance.width, 0.1, depth],
-    [entrance.x, 0.0, back + depth / 2],
-    asphalt
-  );
-  applyRoadUvs(throat.geometry, entrance.width, depth);
+  const { x, width, depth, centerZ } = getParkingEntranceThroatBounds(entrance);
+  const throat = box(root, [width, 0.1, depth], [x, 0, centerZ], asphalt);
+  applyRoadUvs(throat.geometry, width, depth);
 }
 
 function createParkingEntranceCurbs(root, collisionWorld, entrance) {
