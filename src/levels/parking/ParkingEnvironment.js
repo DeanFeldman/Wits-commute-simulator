@@ -838,6 +838,12 @@ function createArmPedestrianLink(root, collisionWorld) {
   }
 }
 
+export function getFlowerHallSideCurbBounds(spaces) {
+  const nearZ = spaces[0].z - PARKING_BAY_WIDTH / 2;
+  const farZ = spaces.at(-1).z + PARKING_BAY_WIDTH / 2;
+  return { nearZ, farZ, depth: farZ - nearZ, centerZ: (nearZ + farZ) / 2 };
+}
+
 function createFlowerHall(root, roadMaterial) {
   const f=PARKING_LAYOUT.flowerHall,road=PARKING_LAYOUT.campusRoad,asphalt=roadMaterial??material(COLORS.asphalt,.93),brick=material(0x8f5a45,.9),dark=material(0x704233,.92),roof=material(0xd8d9d2,.72,{metalness:.08}),concrete=material(0xd1c6b5,.94),green=material(0x365f35,.96),bush=material(0x456d3f,.98),stripe=new THREE.MeshBasicMaterial({color:0xf3f1e8});
   const hall=new THREE.Group();hall.name="flower-hall";hall.position.set(f.x,0,f.z);root.add(hall);
@@ -916,7 +922,12 @@ function createFlowerHall(root, roadMaterial) {
   // Zebra stays aligned with the vertical path.
   for(let i=0;i<10;i++)box(root,[5.4,.025,.55],[pathX,.095,road.z-road.depth/2+.7+i*.95],stripe,{receiveShadow:false,name:"flower-hall-zebra-stripe"});
 
-  box(root,[.35,.18,sideLotDepth],[sideLotRight,.09,sideLotZ],concrete,{name:"flower-hall-parking-end-curb"});
+  // End the raised side curb at the actual first/last bay rather than leaving
+  // a protruding white strip in the driving aisle. Cap the near end parallel
+  // to the closest parked car so the row finishes with a neat L-shaped edge.
+  const curb=getFlowerHallSideCurbBounds(sideSpaces);
+  box(root,[.35,.18,curb.depth],[sideLotRight,.09,curb.centerZ],concrete,{name:"flower-hall-parking-end-curb"});
+  box(root,[PARKING_BAY_LENGTH,.18,.35],[sideSpaces[0].x,.09,curb.nearZ],concrete,{name:"flower-hall-parking-near-end-curb"});
 }
 
 function createOtherParking(root, roadMaterial) {
