@@ -1515,7 +1515,7 @@ export class CrossingLevel {
     // A short dedicated cue is decoded before gameplay so collection feedback
     // lands on the exact frame the cup disappears.
     this.audio.playSample(LEVEL2_CUP_PICKUP_AUDIO, {
-      volume: 0.92,
+      volume: 0.32,
       playbackRate: 0.98 + Math.random() * 0.04
     });
   }
