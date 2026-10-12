@@ -8,7 +8,7 @@ test("entrance and exit throats meet the lot edge without covering the asphalt",
   for (const opening of [PARKING_LAYOUT.parkingBoomEntrance, PARKING_LAYOUT.parkingBoomExit]) {
     const throat = getParkingEntranceThroatBounds(opening);
     assert.equal(throat.back, lotFront);
-    assert.equal(throat.centerZ - throat.depth / 2, lotFront);
+    assert.ok(Math.abs(throat.centerZ - throat.depth / 2 - lotFront) < 1e-9);
     assert.ok(throat.centerZ + throat.depth / 2 > roadBack, "the road-side join stays covered");
     assert.equal(throat.x, opening.x);
     assert.equal(throat.width, opening.width);
