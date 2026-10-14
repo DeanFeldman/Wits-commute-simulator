@@ -2267,6 +2267,14 @@ body.graphics-effects-off #level2-vignette {
 .credit-entry h3 { margin: 0; font-size: 1rem; }
 .credit-entry p { margin: .2rem 0 0; line-height: 1.35; }
 .credit-entry a { color: inherit; }
+.credit-entry .credit-licence a {
+  text-decoration: underline;
+  text-underline-offset: .15em;
+}
+.credit-entry .credit-licence a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
 
 /* Credits use the typewriter face from the loading-page status tags. */
 #menu.menu-credits .menu-card,

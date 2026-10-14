@@ -1303,10 +1303,11 @@ export class Game {
     this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
       <section class="credits-section" aria-label="${heading}">
         <h2>${heading}</h2>
-        ${entries.map(({ name, detail, url }) => `
+        ${entries.map(({ name, detail, url, licenceUrl, licenceLabel }) => `
           <article class="credit-entry">
-            <h3>${url ? `<a href="${url}" target="_blank" rel="noreferrer">${name}</a>` : name}</h3>
+            <h3>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>
             <p>${detail}</p>
+            ${licenceUrl ? `<p class="credit-licence"><a href="${licenceUrl}" target="_blank" rel="noopener noreferrer">${licenceLabel || "View licence terms"}</a></p>` : ""}
           </article>
         `).join("")}
       </section>
