@@ -141,7 +141,7 @@ export const CREDITS = [
     { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
     { name: "Level 2 person bump", detail: "foxboyprower — CC0. Short collision/bump cue, trimmed and converted to mono Opus.", url: "https://freesound.org/people/foxboyprower/sounds/512568/" },
     { name: "Level 2 Vida pickup", detail: "Leszek_Szary — CC0. Dedicated collection cue, silence-trimmed and converted to mono Opus.", url: "https://freesound.org/people/Leszek_Szary/sounds/171579/" },
-    { name: "Level 2 pedestrian crossing signal", detail: "MacFerret_20 — traffic-light ticking field recording used only near Yale Road. Source is recorded; exact Freesound licence still needs final verification before submission.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
+    { name: "Level 2 pedestrian crossing signal — CC BY-NC 4.0", detail: "DH14_TraffLights2.aif by MacFerret_20 (Freesound 231936). CC BY-NC 4.0, reported by Nadav Sundy; adapted to crossing-signal.opus by removing silence, downmixing, crossfading, normalising and encoding to Opus. Attribution-NonCommercial licence: https://creativecommons.org/licenses/by-nc/4.0/. Use is permitted only for qualifying noncommercial distribution; public-deployment eligibility must be checked.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
     { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
   ] },
   {
@@ -212,8 +212,8 @@ export const CREDITS = [
         detail: "Some former music and sound assets remain distributed despite no current direct gameplay/audio references. They require a final source/permission or removal check and must not be described as active gameplay."
       },
       {
-        name: "Level 2 crossing signal licence",
-        detail: "MacFerret_20 on Freesound (231936) is source/author-identified; the licence for this exact sound remains unverified.",
+        name: "Level 2 crossing signal — NonCommercial deployment check",
+        detail: "Nadav Sundy identified DH14_TraffLights2.aif by MacFerret_20 as CC BY-NC 4.0. Attribution and adaptation are recorded in the Sound effects section; confirm the Wits/LAMP deployment and other distribution qualify as NonCommercial, or replace/obtain alternative permission.",
         url: "https://freesound.org/people/MacFerret_20/sounds/231936/"
       },
       {
@@ -222,8 +222,8 @@ export const CREDITS = [
         url: "https://www.instagram.com/wits_sharks/"
       },
       {
-        name: "Pencil Pete trial font",
-        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit embedding and redistribution permission or replacement; publisher trial terms prohibit embedding.",
+        name: "Pencil Pete trial font — replacement or permission required",
+        detail: "Gabriel Raz supplied https://www.1001fonts.com/search.html?search=pencil on 14 October 2026 (general search, not licence evidence). Specific font: pencil Pete FONT by JOEBOB graphics on 1001 Fonts. Personal-use trial; publisher FAQ states trial versions cannot be embedded. The Level 3 browser still loads the shipped trial TTF. Replace with a web-embeddable, redistributable alternative or obtain explicit publisher permission.",
         url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {

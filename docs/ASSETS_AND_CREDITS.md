@@ -195,16 +195,23 @@ Modified: No
 Type: Font
 
 Source:
-https://www.1001fonts.com/pencilpete-font-font.html
+https://www.1001fonts.com/pencilpete-font-font.html (specific Pencil Pete listing)
+
+Additional link supplied by Gabriel Raz on 14 October 2026:
+https://www.1001fonts.com/search.html?search=pencil (general font search page;
+**not** the specific asset licence or evidence of permission).
 
 Author:
 JOEBOB graphics
 
 Licence:
 Free for personal use / trial licence; not free for commercial use according to
-the 1001 Fonts listing. The repository currently ships the trial TTF, so the team
-must confirm that redistribution in the submitted game is permitted or replace it
-with a font whose redistribution terms are clear.
+the 1001 Fonts listing. The JOEBOB graphics FAQ explicitly says the **trial
+versions cannot be embedded**, and the current Level 3 code loads the trial TTF
+through FontFace in the browser. The repository ships the trial TTF, so this is
+**NOT cleared for redistribution/web embedding**; replace it with an appropriately
+licensed font or obtain written permission covering the intended distribution.
+Publisher FAQ: https://www.joebobgraphics.com/faq/ .
 
 Used for:
 Level 3 handwritten hologram / answer-note text.
@@ -799,11 +806,25 @@ Road-crossing ambience / traffic-light signal
 Source:
 https://freesound.org/people/MacFerret_20/sounds/231936/
 
+Original recording title:
+`DH14_TraffLights2.aif`
+
 Author:
 MacFerret_20
 
 Licence:
-**Exact Freesound licence still to be verified before final submission.**
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**,
+as supplied by Nadav Sundy on 14 October 2026 for this exact recording.
+Licence: https://creativecommons.org/licenses/by-nc/4.0/
+
+The specific Freesound sound page was not independently retrievable during this
+follow-up, so Nadav's recording-specific report is the evidence for the licence
+classification. **This is not CC BY or CC0.** Redistribution/adaptation is
+permitted under this licence only for qualifying noncommercial uses, with source,
+author, licence link and modification notice. Confirm that the final publicly
+accessible Wits/LAMP deployment and any other distribution satisfy the
+NonCommercial condition; otherwise replace the sound or obtain alternative
+permission.
 
 Used for:
 A low traffic-light ticking layer that fades in only as the player approaches
@@ -1638,10 +1659,14 @@ For each unresolved item, the final action is one of:
 
 ### Level 2 crossing-signal licence verification
 
-The source and author for `crossing-signal.opus` are recorded as MacFerret_20,
-Freesound sound 231936. Confirm the exact licence displayed on that specific
-Freesound page before final submission; do not infer it from the author's other
-recordings.
+**Updated 14 October 2026:** Nadav Sundy supplied the exact title
+`DH14_TraffLights2.aif` and reported **CC BY-NC 4.0** for Freesound sound 231936
+by MacFerret_20. The "unknown licence" question is resolved at team-source
+level. What remains is to confirm that the published game qualifies as
+**noncommercial** and displays attribution, licence and modification details.
+If the deployment/distribution does not qualify, replace the cue or obtain
+alternative permission. The sound-page licence label has not independently
+been captured by this audit.
 
 ## Still required before final submission
 
@@ -1915,3 +1940,26 @@ from a third party (author, URL and licence), with supporting records. Do
 **Issue #245 remains open.** This appendix reflects documentation/registry
 audit fixes only; it does not certify external licence permissions or LAMP
 testing.
+
+
+---
+
+## 14 October 2026 — Nadav / Gabriel evidence follow-up (Issue #245)
+
+### Nadav Sundy: traffic-light recording
+
+- **Original:** `DH14_TraffLights2.aif` — MacFerret_20.
+- **Source:** https://freesound.org/s/231936/ (same recording as the URL above).
+- **Licence reported by Nadav:** **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** — https://creativecommons.org/licenses/by-nc/4.0/ .
+- **Shipped adaptation:** `public/assets/audio/level2/crossing-signal.opus` (trimmed, downmixed, crossfaded, normalised, encoded to Opus), used near Yale Road in Level 2.
+- **Crediting action:** source, title, author, licence/link and changes are now in this register and the in-game credits registry on this follow-up branch.
+- **Remaining action:** verify/record that the public submission and any subsequent distribution are noncommercial for CC BY-NC purposes. Do not present this as unrestricted commercial-use permission; if qualifying use cannot be established, replace or obtain separate permission. Freesound's individual sound page could not be independently fetched during the follow-up; Nadav's exact-source report is recorded explicitly rather than passing it off as independently checked.
+
+### Gabriel Raz: Pencil Pete trial font
+
+- **Link Gabriel sent:** https://www.1001fonts.com/search.html?search=pencil — a general search page, **not** a licence grant.
+- **Exact identified font page:** https://www.1001fonts.com/pencilpete-font-font.html — **pencil Pete FONT**, by **JOEBOB graphics** (trial/personal use, not commercial use under the page listing).
+- **Publisher conditions:** https://www.joebobgraphics.com/faq/ states trial fonts cannot be embedded. The trial TTF is still distributed from `public/assets/fonts/pencil-pete-trial.ttf` and loaded by `src/levels/CheatingLevel.js` at runtime.
+- **Status:** **SOURCE IDENTIFIED; NOT LICENCE-CLEARED**. A search link or simple credit does not authorise distributing the trial font. Gabriel should replace it with a font licensed for website embedding/redistribution or supply explicit publisher permission for this exact use. Keep this issue open.
+
+**This is a provenance/credits update only.** No gameplay asset has been removed/replaced by this branch. Issue #245 stays open for the remaining rights, asset and deployment checks.
