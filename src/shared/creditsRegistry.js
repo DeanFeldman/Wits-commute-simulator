@@ -141,7 +141,13 @@ export const CREDITS = [
     { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
     { name: "Level 2 person bump", detail: "foxboyprower — CC0. Short collision/bump cue, trimmed and converted to mono Opus.", url: "https://freesound.org/people/foxboyprower/sounds/512568/" },
     { name: "Level 2 Vida pickup", detail: "Leszek_Szary — CC0. Dedicated collection cue, silence-trimmed and converted to mono Opus.", url: "https://freesound.org/people/Leszek_Szary/sounds/171579/" },
-    { name: "Level 2 pedestrian crossing signal — CC BY-NC 4.0", detail: "DH14_TraffLights2.aif by MacFerret_20 (Freesound 231936). CC BY-NC 4.0, reported by Nadav Sundy; adapted to crossing-signal.opus by removing silence, downmixing, crossfading, normalising and encoding to Opus. Attribution-NonCommercial licence: https://creativecommons.org/licenses/by-nc/4.0/. Use is permitted only for qualifying noncommercial distribution; public-deployment eligibility must be checked.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
+    {
+      name: "Level 2 pedestrian crossing signal — CC BY-NC 4.0",
+      detail: "DH14_TraffLights2.aif by MacFerret_20 (Freesound 231936). CC BY-NC 4.0, reported by Nadav Sundy; adapted to crossing-signal.opus by trimming silence, downmixing, crossfading, normalising and converting to Opus. Use is permitted only for qualifying noncommercial distribution; public-deployment eligibility must be checked.",
+      url: "https://freesound.org/people/MacFerret_20/sounds/231936/",
+      licenceUrl: "https://creativecommons.org/licenses/by-nc/4.0/",
+      licenceLabel: "CC BY-NC 4.0 licence terms"
+    },
     { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
   ] },
   {
