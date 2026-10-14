@@ -1051,7 +1051,7 @@ Author:
 BlondPanda
 
 Licence:
-Check and retain the licence specified on the linked Freesound recording before release.
+Creative Commons 0 (CC0)
 
 Used for:
 A single car-door close as the player finishes parking and Level 1 transitions.
