@@ -260,6 +260,8 @@ export class Game {
       // form); that is not the player asking to pause.
       const levelReleasedPointer = this.currentLevel?.isPointerReleaseExpected?.() ?? false;
       if (this.wasPointerLocked && !locked && !this.isPaused &&
+          this.state === LEVEL_STATES.get(this.currentLevelNumber) &&
+          !this.currentLevel?.completed &&
           !this.isLoading && !this.isTransitioning &&
           !this.isLevelIntroActive && !this.isTutorialActive &&
           !levelReleasedPointer) {
@@ -428,6 +430,9 @@ export class Game {
 
     this.loadVersion += 1;
     this.disposeCurrentLevel();
+    this.uiAudio.startMusic("menu");
+    this.uiAudio.setMusicEnabled(this.isMusicEnabled);
+    this.uiAudio.setMuted(this.isSoundMuted);
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1117);
     this.state = "results";
@@ -1037,6 +1042,7 @@ export class Game {
   }
 
   showFailure(failure) {
+    this.wasPointerLocked = false;
     document.exitPointerLock?.();
     const { title, reason, next } = describeFailure(failure);
     this.loadVersion += 1;
@@ -1112,7 +1118,9 @@ export class Game {
   }
 
   pause() {
-    if (this.isPaused || this.currentLevelNumber === null) {
+    if (this.isPaused || !this.currentLevel || this.currentLevel.completed ||
+        this.state !== LEVEL_STATES.get(this.currentLevelNumber) ||
+        this.isLoading || this.isTransitioning) {
       return;
     }
 

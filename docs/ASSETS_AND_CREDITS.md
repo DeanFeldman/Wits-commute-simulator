@@ -195,16 +195,23 @@ Modified: No
 Type: Font
 
 Source:
-https://www.1001fonts.com/pencilpete-font-font.html
+https://www.1001fonts.com/pencilpete-font-font.html (specific Pencil Pete listing)
+
+Additional link supplied by Gabriel Raz on 14 October 2026:
+https://www.1001fonts.com/search.html?search=pencil (general font search page;
+**not** the specific asset licence or evidence of permission).
 
 Author:
 JOEBOB graphics
 
 Licence:
 Free for personal use / trial licence; not free for commercial use according to
-the 1001 Fonts listing. The repository currently ships the trial TTF, so the team
-must confirm that redistribution in the submitted game is permitted or replace it
-with a font whose redistribution terms are clear.
+the 1001 Fonts listing. The JOEBOB graphics FAQ explicitly says the **trial
+versions cannot be embedded**, and the current Level 3 code loads the trial TTF
+through FontFace in the browser. The repository ships the trial TTF, so this is
+**NOT cleared for redistribution/web embedding**; replace it with an appropriately
+licensed font or obtain written permission covering the intended distribution.
+Publisher FAQ: https://www.joebobgraphics.com/faq/ .
 
 Used for:
 Level 3 handwritten hologram / answer-note text.
@@ -224,10 +231,11 @@ Source identified, but **redistribution clearance still required before submissi
 
 ## Models
 
-> **Attribution notice.** Every model below is CC BY 4.0. That licence *requires*
-> visible credit to the author wherever the work is distributed. Author, licence
-> and source URL for each are also embedded in the `.glb` files themselves
-> (`asset.extras`), which is where the details below were read from.
+> **Attribution notice.** The five imported Sketchfab models immediately below
+> are documented as CC BY 4.0 and require attribution when redistributed. Their
+> author, licence and source were recorded from the GLBs' metadata. The later
+> **Diesel Powered Thomas reference** is a separate reference/proxy entry; do not
+> assume it is one of the five shipped CC BY model meshes.
 
 ### Whiteboard
 
@@ -269,7 +277,9 @@ Licence:
 CC BY 4.0 (http://creativecommons.org/licenses/by/4.0/)
 
 Used for:
-Level 3 classroom — student seating at every desk.
+Retained under the distributed public assets, but the current Level 3 code loads
+`classroom-plastic-chair.glb` instead. Do not carry this asset's provenance over
+to the replacement without confirming their relationship.
 
 File:
 `public/assets/models/props/plastic-chair.glb`
@@ -796,11 +806,25 @@ Road-crossing ambience / traffic-light signal
 Source:
 https://freesound.org/people/MacFerret_20/sounds/231936/
 
+Original recording title:
+`DH14_TraffLights2.aif`
+
 Author:
 MacFerret_20
 
 Licence:
-**Exact Freesound licence still to be verified before final submission.**
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**,
+as supplied by Nadav Sundy on 14 October 2026 for this exact recording.
+Licence: https://creativecommons.org/licenses/by-nc/4.0/
+
+The specific Freesound sound page was not independently retrievable during this
+follow-up, so Nadav's recording-specific report is the evidence for the licence
+classification. **This is not CC BY or CC0.** Redistribution/adaptation is
+permitted under this licence only for qualifying noncommercial uses, with source,
+author, licence link and modification notice. Confirm that the final publicly
+accessible Wits/LAMP deployment and any other distribution satisfy the
+NonCommercial condition; otherwise replace the sound or obtain alternative
+permission.
 
 Used for:
 A low traffic-light ticking layer that fades in only as the player approaches
@@ -1635,10 +1659,14 @@ For each unresolved item, the final action is one of:
 
 ### Level 2 crossing-signal licence verification
 
-The source and author for `crossing-signal.opus` are recorded as MacFerret_20,
-Freesound sound 231936. Confirm the exact licence displayed on that specific
-Freesound page before final submission; do not infer it from the author's other
-recordings.
+**Updated 14 October 2026:** Nadav Sundy supplied the exact title
+`DH14_TraffLights2.aif` and reported **CC BY-NC 4.0** for Freesound sound 231936
+by MacFerret_20. The "unknown licence" question is resolved at team-source
+level. What remains is to confirm that the published game qualifies as
+**noncommercial** and displays attribution, licence and modification details.
+If the deployment/distribution does not qualify, replace the cue or obtain
+alternative permission. The sound-page licence label has not independently
+been captured by this audit.
 
 ## Still required before final submission
 
@@ -1781,3 +1809,157 @@ Issue #245 remains open. Before it can close, the final production asset set mus
 be frozen, every unresolved item above must either gain a truthful source/licence
 or team-authorship record or be removed/replaced, and the final LAMP build must be
 checked against this ledger.
+
+
+---
+
+# 11 October 2026 — Current-main re-audit for Issue #245
+
+This is a **new snapshot**, not a claim that the project is ready for final
+submission. Earlier 7 October findings above are historical and may include
+assets since removed or source records since resolved.
+
+## Verification boundary
+
+- Examined the GitHub \`main\` tree (tree SHA
+  \`f058d41245bf1599d49f73c1a30966132823bd03\`) and the live
+  \`docs/ASSETS_AND_CREDITS.md\` and \`src/shared/creditsRegistry.js\`.
+- Identified **101 public asset payloads** under \`public/assets/\`,
+  excluding \`.gitkeep\` and the three car-library metadata files
+  (\`README.md\`, \`car-library-manifest.json\`, \`conversion-report.tsv\`).
+  Assets retained in \`public/\` can still be copied into the production
+  distribution even when JavaScript no longer requests them.
+- Cross-checked the UI, audio and most level/asset-loading source files for
+  explicit asset references. This is a **static source/tree audit**; indirect
+  dynamic references, metadata inside every binary, actual browser rendering,
+  and the final LAMP deployment still require independent verification.
+- The full current asset inventory is the Git tree; this appendix records
+  **credit gaps and action owners**, not invented provenance records.
+
+## Corrections to earlier status
+
+- **Resolved:** the old \`car-crash.mp3\`, \`car-door-shut.mp3\`,
+  \`idle-car.wav\` and \`collision-hit.mp3\` files are no longer in the
+  current \`public/assets/\` tree. Their replacement Level 1 cues have
+  source/author/licence records in the sound-effects section above.
+- **Resolved as attribution:** the Diesel Thomas proxy reference, Wits shark
+  GLB authorship, four foliage packs, and Dean's generated main menu and
+  Level 3 story images are already recorded. Attribution is distinct from
+  permission to reproduce any separate borrowed artwork.
+- **Corrected:** \`plastic-chair.glb\` is an attributable **retained** file,
+  not proof that \`classroom-plastic-chair.glb\` is cleared. Likewise the
+  project-created \`cartoon-desk.glb\` does not establish provenance for
+  \`classroom-desk.glb\`.
+- **Retained not used:** \`audio/shared/result-sprite.opus\`, the
+  non-menu level soundtrack WAVs, and \`audio/level2/paper-sprite.opus\`
+  appear in the public tree but are not direct references in the audited
+  gameplay/audio code. \`paper-sprite.opus\` has a source record; verify the
+  origin of any remaining retired composite before keeping it in a release.
+  Source retention is not the same thing as active gameplay use.
+
+## Confirmed additional UI artwork gap
+
+The 7 October list identified the logo, \`main-menu-v3-background.png\`,
+Level 2 story image and suspicion-meter artwork. The 11 October source pass
+also found **eight more directly referenced UI payloads** missing individual
+generation/source records:
+
+| Runtime asset | Confirmed consumer | Required evidence |
+| --- | --- | --- |
+| \`images/ui/begin-journey-selected.png\` | \`index.html\` | Origin/creator, licence or generation record |
+| \`images/ui/begin-journey-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/credits-selected.png\` | \`index.html\` | Same |
+| \`images/ui/credits-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/settings-selected.png\` | \`index.html\` | Same |
+| \`images/ui/settings-unselected.png\` | \`index.html\` | Same |
+| \`images/ui/level3-stopwatch-base.png\` | \`src/levels/CheatingLevel.js\` | Same |
+| \`images/ui/level3-stopwatch-hand.png\` | \`src/levels/CheatingLevel.js\` | Same |
+
+The **four previously identified unresolved UI files** are:
+\`images/ui/at-wits-end-logo-v2.png\`,
+\`images/ui/main-menu-v3-background.png\`,
+\`images/ui/level2-story-loading-screen.png\`, and
+\`images/ui/suspicion-meter.png\`.
+For all 12, the responsible asset contributor should state whether the file
+is team-made, AI-generated (tool and prompt-direction credit), or sourced
+from a third party (author, URL and licence), with supporting records. Do
+**not** infer licence from the surrounding asset's credit.
+
+## Outstanding distribution and permissions blockers
+
+1. **Pencil Pete trial font** — \`fonts/pencil-pete-trial.ttf\` is referenced
+   in Level 3. JOEBOB graphics' public FAQ says trial fonts cannot be embedded
+   and the 1001 Fonts listing calls this personal-use only. Merely
+   attributing it is not clearance. Replace with a properly licensed
+   handwriting typeface or obtain explicit permission to embed/redistribute
+   the file. Sources:
+   https://www.joebobgraphics.com/faq/ and
+   https://www.1001fonts.com/pencilpete-font-font.html .
+2. **Edited third-party image textures** —
+   \`textures/parking/east-precast-wall-texture.jpg\`,
+   \`textures/road/amic-fence.png\`,
+   \`textures/road/amic-fence-reference.png\`, and
+   \`textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png\`
+   have source attribution but no confirmed adaptation and redistribution
+   permission. Replace them or obtain permission. Google Images is not a
+   licence.
+3. **Wits Sharks badge** — \`images/wits-sharks-badge.svg\` is directly
+   referenced in \`ParkingLevel.js\` and contains adapted external branding.
+   Permission to reproduce the supplied logo is not yet evidenced. This is
+   separate from the project-created Wits shark GLB, whose authorship is
+   recorded.
+4. **Level 2 crossing-signal** — \`audio/level2/crossing-signal.opus\`
+   source and author are known (MacFerret_20, Freesound 231936), but its
+   exact recording-specific licence has not been verified. Do not assign
+   an inferred licence.
+5. **Environment / models** — the four
+   \`textures/ground/stylized-grass-*.png\` files, Level 2 backpack,
+   NPC and player GLB/FBX rigs/animations, Level 3 tutor and seated-student
+   GLB/FBX assets, and \`models/props/classroom-desk.glb\` and
+   \`models/props/classroom-plastic-chair.glb\` retain their
+   source/licence or project-authorship questions as recorded above.
+6. **Retained assets** — remove unused payloads once the final set is frozen,
+   including any retired audio that is not supported by a provenance record.
+   Do not mark removal complete without checking that no indirect runtime
+   reference remains.
+
+## Final verification still blocked
+
+- [ ] Obtain the missing **source/licence or authorship/generation** evidence
+      from the relevant team contributors; do not silently mark assets cleared.
+- [ ] Replace/remove resources whose distribution rights cannot be confirmed.
+- [ ] Re-check all **final** \`public/assets/\` paths and runtime references,
+      with a second team member independently reviewing this ledger.
+- [ ] Verify the complete Credits screen is accessible, legible, and scrollable
+      on the actual final build, including small screens.
+- [ ] Run the final production build, deploy on Wits LAMP, and verify that
+      distributed assets and visible Credits match this register.
+- [ ] Once frozen, separate **active** and **retained/historical** credits so
+      no unused item is represented as active gameplay.
+
+**Issue #245 remains open.** This appendix reflects documentation/registry
+audit fixes only; it does not certify external licence permissions or LAMP
+testing.
+
+
+---
+
+## 14 October 2026 — Nadav / Gabriel evidence follow-up (Issue #245)
+
+### Nadav Sundy: traffic-light recording
+
+- **Original:** `DH14_TraffLights2.aif` — MacFerret_20.
+- **Source:** https://freesound.org/s/231936/ (same recording as the URL above).
+- **Licence reported by Nadav:** **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** — https://creativecommons.org/licenses/by-nc/4.0/ .
+- **Shipped adaptation:** `public/assets/audio/level2/crossing-signal.opus` (trimmed, downmixed, crossfaded, normalised, encoded to Opus), used near Yale Road in Level 2.
+- **Crediting action:** source, title, author, licence/link and changes are now in this register and the in-game credits registry on this follow-up branch.
+- **Remaining action:** verify/record that the public submission and any subsequent distribution are noncommercial for CC BY-NC purposes. Do not present this as unrestricted commercial-use permission; if qualifying use cannot be established, replace or obtain separate permission. Freesound's individual sound page could not be independently fetched during the follow-up; Nadav's exact-source report is recorded explicitly rather than passing it off as independently checked.
+
+### Gabriel Raz: Pencil Pete trial font
+
+- **Link Gabriel sent:** https://www.1001fonts.com/search.html?search=pencil — a general search page, **not** a licence grant.
+- **Exact identified font page:** https://www.1001fonts.com/pencilpete-font-font.html — **pencil Pete FONT**, by **JOEBOB graphics** (trial/personal use, not commercial use under the page listing).
+- **Publisher conditions:** https://www.joebobgraphics.com/faq/ states trial fonts cannot be embedded. The trial TTF is still distributed from `public/assets/fonts/pencil-pete-trial.ttf` and loaded by `src/levels/CheatingLevel.js` at runtime.
+- **Status:** **SOURCE IDENTIFIED; NOT LICENCE-CLEARED**. A search link or simple credit does not authorise distributing the trial font. Gabriel should replace it with a font licensed for website embedding/redistribution or supply explicit publisher permission for this exact use. Keep this issue open.
+
+**This is a provenance/credits update only.** No gameplay asset has been removed/replaced by this branch. Issue #245 stays open for the remaining rights, asset and deployment checks.

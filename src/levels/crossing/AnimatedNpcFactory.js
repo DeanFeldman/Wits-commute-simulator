@@ -8,17 +8,18 @@ const ASSET_ROOT = "./assets/models/level2-npcs";
 const RUN_ANIMATION_PATH = "./assets/models/level2-player/running.fbx";
 const SELECTION_ANIMATION_PATH = "./assets/models/level2-player/selection-fight-idle.fbx";
 const TARGET_HEIGHT = 1.72;
+export const STUDENT_DISPLAY_NAMES = Object.freeze(["Luca", "Yusuf", "Thabo", "Emma", "Priya", "Naledi"]);
 export const STUDENT_MODEL_VARIANTS = Object.freeze([
   ...[1, 2, 3].map((index) => Object.freeze({
     id: `male-${index}`,
-    label: `Male${index}`,
+    label: STUDENT_DISPLAY_NAMES[index - 1],
     rig: `${ASSET_ROOT}/male-student-${index}-rig.fbx`,
     textured: `${ASSET_ROOT}/male-student-${index}-textured.glb`,
     retargetGeometry: index === 2
   })),
   ...[1, 2, 3].map((index) => Object.freeze({
     id: `female-${index}`,
-    label: `Female${index}`,
+    label: STUDENT_DISPLAY_NAMES[index + 2],
     rig: `${ASSET_ROOT}/female-student-${index}-rig.fbx`,
     textured: `${ASSET_ROOT}/female-student-${index}-textured.glb`,
     retargetGeometry: false

@@ -524,7 +524,7 @@ export class CrossingLevel {
   createMinimapCamera() {
     this.minimapCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 180);
     this.minimapCamera.position.set(0, 100, this.startZ);
-    this.minimapCamera.up.set(0, 0, 1);
+    this.minimapCamera.up.set(0, 0, -1);
     this.minimapCamera.lookAt(0, 0, this.startZ);
     this.updateMinimapCameraFrustum();
   }
@@ -656,7 +656,7 @@ export class CrossingLevel {
     this.updateMinimapCameraFrustum(rect.width / rect.height);
     const { x, z } = this.player.position;
     this.minimapCamera.position.set(x, 100, z);
-    this.minimapCamera.up.set(0, 0, 1);
+    this.minimapCamera.up.set(0, 0, -1);
     this.minimapCamera.lookAt(x, 0, z);
     const vx = Math.round(rect.left - canvasRect.left), vy = Math.round(canvasRect.bottom - rect.bottom);
     const width = Math.round(rect.width), height = Math.round(rect.height), autoClear = renderer.autoClear;
@@ -687,7 +687,7 @@ export class CrossingLevel {
       button.dataset.number = String(index + 1).padStart(2, "0");
       button.dataset.current = String(index === this.selectedPlayerVariant);
       button.style.setProperty("--fighter-color", index < 3 ? "#147f83" : "#a72f5a");
-      button.innerHTML = `<span class="fighter-name">${variant.label}</span><span class="fighter-type">${index < 3 ? "Male student" : "Female student"}</span>`;
+      button.innerHTML = `<span class="fighter-name">${variant.label}</span><span class="fighter-type">Wits student</span>`;
       button.setAttribute("aria-label", `${variant.label}${index === this.selectedPlayerVariant ? ", current player" : ""}`);
       button.setAttribute("aria-pressed", String(index === this.pendingPlayerVariant));
       return button;
@@ -804,7 +804,7 @@ export class CrossingLevel {
     this.characterPreviewVisual = visual;
     this.pendingPlayerVariant = variant;
     this.characterName.textContent = definition.label;
-    this.characterCode.textContent = `${variant < 3 ? "M" : "F"}-${String((variant % 3) + 1).padStart(2, "0")}`;
+    this.characterCode.textContent = `${String(variant + 1).padStart(2, "0")} / ${String(STUDENT_MODEL_VARIANTS.length).padStart(2, "0")}`;
     this.renderCharacterOptions();
   }
 
@@ -1538,7 +1538,7 @@ export class CrossingLevel {
     // A short dedicated cue is decoded before gameplay so collection feedback
     // lands on the exact frame the cup disappears.
     this.audio.playSample(LEVEL2_CUP_PICKUP_AUDIO, {
-      volume: 0.92,
+      volume: 0.32,
       playbackRate: 0.98 + Math.random() * 0.04
     });
   }

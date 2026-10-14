@@ -2560,9 +2560,9 @@ body.graphics-effects-off #level2-vignette {
 
 .character-start__option {
   position: relative;
-  min-height: 84px;
+  min-height: 88px;
   overflow: hidden;
-  padding: 13px 10px 10px 62px;
+  padding: 13px 10px 10px 84px;
   border: 4px solid #6a738a;
   border-radius: 8px;
   background: #fff;
@@ -2576,7 +2576,7 @@ body.graphics-effects-off #level2-vignette {
 .character-start__option::before {
   position: absolute;
   inset: 0 auto 0 0;
-  width: 52px;
+  width: 72px;
   display: grid;
   place-items: center;
   content: attr(data-number);
@@ -2585,6 +2585,24 @@ body.graphics-effects-off #level2-vignette {
   color: #243556;
   font: 700 1.35rem "Pixelify Sans", monospace;
 }
+
+/* The six portraits are captured once from the existing 3D models. */
+.character-start__portrait {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 6px;
+  width: 60px;
+  height: 68px;
+  transform: translateY(-50%);
+  border: 2px solid #243556;
+  border-radius: 4px;
+  background: #dff8ff;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.character-start__portrait[hidden] { display: none; }
 
 .character-start__option strong {
   display: block;
@@ -2813,11 +2831,17 @@ body.graphics-effects-off #level2-vignette {
 
   .character-start__option {
     min-height: 72px;
-    padding-left: 54px;
+    padding-left: 64px;
   }
 
   .character-start__option::before {
-    width: 44px;
+    width: 54px;
+  }
+
+  .character-start__portrait {
+    left: 4px;
+    width: 46px;
+    height: 54px;
   }
 
   .character-start__actions {
