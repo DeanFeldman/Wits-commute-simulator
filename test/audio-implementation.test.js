@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { LevelAudio } from "../src/shared/LevelAudio.js";
+import { AudioSettings } from "../src/shared/AudioSettings.js";
 import { getLevelOneDamageBlend } from "../src/levels/ParkingLevel.js";
 import {
   CrossingLevel,
@@ -115,4 +116,40 @@ test("disposing active audio is idempotent even when a source already ended", ()
   });
   assert.doesNotThrow(() => audio.dispose());
   assert.doesNotThrow(() => audio.dispose());
+});
+
+test("every sound is tunable from AudioSettings without losing distance fades", () => {
+  assert.equal(AudioSettings.gain("./assets/audio/level3/correct-tick.opus", 0.92), 0.92 * 1.7);
+  assert.equal(AudioSettings.gain("./assets/audio/level1/car-door-close.opus", 1), 0.85);
+  assert.equal(AudioSettings.gain("./assets/audio/level2/traffic-ambience.opus", 0.4), 0.4);
+  assert.equal(AudioSettings.rate("./assets/audio/level1/idle-car.opus", 0.86), 0.86);
+});
+
+test("successful parking plays car door close once before the level transition", () => {
+  const code = readFileSync(new URL("../src/levels/ParkingLevel.js", import.meta.url), "utf8");
+  const marker = code.indexOf('this.parkingStatus.holdTime >= this.parkingConfirmationDuration');
+  const portion = code.slice(marker, marker + 470);
+  assert.match(portion, /this.completed = true;/);
+  assert.match(portion, /this.game.playOneShotAudio\?\.\(LEVEL1_CAR_DOOR_CLOSE_AUDIO, 1\)/);
+  assert.ok(portion.indexOf("playOneShotAudio") < portion.indexOf("completeLevel"));
+});
+
+test("correct-answer sound uses persistent UI audio when available", () => {
+  const played = [];
+  const level = Object.create(CheatingLevel.prototype);
+  Object.assign(level, {
+    completed: false,
+    isLookingAtPlayerDesk: true,
+    activeQuestion: { correctAnswer: "stack" },
+    typedAnswer: "stack",
+    incorrectAnswers: 0,
+    answerProgress: 0,
+    audio: { playSample() { throw new Error("level audio is not transition-safe"); } },
+    game: { playOneShotAudio: (path, volume) => played.push([path, volume]) },
+    updatePlayerPaper() {},
+    hideHolograms() {},
+    advanceQuestion() {}
+  });
+  assert.equal(level.submitTypedAnswer(), true);
+  assert.deepEqual(played, [["./assets/audio/level3/correct-tick.opus", 0.92]]);
 });
