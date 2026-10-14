@@ -53,6 +53,20 @@ body.level-2 #level2-vignette{opacity:1}
   flex: 1;
 }
 
+/* Developer controls are opt-in; level lifecycle still controls availability. */
+body:not(.developer-tools-visible) :is(
+  #fps-counter,
+  #dev-level-select,
+  #level1-view-toggle,
+  #level2-view-toggle,
+  #level1-dev-toggle,
+  #level2-dev-toggle,
+  #level1-dev-menu,
+  #level2-dev-menu
+) {
+  display: none !important;
+}
+
 #fps-counter {
   position: absolute;
   left: 50%;
@@ -3332,4 +3346,37 @@ body.graphics-effects-off #level2-vignette {
   border: 1px solid #c8d5e8;
   background: white;
   transform: translateY(-50%);
+}
+
+/* Iced Latte frost sits over the scene while HUD and menus stay readable. */
+#level2-frost-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* Double Shot streaks stay at the edges, below HUD and menus. */
+#level2-double-shot-effect {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 9;
+}
+.double-shot-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0;
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform, opacity;
 }

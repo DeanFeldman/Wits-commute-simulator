@@ -133,7 +133,7 @@ const WINDOW_BOTTOM_Y = 1.4;
 const WINDOW_TOP_Y = 4.8;
 const NORMAL_CAMERA_FOV = 62;
 const PEEK_CAMERA_FOV = 30;
-const HOLOGRAM_FONT_FAMILY = "Pencil Pete";
+const HOLOGRAM_FONT_FAMILY = "Pencilant Script";
 const HOLOGRAM_TEAR_STYLES = ["bottom", "both", "top", "bottom", "both", "bottom", "top"];
 const DESK_INTERACTION_DISTANCE = 5.25;
 const VISION_CONE_LENGTH = 5.5;
@@ -453,12 +453,12 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     try {
       const font = new FontFace(
         HOLOGRAM_FONT_FAMILY,
-        "url('./assets/fonts/pencil-pete-trial.ttf')"
+        "url('./assets/fonts/pencilant-script.ttf')"
       );
       await font.load();
       document.fonts.add(font);
     } catch (error) {
-      console.warn("Unable to load the Pencil Pete hologram font", error);
+      console.warn("Unable to load the Pencilant Script hologram font", error);
     }
   }
 

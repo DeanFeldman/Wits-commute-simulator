@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -96,13 +97,23 @@ test("fatal Level 2 impact uses transition-safe audio before failure disposal", 
     checkpoint: { x: 0, z: 0 },
     game: {
       flashHUD() {},
+      input: { clearTransientState() {} },
       setCheckpoint() {},
       failLevel() { calls.push("fail"); },
-      playOneShotAudio(path) { calls.push(path); }
+      playTransitionSafeAudioSegment(path, options) {
+        assert.equal(options.start, 0.6);
+        assert.equal(options.duration, 2.04);
+        calls.push(path);
+      }
     },
-    audio: { playSample() { calls.push("level-audio"); } }
+    audio: { playSegment() { calls.push("level-audio"); } },
+    player: new THREE.Group(),
+    hopController: { reset() {}, setHeldDirection() {} },
+    aura: {}, shieldBubble: {}
   });
-  level.failAtCheckpoint(false);
+  level.failAtCheckpoint(false, { lane: { direction: 1 }, root: new THREE.Group() });
+  assert.deepEqual(calls, ["./assets/audio/level2/vehicle-impact.opus"]);
+  for (let frame = 0; frame < 120; frame++) level.updateImpact(1 / 60);
   assert.deepEqual(calls, ["./assets/audio/level2/vehicle-impact.opus", "fail"]);
 });
 
@@ -115,4 +126,18 @@ test("disposing active audio is idempotent even when a source already ended", ()
   });
   assert.doesNotThrow(() => audio.dispose());
   assert.doesNotThrow(() => audio.dispose());
+});
+
+test("shield impact skips the quiet lead-in", () => {
+  const cues = [];
+  const level = Object.create(CrossingLevel.prototype);
+  Object.assign(level, {
+    game: { flashHUD() {}, setMessage() {} },
+    audio: { duckMusic() {}, playSegment(path, options) { cues.push({ path, options }); } },
+    speech: { popup() {} }, player: new THREE.Group()
+  });
+  level.saveWithShield(false);
+  assert.equal(cues[0].path, "./assets/audio/level2/vehicle-impact.opus");
+  assert.equal(cues[0].options.start, 0.6);
+  assert.equal(cues[0].options.duration, 2.04);
 });

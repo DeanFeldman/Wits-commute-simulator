@@ -44,6 +44,11 @@ export const CREDITS = [
         name: "Inter",
         detail: "Google Fonts typeface by Rasmus Andersson — SIL Open Font License 1.1.",
         url: "https://fonts.google.com/specimen/Inter"
+      },
+      {
+        name: "Pencilant Script",
+        detail: "Glotta Studio — free for personal and commercial use under the 1001 Fonts listing. Unmodified typeface used for Level 3 peeked answer notes; bundled FONTLOG retained with the font.",
+        url: "https://www.1001fonts.com/pencilant-font.html"
       }
     ]
   },
@@ -251,11 +256,6 @@ export const CREDITS = [
         name: "Wits Sharks reused logo",
         detail: "The Level 1 Wits Sharks badge includes an adapted third-party logo. Attribution is recorded above but reuse permission is still not verified.",
         url: "https://www.instagram.com/wits_sharks/"
-      },
-      {
-        name: "Pencil Pete trial font — replacement or permission required",
-        detail: "Gabriel Raz supplied https://www.1001fonts.com/search.html?search=pencil on 14 October 2026 (general search, not licence evidence). Specific font: pencil Pete FONT by JOEBOB graphics on 1001 Fonts. Personal-use trial; publisher FAQ states trial versions cannot be embedded. The Level 3 browser still loads the shipped trial TTF. Replace with a web-embeddable, redistributable alternative or obtain explicit publisher permission.",
-        url: "https://www.1001fonts.com/pencilpete-font-font.html"
       },
       {
         name: "Level 1 environment textures — remaining rights check",
