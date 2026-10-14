@@ -45,7 +45,7 @@ export class AudioSettings {
     "./assets/audio/level3/classroom-ambience.opus": { volume: 1, playbackRate: 1 },
     "./assets/audio/level3/heartbeat.opus": { volume: 1, playbackRate: 1 },
     "./assets/audio/level3/clock-tick.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level3/correct-tick.opus": { volume: 1.7, playbackRate: 1 },
+    "./assets/audio/level3/correct-tick.opus": { volume: 1, playbackRate: 1 },
     "./assets/audio/level3/incorrect-answer.opus": { volume: 1, playbackRate: 1 }
   });
 
