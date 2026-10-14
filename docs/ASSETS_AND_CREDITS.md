@@ -576,6 +576,109 @@ Yes — taken at 4K and renamed to the project's convention.
 Added by:
 Shayna Unterslak
 
+
+---
+
+## Dean Feldman: adapted third-party architectural imagery
+
+The four files below were **sourced through Google Images and directly cropped /
+edited by Dean Feldman** for the Wits Commute Simulator. They are credited here
+individually and in the game; **no licence authorising copying, modification or
+redistribution has been established**. Listing a source and a modifier does not
+mean the team owns the underlying images.
+
+### East Precast Wall Texture — Level 1
+
+Type: Adapted photographic wall texture
+
+Source / provenance: Dean Feldman reports finding the original image through
+Google Images and tracing it to **Precast Walling Pros** —
+https://precastwallingpros.co.za/ . The exact original photograph URL and
+photographer have not been independently identified.
+
+File: `public/assets/textures/parking/east-precast-wall-texture.jpg`
+
+Used for: Level 1 perimeter/east precast wall; loaded by
+`src/levels/parking/EastDiorama.js`.
+
+Modified by: Dean Feldman — cropped/edited from online imagery for the game;
+not an entirely team-created source photograph.
+
+Licence / permission: **Unverified**; attribution is recorded, but reuse,
+adaptation and redistribution rights have not been confirmed.
+
+### AMIC Fence Texture — Level 2
+
+Type: Adapted photographic fence texture
+
+Source / provenance: Dean Feldman traced the imagery he found through Google
+Images to Crown Publications, **“Bridging the divide”** —
+https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide .
+The article credits photographs to **eimage / Gareth Gilmour**; an independent
+one-to-one match between this file and a specific gallery photo has not been
+verified.
+
+File: `public/assets/textures/road/amic-fence.png`
+
+Used for: Level 2 AMIC fence material in `src/shared/AmicFence.js`.
+
+Modified by: Dean Feldman — cropped/edited a sourced image into the game
+texture; not a newly photographed or independently created image.
+
+Licence / permission: **Unverified**; no image reuse/adaptation licence recorded.
+
+### AMIC Fence Reference Image — Level 2
+
+Type: Adapted reference image (retained distributed asset)
+
+Source / provenance: Dean Feldman reports Google Images and the Crown
+Publications **“Bridging the divide”** article (photographs credited there to
+**eimage / Gareth Gilmour**) as the source trail. A separate Google-share link
+was provided for this specific image:
+https://share.google/LCdsVeNbSr9GduITN .
+That link has **not been independently resolved to the original publisher or
+photographer**, so it is a supplied reference trail, not verified licence
+evidence.
+
+File: `public/assets/textures/road/amic-fence-reference.png`
+
+Used for: AMIC fence visual reference; retained under `public/assets/` and
+registered as a reference path by `src/shared/AmicFence.js`. The runtime
+fence material directly loads `amic-fence.png` instead.
+
+Modified by: Dean Feldman — cropped/edited source imagery for the project.
+
+Licence / permission: **Unverified**; needs permission or removal/replacement
+for rights-clear final distribution, even if only retained as a reference.
+
+### AMIC Deck / Ground Texture — Level 2
+
+Type: Adapted photographic ground/deck texture
+
+Source / provenance: The underlying AMIC ground/fence reference imagery was
+found through Google Images and traced by Dean Feldman to Crown Publications,
+**“Bridging the divide”**, whose article credits photographs to
+**eimage / Gareth Gilmour**:
+https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide .
+The exact source photograph for this crop has not been independently matched.
+
+File: `public/assets/textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png`
+
+Used for: Level 2 AMIC deck/walking-surface texture; loaded by
+`src/levels/crossing/CrossingStrip.js`.
+
+Modified by: Dean Feldman — **confirmed crop/edit of an AMIC reference/ground
+image**, not an original texture generated from scratch or merely inspired
+by the reference.
+
+Licence / permission: **Unverified**; the source image's copying, adaptation
+and redistribution rights have not been established.
+
+**Status for Issue #245:** All **four provenance/attribution entries are
+recorded**. They are **not licence-cleared**; confirm reuse permission or
+replace/remove the source-derived assets before treating the distribution
+rights as resolved.
+
 ---
 
 ## Sound Effects
@@ -1963,3 +2066,29 @@ testing.
 - **Status:** **SOURCE IDENTIFIED; NOT LICENCE-CLEARED**. A search link or simple credit does not authorise distributing the trial font. Gabriel should replace it with a font licensed for website embedding/redistribution or supply explicit publisher permission for this exact use. Keep this issue open.
 
 **This is a provenance/credits update only.** No gameplay asset has been removed/replaced by this branch. Issue #245 stays open for the remaining rights, asset and deployment checks.
+
+---
+
+## 14 October 2026 — Dean's four texture credits completed (Issue #245)
+
+Added four **per-file** attributions in the Textures and HDRIs section and
+four matching in-game credits for:
+
+1. `textures/parking/east-precast-wall-texture.jpg` — Precast Walling Pros
+   (source reported by Dean); cropped/edited by Dean Feldman.
+2. `textures/road/amic-fence.png` — Crown Publications, "Bridging the divide",
+   photos credited there to eimage / Gareth Gilmour (source reported by Dean);
+   cropped/edited by Dean.
+3. `textures/road/amic-fence-reference.png` — same Dean-reported Crown source
+   trail; additional user-supplied https://share.google/LCdsVeNbSr9GduITN
+   cannot independently establish origin or licence; cropped/edited by Dean.
+4. `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` — cropped/edited
+   by Dean from AMIC ground/reference imagery; same Dean-reported Crown trail,
+   **not a new original texture**.
+
+**All four files still require a verified redistribution/adaptation licence,
+permission, or replacement/removal if rights clearance is needed.**
+Google Images discovery and giving credit alone do not grant those rights.
+The original photo-to-file matches have not been independently proven.
+This documents **attribution completeness**, not legal clearance. Issue #245
+stays open until the remaining final-submission checks are done.
