@@ -100,9 +100,13 @@ test("fatal Level 2 impact uses transition-safe audio before failure disposal", 
       input: { clearTransientState() {} },
       setCheckpoint() {},
       failLevel() { calls.push("fail"); },
-      playOneShotAudio(path) { calls.push(path); }
+      playTransitionSafeAudioSegment(path, options) {
+        assert.equal(options.start, 0.6);
+        assert.equal(options.duration, 2.04);
+        calls.push(path);
+      }
     },
-    audio: { playSample() { calls.push("level-audio"); } },
+    audio: { playSegment() { calls.push("level-audio"); } },
     player: new THREE.Group(),
     hopController: { reset() {}, setHeldDirection() {} },
     aura: {}, shieldBubble: {}
@@ -122,4 +126,18 @@ test("disposing active audio is idempotent even when a source already ended", ()
   });
   assert.doesNotThrow(() => audio.dispose());
   assert.doesNotThrow(() => audio.dispose());
+});
+
+test("shield impact skips the quiet lead-in", () => {
+  const cues = [];
+  const level = Object.create(CrossingLevel.prototype);
+  Object.assign(level, {
+    game: { flashHUD() {}, setMessage() {} },
+    audio: { duckMusic() {}, playSegment(path, options) { cues.push({ path, options }); } },
+    speech: { popup() {} }, player: new THREE.Group()
+  });
+  level.saveWithShield(false);
+  assert.equal(cues[0].path, "./assets/audio/level2/vehicle-impact.opus");
+  assert.equal(cues[0].options.start, 0.6);
+  assert.equal(cues[0].options.duration, 2.04);
 });

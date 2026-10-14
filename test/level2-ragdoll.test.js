@@ -51,7 +51,7 @@ test("checkpoint recovery cancels an in-flight step and restores upright control
     checkpoint: { x: 1.2, z: 4.8 }, attempts: 0,
     aura: {}, shieldBubble: {},
     game: { flashHUD() {}, input: { clearTransientState() {} } },
-    audio: { playSample() {} }
+    audio: { playSegment(path, options) { assert.equal(options.start, 0.6); } }
   });
   level.failAtCheckpoint(false, vehicle);
   assert.equal(controller.isHopping, false);

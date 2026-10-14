@@ -41,6 +41,8 @@ const PLAYER_Y = WALKWAY_SURFACE_Y + PEDESTRIAN_SOLE_OFFSET * PLAYER_SCALE + 0.0
 const LEVEL2_INTERACTION_AUDIO = "./assets/audio/level2/interaction-sprite.opus";
 const LEVEL2_SHIELD_CUE = Object.freeze({ start: 0, duration: 0.717 });
 const LEVEL2_VEHICLE_IMPACT_AUDIO = "./assets/audio/level2/vehicle-impact.opus";
+// Skip the quiet lead-in; the impact transient begins at 0.605 seconds.
+const LEVEL2_VEHICLE_IMPACT_CUE = { start: 0.6, duration: 2.04 };
 const LEVEL2_FOOTSTEP_AUDIO = "./assets/audio/level2/footsteps-pavement.opus";
 const LEVEL2_FOOTSTEP_CUES = Object.freeze([
   Object.freeze({ start: 0.08, duration: 0.52 }),
@@ -486,6 +488,8 @@ export class CrossingLevel {
       variantCount: STUDENT_MODEL_VARIANTS.length,
       onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
         speaker: getCrowdSpeakerLabel(person),
+        // Imported students are rooted at their feet; clear the 1.72 m head.
+        height: person.animation ? 1.95 : 1.35,
         tone
       })
     });
@@ -1623,7 +1627,8 @@ checkFinish() {
   saveWithShield(wasTaxi) {
     this.game.flashHUD();
     this.audio.duckMusic({ scale: 0.22, hold: 0.5 });
-    this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+    this.audio.playSegment(LEVEL2_VEHICLE_IMPACT_AUDIO, {
+      ...LEVEL2_VEHICLE_IMPACT_CUE,
       volume: 0.62,
       playbackRate: wasTaxi ? 0.96 : 1.02
     });
@@ -1684,6 +1689,7 @@ checkFinish() {
     this.game.flashHUD();
 
     const impactOptions = {
+      ...LEVEL2_VEHICLE_IMPACT_CUE,
       volume: 1,
       playbackRate: wasTaxi ? 0.96 : 1.02
     };
@@ -1692,13 +1698,9 @@ checkFinish() {
     // the collision frame before any checkpoint/reset state is changed.
     const fatalImpact = this.attempts >= MAX_LEVEL_2_ATTEMPTS;
     if (fatalImpact) {
-      this.game.playOneShotAudio(
-        LEVEL2_VEHICLE_IMPACT_AUDIO,
-        impactOptions.volume,
-        impactOptions
-      );
+      this.game.playTransitionSafeAudioSegment(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
     } else {
-      this.audio.playSample(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
+      this.audio.playSegment(LEVEL2_VEHICLE_IMPACT_AUDIO, impactOptions);
     }
 
     this.pendingFatalImpact = fatalImpact;
