@@ -1039,6 +1039,32 @@ a large Web Audio buffer.
 Added by:
 Nadav Sundy
 
+### Level 1 Car Door Closing
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/BlondPanda/sounds/778421/
+
+Author:
+BlondPanda
+
+Licence:
+Check and retain the licence specified on the linked Freesound recording before release.
+
+Used for:
+A single car-door close as the player finishes parking and Level 1 transitions.
+
+Runtime file:
+`public/assets/audio/level1/car-door-close.opus`
+
+Modified:
+Yes — supplied WAV was converted to compact mono Opus at 48 kbps.
+
+Added by:
+Nadav Sundy
+
 ### Level 1 Car Start
 
 Type:
