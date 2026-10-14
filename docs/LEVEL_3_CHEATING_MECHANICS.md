@@ -103,7 +103,7 @@ Targeting uses a ray cast from the centre of the active camera with a maximum in
 - A decorative tablet never produces a hologram.
 - Looking at the player desk takes precedence as the typing surface.
 
-Holograms are canvas-textured sprites. Their current placement and display size are deliberately compact so they remain below the top of the screen:
+Holograms are canvas-textured sprites. Peeked answer text uses Glotta Studio's Pencilant Script, loaded from `./assets/fonts/pencilant-script.ttf` before room setup; its bundled FONTLOG is retained beside the font. Their current placement and display size are deliberately compact so they remain below the top of the screen:
 
 | Property | Value |
 | --- | ---: |

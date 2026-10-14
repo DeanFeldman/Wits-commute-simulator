@@ -190,42 +190,38 @@ General UI/body text loaded through Google Fonts.
 
 Modified: No
 
-### Pencil Pete FONT (trial)
+### Pencilant Script
 
 Type: Font
 
 Source:
-https://www.1001fonts.com/pencilpete-font-font.html (specific Pencil Pete listing)
-
-Additional link supplied by Gabriel Raz on 14 October 2026:
-https://www.1001fonts.com/search.html?search=pencil (general font search page;
-**not** the specific asset licence or evidence of permission).
+https://www.1001fonts.com/pencilant-font.html
 
 Author:
-JOEBOB graphics
+Glotta Studio
 
 Licence:
-Free for personal use / trial licence; not free for commercial use according to
-the 1001 Fonts listing. The JOEBOB graphics FAQ explicitly says the **trial
-versions cannot be embedded**, and the current Level 3 code loads the trial TTF
-through FontFace in the browser. The repository ships the trial TTF, so this is
-**NOT cleared for redistribution/web embedding**; replace it with an appropriately
-licensed font or obtain written permission covering the intended distribution.
-Publisher FAQ: https://www.joebobgraphics.com/faq/ .
+Free for personal and commercial use according to the specific 1001 Fonts
+listing. The supplied archive includes a FONTLOG, retained unchanged alongside
+the TTF. The FONTLOG mentions SIL Open Font License, but no separate OFL licence
+text is included in this archive; the credit therefore records the listing's
+usage terms rather than asserting a verified OFL version.
 
 Used for:
-Level 3 handwritten hologram / answer-note text.
+Level 3 handwritten answers revealed while peeking at other students' tablets.
 
-File:
-`public/assets/fonts/pencil-pete-trial.ttf`
+Files:
+- `public/assets/fonts/pencilant-script.ttf`
+- `public/assets/fonts/pencilant-fontlog.txt`
 
-Modified: No
+Modified: No (TTF and FONTLOG renamed only).
 
-Added by:
-Gabriel Raz
+Added from:
+User-supplied `pencilant.zip` and specific source reference, 14 October 2026.
 
-Status:
-Source identified, but **redistribution clearance still required before submission**.
+Replacement:
+Replaces Pencil Pete FONT by JOEBOB graphics. The old trial TTF was removed
+from the shipped assets and is no longer loaded at runtime.
 
 ---
 
@@ -1611,8 +1607,8 @@ These remain **open** and are the reason Issue #245 must not be closed yet:
 
 
 ### Font
-- `pencil-pete-trial.ttf` — source and author are now identified, but the trial
-  licence still needs redistribution clearance or replacement.
+- **Resolved 14 October 2026:** the Pencil Pete trial TTF was removed and
+  replaced with Pencilant Script by Glotta Studio (see the current font entry).
 
 ### Level 1 foliage / environment assets
 - **Foliage model provenance resolved:** `giant-low-poly-tree.glb`,
@@ -1694,8 +1690,8 @@ by the current runtime code, so it is retained only as historical provenance.
 
 The Pencil Pete source was identified as JOEBOB graphics' trial font. This closes
 the "unknown source" part of that item, but not the redistribution/licence-clearance
-part; it remains open until the team confirms the trial licence permits shipping
-the TTF with the project or replaces it.
+part. **Resolved 14 October 2026:** replaced with Pencilant Script and removed
+the old trial TTF from the shipped assets.
 
 
 ---
@@ -1741,8 +1737,8 @@ final submitted asset set, even when they are not referenced by current gameplay
 ## Current unresolved distributed assets
 
 ### Gabriel Raz
-- `pencil-pete-trial.ttf` — source/author found; distribution permission still
-  needs confirmation or replacement.
+- **Resolved 14 October 2026:** Pencil Pete trial was removed and replaced
+  with Pencilant Script; the replacement's bundled FONTLOG is retained.
 - Level 1 stylized grass texture set.
 - Level 2 student backpack.
 - Level 2 male/female student rig + textured model sets.
@@ -1887,14 +1883,10 @@ from a third party (author, URL and licence), with supporting records. Do
 
 ## Outstanding distribution and permissions blockers
 
-1. **Pencil Pete trial font** — \`fonts/pencil-pete-trial.ttf\` is referenced
-   in Level 3. JOEBOB graphics' public FAQ says trial fonts cannot be embedded
-   and the 1001 Fonts listing calls this personal-use only. Merely
-   attributing it is not clearance. Replace with a properly licensed
-   handwriting typeface or obtain explicit permission to embed/redistribute
-   the file. Sources:
-   https://www.joebobgraphics.com/faq/ and
-   https://www.1001fonts.com/pencilpete-font-font.html .
+1. **Pencil Pete trial font — resolved 14 October 2026.** Replaced with
+   Pencilant Script by Glotta Studio, listed as free for personal and commercial
+   use at https://www.1001fonts.com/pencilant-font.html . The old trial TTF was
+   removed from the shipped assets; the replacement's bundled FONTLOG is retained.
 2. **Edited third-party image textures** —
    \`textures/parking/east-precast-wall-texture.jpg\`,
    \`textures/road/amic-fence.png\`,
@@ -1959,7 +1951,7 @@ testing.
 
 - **Link Gabriel sent:** https://www.1001fonts.com/search.html?search=pencil — a general search page, **not** a licence grant.
 - **Exact identified font page:** https://www.1001fonts.com/pencilpete-font-font.html — **pencil Pete FONT**, by **JOEBOB graphics** (trial/personal use, not commercial use under the page listing).
-- **Publisher conditions:** https://www.joebobgraphics.com/faq/ states trial fonts cannot be embedded. The trial TTF is still distributed from `public/assets/fonts/pencil-pete-trial.ttf` and loaded by `src/levels/CheatingLevel.js` at runtime.
-- **Status:** **SOURCE IDENTIFIED; NOT LICENCE-CLEARED**. A search link or simple credit does not authorise distributing the trial font. Gabriel should replace it with a font licensed for website embedding/redistribution or supply explicit publisher permission for this exact use. Keep this issue open.
+- **Publisher conditions:** https://www.joebobgraphics.com/faq/ states trial fonts cannot be embedded. At the time of this audit, the trial TTF was distributed from `public/assets/fonts/pencil-pete-trial.ttf` and loaded by `src/levels/CheatingLevel.js` at runtime. It has since been removed and replaced with Pencilant Script.
+- **Status:** **REPLACED 14 OCTOBER 2026**. The trial font was removed from the shipped assets and replaced with Pencilant Script; see the current font entry above. The original source record is retained here for history.
 
 **This is a provenance/credits update only.** No gameplay asset has been removed/replaced by this branch. Issue #245 stays open for the remaining rights, asset and deployment checks.
