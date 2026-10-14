@@ -30,13 +30,13 @@ export class AudioSettings {
     // Level 2 – walking / traffic
     "./assets/audio/level2/interaction-sprite.opus": { volume: 1, playbackRate: 1 },
     "./assets/audio/level2/vehicle-impact.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level2/footsteps-pavement.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level2/traffic-ambience.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level2/vehicle-passbys.opus": { volume: 1, playbackRate: 1 },
+    "./assets/audio/level2/footsteps-pavement.opus": { volume: 1.1, playbackRate: 1 },
+    "./assets/audio/level2/traffic-ambience.opus": { volume: 1.3, playbackRate: 1 },
+    "./assets/audio/level2/vehicle-passbys.opus": { volume: 1.2, playbackRate: 1 },
     "./assets/audio/level2/extra-sprite.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level2/cup-pickup.opus": { volume: 1, playbackRate: 1 },
+    "./assets/audio/level2/cup-pickup.opus": { volume: 0.8, playbackRate: 1 },
     "./assets/audio/level2/person-bump.opus": { volume: 1, playbackRate: 1 },
-    "./assets/audio/level2/crossing-signal.opus": { volume: 1, playbackRate: 1 },
+    "./assets/audio/level2/crossing-signal.opus": { volume: 1.1, playbackRate: 1 },
     "./assets/audio/level2/paper-sprite.opus": { volume: 1, playbackRate: 1 },
 
     // Level 3 – exam
