@@ -119,7 +119,7 @@ test("disposing active audio is idempotent even when a source already ended", ()
 });
 
 test("every sound is tunable from AudioSettings without losing distance fades", () => {
-  assert.equal(AudioSettings.gain("./assets/audio/level3/correct-tick.opus", 0.92), 0.92 * 1.7);
+  assert.equal(AudioSettings.gain("./assets/audio/level3/correct-tick.opus", 0.92), 0.92);
   assert.equal(AudioSettings.gain("./assets/audio/level1/car-door-close.opus", 1), 0.85);
   assert.equal(AudioSettings.gain("./assets/audio/level2/traffic-ambience.opus", 0.4), 0.4);
   assert.equal(AudioSettings.rate("./assets/audio/level1/idle-car.opus", 0.86), 0.86);
