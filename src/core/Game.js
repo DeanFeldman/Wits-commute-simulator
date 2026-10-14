@@ -151,6 +151,7 @@ export class Game {
     this.currentCheckpoint = "start";
     this.isPaused = false;
     this.isLoading = false;
+    this.levelLoadFailed = false;
     this.isTransitioning = false;
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
@@ -545,6 +546,7 @@ export class Game {
     this.currentCheckpoint = checkpoint;
     this.isPaused = false;
     this.isLoading = true;
+    this.levelLoadFailed = false;
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.hideInstruction();
@@ -555,6 +557,13 @@ export class Game {
     this.setMessage(loadingMessage);
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
+
+    // Static tutorials need no level assets. Display them now, so the player
+    // can read the instructions while Level 2/3 scenes load in the background.
+    // A journey transition keeps its story intro until the player continues.
+    if (!showIntro && (levelNumber === 2 || levelNumber === 3)) {
+      this.showInstruction(null);
+    }
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -576,7 +585,10 @@ export class Game {
         level.dispose();
         this.currentLevel = null;
         this.isLoading = false;
+        this.levelLoadFailed = true;
         this.setMessage("Level failed to load. Check the console for details.");
+        if (levelNumber === 2) this.updateStaticCrossingReady();
+        if (levelNumber === 3) this.updateStaticExamReady();
       }
 
       console.error(`Unable to load Level ${levelNumber}`, error);
@@ -613,7 +625,8 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
-    if (!showIntro) this.showInstruction(level);
+    // Levels 2 and 3 already showed their tutorials before loading began.
+    if (!showIntro && levelNumber !== 2 && levelNumber !== 3) this.showInstruction(level);
   }
 
   showCharacterSelect() {
@@ -1354,14 +1367,17 @@ export class Game {
     const status = document.querySelector("#static-crossing-status");
     if (!start) return;
     const imageReady = this.staticCrossingImageReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 2;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 2;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel && this.currentLevelNumber === 2;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
-      status.hidden = imageReady;
-      status.textContent = this.staticCrossingImageError
-        ? "Unable to load tutorial image. Refresh to retry."
-        : "Preparing tutorial…";
+      status.hidden = imageReady && levelReady;
+      status.textContent = levelFailed
+        ? "Level 2 failed to load. Refresh to retry."
+        : this.staticCrossingImageError
+          ? "Unable to load tutorial image. Refresh to retry."
+          : imageReady ? "Preparing Level 2…" : "Preparing tutorial…";
     }
   }
 
@@ -1396,14 +1412,17 @@ export class Game {
     const status = document.querySelector("#static-exam-status");
     if (!start) return;
     const imageReady = this.staticExamImageReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 3;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 3;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel && this.currentLevelNumber === 3;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
       status.hidden = imageReady && levelReady;
-      status.textContent = this.staticExamImageError
-        ? "Unable to load tutorial artwork. Refresh to retry."
-        : "Preparing Level 3…";
+      status.textContent = levelFailed
+        ? "Level 3 failed to load. Refresh to retry."
+        : this.staticExamImageError
+          ? "Unable to load tutorial artwork. Refresh to retry."
+          : "Preparing Level 3…";
     }
   }
 
