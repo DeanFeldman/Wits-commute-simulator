@@ -122,6 +122,31 @@ export const CREDITS = [
       }
     ]
   },
+  {
+    heading: "Dean Feldman — edited third-party architecture images (licence unverified)",
+    entries: [
+      {
+        name: "Level 1 east precast wall — east-precast-wall-texture.jpg",
+        detail: "Original photo found through Google Images; source traced by Dean Feldman to Precast Walling Pros (photographer and exact photo URL unverified). Cropped/edited by Dean Feldman for Level 1. Reuse/adaptation/redistribution permission has NOT been established.",
+        url: "https://precastwallingpros.co.za/"
+      },
+      {
+        name: "Level 2 AMIC fence — amic-fence.png",
+        detail: "Dean-reported source: Crown Publications, 'Bridging the divide'; article images credited to eimage / Gareth Gilmour. Cropped/edited by Dean Feldman for the AMIC fence material. Exact original photo match and reuse/adaptation/redistribution permission not verified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      },
+      {
+        name: "Level 2 AMIC fence reference — amic-fence-reference.png",
+        detail: "Dean-reported Crown Publications source trail ('Bridging the divide', images credited to eimage / Gareth Gilmour); a separate Google Images/share reference link was provided but cannot be independently verified. Cropped/edited by Dean Feldman; file is retained in the public asset folder as a reference. Exact original image and reuse permission unverified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      },
+      {
+        name: "Level 2 AMIC deck — 2695c241-17bb-416d-9d1d-7f061ccf7976.png",
+        detail: "Cropped/edited by Dean Feldman from sourced AMIC ground/reference imagery (NOT made from scratch). Dean-reported source trail: Crown Publications, 'Bridging the divide', with article photos credited to eimage / Gareth Gilmour. Exact photo match and permission for adaptation/redistribution not verified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      }
+    ]
+  },
   { heading: "Sound effects", entries: [
     { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
     { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
@@ -233,8 +258,8 @@ export const CREDITS = [
         url: "https://www.instagram.com/wits_sharks/"
       },
       {
-        name: "Level 1 environment textures still unresolved",
-        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.",
+        name: "Level 1 environment textures — remaining rights check",
+        detail: "The stylized grass texture set still needs provenance. Dean's edited east-precast-wall-texture.jpg now has an individual source/modifier credit above (Precast Walling Pros source trail), but copying/adaptation/redistribution permission remains unverified.",
         url: "https://precastwallingpros.co.za/"
       },
       {
@@ -246,8 +271,8 @@ export const CREDITS = [
         detail: "Tutor GLB/FBX assets, the seated-student animation, classroom-desk and classroom-plastic-chair variants still need complete provenance records. The repo also retains a known project-created cartoon-desk and a Jazavac CC BY 4.0 plastic-chair source asset, but the relationship to the current runtime replacement files must be confirmed before those credits are carried across."
       },
       {
-        name: "AMIC / Level 2 deck textures",
-        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), and directly edited/adapted by Dean Feldman for the game.",
+        name: "AMIC / Level 2 adapted images — remaining rights check",
+        detail: "All three AMIC image files now have individual credits above recording Dean's direct crop/edit and the reported Crown Publications / eimage / Gareth Gilmour source trail. Exact photo matches and permission to copy, adapt and redistribute remain unverified; see docs/ASSETS_AND_CREDITS.md.",
         url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
       },
       {
