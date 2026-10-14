@@ -558,12 +558,10 @@ export class Game {
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
 
-    // Static tutorials need no level assets. Display them now, so the player
-    // can read the instructions while Level 2/3 scenes load in the background.
-    // A journey transition keeps its story intro until the player continues.
-    if (!showIntro && (levelNumber === 2 || levelNumber === 3)) {
-      this.showInstruction(null);
-    }
+    // Static tutorials need no level assets. Show them as soon as a practice
+    // level starts, while its scene loads in the background. Story transitions
+    // keep their intro visible until the player continues to the tutorial.
+    if (!showIntro) this.showInstruction(null);
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -587,6 +585,7 @@ export class Game {
         this.isLoading = false;
         this.levelLoadFailed = true;
         this.setMessage("Level failed to load. Check the console for details.");
+        if (levelNumber === 1) this.updateStaticParkingReady();
         if (levelNumber === 2) this.updateStaticCrossingReady();
         if (levelNumber === 3) this.updateStaticExamReady();
       }
@@ -625,8 +624,8 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
-    // Levels 2 and 3 already showed their tutorials before loading began.
-    if (!showIntro && levelNumber !== 2 && levelNumber !== 3) this.showInstruction(level);
+    // Practice tutorials are already visible; intro-led tutorials open when
+    // the player finishes the story. Neither depends on scene-load completion.
   }
 
   showCharacterSelect() {
@@ -1322,14 +1321,18 @@ export class Game {
     if (!start) return;
 
     const imageReady = this.staticParkingImagesReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1 && this.levelOneGraphicsReady;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 1;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel &&
+      this.currentLevelNumber === 1 && this.levelOneGraphicsReady;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
-      status.hidden = imageReady;
-      status.textContent = this.staticParkingImageError
-        ? "Unable to load tutorial image. Refresh to retry."
-        : "Preparing tutorial…";
+      status.hidden = imageReady && levelReady;
+      status.textContent = levelFailed
+        ? "Level 1 failed to load. Refresh to retry."
+        : this.staticParkingImageError
+          ? "Unable to load tutorial image. Refresh to retry."
+          : imageReady ? "Preparing Level 1…" : "Preparing tutorial…";
     }
   }
 
