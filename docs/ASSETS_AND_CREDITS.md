@@ -731,9 +731,10 @@ Runtime file:
 `public/assets/audio/level3/correct-tick.opus`
 
 Modified:
-Yes — replaced directly from the supplied DRAGON-STUDIO MP3, trimmed the silent
-tail, retained stereo separation, reduced peak level for headroom and encoded
-to Opus. The runtime file is preloaded before gameplay.
+Yes — replaced directly from the supplied DRAGON-STUDIO MP3, selected the
+clearer left channel for mono game feedback, trimmed the silent tail, reduced
+peak level for headroom and encoded to Opus. The runtime file is preloaded
+before gameplay.
 
 Added by:
 Nadav Sundy
