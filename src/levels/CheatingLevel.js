@@ -364,12 +364,12 @@ this.patrolPoints = [
   }
 
   async load() {
-    await this.audio.waitForPreload([
+    await Promise.all([this.game.preloadTransitionSafeAudio?.([LEVEL3_CORRECT_AUDIO]), this.audio.waitForPreload([
       LEVEL3_INCORRECT_AUDIO,
       LEVEL3_CORRECT_AUDIO,
       LEVEL3_INTERACTION_AUDIO,
       LEVEL3_TUTOR_STEP_AUDIO
-    ]);
+    ])]);
 
     const scene = this.game.scene;
 
@@ -2182,7 +2182,13 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       0,
       100
     );
-    this.audio.playSample(LEVEL3_CORRECT_AUDIO, { volume: 0.92 });
+    // Route correct-answer feedback through persistent UI audio; the level may
+    // immediately finish and dispose its own audio on the final answer.
+    if (this.game?.playOneShotAudio) {
+      this.game.playOneShotAudio(LEVEL3_CORRECT_AUDIO, 0.92);
+    } else {
+      this.audio.playSample(LEVEL3_CORRECT_AUDIO, { volume: 0.92 });
+    }
     this.currentCopiedWord = null;
     this.currentCopiedDesk = null;
     this.typedAnswer = "";
