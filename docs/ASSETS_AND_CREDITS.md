@@ -120,6 +120,78 @@ Added by:
 
 ---
 
+# 15 October 2026 — Gabriel Raz AI-assisted asset credits (current)
+
+Gabriel Raz confirmed that his outstanding grass textures, backpack, character and tutor models,
+animations, classroom furniture, and UI graphics were **generated or AI-assisted**, using
+**ChatGPT (OpenAI)** and **Modly (Lightning Pixel)** for the 3D asset work. The models were
+then modified, textured, optimised and integrated by Gabriel and the development team.
+The ChatGPT-generated UI and texture artwork was likewise edited/integrated for this game.
+The precise ChatGPT model label is not independently verified and is not necessary for attribution.
+
+- **3D model creation tool:** [Modly — Lightning Pixel](https://github.com/lightningpixel/modly),
+  [MIT licence](https://github.com/lightningpixel/modly/blob/main/LICENSE). Development tool
+  only; Modly itself is **not distributed** with this browser game. This records the tool
+  used, not a claim that its MIT code licence grants rights to third-party reference material.
+- **AI image/idea assistance:** ChatGPT (OpenAI), under Gabriel Raz's direction.
+- **Original-for-project work:** team-generated/AI-assisted output, further adapted for gameplay.
+  Do not treat the attribution as overriding the separate authorship/licences of imported Sketchfab
+  models or rights to externally supplied source imagery (including Wits Sharks branding).
+
+## Gabriel's affected models, animations and textures
+
+| Level | Gabriel's generated/AI-assisted assets | Tools / work |
+| --- | --- | --- |
+| 1 | `public/assets/textures/ground/stylized-grass-*.png` (four albedo/normal/roughness/AO maps) | ChatGPT AI-assisted texture generation; subsequently prepared for game use |
+| 2 | Student backpack; male/female student 1–3 models and textures; player rig/model; standing/walk, injured-idle, run and selection-fight-idle animation assets | ChatGPT + Modly AI-assisted 3D creation and animation workflow; team refinement/integration |
+| 3 | Tutor rig/model and seated-student animation; `public/assets/models/props/classroom-desk.glb` and `classroom-plastic-chair.glb` | ChatGPT + Modly AI-assisted models/animation; team refinement/integration |
+
+This group credit applies to the **current classroom-*** models. It does *not* silently
+transfer the separate provenance of the retained `cartoon-desk.glb` or
+`plastic-chair.glb`, or replace their existing historical source credits. The
+independently sourced CC BY models elsewhere in this document retain their own authors.
+
+## Gabriel's 12 UI images — ChatGPT-generated
+
+All files below were confirmed by the responsible contributor as AI-generated using
+ChatGPT under Gabriel Raz's direction (followed by team editing/integration):
+
+1. `public/assets/images/ui/begin-journey-selected.png`
+2. `public/assets/images/ui/begin-journey-unselected.png`
+3. `public/assets/images/ui/credits-selected.png`
+4. `public/assets/images/ui/credits-unselected.png`
+5. `public/assets/images/ui/settings-selected.png`
+6. `public/assets/images/ui/settings-unselected.png`
+7. `public/assets/images/ui/level3-stopwatch-base.png`
+8. `public/assets/images/ui/level3-stopwatch-hand.png`
+9. `public/assets/images/ui/at-wits-end-logo-v2.png`
+10. `public/assets/images/ui/main-menu-v3-background.png`
+11. `public/assets/images/ui/level2-story-loading-screen.png`
+12. `public/assets/images/ui/suspicion-meter.png`
+
+This is a **grouped in-game credit** plus a per-file repository record: one author/tool
+acknowledgement covers the images without turning the player-facing Credits screen
+into twelve repetitive entries. Other already-documented AI artwork directed by Dean,
+Shayna or Gabriel keeps its existing specific credit.
+
+## Level 1 car audio credit verification
+
+The game loads `public/assets/audio/level1/car-door-close.opus` at the
+successful-parking transition. The existing source record is **BlondPanda**,
+[Freesound 778421](https://freesound.org/people/BlondPanda/sounds/778421/),
+**CC0**, converted to mono Opus. Added to the in-game Sound effects credits.
+The Level 1 start, normal idle, damaged engine, collision/pothole, ambience and
+splash sounds already have separate records and remain unchanged.
+
+**Status:** The Gabriel asset-origin items and the Level 1 car-door *attribution*
+are now documented. The older dated audit lists farther down are historical
+snapshots and may still call these files unresolved. Outstanding third-party
+rights (Dean's adapted photographs, Wits Sharks logo and the Level 2
+CC BY-NC crossing signal) plus final asset/deployment verification remain
+open under Issue #245.
+
+---
+
 # Current External Dependencies
 
 ## Libraries
