@@ -2467,6 +2467,22 @@ createYaleEntranceScenery() {
   addGateLeaf(-2.35, gateZ + 0.22, Math.PI / 2);
   addGateLeaf( 2.35, gateZ + 0.22, -Math.PI / 2);
 
+  // The open leaves (x = ±2.35) sit exactly on the outer walk column
+  // (x = ±2.4) with the posts right beside it, so block that footprint.
+  // Without this the player walks through the leaves and Vida cups /
+  // NPCs can be placed inside them (#296).
+  const leafHalfLength = 1.05, leafZ = gateZ + 0.22, margin = 0.15;
+  const innerX = 2.35 - 0.25, outerX = pillarX + 0.425 + margin;
+  for (const side of [-1, 1]) {
+    this.boundaryVolumes.push({
+      minX: side < 0 ? -outerX : innerX,
+      maxX: side < 0 ? -innerX : outerX,
+      minZ: this.z + Math.min(gateZ - 0.425, leafZ - leafHalfLength) - margin,
+      maxZ: this.z + leafZ + leafHalfLength + margin,
+      type: "yale-entrance-gate"
+    });
+  }
+
   // Fence runs extending outward from the gate
   addFence(-7.7, gateZ, 8.2, Math.PI / 2, "yale-entrance-fence-left");
   addFence( 7.7, gateZ, 8.2, Math.PI / 2, "yale-entrance-fence-right");
