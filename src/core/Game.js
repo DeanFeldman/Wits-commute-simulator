@@ -137,6 +137,7 @@ export class Game {
       levelTwo: "Digit2",
       levelThree: "Digit3",
       restart: "KeyR", // Ctrl modifier is required in updateGlobalControls().
+      developerTools: "BracketLeft",
       debugColliders: "F3"
     });
 
@@ -151,6 +152,7 @@ export class Game {
     this.currentCheckpoint = "start";
     this.isPaused = false;
     this.isLoading = false;
+    this.levelLoadFailed = false;
     this.isTransitioning = false;
     this.isLevelIntroActive = false;
     this.isLevelIntroReady = false;
@@ -180,6 +182,8 @@ export class Game {
     this.animationFrameId = null;
     this.transitionTimer = null;
     this.collisionDebug = false;
+    this.developerToolsVisible = false;
+    document.body.classList.remove("developer-tools-visible");
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.journeyLevelResults = new Map();
@@ -545,6 +549,7 @@ export class Game {
     this.currentCheckpoint = checkpoint;
     this.isPaused = false;
     this.isLoading = true;
+    this.levelLoadFailed = false;
     this.isTransitioning = false;
     if (!showIntro) this.hideLevelIntro();
     this.hideInstruction();
@@ -555,6 +560,11 @@ export class Game {
     this.setMessage(loadingMessage);
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
+
+    // Static tutorials need no level assets. Show them as soon as a practice
+    // level starts, while its scene loads in the background. Story transitions
+    // keep their intro visible until the player continues to the tutorial.
+    if (!showIntro) this.showInstruction(null);
 
     await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -576,7 +586,11 @@ export class Game {
         level.dispose();
         this.currentLevel = null;
         this.isLoading = false;
+        this.levelLoadFailed = true;
         this.setMessage("Level failed to load. Check the console for details.");
+        if (levelNumber === 1) this.updateStaticParkingReady();
+        if (levelNumber === 2) this.updateStaticCrossingReady();
+        if (levelNumber === 3) this.updateStaticExamReady();
       }
 
       console.error(`Unable to load Level ${levelNumber}`, error);
@@ -599,6 +613,7 @@ export class Game {
       return;
     }
 
+    this.setDeveloperToolsVisible(this.developerToolsVisible);
     this.levelNameElement.textContent = level.name;
     level.audio?.setMusicEnabled?.(this.isMusicEnabled);
     level.audio?.setMuted?.(this.isSoundMuted);
@@ -613,7 +628,8 @@ export class Game {
     if (this.currentMessage === loadingMessage) {
       this.setMessage("");
     }
-    if (!showIntro) this.showInstruction(level);
+    // Practice tutorials are already visible; intro-led tutorials open when
+    // the player finishes the story. Neither depends on scene-load completion.
   }
 
   showCharacterSelect() {
@@ -1174,7 +1190,24 @@ export class Game {
     this.messageElement.classList.toggle("hidden", text.length === 0);
   }
 
+  setDeveloperToolsVisible(visible) {
+    this.developerToolsVisible = visible;
+    document.body.classList.toggle("developer-tools-visible", visible);
+
+    // Levels own their controls; only reveal the active level's panel.
+    const level = this.currentLevel;
+    if (level?.devToggle) {
+      level.devToggle.hidden = !visible;
+      level.devToggle.setAttribute("aria-expanded", String(visible));
+    }
+    if (level?.devMenu) level.devMenu.hidden = !visible;
+  }
+
   updateGlobalControls() {
+    if (this.globalControls.wasPressed("developerTools")) {
+      this.setDeveloperToolsVisible(!this.developerToolsVisible);
+    }
+
     if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
@@ -1282,10 +1315,11 @@ export class Game {
     this.menuCopyElement.innerHTML = CREDITS.map(({ heading, entries }) => `
       <section class="credits-section" aria-label="${heading}">
         <h2>${heading}</h2>
-        ${entries.map(({ name, detail, url }) => `
+        ${entries.map(({ name, detail, url, licenceUrl, licenceLabel }) => `
           <article class="credit-entry">
-            <h3>${url ? `<a href="${url}" target="_blank" rel="noreferrer">${name}</a>` : name}</h3>
+            <h3>${url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a>` : name}</h3>
             <p>${detail}</p>
+            ${licenceUrl ? `<p class="credit-licence"><a href="${licenceUrl}" target="_blank" rel="noopener noreferrer">${licenceLabel || "View licence terms"}</a></p>` : ""}
           </article>
         `).join("")}
       </section>
@@ -1308,14 +1342,18 @@ export class Game {
     if (!start) return;
 
     const imageReady = this.staticParkingImagesReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 1 && this.levelOneGraphicsReady;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 1;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel &&
+      this.currentLevelNumber === 1 && this.levelOneGraphicsReady;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
-      status.hidden = imageReady;
-      status.textContent = this.staticParkingImageError
-        ? "Unable to load tutorial image. Refresh to retry."
-        : "Preparing tutorial…";
+      status.hidden = imageReady && levelReady;
+      status.textContent = levelFailed
+        ? "Level 1 failed to load. Refresh to retry."
+        : this.staticParkingImageError
+          ? "Unable to load tutorial image. Refresh to retry."
+          : imageReady ? "Preparing Level 1…" : "Preparing tutorial…";
     }
   }
 
@@ -1353,14 +1391,17 @@ export class Game {
     const status = document.querySelector("#static-crossing-status");
     if (!start) return;
     const imageReady = this.staticCrossingImageReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 2;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 2;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel && this.currentLevelNumber === 2;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
-      status.hidden = imageReady;
-      status.textContent = this.staticCrossingImageError
-        ? "Unable to load tutorial image. Refresh to retry."
-        : "Preparing tutorial…";
+      status.hidden = imageReady && levelReady;
+      status.textContent = levelFailed
+        ? "Level 2 failed to load. Refresh to retry."
+        : this.staticCrossingImageError
+          ? "Unable to load tutorial image. Refresh to retry."
+          : imageReady ? "Preparing Level 2…" : "Preparing tutorial…";
     }
   }
 
@@ -1395,14 +1436,17 @@ export class Game {
     const status = document.querySelector("#static-exam-status");
     if (!start) return;
     const imageReady = this.staticExamImageReady && !!poster?.getAttribute("src");
-    const levelReady = !this.isLoading && !!this.currentLevel && this.currentLevelNumber === 3;
+    const levelFailed = this.levelLoadFailed && this.currentLevelNumber === 3;
+    const levelReady = !this.isLoading && !levelFailed && !!this.currentLevel && this.currentLevelNumber === 3;
     start.disabled = !imageReady || !levelReady;
     start.textContent = imageReady && levelReady ? "START LEVEL" : "LOADING…";
     if (status) {
       status.hidden = imageReady && levelReady;
-      status.textContent = this.staticExamImageError
-        ? "Unable to load tutorial artwork. Refresh to retry."
-        : "Preparing Level 3…";
+      status.textContent = levelFailed
+        ? "Level 3 failed to load. Refresh to retry."
+        : this.staticExamImageError
+          ? "Unable to load tutorial artwork. Refresh to retry."
+          : "Preparing Level 3…";
     }
   }
 

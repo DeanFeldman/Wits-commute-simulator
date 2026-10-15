@@ -44,6 +44,11 @@ export const CREDITS = [
         name: "Inter",
         detail: "Google Fonts typeface by Rasmus Andersson — SIL Open Font License 1.1.",
         url: "https://fonts.google.com/specimen/Inter"
+      },
+      {
+        name: "Pencilant Script",
+        detail: "Glotta Studio — free for personal and commercial use under the 1001 Fonts listing. Unmodified typeface used for Level 3 peeked answer notes; bundled FONTLOG retained with the font.",
+        url: "https://www.1001fonts.com/pencilant-font.html"
       }
     ]
   },
@@ -117,6 +122,31 @@ export const CREDITS = [
       }
     ]
   },
+  {
+    heading: "Dean Feldman — edited third-party architecture images (licence unverified)",
+    entries: [
+      {
+        name: "Level 1 east precast wall — east-precast-wall-texture.jpg",
+        detail: "Original photo found through Google Images; source traced by Dean Feldman to Precast Walling Pros (photographer and exact photo URL unverified). Cropped/edited by Dean Feldman for Level 1. Reuse/adaptation/redistribution permission has NOT been established.",
+        url: "https://precastwallingpros.co.za/"
+      },
+      {
+        name: "Level 2 AMIC fence — amic-fence.png",
+        detail: "Dean-reported source: Crown Publications, 'Bridging the divide'; article images credited to eimage / Gareth Gilmour. Cropped/edited by Dean Feldman for the AMIC fence material. Exact original photo match and reuse/adaptation/redistribution permission not verified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      },
+      {
+        name: "Level 2 AMIC fence reference — amic-fence-reference.png",
+        detail: "Dean-reported Crown Publications source trail ('Bridging the divide', images credited to eimage / Gareth Gilmour); a separate Google Images/share reference link was provided but cannot be independently verified. Cropped/edited by Dean Feldman; file is retained in the public asset folder as a reference. Exact original image and reuse permission unverified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      },
+      {
+        name: "Level 2 AMIC deck — 2695c241-17bb-416d-9d1d-7f061ccf7976.png",
+        detail: "Cropped/edited by Dean Feldman from sourced AMIC ground/reference imagery (NOT made from scratch). Dean-reported source trail: Crown Publications, 'Bridging the divide', with article photos credited to eimage / Gareth Gilmour. Exact photo match and permission for adaptation/redistribution not verified.",
+        url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
+      }
+    ]
+  },
   { heading: "Sound effects", entries: [
     { name: "Level 2 vehicle impact", detail: "avakas — CC BY 4.0. Converted to Opus for Level 2 collision feedback.", url: "https://freesound.org/people/avakas/sounds/144113/" },
     { name: "Level 2 shield pop", detail: "DRAGON-STUDIO — Pixabay Content License. Used for shield consumption.", url: "https://pixabay.com/sound-effects/film-special-effects-pop-402324/" },
@@ -141,7 +171,13 @@ export const CREDITS = [
     { name: "Level 2 traffic warning horn", detail: "Universfield — Pixabay Content License. Used only when a vehicle is approaching a player standing directly in its lane.", url: "https://pixabay.com/sound-effects/film-special-effects-automobile-horn-02-352065/" },
     { name: "Level 2 person bump", detail: "foxboyprower — CC0. Short collision/bump cue, trimmed and converted to mono Opus.", url: "https://freesound.org/people/foxboyprower/sounds/512568/" },
     { name: "Level 2 Vida pickup", detail: "Leszek_Szary — CC0. Dedicated collection cue, silence-trimmed and converted to mono Opus.", url: "https://freesound.org/people/Leszek_Szary/sounds/171579/" },
-    { name: "Level 2 pedestrian crossing signal", detail: "MacFerret_20 — traffic-light ticking field recording used only near Yale Road. Source is recorded; exact Freesound licence still needs final verification before submission.", url: "https://freesound.org/people/MacFerret_20/sounds/231936/" },
+    {
+      name: "Level 2 pedestrian crossing signal — CC BY-NC 4.0",
+      detail: "DH14_TraffLights2.aif by MacFerret_20 (Freesound 231936). CC BY-NC 4.0, reported by Nadav Sundy; adapted to crossing-signal.opus by trimming silence, downmixing, crossfading, normalising and converting to Opus. Use is permitted only for qualifying noncommercial distribution; public-deployment eligibility must be checked.",
+      url: "https://freesound.org/people/MacFerret_20/sounds/231936/",
+      licenceUrl: "https://creativecommons.org/licenses/by-nc/4.0/",
+      licenceLabel: "CC BY-NC 4.0 licence terms"
+    },
     { name: "Level 3 incorrect answer", detail: "TheBuilder15 (Freesound), via Pixabay — Pixabay Content License. Louder replacement incorrect-answer cue.", url: "https://pixabay.com/sound-effects/film-special-effects-wrong-47985/" },
   ] },
   {
@@ -212,8 +248,8 @@ export const CREDITS = [
         detail: "Some former music and sound assets remain distributed despite no current direct gameplay/audio references. They require a final source/permission or removal check and must not be described as active gameplay."
       },
       {
-        name: "Level 2 crossing signal licence",
-        detail: "MacFerret_20 on Freesound (231936) is source/author-identified; the licence for this exact sound remains unverified.",
+        name: "Level 2 crossing signal — NonCommercial deployment check",
+        detail: "Nadav Sundy identified DH14_TraffLights2.aif by MacFerret_20 as CC BY-NC 4.0. Attribution and adaptation are recorded in the Sound effects section; confirm the Wits/LAMP deployment and other distribution qualify as NonCommercial, or replace/obtain alternative permission.",
         url: "https://freesound.org/people/MacFerret_20/sounds/231936/"
       },
       {
@@ -222,13 +258,8 @@ export const CREDITS = [
         url: "https://www.instagram.com/wits_sharks/"
       },
       {
-        name: "Pencil Pete trial font",
-        detail: "JOEBOB graphics — source identified on 1001 Fonts. The listing says free for personal use / not free for commercial use; redistribution of the trial TTF in the submitted game still needs explicit embedding and redistribution permission or replacement; publisher trial terms prohibit embedding.",
-        url: "https://www.1001fonts.com/pencilpete-font-font.html"
-      },
-      {
-        name: "Level 1 environment textures still unresolved",
-        detail: "The runtime foliage model sources are recorded. The stylized grass texture set still needs provenance. east-precast-wall-texture.jpg was found online via Google Images, traced to Precast Walling Pros, and directly edited/adapted by Dean Feldman for the game.",
+        name: "Level 1 environment textures — remaining rights check",
+        detail: "The stylized grass texture set still needs provenance. Dean's edited east-precast-wall-texture.jpg now has an individual source/modifier credit above (Precast Walling Pros source trail), but copying/adaptation/redistribution permission remains unverified.",
         url: "https://precastwallingpros.co.za/"
       },
       {
@@ -240,8 +271,8 @@ export const CREDITS = [
         detail: "Tutor GLB/FBX assets, the seated-student animation, classroom-desk and classroom-plastic-chair variants still need complete provenance records. The repo also retains a known project-created cartoon-desk and a Jazavac CC BY 4.0 plastic-chair source asset, but the relationship to the current runtime replacement files must be confirmed before those credits are carried across."
       },
       {
-        name: "AMIC / Level 2 deck textures",
-        detail: "amic-fence.png, amic-fence-reference.png and 2695c241-17bb-416d-9d1d-7f061ccf7976.png were found online, traced to Crown Publications' “Bridging the divide” article (images credited there to eimage/Gareth Gilmour), and directly edited/adapted by Dean Feldman for the game.",
+        name: "AMIC / Level 2 adapted images — remaining rights check",
+        detail: "All three AMIC image files now have individual credits above recording Dean's direct crop/edit and the reported Crown Publications / eimage / Gareth Gilmour source trail. Exact photo matches and permission to copy, adapt and redistribute remain unverified; see docs/ASSETS_AND_CREDITS.md.",
         url: "https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide"
       },
       {

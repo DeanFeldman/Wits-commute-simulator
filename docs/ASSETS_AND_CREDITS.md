@@ -190,35 +190,38 @@ General UI/body text loaded through Google Fonts.
 
 Modified: No
 
-### Pencil Pete FONT (trial)
+### Pencilant Script
 
 Type: Font
 
 Source:
-https://www.1001fonts.com/pencilpete-font-font.html
+https://www.1001fonts.com/pencilant-font.html
 
 Author:
-JOEBOB graphics
+Glotta Studio
 
 Licence:
-Free for personal use / trial licence; not free for commercial use according to
-the 1001 Fonts listing. The repository currently ships the trial TTF, so the team
-must confirm that redistribution in the submitted game is permitted or replace it
-with a font whose redistribution terms are clear.
+Free for personal and commercial use according to the specific 1001 Fonts
+listing. The supplied archive includes a FONTLOG, retained unchanged alongside
+the TTF. The FONTLOG mentions SIL Open Font License, but no separate OFL licence
+text is included in this archive; the credit therefore records the listing's
+usage terms rather than asserting a verified OFL version.
 
 Used for:
-Level 3 handwritten hologram / answer-note text.
+Level 3 handwritten answers revealed while peeking at other students' tablets.
 
-File:
-`public/assets/fonts/pencil-pete-trial.ttf`
+Files:
+- `public/assets/fonts/pencilant-script.ttf`
+- `public/assets/fonts/pencilant-fontlog.txt`
 
-Modified: No
+Modified: No (TTF and FONTLOG renamed only).
 
-Added by:
-Gabriel Raz
+Added from:
+User-supplied `pencilant.zip` and specific source reference, 14 October 2026.
 
-Status:
-Source identified, but **redistribution clearance still required before submission**.
+Replacement:
+Replaces Pencil Pete FONT by JOEBOB graphics. The old trial TTF was removed
+from the shipped assets and is no longer loaded at runtime.
 
 ---
 
@@ -569,6 +572,109 @@ Yes — taken at 4K and renamed to the project's convention.
 Added by:
 Shayna Unterslak
 
+
+---
+
+## Dean Feldman: adapted third-party architectural imagery
+
+The four files below were **sourced through Google Images and directly cropped /
+edited by Dean Feldman** for the Wits Commute Simulator. They are credited here
+individually and in the game; **no licence authorising copying, modification or
+redistribution has been established**. Listing a source and a modifier does not
+mean the team owns the underlying images.
+
+### East Precast Wall Texture — Level 1
+
+Type: Adapted photographic wall texture
+
+Source / provenance: Dean Feldman reports finding the original image through
+Google Images and tracing it to **Precast Walling Pros** —
+https://precastwallingpros.co.za/ . The exact original photograph URL and
+photographer have not been independently identified.
+
+File: `public/assets/textures/parking/east-precast-wall-texture.jpg`
+
+Used for: Level 1 perimeter/east precast wall; loaded by
+`src/levels/parking/EastDiorama.js`.
+
+Modified by: Dean Feldman — cropped/edited from online imagery for the game;
+not an entirely team-created source photograph.
+
+Licence / permission: **Unverified**; attribution is recorded, but reuse,
+adaptation and redistribution rights have not been confirmed.
+
+### AMIC Fence Texture — Level 2
+
+Type: Adapted photographic fence texture
+
+Source / provenance: Dean Feldman traced the imagery he found through Google
+Images to Crown Publications, **“Bridging the divide”** —
+https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide .
+The article credits photographs to **eimage / Gareth Gilmour**; an independent
+one-to-one match between this file and a specific gallery photo has not been
+verified.
+
+File: `public/assets/textures/road/amic-fence.png`
+
+Used for: Level 2 AMIC fence material in `src/shared/AmicFence.js`.
+
+Modified by: Dean Feldman — cropped/edited a sourced image into the game
+texture; not a newly photographed or independently created image.
+
+Licence / permission: **Unverified**; no image reuse/adaptation licence recorded.
+
+### AMIC Fence Reference Image — Level 2
+
+Type: Adapted reference image (retained distributed asset)
+
+Source / provenance: Dean Feldman reports Google Images and the Crown
+Publications **“Bridging the divide”** article (photographs credited there to
+**eimage / Gareth Gilmour**) as the source trail. A separate Google-share link
+was provided for this specific image:
+https://share.google/LCdsVeNbSr9GduITN .
+That link has **not been independently resolved to the original publisher or
+photographer**, so it is a supplied reference trail, not verified licence
+evidence.
+
+File: `public/assets/textures/road/amic-fence-reference.png`
+
+Used for: AMIC fence visual reference; retained under `public/assets/` and
+registered as a reference path by `src/shared/AmicFence.js`. The runtime
+fence material directly loads `amic-fence.png` instead.
+
+Modified by: Dean Feldman — cropped/edited source imagery for the project.
+
+Licence / permission: **Unverified**; needs permission or removal/replacement
+for rights-clear final distribution, even if only retained as a reference.
+
+### AMIC Deck / Ground Texture — Level 2
+
+Type: Adapted photographic ground/deck texture
+
+Source / provenance: The underlying AMIC ground/fence reference imagery was
+found through Google Images and traced by Dean Feldman to Crown Publications,
+**“Bridging the divide”**, whose article credits photographs to
+**eimage / Gareth Gilmour**:
+https://www.crown.co.za/lighting-in-design/case-studies/27707-bridging-the-divide .
+The exact source photograph for this crop has not been independently matched.
+
+File: `public/assets/textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png`
+
+Used for: Level 2 AMIC deck/walking-surface texture; loaded by
+`src/levels/crossing/CrossingStrip.js`.
+
+Modified by: Dean Feldman — **confirmed crop/edit of an AMIC reference/ground
+image**, not an original texture generated from scratch or merely inspired
+by the reference.
+
+Licence / permission: **Unverified**; the source image's copying, adaptation
+and redistribution rights have not been established.
+
+**Status for Issue #245:** All **four provenance/attribution entries are
+recorded**. They are **not licence-cleared**; confirm reuse permission or
+replace/remove the source-derived assets before treating the distribution
+rights as resolved.
+
 ---
 
 ## Sound Effects
@@ -801,11 +907,25 @@ Road-crossing ambience / traffic-light signal
 Source:
 https://freesound.org/people/MacFerret_20/sounds/231936/
 
+Original recording title:
+`DH14_TraffLights2.aif`
+
 Author:
 MacFerret_20
 
 Licence:
-**Exact Freesound licence still to be verified before final submission.**
+**Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)**,
+as supplied by Nadav Sundy on 14 October 2026 for this exact recording.
+Licence: https://creativecommons.org/licenses/by-nc/4.0/
+
+The specific Freesound sound page was not independently retrievable during this
+follow-up, so Nadav's recording-specific report is the evidence for the licence
+classification. **This is not CC BY or CC0.** Redistribution/adaptation is
+permitted under this licence only for qualifying noncommercial uses, with source,
+author, licence link and modification notice. Confirm that the final publicly
+accessible Wits/LAMP deployment and any other distribution satisfy the
+NonCommercial condition; otherwise replace the sound or obtain alternative
+permission.
 
 Used for:
 A low traffic-light ticking layer that fades in only as the player approaches
@@ -1618,8 +1738,8 @@ These remain **open** and are the reason Issue #245 must not be closed yet:
 
 
 ### Font
-- `pencil-pete-trial.ttf` — source and author are now identified, but the trial
-  licence still needs redistribution clearance or replacement.
+- **Resolved 14 October 2026:** the Pencil Pete trial TTF was removed and
+  replaced with Pencilant Script by Glotta Studio (see the current font entry).
 
 ### Level 1 foliage / environment assets
 - **Foliage model provenance resolved:** `giant-low-poly-tree.glb`,
@@ -1666,10 +1786,14 @@ For each unresolved item, the final action is one of:
 
 ### Level 2 crossing-signal licence verification
 
-The source and author for `crossing-signal.opus` are recorded as MacFerret_20,
-Freesound sound 231936. Confirm the exact licence displayed on that specific
-Freesound page before final submission; do not infer it from the author's other
-recordings.
+**Updated 14 October 2026:** Nadav Sundy supplied the exact title
+`DH14_TraffLights2.aif` and reported **CC BY-NC 4.0** for Freesound sound 231936
+by MacFerret_20. The "unknown licence" question is resolved at team-source
+level. What remains is to confirm that the published game qualifies as
+**noncommercial** and displays attribution, licence and modification details.
+If the deployment/distribution does not qualify, replace the cue or obtain
+alternative permission. The sound-page licence label has not independently
+been captured by this audit.
 
 ## Still required before final submission
 
@@ -1697,8 +1821,8 @@ by the current runtime code, so it is retained only as historical provenance.
 
 The Pencil Pete source was identified as JOEBOB graphics' trial font. This closes
 the "unknown source" part of that item, but not the redistribution/licence-clearance
-part; it remains open until the team confirms the trial licence permits shipping
-the TTF with the project or replaces it.
+part. **Resolved 14 October 2026:** replaced with Pencilant Script and removed
+the old trial TTF from the shipped assets.
 
 
 ---
@@ -1744,8 +1868,8 @@ final submitted asset set, even when they are not referenced by current gameplay
 ## Current unresolved distributed assets
 
 ### Gabriel Raz
-- `pencil-pete-trial.ttf` — source/author found; distribution permission still
-  needs confirmation or replacement.
+- **Resolved 14 October 2026:** Pencil Pete trial was removed and replaced
+  with Pencilant Script; the replacement's bundled FONTLOG is retained.
 - Level 1 stylized grass texture set.
 - Level 2 student backpack.
 - Level 2 male/female student rig + textured model sets.
@@ -1890,14 +2014,10 @@ from a third party (author, URL and licence), with supporting records. Do
 
 ## Outstanding distribution and permissions blockers
 
-1. **Pencil Pete trial font** — \`fonts/pencil-pete-trial.ttf\` is referenced
-   in Level 3. JOEBOB graphics' public FAQ says trial fonts cannot be embedded
-   and the 1001 Fonts listing calls this personal-use only. Merely
-   attributing it is not clearance. Replace with a properly licensed
-   handwriting typeface or obtain explicit permission to embed/redistribute
-   the file. Sources:
-   https://www.joebobgraphics.com/faq/ and
-   https://www.1001fonts.com/pencilpete-font-font.html .
+1. **Pencil Pete trial font — resolved 14 October 2026.** Replaced with
+   Pencilant Script by Glotta Studio, listed as free for personal and commercial
+   use at https://www.1001fonts.com/pencilant-font.html . The old trial TTF was
+   removed from the shipped assets; the replacement's bundled FONTLOG is retained.
 2. **Edited third-party image textures** —
    \`textures/parking/east-precast-wall-texture.jpg\`,
    \`textures/road/amic-fence.png\`,
@@ -1943,3 +2063,52 @@ from a third party (author, URL and licence), with supporting records. Do
 **Issue #245 remains open.** This appendix reflects documentation/registry
 audit fixes only; it does not certify external licence permissions or LAMP
 testing.
+
+
+---
+
+## 14 October 2026 — Nadav / Gabriel evidence follow-up (Issue #245)
+
+### Nadav Sundy: traffic-light recording
+
+- **Original:** `DH14_TraffLights2.aif` — MacFerret_20.
+- **Source:** https://freesound.org/s/231936/ (same recording as the URL above).
+- **Licence reported by Nadav:** **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** — https://creativecommons.org/licenses/by-nc/4.0/ .
+- **Shipped adaptation:** `public/assets/audio/level2/crossing-signal.opus` (trimmed, downmixed, crossfaded, normalised, encoded to Opus), used near Yale Road in Level 2.
+- **Crediting action:** source, title, author, licence/link and changes are now in this register and the in-game credits registry on this follow-up branch.
+- **Remaining action:** verify/record that the public submission and any subsequent distribution are noncommercial for CC BY-NC purposes. Do not present this as unrestricted commercial-use permission; if qualifying use cannot be established, replace or obtain separate permission. Freesound's individual sound page could not be independently fetched during the follow-up; Nadav's exact-source report is recorded explicitly rather than passing it off as independently checked.
+
+### Gabriel Raz: Pencil Pete trial font
+
+- **Link Gabriel sent:** https://www.1001fonts.com/search.html?search=pencil — a general search page, **not** a licence grant.
+- **Exact identified font page:** https://www.1001fonts.com/pencilpete-font-font.html — **pencil Pete FONT**, by **JOEBOB graphics** (trial/personal use, not commercial use under the page listing).
+- **Publisher conditions:** https://www.joebobgraphics.com/faq/ states trial fonts cannot be embedded. At the time of this audit, the trial TTF was distributed from `public/assets/fonts/pencil-pete-trial.ttf` and loaded by `src/levels/CheatingLevel.js` at runtime. It has since been removed and replaced with Pencilant Script.
+- **Status:** **REPLACED 14 OCTOBER 2026**. The trial font was removed from the shipped assets and replaced with Pencilant Script; see the current font entry above. The original source record is retained here for history.
+
+**This is a provenance/credits update only.** No gameplay asset has been removed/replaced by this branch. Issue #245 stays open for the remaining rights, asset and deployment checks.
+
+---
+
+## 14 October 2026 — Dean's four texture credits completed (Issue #245)
+
+Added four **per-file** attributions in the Textures and HDRIs section and
+four matching in-game credits for:
+
+1. `textures/parking/east-precast-wall-texture.jpg` — Precast Walling Pros
+   (source reported by Dean); cropped/edited by Dean Feldman.
+2. `textures/road/amic-fence.png` — Crown Publications, "Bridging the divide",
+   photos credited there to eimage / Gareth Gilmour (source reported by Dean);
+   cropped/edited by Dean.
+3. `textures/road/amic-fence-reference.png` — same Dean-reported Crown source
+   trail; additional user-supplied https://share.google/LCdsVeNbSr9GduITN
+   cannot independently establish origin or licence; cropped/edited by Dean.
+4. `textures/2695c241-17bb-416d-9d1d-7f061ccf7976.png` — cropped/edited
+   by Dean from AMIC ground/reference imagery; same Dean-reported Crown trail,
+   **not a new original texture**.
+
+**All four files still require a verified redistribution/adaptation licence,
+permission, or replacement/removal if rights clearance is needed.**
+Google Images discovery and giving credit alone do not grant those rights.
+The original photo-to-file matches have not been independently proven.
+This documents **attribution completeness**, not legal clearance. Issue #245
+stays open until the remaining final-submission checks are done.
