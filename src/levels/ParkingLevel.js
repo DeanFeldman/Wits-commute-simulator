@@ -53,6 +53,7 @@ const POTHOLE_SPLASH_CAPACITY = 192;
 const POTHOLE_SPLASH_GRAVITY = 10.5;
 
 const LEVEL1_IMPACT_AUDIO = "./assets/audio/level1/impact-sprite.opus";
+const LEVEL1_CAR_DOOR_CLOSE_AUDIO = "./assets/audio/level1/car-door-close.opus";
 const LEVEL1_PARKING_AMBIENCE_AUDIO =
   "./assets/audio/level1/406096__funwithsound__roadside-parking-lot-2.mp3";
 const LEVEL1_CAR_START_AUDIO =
@@ -1421,7 +1422,7 @@ async load() {
       LEVEL1_IMPACT_AUDIO,
       LEVEL1_CAR_START_AUDIO
     ]),
-    this.game.preloadTransitionSafeAudio?.([LEVEL1_IMPACT_AUDIO])
+    this.game.preloadTransitionSafeAudio?.([LEVEL1_IMPACT_AUDIO, LEVEL1_CAR_DOOR_CLOSE_AUDIO])
   ]);
 
   const scene = this.game.scene;
@@ -3698,6 +3699,8 @@ if (hit) {
 
     if (this.parkingStatus.holdTime >= this.parkingConfirmationDuration) {
       this.completed = true;
+      // The UI audio instance survives Level 1 disposal during the transition.
+      this.game.playOneShotAudio?.(LEVEL1_CAR_DOOR_CLOSE_AUDIO, 1);
       this.game.completeLevel("Parked! Heading to Level 2.", {
         time: this.elapsedTime,
         condition: this.condition,

@@ -837,8 +837,10 @@ Runtime file:
 `public/assets/audio/level3/correct-tick.opus`
 
 Modified:
-Yes — the supplied MP3 was trimmed by 10 ms, downmixed to mono, normalised with
-headroom and encoded to Opus. The runtime file is preloaded before gameplay.
+Yes — replaced directly from the supplied DRAGON-STUDIO MP3, selected the
+clearer left channel for mono game feedback, trimmed the silent tail, reduced
+peak level for headroom and encoded to Opus. The runtime file is preloaded
+before gameplay.
 
 Added by:
 Nadav Sundy
@@ -1155,6 +1157,32 @@ Runtime file:
 Modified:
 No — the supplied MP3 is streamed as a long-form loop rather than decoded into
 a large Web Audio buffer.
+
+Added by:
+Nadav Sundy
+
+### Level 1 Car Door Closing
+
+Type:
+Sound effect
+
+Source:
+https://freesound.org/people/BlondPanda/sounds/778421/
+
+Author:
+BlondPanda
+
+Licence:
+Creative Commons 0 (CC0)
+
+Used for:
+A single car-door close as the player finishes parking and Level 1 transitions.
+
+Runtime file:
+`public/assets/audio/level1/car-door-close.opus`
+
+Modified:
+Yes — supplied WAV was converted to compact mono Opus at 48 kbps.
 
 Added by:
 Nadav Sundy

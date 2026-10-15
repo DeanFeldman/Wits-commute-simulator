@@ -1,9 +1,6 @@
-const MIX = Object.freeze({
-  master: 0.9,
-  music: 0.18,
-  ambience: 0.34,
-  sfx: 1
-});
+import { AudioSettings } from "./AudioSettings.js";
+
+const MIX = AudioSettings.mix;
 
 // Gameplay deliberately has no continuous soundtrack. Keeping only the menu
 // preset here makes an accidental `startMusic("levelX")` call a no-op while the
@@ -151,16 +148,17 @@ export class LevelAudio {
       const source = this.context.createMediaElementSource(music);
       const trackGain = this.context.createGain();
       const now = this.context.currentTime;
-      trackGain.gain.setValueAtTime(fadeSeconds > 0 ? 0.001 : 1, now);
+      const target = AudioSettings.gain(src, 1);
+      trackGain.gain.setValueAtTime(fadeSeconds > 0 ? 0.001 : target, now);
       if (fadeSeconds > 0) {
-        trackGain.gain.exponentialRampToValueAtTime(1, now + fadeSeconds);
+        trackGain.gain.exponentialRampToValueAtTime(Math.max(0.001, target), now + fadeSeconds);
       }
       source.connect(trackGain).connect(this.musicBus);
       this.musicSource = source;
       this.musicTrackGain = trackGain;
     } else {
       music.muted = this.isMuted || !this.musicEnabled;
-      music.volume = MIX.music * musicVolume;
+      music.volume = clamp01(MIX.music * musicVolume * AudioSettings.gain(src, 1));
     }
 
     if (this.musicEnabled && !this.isMuted) music.play().catch(() => {});
@@ -432,6 +430,9 @@ export class LevelAudio {
     bus = "sfx"
   } = {}) {
     if (!path || this.isMuted) return null;
+    volume = AudioSettings.gain(path, volume);
+    playbackRate = AudioSettings.rate(path, playbackRate);
+    bus = AudioSettings.bus(path, bus);
 
     const decoded = this.playDecoded(path, { volume, pan, playbackRate, bus });
     if (decoded) return decoded;
@@ -483,6 +484,9 @@ export class LevelAudio {
     bus = "sfx"
   } = {}) {
     if (!path || this.isMuted || duration <= 0) return null;
+    volume = AudioSettings.gain(path, volume);
+    playbackRate = AudioSettings.rate(path, playbackRate);
+    bus = AudioSettings.bus(path, bus);
 
     const decoded = this.playDecoded(path, {
       start,
@@ -567,6 +571,9 @@ export class LevelAudio {
     startTime = 0
   } = {}) {
     if (!name || !path || typeof Audio !== "function" || this.disposed) return null;
+    volume = AudioSettings.gain(path, volume);
+    playbackRate = AudioSettings.rate(path, playbackRate);
+    bus = AudioSettings.bus(path, bus);
     const existing = this.loops.get(name);
     if (existing) return existing.element;
 
@@ -587,6 +594,7 @@ export class LevelAudio {
         shouldPlay: true,
         fallback: true,
         baseVolume: volume,
+        path,
         bus
       });
       audio.play().catch(() => {});
@@ -614,6 +622,7 @@ export class LevelAudio {
       shouldPlay: true,
       fallback: false,
       baseVolume: volume,
+      path,
       bus
     };
     this.loops.set(name, handle);
@@ -644,6 +653,8 @@ export class LevelAudio {
   setLoopParameters(name, { volume, playbackRate, pan } = {}) {
     const loop = this.loops.get(name);
     if (!loop) return;
+    if (Number.isFinite(volume)) volume = AudioSettings.gain(loop.path, volume);
+    if (Number.isFinite(playbackRate)) playbackRate = AudioSettings.rate(loop.path, playbackRate);
     if (Number.isFinite(playbackRate)) loop.element.playbackRate = Math.max(0.25, playbackRate);
     if (Number.isFinite(volume)) {
       loop.baseVolume = Math.max(0, volume);
@@ -752,7 +763,7 @@ export class LevelAudio {
 
     if (this.music && !this.musicSource) {
       this.music.muted = this.isMuted || !this.musicEnabled;
-      this.music.volume = MIX.music * musicVolume;
+      this.music.volume = clamp01(MIX.music * musicVolume * AudioSettings.gain(MUSIC_FILES[this.musicPreset], 1));
     }
 
     for (const loop of this.loops.values()) {
