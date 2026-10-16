@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   generateLevelOneRun,
+  getLevelOneParkingSpaces,
+  LEVEL_ONE_PARKING_LAYOUT,
   normalizeLevelOneSeed,
   parkingBayKey,
   resolveLevelOneSeed
@@ -60,4 +62,22 @@ test("different Level 1 seeds produce different authored runs", () => {
 
   assert.notDeepEqual(first.freeBays.map(parkingBayKey), second.freeBays.map(parkingBayKey));
   assert.notDeepEqual(first.potholes, second.potholes);
+});
+
+test("purple parking objectives never spawn in the top or entrance-side rows", () => {
+  const allBays = getLevelOneParkingSpaces();
+  assert.ok(allBays.some((bay) => bay.rowName === LEVEL_ONE_PARKING_LAYOUT.topRow.name));
+  assert.ok(allBays.some((bay) => bay.z >= LEVEL_ONE_PARKING_LAYOUT.targetBayMaxZ));
+
+  const selected = new Set();
+  for (let seed = 0; seed < 64; seed++) {
+    const { freeBays } = generateLevelOneRun(seed);
+    assert.equal(freeBays.length, LEVEL_ONE_PARKING_LAYOUT.freeBayCount);
+    for (const bay of freeBays) {
+      assert.notEqual(bay.rowName, LEVEL_ONE_PARKING_LAYOUT.topRow.name);
+      assert.ok(bay.z < LEVEL_ONE_PARKING_LAYOUT.targetBayMaxZ);
+      selected.add(parkingBayKey(bay));
+    }
+  }
+  assert.ok(selected.size > LEVEL_ONE_PARKING_LAYOUT.freeBayCount, "targets should vary with the seed");
 });
