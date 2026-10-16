@@ -585,7 +585,6 @@ export const LEVEL_ONE_PARKING_LAYOUT = Object.freeze({
   // rather than one scripted slot.
   freeBayCount: 3,
   freeBaySeparation: 18,
-  targetBayMaxZ: 20, // Keep purple objectives beyond the first entrance-side bays.
   potholeCount: 40,
   potholeMinSeparation: 5,
   potholeRadiusMin: 0.55,
@@ -1221,10 +1220,9 @@ export function resolveLevelOneSeed(
 export function generateLevelOneRun(seed) {
   const normalizedSeed = normalizeLevelOneSeed(seed);
   const random = createSeededRandom(normalizedSeed);
-  // Exclude the north perimeter row and the easy-to-reach bays by the south entrance.
-  const candidates = getLevelOneParkingSpaces().filter(({ rowName, z }) =>
-    rowName !== LEVEL_ONE_PARKING_LAYOUT.topRow.name && z < LEVEL_ONE_PARKING_LAYOUT.targetBayMaxZ
-  );
+  // The entrance aisle is flanked by row-a-right and row-b-left: neither may be purple.
+  const entranceSideRows = new Set(["row-a-right", "row-b-left"]);
+  const candidates = getLevelOneParkingSpaces().filter(({ rowName }) => !entranceSideRows.has(rowName));
   const freeBays = pickFreeParkingBays(candidates, random);
   const potholes = generateLevelOnePotholes({ random, freeBays });
 
