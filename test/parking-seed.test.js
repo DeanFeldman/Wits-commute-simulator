@@ -64,20 +64,27 @@ test("different Level 1 seeds produce different authored runs", () => {
   assert.notDeepEqual(first.potholes, second.potholes);
 });
 
-test("purple parking objectives never spawn in the top or entrance-side rows", () => {
+test("purple bays never spawn along either side of the entrance aisle", () => {
+  const excluded = new Set(["row-a-right", "row-b-left"]);
   const allBays = getLevelOneParkingSpaces();
-  assert.ok(allBays.some((bay) => bay.rowName === LEVEL_ONE_PARKING_LAYOUT.topRow.name));
-  assert.ok(allBays.some((bay) => bay.z >= LEVEL_ONE_PARKING_LAYOUT.targetBayMaxZ));
-
+  for (const row of excluded) assert.ok(allBays.some((bay) => bay.rowName === row));
   const selected = new Set();
-  for (let seed = 0; seed < 64; seed++) {
+  const selectedRows = new Set();
+
+  for (let seed = 0; seed < 128; seed++) {
     const { freeBays } = generateLevelOneRun(seed);
     assert.equal(freeBays.length, LEVEL_ONE_PARKING_LAYOUT.freeBayCount);
     for (const bay of freeBays) {
-      assert.notEqual(bay.rowName, LEVEL_ONE_PARKING_LAYOUT.topRow.name);
-      assert.ok(bay.z < LEVEL_ONE_PARKING_LAYOUT.targetBayMaxZ);
+      assert.equal(excluded.has(bay.rowName), false, bay.rowName);
       selected.add(parkingBayKey(bay));
+      selectedRows.add(bay.rowName);
     }
   }
   assert.ok(selected.size > LEVEL_ONE_PARKING_LAYOUT.freeBayCount, "targets should vary with the seed");
+  assert.ok(selectedRows.has("row-a-left") && selectedRows.has("row-b-right"), "opposite sides stay eligible");
+  assert.ok(selectedRows.has("top-row"), "north curb bays are not excluded");
+  assert.ok([...selected].some((key) => {
+    const bay = allBays.find((space) => parkingBayKey(space) === key);
+    return bay.z >= 20;
+  }), "entrance-end bays in other rows remain eligible");
 });
