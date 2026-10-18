@@ -610,6 +610,7 @@ export class CrossingLevel {
     const labels = { chase: "Chase", close: "Close", "first-person": "First Person" };
     this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
     this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode !== "chase"));
+    this.viewToggle.title = this.cameraMode === "first-person" ? "W/↑ forward · S/↓ backward · A/← turn left · D/→ turn right" : "Press C to change camera";
   }
 
   setCameraMode(mode) {
