@@ -18,6 +18,7 @@ import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import { syncLoadingIndicator } from "../ui/loadingIndicator.js";
+import { syncSurveyPause } from "../ui/surveyPause.js";
 import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
@@ -344,6 +345,8 @@ export class Game {
   showMenu() {
     this.characterSelectFlow?.hide();
     this.cancelTransition();
+    syncSurveyPause(this.pauseMenuElement, this.currentLevel?.quiz?.root, false);
+    this.surveyFocusBeforePause = null;
     this.uiAudio.startMusic("menu");
     this.uiAudio.setMusicEnabled(this.isMusicEnabled);
     this.uiAudio.setMuted(this.isSoundMuted);
@@ -1152,6 +1155,10 @@ export class Game {
     }
 
     this.isPaused = true;
+    const quizRoot = this.currentLevelNumber === 2 ? this.currentLevel.quiz?.root : null;
+    this.surveyFocusBeforePause = quizRoot?.contains(document.activeElement) ? document.activeElement : null;
+    syncSurveyPause(this.pauseMenuElement, quizRoot, true);
+    this.pauseMenuElement.querySelector(".pause-hint").textContent = quizRoot && !quizRoot.hidden ? "Press P or Esc to resume" : "Press P to resume";
     this.pauseMenuElement.hidden = false;
     this.pauseKickerElement.textContent = `LEVEL ${this.currentLevelNumber} PAUSED`;
     this.sensitivityControl.hidden = this.currentLevelNumber !== 3;
@@ -1170,7 +1177,10 @@ export class Game {
     }
 
     this.isPaused = false;
+    syncSurveyPause(this.pauseMenuElement, this.currentLevel?.quiz?.root, false);
     this.pauseMenuElement.hidden = true;
+    this.surveyFocusBeforePause?.focus();
+    this.surveyFocusBeforePause = null;
     this.clock.getDelta();
     this.setMessage("");
   }
@@ -1226,8 +1236,10 @@ export class Game {
     if (this.isLevelIntroActive || this.isTutorialActive) return;
 
     if (this.globalControls.wasPressed("pause")) {
-      if (this.input.wasPressed("Escape")) this.pause();
-      else this.togglePause();
+      if (this.input.wasPressed("Escape")) {
+        if (this.isPaused && this.pauseMenuElement.classList.contains("over-survey")) this.resume();
+        else this.pause();
+      } else this.togglePause();
       return;
     }
 
@@ -1770,6 +1782,8 @@ export class Game {
     }
 
     if (event.target.closest("[data-pause-action='restart']")) {
+      syncSurveyPause(this.pauseMenuElement, this.currentLevel?.quiz?.root, false);
+      this.surveyFocusBeforePause = null;
       this.pauseMenuElement.hidden = true;
       this.isPaused = false;
       this.restartCurrentLevel(false, true);
