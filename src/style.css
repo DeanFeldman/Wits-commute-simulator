@@ -3391,3 +3391,6 @@ body.graphics-effects-off #level2-vignette {
 @keyframes loading-bar-shine{from{transform:translateX(-100%)}to{transform:translateX(270%)}}
 body:has(#loading-indicator:not([hidden])) .level-intro-status{visibility:hidden}
 @media(prefers-reduced-motion:reduce){.loading-progress-fill{transition:none}.loading-progress-fill::after{animation:none}}
+
+/* Pause above either Level 2 questionnaire, not behind its overlay. */
+#pause-menu.over-survey{z-index:45;background:rgba(5,8,14,.68)}
