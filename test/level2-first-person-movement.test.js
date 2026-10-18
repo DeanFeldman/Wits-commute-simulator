@@ -8,7 +8,7 @@ test("first-person W and S follow the camera for every grid heading", () => {
   const cases = [[0, [0, 1]], [Math.PI / 2, [1, 0]], [Math.PI, [0, -1]], [-Math.PI / 2, [-1, 0]]];
   for (const [yaw, [x, z]] of cases) {
     assert.deepEqual(directionFromFacing(yaw), { x, z });
-    assert.deepEqual(directionFromFacing(yaw, true), { x: -x, z: -z });
+    assert.deepEqual(directionFromFacing(yaw, true), { x: x === 0 ? 0 : -x, z: z === 0 ? 0 : -z });
   }
 });
 
