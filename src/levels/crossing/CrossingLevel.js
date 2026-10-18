@@ -17,6 +17,9 @@ import { attachBackpack, loadBackpackTemplate } from "./BackpackAsset.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
+import { canStartSurvey } from "./surveyInteraction.js";
+import { LEVEL2_CAMERA_MODES, nextLevel2CameraMode } from "./cameraModes.js";
+import { normalizeFacingYaw, turnFacingYaw, FIRST_PERSON_TURN_SPEED } from "./firstPersonMovement.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -119,26 +122,6 @@ export function getCrowdSpeakerLabel(person) {
   return [name, title].filter(Boolean).join(" · ");
 }
 
-const COMPLETED_SURVEY_LINES = Object.freeze({
-  psychQuizzer: Object.freeze([
-    "I already did your survey 😭",
-    "I've already contributed to the dataset. Please release me.",
-    "I already clicked Strongly Agree. Let me go!",
-    "Check the spreadsheet — I'm definitely in there."
-  ]),
-  ccduAdvisor: Object.freeze([
-    "I already did the CCDU check-in. I promise!",
-    "You already have my data. Let me get to class.",
-    "I filled it in already — my wellness is declining as we speak.",
-    "My CCDU duty is complete. Please release me."
-  ])
-});
-
-function pickCompletedSurveyLine(kind, random) {
-  const lines = COMPLETED_SURVEY_LINES[kind] ?? ["I've already filled this in!"];
-  return lines[Math.floor(random() * lines.length) % lines.length];
-}
-
 export class CrossingLevel {
   constructor(game) {
     this.game = game;
@@ -183,9 +166,14 @@ export class CrossingLevel {
     this.cameraLookGoal = new THREE.Vector3();
     this.chaseCamera = null;
     this.closeCamera = null;
+    this.firstPersonCamera = null;
     this.mapCamera = null;
     this.minimapCamera = null;
     this.cameraMode = "chase";
+    this.firstPersonYaw = 0;
+    this.firstPersonTurnCooldown = 0;
+    this.lastFreeFootstepDistance = 0;
+    this.freeBackwardTravel = 0;
     this.mapViewActive = false;
     this.minimapElement = null;
     this.viewToggle = null;
@@ -254,7 +242,6 @@ export class CrossingLevel {
     this.quiz = null;
     this.quizPaused = false;
     this.completedSurveys = new Set();
-    this.surveyConversation = null;
     this.aura = null;
     this.shieldBubble = null;
     this.frostOverlay = null;
@@ -286,7 +273,6 @@ export class CrossingLevel {
 
     // Survey completion belongs to this Level 2 run only.
     this.completedSurveys.clear();
-    this.surveyConversation = null;
     const scene = this.game.scene;
 
     // Keep Level 2 in the same exterior visual language as Level 1 while
@@ -359,6 +345,7 @@ export class CrossingLevel {
     this.collisionWorld.rebuild();
     this.hopController = new GridHopController(this.player, {
       cellSize: WALK_STEP,
+      gridOriginZ: this.startZ,
       walkSpeed: WALK_SPEED,
       minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ,
       canEnter: (x, z) => !this.isBlockedCell(x, z) && !this.crowd.personAt(x, z),
@@ -378,6 +365,7 @@ export class CrossingLevel {
     this.closeCamera = new THREE.PerspectiveCamera(66, camera.aspect, 0.1, 160);
     this.closeCamera.position.set(this.player.position.x + 2.7, 3.8, this.player.position.z + 4.2);
     this.closeCamera.lookAt(this.player.position.x, 1, this.player.position.z - 1.4);
+    this.firstPersonCamera = new THREE.PerspectiveCamera(74, camera.aspect, 0.05, 160);
     this.createMapCamera();
     this.createMinimapCamera();
     this.createWalkableCellOverlay();
@@ -622,17 +610,33 @@ export class CrossingLevel {
 
   updateCameraModeButton() {
     if (!this.viewToggle) return;
-    const labels = { chase: "Chase", close: "Close" };
+    const labels = { chase: "Chase", close: "Close", "first-person": "First Person" };
     this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
-    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "close"));
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode !== "chase"));
+    this.viewToggle.title = this.cameraMode === "first-person" ? "W/↑ forward · S/↓ backward · A/← turn left · D/→ turn right" : "Press C to change camera";
   }
 
   setCameraMode(mode) {
-    if (!["chase", "close"].includes(mode)) return;
+    if (!LEVEL2_CAMERA_MODES.includes(mode)) return;
+    if (this.hopController && mode !== this.cameraMode) {
+      this.hopController.setFreeMovement(mode === "first-person");
+      this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+      this.freeBackwardTravel = 0;
+      if (mode === "first-person") {
+        this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
+        this.firstPersonTurnCooldown = 0;
+        this.hopController.lockedFacingYaw = this.firstPersonYaw;
+      } else {
+        this.hopController.lockedFacingYaw = null;
+        this.hopController.targetYaw = this.player.rotation.y;
+      }
+    }
     this.cameraMode = mode;
     this.mapViewActive = false;
     if (this.minimapElement) this.minimapElement.hidden = false;
-    this.game.setCamera(mode === "close" ? this.closeCamera : this.chaseCamera);
+    this.game.setCamera(this.getActiveCamera());
+    this.updatePlayerVisibility();
+    this.updateCamera(0);
     this.updateCameraModeButton();
     if (this.mapToggle) {
       this.mapToggle.textContent = "Bird's-eye map";
@@ -640,15 +644,27 @@ export class CrossingLevel {
     }
   }
 
+  getActiveCamera() {
+    return this.cameraMode === "first-person" ? this.firstPersonCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera;
+  }
+
   cycleCameraMode() {
-    const modes = ["chase", "close"];
-    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+    this.setCameraMode(nextLevel2CameraMode(this.cameraMode));
   }
 
   toggleMapView() {
     this.mapViewActive = !this.mapViewActive;
+    if (this.hopController && this.cameraMode === "first-person") {
+      this.hopController.setFreeMovement(!this.mapViewActive);
+      this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+      this.freeBackwardTravel = 0;
+      this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
+      this.hopController.lockedFacingYaw = this.mapViewActive ? null : this.firstPersonYaw;
+      this.hopController.targetYaw = this.player.rotation.y;
+    }
     if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
-    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera);
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.getActiveCamera());
+    this.updatePlayerVisibility();
     this.mapToggle.textContent = this.mapViewActive ? "Return to camera" : "Bird's-eye map";
     this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
   }
@@ -1091,13 +1107,14 @@ export class CrossingLevel {
     };
     this.hopController.reset(this.player.position);
     this.hopController.setHeldDirection(null);
+    this.hopController.freeThrottle = 0;
     this.hopController.onBlocked = null;
   }
 
   updateTutorial(dt) {
     if (!this.player || !this.hopController || !this.controls) return;
     if (this.controls.wasPressed("cycleCamera")) this.cycleCameraMode();
-    this.capturePlayerInput();
+    this.capturePlayerInput(dt);
     this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
@@ -1128,7 +1145,6 @@ export class CrossingLevel {
     }
 
     this.ensureGameplayAudio();
-    this.updateSurveyConversation?.(dt);
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     if (this.quizPaused) {
@@ -1160,13 +1176,30 @@ export class CrossingLevel {
     this.powerUps.update(dt);
     this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
-    this.capturePlayerInput();
+    this.capturePlayerInput(dt);
+    const previousZ = this.player.position.z;
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardSteps += 1;
-    if (landedDirection) this.updateCheckpoint();
-    if (landedDirection) this.playPlayerFootstep();
+    if (this.hopController.freeMovement) {
+      if (landedDirection) {
+        this.freeBackwardTravel = landedDirection.z > 0
+          ? this.freeBackwardTravel + Math.max(0, this.player.position.z - previousZ) : 0;
+        if (this.freeBackwardTravel >= WALK_STEP) {
+          this.backwardSteps += Math.floor(this.freeBackwardTravel / WALK_STEP);
+          this.freeBackwardTravel %= WALK_STEP;
+        }
+        this.updateCheckpoint();
+        if (this.hopController.distanceWalked - this.lastFreeFootstepDistance >= WALK_STEP) {
+          this.playPlayerFootstep();
+          this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+        }
+      }
+    } else {
+      if (landedDirection?.z > 0) this.backwardSteps += 1;
+      if (landedDirection) this.updateCheckpoint();
+      if (landedDirection) this.playPlayerFootstep();
+    }
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
@@ -1195,6 +1228,11 @@ export class CrossingLevel {
     `, "level2");
   }
 
+  updatePlayerVisibility() {
+    if (!this.player) return;
+    this.player.visible = (this.mapViewActive || this.cameraMode !== "first-person") && (this.invulnerabilityTimer <= 0 || this.impactTimer > 0 || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0);
+  }
+
   updatePlayerGroundHeight() {
     const strip = this.stripInside(this.player.position.z);
     const surfaceY = strip?.definition.type === "yale-road" ? YALE_SURFACE_Y : WALKWAY_SURFACE_Y;
@@ -1203,7 +1241,7 @@ export class CrossingLevel {
 
   updatePlayerAnimation(dt) {
     this.playerAnimationTime += dt;
-    const walking = this.hopController.isHopping;
+    const walking = this.hopController.isHopping || this.hopController.freeMoving;
     if (this.playerMixer && this.playerActions) {
       const nextAction = walking ? this.playerActions.running : this.playerActions.idle;
       if (nextAction !== this.activePlayerAction) {
@@ -1212,8 +1250,7 @@ export class CrossingLevel {
         this.activePlayerAction = nextAction;
       }
       this.playerMixer.update(dt);
-      this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
-        || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
+      this.updatePlayerVisibility();
       return;
     }
     const rig = this.playerRig;
@@ -1237,8 +1274,7 @@ export class CrossingLevel {
     rig.arms[1].rotation.z = 0.35 * cheer;
 
     // Blink while invulnerable after a shield save.
-    this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
-      || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
+    this.updatePlayerVisibility();
   }
 
   ensureGameplayAudio() {
@@ -1365,12 +1401,35 @@ export class CrossingLevel {
     }
   }
 
-  capturePlayerInput() {
+  capturePlayerInput(dt = 0) {
     if (this.impactTimer > 0) {
       this.hopController.setHeldDirection(null);
       return;
     }
     const controls = this.controls;
+    if (this.cameraMode === "first-person" && !this.mapViewActive) {
+      const steering = Number(controls.isDown("moveLeft")) - Number(controls.isDown("moveRight"));
+      const pressed = controls.wasPressed("moveLeft") || controls.wasPressed("moveRight");
+      if (!steering) this.firstPersonTurnCooldown = 0;
+      else {
+        // Each tap turns 12°. Holding continues smoothly after a brief delay.
+        this.firstPersonTurnCooldown = pressed ? 0.16 : Math.max(0, this.firstPersonTurnCooldown - dt);
+        const angle = pressed ? undefined : this.firstPersonTurnCooldown === 0 ? FIRST_PERSON_TURN_SPEED * dt : 0;
+        if (angle !== 0) {
+          this.firstPersonYaw = turnFacingYaw(this.firstPersonYaw, steering, angle);
+          this.hopController.lockedFacingYaw = this.firstPersonYaw;
+        }
+      }
+      // A/D (or Left/Right) steer instead of enqueueing sideways steps.
+      controls.consumeBuffered("moveLeft");
+      controls.consumeBuffered("moveRight");
+      const forwardTap = controls.consumeBuffered("moveUp"), backwardTap = controls.consumeBuffered("moveDown");
+      const forward = controls.isDown("moveUp") || forwardTap;
+      const backward = controls.isDown("moveDown") || backwardTap;
+      this.hopController.freeThrottle = Number(forward) - Number(backward);
+      return;
+    }
+    // The other views retain the original map-aligned grid controls.
     // A tap walks exactly one cell; holding keeps walking cell to cell.
     if (controls.consumeBuffered("moveUp")) this.hopController.enqueue(DIRECTIONS.up);
     else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue(DIRECTIONS.down);
@@ -1410,9 +1469,8 @@ export class CrossingLevel {
       return;
     }
 
-    const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer && person.surveyCooldown === 0) {
-      this.startQuiz(person);
+    if (person.kind === "psychQuizzer" || person.kind === "ccduAdvisor") {
+      if (canStartSurvey(person, this.completedSurveys)) this.startQuiz(person);
       return;
     }
 
@@ -1439,17 +1497,11 @@ export class CrossingLevel {
     return Boolean(this.quiz?.isOpen);
   }
 
-  // Stops the player for a psychQuizzer/ccduAdvisor person.
-  // Each distinct survey can only be completed once per Level 2 run. After
-  // that, the NPC still chases and catches the player, but gets an "already
-  // done it" response instead of reopening the form.
+  // A survey opens only once per NPC, never freezing the player again.
   startQuiz(person) {
-    if (this.completedSurveys.has(person.kind)) {
-      this.startCompletedSurveyConversation(person);
-      return;
-    }
-
+    if (this.quizPaused || !canStartSurvey(person, this.completedSurveys)) return;
     if (person.kind === "psychQuizzer") {
+      person.surveyAsked = true;
       this.quizPaused = true;
       this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
         this.completedSurveys.add(person.kind);
@@ -1462,7 +1514,7 @@ export class CrossingLevel {
 
     const quiz = pickQuiz(person.kind, this.crowd.random);
     if (!quiz) return;
-
+    person.surveyAsked = true;
     this.quizPaused = true;
     this.quiz.open(quiz, () => {
       this.completedSurveys.add(person.kind);
@@ -1472,61 +1524,10 @@ export class CrossingLevel {
     });
   }
 
-  startCompletedSurveyConversation(person) {
-    if (this.surveyConversation) return;
-
-    const npcLines = CROWD_LINES[person.kind] ?? ["Quick survey?"];
-    const npcLine = pickLine(npcLines, this.crowd.random);
-    const playerLine = pickCompletedSurveyLine(person.kind, this.crowd.random);
-
-    // Freeze gameplay for a tiny beat so the exchange reads as a conversation:
-    // NPC bubble first, then the player's answer.
-    this.quizPaused = true;
-    person.chasing = false;
-    person.caught = false;
-    person.chaseArmed = false;
-    person.surveyCooldown = Math.max(person.surveyCooldown ?? 0, 1.2);
-
-    this.crowd.say(person, npcLine);
-    this.surveyConversation = {
-      person,
-      playerLine,
-      remaining: 0.9
-    };
-  }
-
-  updateSurveyConversation(dt) {
-    const conversation = this.surveyConversation;
-    if (!conversation) return;
-
-    conversation.remaining -= dt;
-    if (conversation.remaining > 0) return;
-
-    // Use the same dialogue path as every other character so this renders
-    // as a real speech bubble attached to the player, not the floating
-    // pickup-style letters produced by SpeechBubbles.popup().
-    this.crowd.say({
-      kind: "player",
-      mesh: this.player,
-      talkCooldown: 0
-    }, conversation.playerLine, "neutral");
-
-    // Then let the survey NPC jog away and become chaseable again after the
-    // normal cooldown, exactly as after the original completed survey.
-    this.crowd.sendOff(conversation.person);
-    this.surveyConversation = null;
-    this.quizPaused = false;
-  }
-
-  // NEW — a chasing quiz NPC (CampusCrowd.updateChaser) sets `caught` for
-  // one frame once it reaches the player. Catching starts the same quiz a
-  // direct bump would have, so there is still exactly one quiz-trigger path
-  // per NPC, just two ways of arriving at it.
   handleChaseCatches() {
     if (this.quizPaused) return;
-    const caughtBy = this.crowd.people.find((person) => person.caught);
-    if (!caughtBy) return;
-    this.startQuiz(caughtBy);
+    const caughtBy = this.crowd.people.find((person) => person.caught && canStartSurvey(person, this.completedSurveys));
+    if (caughtBy) this.startQuiz(caughtBy);
   }
 
   updateCups(dt) {
@@ -1747,6 +1748,10 @@ checkFinish() {
       this.hopController.reset(this.pendingRespawn);
       this.player.rotation.set(0, Math.PI, 0);
       this.hopController.targetYaw = Math.PI;
+      if (this.hopController.freeMovement) {
+        this.firstPersonYaw = Math.PI;
+        this.hopController.lockedFacingYaw = Math.PI;
+      }
       this.pendingRespawn = null;
     }
   }
@@ -1760,6 +1765,13 @@ checkFinish() {
       const previousViewHeight = this.mapCamera.userData.viewHeight;
       this.updateMapCameraFrustum();
       if (this.mapCamera.userData.viewHeight !== previousViewHeight) this.game.onResize();
+      return;
+    }
+    if (this.cameraMode === "first-person") {
+      const p = this.player.position, yaw = this.player.rotation.y;
+      this.firstPersonCamera.position.set(p.x, p.y + 0.62, p.z);
+      this.cameraLookGoal.set(p.x + Math.sin(yaw) * 8, p.y + 0.62, p.z + Math.cos(yaw) * 8);
+      this.firstPersonCamera.lookAt(this.cameraLookGoal);
       return;
     }
     const camera = this.cameraMode === "close" ? this.closeCamera : this.chaseCamera;

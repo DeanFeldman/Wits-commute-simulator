@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { directionFromFacing } from "./firstPersonMovement.js";
 
 // Moves the Level 2 pedestrian between discrete grid cells.
 //
@@ -23,6 +24,7 @@ export class GridHopController {
     this.onBlocked = options.onBlocked ?? null;
     this.turnRate = options.turnRate ?? 16;
     this.gridPosition = new THREE.Vector2(object.position.x, object.position.z);
+    this.gridOriginZ = options.gridOriginZ ?? object.position.z;
     this.queue = [];
     this.hop = null;
     this.bumpState = null;
@@ -30,6 +32,11 @@ export class GridHopController {
     this.heldDirection = null;
     this.speedMultiplier = 1;
     this.targetYaw = object.rotation.y;
+    this.lockedFacingYaw = null; // First-person steering controls facing independently of grid movement.
+    this.freeMovement = false;
+    this.freeThrottle = 0;
+    this.freeMoving = false;
+    this.freeBlockCooldown = 0;
     // Total distance walked; the level drives the leg cycle from it so the
     // feet match the ground speed instead of sliding.
     this.distanceWalked = 0;
@@ -44,10 +51,65 @@ export class GridHopController {
     this.heldDirection = direction;
   }
 
+  setFreeMovement(enabled) {
+    if (this.freeMovement === enabled) return;
+    this.freeMovement = enabled;
+    this.freeThrottle = 0;
+    this.freeMoving = false;
+    this.freeBlockCooldown = 0;
+    this.queue.length = 0;
+    this.hop = null;
+    this.bumpState = null;
+    this.heldDirection = null;
+    const { x, z } = this.object.position;
+    this.gridPosition.set(enabled ? x : Math.round(x / this.cellSize) * this.cellSize,
+      enabled ? z : this.gridOriginZ - Math.round((this.gridOriginZ - z) / this.cellSize) * this.cellSize);
+  }
+
   update(dt) {
+    if (this.freeMovement) {
+      this.updateTurn(dt);
+      return this.advanceFree(dt);
+    }
     const landed = this.advance(dt);
     this.updateTurn(dt);
     return landed;
+  }
+
+  advanceFree(dt) {
+    this.freeMoving = false;
+    this.freeBlockCooldown = Math.max(0, this.freeBlockCooldown - dt);
+    if (this.delayTimer > 0) {
+      this.delayTimer = Math.max(0, this.delayTimer - dt);
+      return null;
+    }
+    if (this.bumpState) {
+      this.updateBump(dt);
+      return null;
+    }
+    if (!this.freeThrottle) return null;
+    const direction = directionFromFacing(this.object.rotation.y, this.freeThrottle < 0);
+    const distance = this.walkSpeed * this.speedMultiplier * Math.max(0, dt);
+    const count = Math.max(1, Math.ceil(distance / Math.min(0.2, this.cellSize / 5)));
+    const step = distance / count;
+    for (let i = 0; i < count; i++) {
+      // Clamp the final partial step so the finish line and walkway edges are reachable.
+      const x = THREE.MathUtils.clamp(this.object.position.x + direction.x * step, this.minX, this.maxX);
+      const z = THREE.MathUtils.clamp(this.object.position.z + direction.z * step, this.minZ, this.maxZ);
+      if ((x === this.object.position.x && z === this.object.position.z) || !this.canEnter(x, z)) {
+        if (this.freeBlockCooldown === 0) {
+          this.onBlocked?.(x, z, direction);
+          this.freeBlockCooldown = 0.3;
+        }
+        break;
+      }
+      this.distanceWalked += Math.hypot(x - this.object.position.x, z - this.object.position.z);
+      this.object.position.x = x;
+      this.object.position.z = z;
+      this.gridPosition.set(x, z);
+      this.freeMoving = true;
+    }
+    return this.freeMoving ? direction : null;
   }
 
   advance(dt) {
@@ -143,7 +205,8 @@ export class GridHopController {
 
   updateTurn(dt) {
     const current = this.object.rotation.y;
-    const delta = Math.atan2(Math.sin(this.targetYaw - current), Math.cos(this.targetYaw - current));
+    const yaw = this.lockedFacingYaw ?? this.targetYaw;
+    const delta = Math.atan2(Math.sin(yaw - current), Math.cos(yaw - current));
     this.object.rotation.y = current + delta * (1 - Math.exp(-this.turnRate * dt));
   }
 
@@ -156,6 +219,8 @@ export class GridHopController {
     this.hop = null;
     this.bumpState = null;
     this.delayTimer = 0;
+    this.freeThrottle = 0;
+    this.freeMoving = false;
     this.gridPosition.set(position.x, position.z);
     this.object.position.set(position.x, position.y, position.z);
   }

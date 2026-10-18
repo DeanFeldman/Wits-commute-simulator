@@ -195,7 +195,7 @@ export class InputManager {
   }
 
   onKeyDown(event) {
-    if (this.isTypingTarget(event)) return;
+    if (this.isTypingTarget(event) && event.code !== "Escape") return;
 
     if (!this.keysDown.has(event.code)) {
       this.keysPressed.add(event.code);
@@ -212,7 +212,7 @@ export class InputManager {
   }
 
   onKeyUp(event) {
-    if (this.isTypingTarget(event)) return;
+    if (this.isTypingTarget(event) && event.code !== "Escape") return;
 
     if (this.keysDown.delete(event.code)) {
       this.keysReleased.add(event.code);

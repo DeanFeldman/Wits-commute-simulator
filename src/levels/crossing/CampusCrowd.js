@@ -8,7 +8,7 @@ import { PEDESTRIAN_SOLE_OFFSET, poseWalk, poseChase } from "./PedestrianFactory
 // The two quiz-giving NPCs are the exception: once the player gets close,
 // they leave their spot and jog after the player with their hands up until
 // they either catch them (see updateChaser / CrossingLevel.handleChaseCatches)
-// or the player moves back out of range. Once caught and the quiz finishes,
+// or the player moves back out of range. After the one-time survey,
 // CrossingLevel calls sendOff(), which has the NPC walk on past the player
 // (see updateLeaving) rather than
 // freezing mid-chase. Each NPC's state lives on the person object, so the
@@ -220,6 +220,8 @@ export class CampusCrowd {
       chaseTime: 0,
       chaseDistance: 0,
       surveyCooldown: 0,
+      surveyAsked: false,
+      roamWait: 0,
       caught: false,
       leaving: false,
       returning: false,
@@ -307,8 +309,7 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
-  // After a survey, walk away from the player along the route, then become
-  // chaseable again.
+  // After a one-time survey, walk away instead of chasing the player again.
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
@@ -466,6 +467,13 @@ export class CampusCrowd {
   // CHASING -> CAUGHT (person.caught = true, one frame) once the NPC closes
   // to CHASE_CATCH_DISTANCE; CrossingLevel reads that flag to open the quiz.
   updateChaser(person, dt, player) {
+    if (person.surveyAsked) {
+      person.chasing = false;
+      person.chaseArmed = false;
+      person.caught = false;
+      this.updateSurveyRoaming(person, dt, player);
+      return;
+    }
     const position = person.mesh.position;
 
     if (person.reactTimer > 0) {
@@ -538,8 +546,27 @@ export class CampusCrowd {
     this.turnTo(person, yaw, dt);
   }
 
-  // Post-quiz departure (or settling back after a chase): follow the planned
-  // grid route, then stand on that cell (animate's idle branch takes over).
+  // Completed surveys turn into ordinary walkers, using the existing route
+  // planner sparingly rather than running a path search every frame.
+  updateSurveyRoaming(person, dt, player) {
+    if (person.roamWait > 0) {
+      person.roamWait = Math.max(0, person.roamWait - dt);
+      person.moving = false;
+      return;
+    }
+    if (!person.route.length) {
+      person.route = this.planRoute(person, player, { leave: true });
+      if (!person.route.length) {
+        person.roamWait = 2;
+        person.moving = false;
+        return;
+      }
+    }
+    if (this.followRoute(person, dt, player)) person.roamWait = 1 + this.random() * 1.5;
+  }
+
+  // Depart after the initial questionnaire or settle back onto the grid
+  // after a chase. The NPC can then start roaming instead of standing still.
   updateLeaving(person, dt, player) {
     // Bumped mid-walk: stop, face the player and react, then carry on along
     // the route. Without this, reactTimer never counts down here, so animate()
@@ -553,7 +580,7 @@ export class CampusCrowd {
     }
     if (!this.followRoute(person, dt, player)) return;
     person.moving = false;
-    if (person.leaving) person.chaseArmed = person.surveyCooldown === 0;
+    if (person.leaving) person.chaseArmed = !person.surveyAsked && person.surveyCooldown === 0;
     person.leaving = false;
     person.returning = false;
   }
@@ -628,7 +655,7 @@ export class CampusCrowd {
       return;
     }
 
-    if (CHASE_KINDS.has(person.kind) && (person.leaving || person.returning)) {
+    if (CHASE_KINDS.has(person.kind) && (person.leaving || person.returning || person.surveyAsked)) {
       if (person.moving) {
         // Reuses the ordinary walk cycle, which also zeroes arm rotation.z
         // every frame — that's what clears the chase pose's raised arms.

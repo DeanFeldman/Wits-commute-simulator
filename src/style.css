@@ -3380,3 +3380,17 @@ body.graphics-effects-off #level2-vignette {
   pointer-events: none;
   will-change: transform, opacity;
 }
+
+/* Issue #302: reuse the game's bottom-right story status style for loading. */
+#loading-indicator[hidden]{display:none}
+#loading-indicator{position:fixed;inset:auto .75rem .75rem auto;z-index:60;width:min(180px,calc(100vw - 1rem));pointer-events:none}
+.loading-indicator-content{display:grid;gap:.4rem;padding:.5rem .6rem;border:2px solid var(--game-ui-ink);border-radius:var(--game-ui-radius);background:var(--game-ui-surface);box-shadow:3px 3px 0 rgba(36,53,86,.85);color:var(--game-ui-ink);font:700 .76rem var(--game-ui-copy-font)}
+.loading-progress-track{height:9px;overflow:hidden;border:1px solid var(--game-ui-ink);border-radius:4px;background:rgba(36,53,86,.14)}
+.loading-progress-fill{display:block;position:relative;width:0;height:100%;overflow:hidden;background:var(--game-ui-accent);transition:width .35s ease-out}
+.loading-progress-fill::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,#ffffff80,transparent);animation:loading-bar-shine 1.2s linear infinite}
+@keyframes loading-bar-shine{from{transform:translateX(-100%)}to{transform:translateX(270%)}}
+body:has(#loading-indicator:not([hidden])) .level-intro-status{visibility:hidden}
+@media(prefers-reduced-motion:reduce){.loading-progress-fill{transition:none}.loading-progress-fill::after{animation:none}}
+
+/* Pause above either Level 2 questionnaire, not behind its overlay. */
+#pause-menu.over-survey{z-index:45;background:rgba(5,8,14,.68)}
