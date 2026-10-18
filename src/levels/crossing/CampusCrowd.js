@@ -8,7 +8,7 @@ import { PEDESTRIAN_SOLE_OFFSET, poseWalk, poseChase } from "./PedestrianFactory
 // The two quiz-giving NPCs are the exception: once the player gets close,
 // they leave their spot and jog after the player with their hands up until
 // they either catch them (see updateChaser / CrossingLevel.handleChaseCatches)
-// or the player moves back out of range. Once caught and the quiz finishes,
+// or the player moves back out of range. After the one-time survey,
 // CrossingLevel calls sendOff(), which has the NPC walk on past the player
 // (see updateLeaving) rather than
 // freezing mid-chase. Each NPC's state lives on the person object, so the
@@ -308,8 +308,7 @@ export class CampusCrowd {
     this.onSay?.(person, text, tone);
   }
 
-  // After a survey, walk away from the player along the route, then become
-  // chaseable again.
+  // After a one-time survey, walk away instead of chasing the player again.
   sendOff(person) {
     person.chasing = false;
     person.chaseArmed = false;
@@ -561,7 +560,7 @@ export class CampusCrowd {
     }
     if (!this.followRoute(person, dt, player)) return;
     person.moving = false;
-    if (person.leaving) person.chaseArmed = person.surveyCooldown === 0;
+    if (person.leaving) person.chaseArmed = !person.surveyAsked && person.surveyCooldown === 0;
     person.leaving = false;
     person.returning = false;
   }
