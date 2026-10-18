@@ -1423,8 +1423,9 @@ export class CrossingLevel {
       // A/D (or Left/Right) steer instead of enqueueing sideways steps.
       controls.consumeBuffered("moveLeft");
       controls.consumeBuffered("moveRight");
-      const forward = controls.isDown("moveUp") || controls.consumeBuffered("moveUp");
-      const backward = controls.isDown("moveDown") || controls.consumeBuffered("moveDown");
+      const forwardTap = controls.consumeBuffered("moveUp"), backwardTap = controls.consumeBuffered("moveDown");
+      const forward = controls.isDown("moveUp") || forwardTap;
+      const backward = controls.isDown("moveDown") || backwardTap;
       this.hopController.freeThrottle = Number(forward) - Number(backward);
       return;
     }
