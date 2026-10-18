@@ -220,6 +220,7 @@ export class CampusCrowd {
       chaseTime: 0,
       chaseDistance: 0,
       surveyCooldown: 0,
+      surveyAsked: false,
       caught: false,
       leaving: false,
       returning: false,
@@ -466,6 +467,13 @@ export class CampusCrowd {
   // CHASING -> CAUGHT (person.caught = true, one frame) once the NPC closes
   // to CHASE_CATCH_DISTANCE; CrossingLevel reads that flag to open the quiz.
   updateChaser(person, dt, player) {
+    if (person.surveyAsked) {
+      person.chasing = false;
+      person.chaseArmed = false;
+      person.caught = false;
+      person.moving = false;
+      return;
+    }
     const position = person.mesh.position;
 
     if (person.reactTimer > 0) {
