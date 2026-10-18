@@ -23,10 +23,12 @@
       <img class="double-shot-lines double-shot-lines--b" src="./assets/images/ui/double-shot-speed-lines.svg" alt="" />
     </div>
     <div id="fade-overlay" aria-hidden="true"></div>
-    <div id="loading-indicator" role="status" aria-live="polite" aria-label="Loading" hidden>
+    <div id="loading-indicator" role="status" aria-live="polite" hidden>
       <div class="loading-indicator-content">
-        <span class="loading-spinner" aria-hidden="true"></span>
-        <span>Loading…</span>
+        <span id="loading-label">Loading…</span>
+        <div id="loading-progress" class="loading-progress-track" role="progressbar" aria-label="Level loading progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="loading-progress-fill" class="loading-progress-fill"></span>
+        </div>
       </div>
     </div>
     <section id="level-intro" aria-label="Journey introduction" hidden>
