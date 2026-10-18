@@ -93,18 +93,20 @@ export class GridHopController {
     const count = Math.max(1, Math.ceil(distance / Math.min(0.2, this.cellSize / 5)));
     const step = distance / count;
     for (let i = 0; i < count; i++) {
-      const x = this.object.position.x + direction.x * step, z = this.object.position.z + direction.z * step;
-      if (x < this.minX || x > this.maxX || z < this.minZ || z > this.maxZ || !this.canEnter(x, z)) {
+      // Clamp the final partial step so the finish line and walkway edges are reachable.
+      const x = THREE.MathUtils.clamp(this.object.position.x + direction.x * step, this.minX, this.maxX);
+      const z = THREE.MathUtils.clamp(this.object.position.z + direction.z * step, this.minZ, this.maxZ);
+      if ((x === this.object.position.x && z === this.object.position.z) || !this.canEnter(x, z)) {
         if (this.freeBlockCooldown === 0) {
           this.onBlocked?.(x, z, direction);
           this.freeBlockCooldown = 0.3;
         }
         break;
       }
+      this.distanceWalked += Math.hypot(x - this.object.position.x, z - this.object.position.z);
       this.object.position.x = x;
       this.object.position.z = z;
       this.gridPosition.set(x, z);
-      this.distanceWalked += step;
       this.freeMoving = true;
     }
     return this.freeMoving ? direction : null;
