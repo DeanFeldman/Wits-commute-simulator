@@ -79,6 +79,15 @@ test("first-person motion honours geometry and NPC blocking without tunnelling",
   assert.equal(blocked, 1, "blocked collisions must be throttled");
 });
 
+test("first-person reaches the exact finish boundary on a partial step", () => {
+  const { player, controller } = makeWalker({ minZ: -0.25 });
+  controller.freeThrottle = 1;
+  controller.update(0.2);
+  near(player.position.z, -0.25);
+  near(controller.gridPosition.y, -0.25);
+  near(controller.distanceWalked, 0.25);
+});
+
 test("switching out of first-person restores the third-person grid controller", () => {
   const { player, controller } = makeWalker();
   controller.lockedFacingYaw = Math.PI / 15;
