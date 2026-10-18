@@ -19,6 +19,7 @@ import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
 import { canStartSurvey } from "./surveyInteraction.js";
 import { LEVEL2_CAMERA_MODES, nextLevel2CameraMode } from "./cameraModes.js";
+import { snapFacingYaw, turnFacingYaw, directionFromFacing } from "./firstPersonMovement.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -169,6 +170,8 @@ export class CrossingLevel {
     this.mapCamera = null;
     this.minimapCamera = null;
     this.cameraMode = "chase";
+    this.firstPersonYaw = 0;
+    this.firstPersonTurnCooldown = 0;
     this.mapViewActive = false;
     this.minimapElement = null;
     this.viewToggle = null;
@@ -611,6 +614,18 @@ export class CrossingLevel {
 
   setCameraMode(mode) {
     if (!LEVEL2_CAMERA_MODES.includes(mode)) return;
+    if (this.hopController && mode !== this.cameraMode) {
+      this.hopController.queue.length = 0;
+      this.hopController.setHeldDirection(null);
+      if (mode === "first-person") {
+        this.firstPersonYaw = snapFacingYaw(this.player.rotation.y);
+        this.firstPersonTurnCooldown = 0;
+        this.hopController.lockedFacingYaw = this.firstPersonYaw;
+      } else {
+        this.hopController.lockedFacingYaw = null;
+        this.hopController.targetYaw = this.player.rotation.y;
+      }
+    }
     this.cameraMode = mode;
     this.mapViewActive = false;
     if (this.minimapElement) this.minimapElement.hidden = false;
@@ -634,6 +649,13 @@ export class CrossingLevel {
 
   toggleMapView() {
     this.mapViewActive = !this.mapViewActive;
+    if (this.hopController && this.cameraMode === "first-person") {
+      this.hopController.queue.length = 0;
+      this.hopController.setHeldDirection(null);
+      this.firstPersonYaw = snapFacingYaw(this.player.rotation.y);
+      this.hopController.lockedFacingYaw = this.mapViewActive ? null : this.firstPersonYaw;
+      this.hopController.targetYaw = this.player.rotation.y;
+    }
     if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
     this.game.setCamera(this.mapViewActive ? this.mapCamera : this.getActiveCamera());
     this.updatePlayerVisibility();
@@ -1085,7 +1107,7 @@ export class CrossingLevel {
   updateTutorial(dt) {
     if (!this.player || !this.hopController || !this.controls) return;
     if (this.controls.wasPressed("cycleCamera")) this.cycleCameraMode();
-    this.capturePlayerInput();
+    this.capturePlayerInput(dt);
     this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
@@ -1147,7 +1169,7 @@ export class CrossingLevel {
     this.powerUps.update(dt);
     this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
-    this.capturePlayerInput();
+    this.capturePlayerInput(dt);
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
@@ -1355,12 +1377,33 @@ export class CrossingLevel {
     }
   }
 
-  capturePlayerInput() {
+  capturePlayerInput(dt = 0) {
     if (this.impactTimer > 0) {
       this.hopController.setHeldDirection(null);
       return;
     }
     const controls = this.controls;
+    if (this.cameraMode === "first-person" && !this.mapViewActive) {
+      const steering = Number(controls.isDown("moveLeft")) - Number(controls.isDown("moveRight"));
+      const pressed = controls.wasPressed("moveLeft") || controls.wasPressed("moveRight");
+      this.firstPersonTurnCooldown = Math.max(0, this.firstPersonTurnCooldown - dt);
+      if (steering && (pressed || this.firstPersonTurnCooldown === 0)) {
+        this.firstPersonYaw = turnFacingYaw(this.firstPersonYaw, steering);
+        this.hopController.lockedFacingYaw = this.firstPersonYaw;
+        this.firstPersonTurnCooldown = pressed ? 0.4 : 0.28;
+      }
+      if (!steering) this.firstPersonTurnCooldown = 0;
+      // A/D (or Left/Right) steer instead of enqueueing sideways steps.
+      controls.consumeBuffered("moveLeft");
+      controls.consumeBuffered("moveRight");
+      const forward = directionFromFacing(this.firstPersonYaw);
+      const backward = directionFromFacing(this.firstPersonYaw, true);
+      if (controls.consumeBuffered("moveUp")) this.hopController.enqueue(forward);
+      else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue(backward);
+      this.hopController.setHeldDirection(controls.isDown("moveUp") ? forward : controls.isDown("moveDown") ? backward : null);
+      return;
+    }
+    // The other views retain the original map-aligned grid controls.
     // A tap walks exactly one cell; holding keeps walking cell to cell.
     if (controls.consumeBuffered("moveUp")) this.hopController.enqueue(DIRECTIONS.up);
     else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue(DIRECTIONS.down);
