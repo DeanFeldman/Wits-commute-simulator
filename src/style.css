@@ -3380,3 +3380,12 @@ body.graphics-effects-off #level2-vignette {
   pointer-events: none;
   will-change: transform, opacity;
 }
+
+/* Issue #302: a single non-blocking loading indicator across all three levels. */
+#loading-indicator[hidden]{display:none}
+#loading-indicator{position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none}
+.loading-indicator-content{display:grid;justify-items:center;gap:.75rem;padding:1.25rem 1.7rem;border:1px solid #ffffff38;border-radius:14px;background:#0d1117e8;color:#f4f4f5;box-shadow:0 12px 36px #0007;font:700 1rem Inter,system-ui,sans-serif}
+.loading-spinner{width:3.2rem;height:3.2rem;border:5px solid #ffffff42;border-top-color:#35e0d1;border-radius:50%;animation:loading-spinner-rotate .85s linear infinite}
+@keyframes loading-spinner-rotate{to{transform:rotate(360deg)}}
+@media(prefers-color-scheme:light){.loading-indicator-content{background:#f9fafbee;color:#17212b;border-color:#17212b33}.loading-spinner{border-color:#17212b40;border-top-color:#067d75}}
+@media(prefers-reduced-motion:reduce){.loading-spinner{animation:none}}
