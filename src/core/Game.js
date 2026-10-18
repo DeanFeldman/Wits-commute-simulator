@@ -17,7 +17,7 @@ import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
-import { shouldShowLoadingIndicator, syncLoadingIndicator } from "../ui/loadingIndicator.js";
+import { syncLoadingIndicator } from "../ui/loadingIndicator.js";
 import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
@@ -332,7 +332,7 @@ export class Game {
   }
 
   updateLoadingIndicator() {
-    syncLoadingIndicator(this.loadingIndicator, this.container, shouldShowLoadingIndicator(this));
+    syncLoadingIndicator(this.loadingIndicator, this.container, this);
   }
 
   start() {
@@ -586,6 +586,7 @@ export class Game {
 
     const level = new Level(this);
     this.currentLevel = level;
+    this.updateLoadingIndicator();
     level.audio?.setMusicEnabled?.(this.isMusicEnabled);
 
     try {
