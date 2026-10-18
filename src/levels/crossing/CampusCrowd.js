@@ -221,6 +221,7 @@ export class CampusCrowd {
       chaseDistance: 0,
       surveyCooldown: 0,
       surveyAsked: false,
+      roamWait: 0,
       caught: false,
       leaving: false,
       returning: false,
@@ -470,7 +471,7 @@ export class CampusCrowd {
       person.chasing = false;
       person.chaseArmed = false;
       person.caught = false;
-      person.moving = false;
+      this.updateSurveyRoaming(person, dt, player);
       return;
     }
     const position = person.mesh.position;
@@ -545,8 +546,27 @@ export class CampusCrowd {
     this.turnTo(person, yaw, dt);
   }
 
-  // Post-quiz departure (or settling back after a chase): follow the planned
-  // grid route, then stand on that cell (animate's idle branch takes over).
+  // Completed surveys turn into ordinary walkers, using the existing route
+  // planner sparingly rather than running a path search every frame.
+  updateSurveyRoaming(person, dt, player) {
+    if (person.roamWait > 0) {
+      person.roamWait = Math.max(0, person.roamWait - dt);
+      person.moving = false;
+      return;
+    }
+    if (!person.route.length) {
+      person.route = this.planRoute(person, player, { leave: true });
+      if (!person.route.length) {
+        person.roamWait = 2;
+        person.moving = false;
+        return;
+      }
+    }
+    if (this.followRoute(person, dt, player)) person.roamWait = 1 + this.random() * 1.5;
+  }
+
+  // Depart after the initial questionnaire or settle back onto the grid
+  // after a chase. The NPC can then start roaming instead of standing still.
   updateLeaving(person, dt, player) {
     // Bumped mid-walk: stop, face the player and react, then carry on along
     // the route. Without this, reactTimer never counts down here, so animate()
@@ -635,7 +655,7 @@ export class CampusCrowd {
       return;
     }
 
-    if (CHASE_KINDS.has(person.kind) && (person.leaving || person.returning)) {
+    if (CHASE_KINDS.has(person.kind) && (person.leaving || person.returning || person.surveyAsked)) {
       if (person.moving) {
         // Reuses the ordinary walk cycle, which also zeroes arm rotation.z
         // every frame — that's what clears the chase pose's raised arms.
