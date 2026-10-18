@@ -19,7 +19,7 @@ import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
 import { canStartSurvey } from "./surveyInteraction.js";
 import { LEVEL2_CAMERA_MODES, nextLevel2CameraMode } from "./cameraModes.js";
-import { normalizeFacingYaw, turnFacingYaw, directionFromFacing, FIRST_PERSON_TURN_SPEED } from "./firstPersonMovement.js";
+import { normalizeFacingYaw, turnFacingYaw, FIRST_PERSON_TURN_SPEED } from "./firstPersonMovement.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -172,6 +172,8 @@ export class CrossingLevel {
     this.cameraMode = "chase";
     this.firstPersonYaw = 0;
     this.firstPersonTurnCooldown = 0;
+    this.lastFreeFootstepDistance = 0;
+    this.freeBackwardTravel = 0;
     this.mapViewActive = false;
     this.minimapElement = null;
     this.viewToggle = null;
@@ -343,6 +345,7 @@ export class CrossingLevel {
     this.collisionWorld.rebuild();
     this.hopController = new GridHopController(this.player, {
       cellSize: WALK_STEP,
+      gridOriginZ: this.startZ,
       walkSpeed: WALK_SPEED,
       minX: -this.gridSize, maxX: this.gridSize, minZ: this.finishZ, maxZ: this.startZ,
       canEnter: (x, z) => !this.isBlockedCell(x, z) && !this.crowd.personAt(x, z),
@@ -616,8 +619,9 @@ export class CrossingLevel {
   setCameraMode(mode) {
     if (!LEVEL2_CAMERA_MODES.includes(mode)) return;
     if (this.hopController && mode !== this.cameraMode) {
-      this.hopController.queue.length = 0;
-      this.hopController.setHeldDirection(null);
+      this.hopController.setFreeMovement(mode === "first-person");
+      this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+      this.freeBackwardTravel = 0;
       if (mode === "first-person") {
         this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
         this.firstPersonTurnCooldown = 0;
@@ -651,8 +655,9 @@ export class CrossingLevel {
   toggleMapView() {
     this.mapViewActive = !this.mapViewActive;
     if (this.hopController && this.cameraMode === "first-person") {
-      this.hopController.queue.length = 0;
-      this.hopController.setHeldDirection(null);
+      this.hopController.setFreeMovement(!this.mapViewActive);
+      this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+      this.freeBackwardTravel = 0;
       this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
       this.hopController.lockedFacingYaw = this.mapViewActive ? null : this.firstPersonYaw;
       this.hopController.targetYaw = this.player.rotation.y;
@@ -1102,6 +1107,7 @@ export class CrossingLevel {
     };
     this.hopController.reset(this.player.position);
     this.hopController.setHeldDirection(null);
+    this.hopController.freeThrottle = 0;
     this.hopController.onBlocked = null;
   }
 
@@ -1171,12 +1177,29 @@ export class CrossingLevel {
     this.hopController.speedMultiplier = this.powerUps.speedMultiplier;
 
     this.capturePlayerInput(dt);
+    const previousZ = this.player.position.z;
     const landedDirection = this.hopController.update(dt);
     this.updatePlayerGroundHeight();
     this.updatePlayerAnimation(dt);
-    if (landedDirection?.z > 0) this.backwardSteps += 1;
-    if (landedDirection) this.updateCheckpoint();
-    if (landedDirection) this.playPlayerFootstep();
+    if (this.hopController.freeMovement) {
+      if (landedDirection) {
+        this.freeBackwardTravel = landedDirection.z > 0
+          ? this.freeBackwardTravel + Math.max(0, this.player.position.z - previousZ) : 0;
+        if (this.freeBackwardTravel >= WALK_STEP) {
+          this.backwardSteps += Math.floor(this.freeBackwardTravel / WALK_STEP);
+          this.freeBackwardTravel %= WALK_STEP;
+        }
+        this.updateCheckpoint();
+        if (this.hopController.distanceWalked - this.lastFreeFootstepDistance >= WALK_STEP) {
+          this.playPlayerFootstep();
+          this.lastFreeFootstepDistance = this.hopController.distanceWalked;
+        }
+      }
+    } else {
+      if (landedDirection?.z > 0) this.backwardSteps += 1;
+      if (landedDirection) this.updateCheckpoint();
+      if (landedDirection) this.playPlayerFootstep();
+    }
     this.updateCups(dt);
     this.checkFinish();
     this.updateTraffic(dt * this.powerUps.trafficScale);
@@ -1218,7 +1241,7 @@ export class CrossingLevel {
 
   updatePlayerAnimation(dt) {
     this.playerAnimationTime += dt;
-    const walking = this.hopController.isHopping;
+    const walking = this.hopController.isHopping || this.hopController.freeMoving;
     if (this.playerMixer && this.playerActions) {
       const nextAction = walking ? this.playerActions.running : this.playerActions.idle;
       if (nextAction !== this.activePlayerAction) {
@@ -1400,11 +1423,9 @@ export class CrossingLevel {
       // A/D (or Left/Right) steer instead of enqueueing sideways steps.
       controls.consumeBuffered("moveLeft");
       controls.consumeBuffered("moveRight");
-      const forward = directionFromFacing(this.firstPersonYaw);
-      const backward = directionFromFacing(this.firstPersonYaw, true);
-      if (controls.consumeBuffered("moveUp")) this.hopController.enqueue(forward);
-      else if (controls.consumeBuffered("moveDown")) this.hopController.enqueue(backward);
-      this.hopController.setHeldDirection(controls.isDown("moveUp") ? forward : controls.isDown("moveDown") ? backward : null);
+      const forward = controls.isDown("moveUp") || controls.consumeBuffered("moveUp");
+      const backward = controls.isDown("moveDown") || controls.consumeBuffered("moveDown");
+      this.hopController.freeThrottle = Number(forward) - Number(backward);
       return;
     }
     // The other views retain the original map-aligned grid controls.
@@ -1726,6 +1747,10 @@ checkFinish() {
       this.hopController.reset(this.pendingRespawn);
       this.player.rotation.set(0, Math.PI, 0);
       this.hopController.targetYaw = Math.PI;
+      if (this.hopController.freeMovement) {
+        this.firstPersonYaw = Math.PI;
+        this.hopController.lockedFacingYaw = Math.PI;
+      }
       this.pendingRespawn = null;
     }
   }
