@@ -19,7 +19,7 @@ import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
 import { canStartSurvey } from "./surveyInteraction.js";
 import { LEVEL2_CAMERA_MODES, nextLevel2CameraMode } from "./cameraModes.js";
-import { snapFacingYaw, turnFacingYaw, directionFromFacing } from "./firstPersonMovement.js";
+import { normalizeFacingYaw, turnFacingYaw, directionFromFacing, FIRST_PERSON_TURN_SPEED } from "./firstPersonMovement.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -619,7 +619,7 @@ export class CrossingLevel {
       this.hopController.queue.length = 0;
       this.hopController.setHeldDirection(null);
       if (mode === "first-person") {
-        this.firstPersonYaw = snapFacingYaw(this.player.rotation.y);
+        this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
         this.firstPersonTurnCooldown = 0;
         this.hopController.lockedFacingYaw = this.firstPersonYaw;
       } else {
@@ -653,7 +653,7 @@ export class CrossingLevel {
     if (this.hopController && this.cameraMode === "first-person") {
       this.hopController.queue.length = 0;
       this.hopController.setHeldDirection(null);
-      this.firstPersonYaw = snapFacingYaw(this.player.rotation.y);
+      this.firstPersonYaw = normalizeFacingYaw(this.player.rotation.y);
       this.hopController.lockedFacingYaw = this.mapViewActive ? null : this.firstPersonYaw;
       this.hopController.targetYaw = this.player.rotation.y;
     }
@@ -1387,13 +1387,16 @@ export class CrossingLevel {
     if (this.cameraMode === "first-person" && !this.mapViewActive) {
       const steering = Number(controls.isDown("moveLeft")) - Number(controls.isDown("moveRight"));
       const pressed = controls.wasPressed("moveLeft") || controls.wasPressed("moveRight");
-      this.firstPersonTurnCooldown = Math.max(0, this.firstPersonTurnCooldown - dt);
-      if (steering && (pressed || this.firstPersonTurnCooldown === 0)) {
-        this.firstPersonYaw = turnFacingYaw(this.firstPersonYaw, steering);
-        this.hopController.lockedFacingYaw = this.firstPersonYaw;
-        this.firstPersonTurnCooldown = pressed ? 0.4 : 0.28;
-      }
       if (!steering) this.firstPersonTurnCooldown = 0;
+      else {
+        // Each tap turns 12°. Holding continues smoothly after a brief delay.
+        this.firstPersonTurnCooldown = pressed ? 0.16 : Math.max(0, this.firstPersonTurnCooldown - dt);
+        const angle = pressed ? undefined : this.firstPersonTurnCooldown === 0 ? FIRST_PERSON_TURN_SPEED * dt : 0;
+        if (angle !== 0) {
+          this.firstPersonYaw = turnFacingYaw(this.firstPersonYaw, steering, angle);
+          this.hopController.lockedFacingYaw = this.firstPersonYaw;
+        }
+      }
       // A/D (or Left/Right) steer instead of enqueueing sideways steps.
       controls.consumeBuffered("moveLeft");
       controls.consumeBuffered("moveRight");
