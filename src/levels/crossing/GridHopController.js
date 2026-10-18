@@ -30,6 +30,7 @@ export class GridHopController {
     this.heldDirection = null;
     this.speedMultiplier = 1;
     this.targetYaw = object.rotation.y;
+    this.lockedFacingYaw = null; // First-person steering controls facing independently of grid movement.
     // Total distance walked; the level drives the leg cycle from it so the
     // feet match the ground speed instead of sliding.
     this.distanceWalked = 0;
@@ -143,7 +144,8 @@ export class GridHopController {
 
   updateTurn(dt) {
     const current = this.object.rotation.y;
-    const delta = Math.atan2(Math.sin(this.targetYaw - current), Math.cos(this.targetYaw - current));
+    const yaw = this.lockedFacingYaw ?? this.targetYaw;
+    const delta = Math.atan2(Math.sin(yaw - current), Math.cos(yaw - current));
     this.object.rotation.y = current + delta * (1 - Math.exp(-this.turnRate * dt));
   }
 
