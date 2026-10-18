@@ -1,11 +1,9 @@
-// First-person facing is smooth; Level 2 still walks between cardinal grid cells.
-const QUARTER_TURN = Math.PI / 2;
-export const FIRST_PERSON_TURN_STEP = Math.PI / 15; // 12° per key tap.
-export const FIRST_PERSON_TURN_SPEED = Math.PI * 2 / 3; // 120°/s while held.
-const CARDINAL = Object.freeze([{ x: 0, z: 1 }, { x: 1, z: 0 }, { x: 0, z: -1 }, { x: -1, z: 0 }]);
+// Level 2 first-person turning is continuous; preserve an exact camera-relative heading.
+export const FIRST_PERSON_TURN_STEP = Math.PI / 15; // 12° per tap
+export const FIRST_PERSON_TURN_SPEED = Math.PI * 2 / 3; // 120° per second while held
 export const normalizeFacingYaw = (yaw) => Math.atan2(Math.sin(yaw), Math.cos(yaw));
 export const turnFacingYaw = (yaw, steering, radians = FIRST_PERSON_TURN_STEP) => normalizeFacingYaw(yaw + Math.sign(steering) * radians);
 export function directionFromFacing(yaw, backwards = false) {
-  const step = Math.round(yaw / QUARTER_TURN) + (backwards ? 2 : 0);
-  return CARDINAL[((step % 4) + 4) % 4];
+  const sign = backwards ? -1 : 1, x = Math.sin(yaw), z = Math.cos(yaw);
+  return { x: Math.abs(x) < 1e-12 ? 0 : x * sign, z: Math.abs(z) < 1e-12 ? 0 : z * sign };
 }
