@@ -7,7 +7,19 @@ export function shouldShowLoadingIndicator(state) {
   return false;
 }
 
-export function syncLoadingIndicator(indicator, container, loading) {
+export function loadingProgress(state) {
+  if (!shouldShowLoadingIndicator(state)) return 100;
+  if (state.isLoading) return state.currentLevel ? 40 : 10;
+  return state.currentLevelNumber === 1 && !state.levelOneGraphicsReady ? 80 : 90;
+}
+
+export function syncLoadingIndicator(indicator, container, state) {
+  const loading = shouldShowLoadingIndicator(state);
   indicator.hidden = !loading;
   container.setAttribute("aria-busy", String(loading));
+  if (!loading) return;
+  const progress = loadingProgress(state);
+  indicator.querySelector("#loading-label").textContent = `Loading Level ${state.currentLevelNumber}…`;
+  indicator.querySelector("#loading-progress-fill").style.width = `${progress}%`;
+  indicator.querySelector("#loading-progress").setAttribute("aria-valuenow", String(progress));
 }
