@@ -3,48 +3,92 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { normalizeFacingYaw, turnFacingYaw, directionFromFacing, FIRST_PERSON_TURN_STEP, FIRST_PERSON_TURN_SPEED } from "../src/levels/crossing/firstPersonMovement.js";
 import { GridHopController } from "../src/levels/crossing/GridHopController.js";
+const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-6, `${actual} != ${expected}`);
 
-const near = (value, expected) => assert.ok(Math.abs(value - expected) < 1e-8, `${value} != ${expected}`);
-
-test("W and S move along the nearest grid axis at every facing", () => {
-  for (const [yaw, x, z] of [[0, 0, 1], [Math.PI / 2, 1, 0], [Math.PI, 0, -1], [-Math.PI / 2, -1, 0]]) {
-    assert.deepEqual(directionFromFacing(yaw), { x, z });
-    assert.deepEqual(directionFromFacing(yaw, true), { x: x === 0 ? 0 : -x, z: z === 0 ? 0 : -z });
+test("first-person W and S follow exact camera yaw, including noncardinal angles", () => {
+  for (const angle of [0, Math.PI / 15, Math.PI / 4, Math.PI / 2, Math.PI, -Math.PI * 0.67]) {
+    const forward = directionFromFacing(angle), reverse = directionFromFacing(angle, true);
+    near(forward.x, Math.sin(angle));
+    near(forward.z, Math.cos(angle));
+    near(reverse.x, -forward.x);
+    near(reverse.z, -forward.z);
+    near(Math.hypot(forward.x, forward.z), 1);
   }
 });
 
-test("left/right taps turn by 12°, not 90°, without snapping camera facing", () => {
+test("turns remain 12 degrees per tap, continuous while held", () => {
   near(FIRST_PERSON_TURN_STEP, Math.PI / 15);
-  const start = normalizeFacingYaw(Math.PI + 0.08);
-  near(start, -Math.PI + 0.08);
-  const left = turnFacingYaw(start, 1), right = turnFacingYaw(start, -1);
-  near(normalizeFacingYaw(left - start), FIRST_PERSON_TURN_STEP);
-  near(normalizeFacingYaw(right - start), -FIRST_PERSON_TURN_STEP);
-  near(turnFacingYaw(left, -1), start);
-  assert.deepEqual(directionFromFacing(turnFacingYaw(Math.PI, 1)), { x: 0, z: -1 });
+  const yaw = normalizeFacingYaw(Math.PI + 0.08);
+  near(normalizeFacingYaw(turnFacingYaw(yaw, 1) - yaw), FIRST_PERSON_TURN_STEP);
+  near(normalizeFacingYaw(turnFacingYaw(yaw, -1) - yaw), -FIRST_PERSON_TURN_STEP);
+  near(turnFacingYaw(turnFacingYaw(yaw, 1), -1), yaw);
+  near(turnFacingYaw(0, -1, FIRST_PERSON_TURN_SPEED / 60), -Math.PI / 90);
 });
 
-test("holding a turn smoothly advances by elapsed time instead of 90° jumps", () => {
-  const dt = 1 / 60, yaw = turnFacingYaw(0, -1, FIRST_PERSON_TURN_SPEED * dt);
-  near(yaw, -Math.PI / 90);
-  near(FIRST_PERSON_TURN_SPEED, Math.PI * 2 / 3);
-  // Cardinal walking stays collision-safe until facing crosses a grid boundary.
-  let facing = 0;
-  for (let i = 0; i < 3; i++) facing = turnFacingYaw(facing, -1);
-  assert.deepEqual(directionFromFacing(facing), { x: 0, z: 1 });
-  facing = turnFacingYaw(facing, -1);
-  assert.deepEqual(directionFromFacing(facing), { x: -1, z: 0 });
-});
-
-test("walking backwards retains current first-person facing", () => {
+const makeWalker = (options = {}) => {
   const player = new THREE.Group();
   player.rotation.y = Math.PI;
-  const hop = new GridHopController(player, { cellSize: 1 });
-  hop.lockedFacingYaw = Math.PI;
-  hop.enqueue(directionFromFacing(Math.PI, true));
-  hop.update(0.1);
-  assert.ok(hop.gridPosition.y > 0);
-  assert.equal(player.rotation.y, Math.PI);
-  hop.lockedFacingYaw = null;
-  assert.equal(hop.lockedFacingYaw, null);
+  const controller = new GridHopController(player, { cellSize: 1, gridOriginZ: 0, walkSpeed: 3,
+    minX: -5, maxX: 5, minZ: -5, maxZ: 5, ...options });
+  controller.setFreeMovement(true);
+  controller.lockedFacingYaw = player.rotation.y;
+  return { player, controller };
+};
+
+test("first-person moves diagonally at the actual facing angle, not grid snapped", () => {
+  const { player, controller } = makeWalker();
+  controller.lockedFacingYaw = Math.PI + Math.PI / 15;
+  controller.freeThrottle = 1;
+  const travelled = controller.update(0.1);
+  const expectedYaw = player.rotation.y;
+  assert.ok(travelled && player.position.x < 0 && player.position.z < 0);
+  near(travelled.x, Math.sin(expectedYaw));
+  near(travelled.z, Math.cos(expectedYaw));
+  near(controller.gridPosition.x, player.position.x);
+  near(controller.gridPosition.y, player.position.z);
+  near(controller.distanceWalked, 0.3);
+  assert.equal(controller.freeMoving, true);
+});
+
+test("reverse and stationary turning preserve heading", () => {
+  const { player, controller } = makeWalker();
+  controller.freeThrottle = -1;
+  controller.update(0.1);
+  assert.ok(player.position.z > 0);
+  near(player.rotation.y, Math.PI);
+  controller.freeThrottle = 0;
+  controller.lockedFacingYaw = Math.PI / 2;
+  const before = player.position.clone();
+  controller.update(0.1);
+  near(player.position.distanceTo(before), 0);
+  assert.ok(player.rotation.y < Math.PI);
+  assert.equal(controller.freeMoving, false);
+});
+
+test("first-person motion honours geometry and NPC blocking without tunnelling", () => {
+  let blocked = 0;
+  const { player, controller } = makeWalker({
+    minX: -0.4, canEnter: (x, z) => z >= -0.35,
+    onBlocked: () => { blocked++; }
+  });
+  controller.freeThrottle = 1;
+  controller.update(0.5);
+  assert.ok(player.position.z >= -0.35);
+  assert.equal(blocked, 1);
+  controller.update(0.1);
+  assert.equal(blocked, 1, "blocked collisions must be throttled");
+});
+
+test("switching out of first-person restores the third-person grid controller", () => {
+  const { player, controller } = makeWalker();
+  controller.lockedFacingYaw = Math.PI / 15;
+  controller.freeThrottle = 1;
+  controller.update(0.1);
+  controller.setFreeMovement(false);
+  assert.equal(controller.freeMovement, false);
+  assert.equal(controller.hop, null);
+  controller.lockedFacingYaw = null;
+  controller.enqueue({ x: 0, z: -1 });
+  controller.update(0.1);
+  assert.ok(controller.hop !== null);
 });
