@@ -3381,11 +3381,13 @@ body.graphics-effects-off #level2-vignette {
   will-change: transform, opacity;
 }
 
-/* Issue #302: a single non-blocking loading indicator across all three levels. */
+/* Issue #302: reuse the game's bottom-right story status style for loading. */
 #loading-indicator[hidden]{display:none}
-#loading-indicator{position:fixed;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none}
-.loading-indicator-content{display:grid;justify-items:center;gap:.75rem;padding:1.25rem 1.7rem;border:1px solid #ffffff38;border-radius:14px;background:#0d1117e8;color:#f4f4f5;box-shadow:0 12px 36px #0007;font:700 1rem Inter,system-ui,sans-serif}
-.loading-spinner{width:3.2rem;height:3.2rem;border:5px solid #ffffff42;border-top-color:#35e0d1;border-radius:50%;animation:loading-spinner-rotate .85s linear infinite}
-@keyframes loading-spinner-rotate{to{transform:rotate(360deg)}}
-@media(prefers-color-scheme:light){.loading-indicator-content{background:#f9fafbee;color:#17212b;border-color:#17212b33}.loading-spinner{border-color:#17212b40;border-top-color:#067d75}}
-@media(prefers-reduced-motion:reduce){.loading-spinner{animation:none}}
+#loading-indicator{position:fixed;inset:auto clamp(.5rem,3vw,2.5rem) clamp(.5rem,2.5vw,2rem) auto;z-index:60;width:min(260px,calc(100vw - 1rem));pointer-events:none}
+.loading-indicator-content{display:grid;gap:.6rem;padding:.7rem .85rem;border:2px solid var(--game-ui-ink);border-radius:var(--game-ui-radius);background:var(--game-ui-surface);box-shadow:3px 3px 0 rgba(36,53,86,.85);color:var(--game-ui-ink);font:700 .85rem var(--game-ui-copy-font)}
+.loading-progress-track{height:12px;overflow:hidden;border:1px solid var(--game-ui-ink);border-radius:4px;background:rgba(36,53,86,.14)}
+.loading-progress-fill{display:block;position:relative;width:0;height:100%;overflow:hidden;background:var(--game-ui-accent);transition:width .35s ease-out}
+.loading-progress-fill::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,#ffffff80,transparent);animation:loading-bar-shine 1.2s linear infinite}
+@keyframes loading-bar-shine{from{transform:translateX(-100%)}to{transform:translateX(270%)}}
+body:has(#loading-indicator:not([hidden])) .level-intro-status{visibility:hidden}
+@media(prefers-reduced-motion:reduce){.loading-progress-fill{transition:none}.loading-progress-fill::after{animation:none}}
