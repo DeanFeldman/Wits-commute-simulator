@@ -17,6 +17,7 @@ import { CheatingLevel } from "../levels/CheatingLevel.js";
 import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
+import { shouldShowLoadingIndicator, syncLoadingIndicator } from "../ui/loadingIndicator.js";
 import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
@@ -231,6 +232,7 @@ export class Game {
     this.instructionStart = document.querySelector(".tutorial-start");
     this.levelIntroElement = document.querySelector("#level-intro");
     this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
+    this.loadingIndicator = document.querySelector("#loading-indicator");
     this.levelIntroArt = document.querySelector("#level-intro-art");
     this.levelIntroPlaceholder = document.querySelector("#level-intro-placeholder");
     this.levelIntroPlaceholderIcon = document.querySelector("#level-intro-placeholder-icon");
@@ -329,6 +331,10 @@ export class Game {
     });
   }
 
+  updateLoadingIndicator() {
+    syncLoadingIndicator(this.loadingIndicator, this.container, shouldShowLoadingIndicator(this));
+  }
+
   start() {
     this.showMenu();
     this.preloadCharacterAssets();
@@ -377,6 +383,7 @@ export class Game {
     this.homeMenuElement.hidden = false;
     document.body.classList.remove("level-2");
     this.updateStartAvailability();
+    this.updateLoadingIndicator();
   }
 
   preloadCharacterAssets() {
@@ -442,6 +449,7 @@ export class Game {
     this.isLoading = false;
     this.isPaused = false;
     this.isTransitioning = false;
+    this.updateLoadingIndicator();
     this.levelNameElement.textContent = "Results";
     this.setHUD("");
     this.setMessage("");
@@ -558,6 +566,7 @@ export class Game {
     this.levelNameElement.textContent = loadingMessage;
     this.setHUD("");
     this.setMessage(loadingMessage);
+    this.updateLoadingIndicator();
     this.disposeCurrentLevel();
     this.scene = new THREE.Scene();
 
@@ -587,6 +596,7 @@ export class Game {
         this.currentLevel = null;
         this.isLoading = false;
         this.levelLoadFailed = true;
+        this.updateLoadingIndicator();
         this.setMessage("Level failed to load. Check the console for details.");
         if (levelNumber === 1) this.updateStaticParkingReady();
         if (levelNumber === 2) this.updateStaticCrossingReady();
@@ -619,6 +629,7 @@ export class Game {
     level.audio?.setMuted?.(this.isSoundMuted);
     level.setMuted?.(this.isSoundMuted);
     this.isLoading = false;
+    this.updateLoadingIndicator();
     if (showIntro && (levelNumber !== 1 || this.levelOneGraphicsReady)) this.setLevelIntroLoadState("ready");
     if (levelNumber === 1 && this.staticParkingTutorial && !this.staticParkingTutorial.hidden) this.updateStaticParkingReady();
     if (levelNumber === 2 && this.staticCrossingTutorial && !this.staticCrossingTutorial.hidden) this.updateStaticCrossingReady();
@@ -889,6 +900,7 @@ export class Game {
     }
 
     this.renderLevelIntroStory();
+    this.updateLoadingIndicator();
   }
 
   hideLevelIntro() {
@@ -896,6 +908,7 @@ export class Game {
     this.isLevelIntroReady = false;
     this.levelIntroArtRequest += 1;
     this.levelIntroElement.hidden = true;
+    this.updateLoadingIndicator();
   }
 
   setLevelIntroLoadState(state) {
@@ -905,6 +918,7 @@ export class Game {
       ? `Level ${this.currentLevelNumber} ready`
       : `Level ${this.currentLevelNumber} could not be loaded`;
     this.renderLevelIntroStory();
+    this.updateLoadingIndicator();
   }
 
   renderLevelIntroStory() {
@@ -1355,6 +1369,7 @@ export class Game {
           ? "Unable to load tutorial image. Refresh to retry."
           : imageReady ? "Preparing Level 1…" : "Preparing tutorial…";
     }
+    this.updateLoadingIndicator();
   }
 
   showStaticParkingTutorial() {
@@ -1403,6 +1418,7 @@ export class Game {
           ? "Unable to load tutorial image. Refresh to retry."
           : imageReady ? "Preparing Level 2…" : "Preparing tutorial…";
     }
+    this.updateLoadingIndicator();
   }
 
   showStaticCrossingTutorial() {
@@ -1448,6 +1464,7 @@ export class Game {
           ? "Unable to load tutorial artwork. Refresh to retry."
           : "Preparing Level 3…";
     }
+    this.updateLoadingIndicator();
   }
 
   showStaticExamTutorial() {
@@ -1730,6 +1747,7 @@ export class Game {
     if (this.staticParkingTutorial) this.staticParkingTutorial.hidden = true;
     if (this.staticCrossingTutorial) this.staticCrossingTutorial.hidden = true;
     if (this.staticExamTutorial) this.staticExamTutorial.hidden = true;
+    this.updateLoadingIndicator();
   }
 
   onInstructionClick(event) {
