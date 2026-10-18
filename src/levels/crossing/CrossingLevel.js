@@ -17,6 +17,7 @@ import { attachBackpack, loadBackpackTemplate } from "./BackpackAsset.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
+import { canStartSurvey } from "./surveyInteraction.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -117,26 +118,6 @@ export function getCrowdSpeakerLabel(person) {
   const name = typeof person.name === "string" ? person.name.trim() : "";
   const title = SPEAKER_TITLES[person.kind] ?? "";
   return [name, title].filter(Boolean).join(" · ");
-}
-
-const COMPLETED_SURVEY_LINES = Object.freeze({
-  psychQuizzer: Object.freeze([
-    "I already did your survey 😭",
-    "I've already contributed to the dataset. Please release me.",
-    "I already clicked Strongly Agree. Let me go!",
-    "Check the spreadsheet — I'm definitely in there."
-  ]),
-  ccduAdvisor: Object.freeze([
-    "I already did the CCDU check-in. I promise!",
-    "You already have my data. Let me get to class.",
-    "I filled it in already — my wellness is declining as we speak.",
-    "My CCDU duty is complete. Please release me."
-  ])
-});
-
-function pickCompletedSurveyLine(kind, random) {
-  const lines = COMPLETED_SURVEY_LINES[kind] ?? ["I've already filled this in!"];
-  return lines[Math.floor(random() * lines.length) % lines.length];
 }
 
 export class CrossingLevel {
@@ -254,7 +235,6 @@ export class CrossingLevel {
     this.quiz = null;
     this.quizPaused = false;
     this.completedSurveys = new Set();
-    this.surveyConversation = null;
     this.aura = null;
     this.shieldBubble = null;
     this.frostOverlay = null;
@@ -286,7 +266,6 @@ export class CrossingLevel {
 
     // Survey completion belongs to this Level 2 run only.
     this.completedSurveys.clear();
-    this.surveyConversation = null;
     const scene = this.game.scene;
 
     // Keep Level 2 in the same exterior visual language as Level 1 while
@@ -1128,7 +1107,6 @@ export class CrossingLevel {
     }
 
     this.ensureGameplayAudio();
-    this.updateSurveyConversation?.(dt);
     if (this.controls?.wasPressed("cycleCamera")) this.cycleCameraMode();
 
     if (this.quizPaused) {
@@ -1410,9 +1388,8 @@ export class CrossingLevel {
       return;
     }
 
-    const isQuizzer = person.kind === "psychQuizzer" || person.kind === "ccduAdvisor";
-    if (isQuizzer && person.surveyCooldown === 0) {
-      this.startQuiz(person);
+    if (person.kind === "psychQuizzer" || person.kind === "ccduAdvisor") {
+      if (canStartSurvey(person, this.completedSurveys)) this.startQuiz(person);
       return;
     }
 
@@ -1439,17 +1416,11 @@ export class CrossingLevel {
     return Boolean(this.quiz?.isOpen);
   }
 
-  // Stops the player for a psychQuizzer/ccduAdvisor person.
-  // Each distinct survey can only be completed once per Level 2 run. After
-  // that, the NPC still chases and catches the player, but gets an "already
-  // done it" response instead of reopening the form.
+  // A survey opens only once per NPC, never freezing the player again.
   startQuiz(person) {
-    if (this.completedSurveys.has(person.kind)) {
-      this.startCompletedSurveyConversation(person);
-      return;
-    }
-
+    if (this.quizPaused || !canStartSurvey(person, this.completedSurveys)) return;
     if (person.kind === "psychQuizzer") {
+      person.surveyAsked = true;
       this.quizPaused = true;
       this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
         this.completedSurveys.add(person.kind);
@@ -1462,7 +1433,7 @@ export class CrossingLevel {
 
     const quiz = pickQuiz(person.kind, this.crowd.random);
     if (!quiz) return;
-
+    person.surveyAsked = true;
     this.quizPaused = true;
     this.quiz.open(quiz, () => {
       this.completedSurveys.add(person.kind);
@@ -1472,61 +1443,10 @@ export class CrossingLevel {
     });
   }
 
-  startCompletedSurveyConversation(person) {
-    if (this.surveyConversation) return;
-
-    const npcLines = CROWD_LINES[person.kind] ?? ["Quick survey?"];
-    const npcLine = pickLine(npcLines, this.crowd.random);
-    const playerLine = pickCompletedSurveyLine(person.kind, this.crowd.random);
-
-    // Freeze gameplay for a tiny beat so the exchange reads as a conversation:
-    // NPC bubble first, then the player's answer.
-    this.quizPaused = true;
-    person.chasing = false;
-    person.caught = false;
-    person.chaseArmed = false;
-    person.surveyCooldown = Math.max(person.surveyCooldown ?? 0, 1.2);
-
-    this.crowd.say(person, npcLine);
-    this.surveyConversation = {
-      person,
-      playerLine,
-      remaining: 0.9
-    };
-  }
-
-  updateSurveyConversation(dt) {
-    const conversation = this.surveyConversation;
-    if (!conversation) return;
-
-    conversation.remaining -= dt;
-    if (conversation.remaining > 0) return;
-
-    // Use the same dialogue path as every other character so this renders
-    // as a real speech bubble attached to the player, not the floating
-    // pickup-style letters produced by SpeechBubbles.popup().
-    this.crowd.say({
-      kind: "player",
-      mesh: this.player,
-      talkCooldown: 0
-    }, conversation.playerLine, "neutral");
-
-    // Then let the survey NPC jog away and become chaseable again after the
-    // normal cooldown, exactly as after the original completed survey.
-    this.crowd.sendOff(conversation.person);
-    this.surveyConversation = null;
-    this.quizPaused = false;
-  }
-
-  // NEW — a chasing quiz NPC (CampusCrowd.updateChaser) sets `caught` for
-  // one frame once it reaches the player. Catching starts the same quiz a
-  // direct bump would have, so there is still exactly one quiz-trigger path
-  // per NPC, just two ways of arriving at it.
   handleChaseCatches() {
     if (this.quizPaused) return;
-    const caughtBy = this.crowd.people.find((person) => person.caught);
-    if (!caughtBy) return;
-    this.startQuiz(caughtBy);
+    const caughtBy = this.crowd.people.find((person) => person.caught && canStartSurvey(person, this.completedSurveys));
+    if (caughtBy) this.startQuiz(caughtBy);
   }
 
   updateCups(dt) {
