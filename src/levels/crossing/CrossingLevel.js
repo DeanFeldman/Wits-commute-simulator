@@ -18,6 +18,7 @@ import { SpeechBubbles } from "./SpeechBubbles.js";
 import { QuizOverlay } from "./QuizOverlay.js";
 import { pickQuiz } from "./quizBank.js";
 import { canStartSurvey } from "./surveyInteraction.js";
+import { LEVEL2_CAMERA_MODES, nextLevel2CameraMode } from "./cameraModes.js";
 import { CUP_TYPES, CupModelKit, PowerUpState, VidaCups, planCupSpots } from "./VidaCups.js";
 import {
   createSeededRandom,
@@ -164,6 +165,7 @@ export class CrossingLevel {
     this.cameraLookGoal = new THREE.Vector3();
     this.chaseCamera = null;
     this.closeCamera = null;
+    this.firstPersonCamera = null;
     this.mapCamera = null;
     this.minimapCamera = null;
     this.cameraMode = "chase";
@@ -357,6 +359,7 @@ export class CrossingLevel {
     this.closeCamera = new THREE.PerspectiveCamera(66, camera.aspect, 0.1, 160);
     this.closeCamera.position.set(this.player.position.x + 2.7, 3.8, this.player.position.z + 4.2);
     this.closeCamera.lookAt(this.player.position.x, 1, this.player.position.z - 1.4);
+    this.firstPersonCamera = new THREE.PerspectiveCamera(74, camera.aspect, 0.05, 160);
     this.createMapCamera();
     this.createMinimapCamera();
     this.createWalkableCellOverlay();
@@ -601,17 +604,19 @@ export class CrossingLevel {
 
   updateCameraModeButton() {
     if (!this.viewToggle) return;
-    const labels = { chase: "Chase", close: "Close" };
+    const labels = { chase: "Chase", close: "Close", "first-person": "First Person" };
     this.viewToggle.textContent = `Camera: ${labels[this.cameraMode] ?? "Chase"} (C)`;
-    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode === "close"));
+    this.viewToggle.setAttribute("aria-pressed", String(this.cameraMode !== "chase"));
   }
 
   setCameraMode(mode) {
-    if (!["chase", "close"].includes(mode)) return;
+    if (!LEVEL2_CAMERA_MODES.includes(mode)) return;
     this.cameraMode = mode;
     this.mapViewActive = false;
     if (this.minimapElement) this.minimapElement.hidden = false;
-    this.game.setCamera(mode === "close" ? this.closeCamera : this.chaseCamera);
+    this.game.setCamera(this.getActiveCamera());
+    this.updatePlayerVisibility();
+    this.updateCamera(0);
     this.updateCameraModeButton();
     if (this.mapToggle) {
       this.mapToggle.textContent = "Bird's-eye map";
@@ -619,15 +624,19 @@ export class CrossingLevel {
     }
   }
 
+  getActiveCamera() {
+    return this.cameraMode === "first-person" ? this.firstPersonCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera;
+  }
+
   cycleCameraMode() {
-    const modes = ["chase", "close"];
-    this.setCameraMode(modes[(modes.indexOf(this.cameraMode) + 1) % modes.length]);
+    this.setCameraMode(nextLevel2CameraMode(this.cameraMode));
   }
 
   toggleMapView() {
     this.mapViewActive = !this.mapViewActive;
     if (this.minimapElement) this.minimapElement.hidden = this.mapViewActive;
-    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.cameraMode === "close" ? this.closeCamera : this.chaseCamera);
+    this.game.setCamera(this.mapViewActive ? this.mapCamera : this.getActiveCamera());
+    this.updatePlayerVisibility();
     this.mapToggle.textContent = this.mapViewActive ? "Return to camera" : "Bird's-eye map";
     this.mapToggle.setAttribute("aria-pressed", String(this.mapViewActive));
   }
@@ -1173,6 +1182,11 @@ export class CrossingLevel {
     `, "level2");
   }
 
+  updatePlayerVisibility() {
+    if (!this.player) return;
+    this.player.visible = (this.mapViewActive || this.cameraMode !== "first-person") && (this.invulnerabilityTimer <= 0 || this.impactTimer > 0 || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0);
+  }
+
   updatePlayerGroundHeight() {
     const strip = this.stripInside(this.player.position.z);
     const surfaceY = strip?.definition.type === "yale-road" ? YALE_SURFACE_Y : WALKWAY_SURFACE_Y;
@@ -1190,8 +1204,7 @@ export class CrossingLevel {
         this.activePlayerAction = nextAction;
       }
       this.playerMixer.update(dt);
-      this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
-        || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
+      this.updatePlayerVisibility();
       return;
     }
     const rig = this.playerRig;
@@ -1215,8 +1228,7 @@ export class CrossingLevel {
     rig.arms[1].rotation.z = 0.35 * cheer;
 
     // Blink while invulnerable after a shield save.
-    this.player.visible = this.invulnerabilityTimer <= 0 || this.impactTimer > 0
-      || Math.floor(this.invulnerabilityTimer * 12) % 2 === 0;
+    this.updatePlayerVisibility();
   }
 
   ensureGameplayAudio() {
@@ -1680,6 +1692,13 @@ checkFinish() {
       const previousViewHeight = this.mapCamera.userData.viewHeight;
       this.updateMapCameraFrustum();
       if (this.mapCamera.userData.viewHeight !== previousViewHeight) this.game.onResize();
+      return;
+    }
+    if (this.cameraMode === "first-person") {
+      const p = this.player.position, yaw = this.player.rotation.y;
+      this.firstPersonCamera.position.set(p.x, p.y + 0.62, p.z);
+      this.cameraLookGoal.set(p.x + Math.sin(yaw) * 8, p.y + 0.62, p.z + Math.cos(yaw) * 8);
+      this.firstPersonCamera.lookAt(this.cameraLookGoal);
       return;
     }
     const camera = this.cameraMode === "close" ? this.closeCamera : this.chaseCamera;
