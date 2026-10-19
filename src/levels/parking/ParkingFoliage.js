@@ -278,25 +278,35 @@ export function addSharedFoliage(root, { trees = [], bushes = [], grass = [] } =
 // east-west links at z=91/108, campus street and both car parks clear.
 // All placements share the existing Level 1/2 instanced GLB packs.
 const GARDEN_SOIL_Y = -0.235;
-const GARDEN_GRASS_Y = -0.10; // Raise small grass tufts 14 cm above the existing lawn surface.
+const GARDEN_GRASS_Y = -0.205; // Only 3 cm above the lawn: ground cover, not bright floating clumps.
+const isGardenClear = (x, z, margin = 0) =>
+  x > -50.2 + margin && x < -29 - margin && z > 46 + margin && z < 119 - margin &&
+  Math.abs(x + 39.5) > 2.5 + margin && Math.hypot(x + 39.5, z - 91) > 7 + margin &&
+  Math.abs(z - 91) > 3 + margin && Math.abs(z - 108) > 3 + margin;
+
+// Seeded scatter (not fixed rows). Spacing avoids overlapping trunks; foliage
+// batches still reuse the same instanced GLB models as Level 2.
+function scatterGarden(countPerSide, seed, spacing, margin, minScale, scaleRange, y) {
+  const result = [];
+  for (const side of [0, 1]) {
+    const placed = [], salt = seed + side * 23;
+    for (let i = 0; i < 700 && placed.length < countPerSide; i++) {
+      const x = (side ? -35.8 : -49.2) + variation(i, salt) * 4.9;
+      const z = 49 + variation(i, salt + 1) * 69.2;
+      if (!isGardenClear(x, z, margin) || placed.some((item) => Math.hypot(item.x - x, item.z - z) < spacing)) continue;
+      placed.push(placement(x, z, minScale + variation(i, salt + 2) * scaleRange, variation(i, salt + 3) * Math.PI * 2, { y }));
+    }
+    result.push(...placed);
+  }
+  return result;
+}
+
 export function getFlowerHallGardenFoliageLayout() {
-  const trees = [
-    ...[53,60,67,74,81,100,115,118].map((z,i)=>placement(-45.4+(i%2?.35:-.2),z,6.4+(i%3)*.45,variation(i,201)*Math.PI*2,{y:GARDEN_SOIL_Y})),
-    ...[56,63,70,77,84,101,115,118].map((z,i)=>placement(-33.9+(i%2?-.35:.2),z,6+(i%3)*.45,variation(i,202)*Math.PI*2,{y:GARDEN_SOIL_Y}))
-  ];
-  const bushes = [-48.2,-46.2,-43.8,-35.5,-33.3,-31.2].flatMap((x,row)=>
-    [51,56,61,66,71,76,81,99,103,114,118].map((z,i)=>placement(
-      x+signedVariation(i,row+211)*.22,z+signedVariation(i,row+217)*.3,
-      .34+variation(i,row+223)*.1,variation(i,row+229)*Math.PI*2,{y:GARDEN_SOIL_Y}
-    ))
-  );
-  const grass = [-48.8,-47.2,-45.4,-43.6,-36,-34.4,-32.8,-31.2].flatMap((x,row)=>
-    [50,54,58,62,66,70,74,78,82,98,102,114,116,118].map((z,i)=>placement(
-      x+signedVariation(i,row+241)*.18,z+signedVariation(i,row+247)*.26,
-      .58+variation(i,row+253)*.12,variation(i,row+259)*Math.PI*2,{y:GARDEN_GRASS_Y}
-    ))
-  );
-  return { trees, bushes, grass };
+  return {
+    trees: scatterGarden(18, 301, 3.65, 1, 4.8, 1.8, GARDEN_SOIL_Y),
+    bushes: scatterGarden(110, 401, 1.07, 0.35, 0.4, 0.2, GARDEN_SOIL_Y),
+    grass: scatterGarden(60, 501, 1.2, 0.25, 0.23, 0.1, GARDEN_GRASS_Y)
+  };
 }
 
 export function addFlowerHallGardenFoliage(root) {
