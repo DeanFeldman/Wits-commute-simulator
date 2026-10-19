@@ -278,14 +278,14 @@ export function addSharedFoliage(root, { trees = [], bushes = [], grass = [] } =
 // east-west links at z=91/108, campus street and both car parks clear.
 // All placements share the existing Level 1/2 instanced GLB packs.
 const GARDEN_SOIL_Y = -0.235;
-const GARDEN_GRASS_Y = -0.205; // Only 3 cm above the lawn: ground cover, not bright floating clumps.
+const GARDEN_BUSH_Y = -0.09; // Lift lilac bushes above the terrain without changing their X/Z.
+const GARDEN_GRASS_Y = -0.14; // Slightly raised, but still small and unobtrusive.
 const isGardenClear = (x, z, margin = 0) =>
   x > -50.2 + margin && x < -29 - margin && z > 46 + margin && z < 119 - margin &&
   Math.abs(x + 39.5) > 2.5 + margin && Math.hypot(x + 39.5, z - 91) > 7 + margin &&
   Math.abs(z - 91) > 3 + margin && Math.abs(z - 108) > 3 + margin;
 
-// Seeded scatter (not fixed rows). Spacing avoids overlapping trunks; foliage
-// batches still reuse the same instanced GLB models as Level 2.
+// Existing seeded layout is unchanged, especially all original tree X/Z/scale.
 function scatterGarden(countPerSide, seed, spacing, margin, minScale, scaleRange, y) {
   const result = [];
   for (const side of [0, 1]) {
@@ -301,10 +301,33 @@ function scatterGarden(countPerSide, seed, spacing, margin, minScale, scaleRange
   return result;
 }
 
+// Fill bare path-side grass with crowded, irregular tree and bush clusters.
+// Keep trunks outside the concrete; crowns may overlap as on the real campus.
+function scatterGardenPathEdges(countPerSide, seed, spacing, margin, minScale, scaleRange, y, avoid = []) {
+  const result = [];
+  for (const side of [-1, 1]) {
+    const placed = [], salt = seed + (side + 1) * 41;
+    for (let i = 0; i < 1600 && placed.length < countPerSide; i++) {
+      const x = -39.5 + side * (2.95 + variation(i, salt) * 1.05);
+      const z = 48.5 + variation(i, salt + 1) * 70;
+      if (!isGardenClear(x, z, margin) ||
+          placed.some((item) => Math.hypot(item.x - x, item.z - z) < spacing) ||
+          avoid.some((item) => Math.hypot(item.x - x, item.z - z) < 0.9)) continue;
+      placed.push(placement(x, z, minScale + variation(i, salt + 2) * scaleRange, variation(i, salt + 3) * Math.PI * 2, { y }));
+    }
+    result.push(...placed);
+  }
+  return result;
+}
+
 export function getFlowerHallGardenFoliageLayout() {
+  const originalTrees = scatterGarden(18, 301, 3.65, 1, 4.8, 1.8, GARDEN_SOIL_Y);
   return {
-    trees: scatterGarden(18, 301, 3.65, 1, 4.8, 1.8, GARDEN_SOIL_Y),
-    bushes: scatterGarden(110, 401, 1.07, 0.35, 0.4, 0.2, GARDEN_SOIL_Y),
+    trees: [...originalTrees, ...scatterGardenPathEdges(24, 611, 1.7, 0.25, 4, 1.7, GARDEN_SOIL_Y, originalTrees)],
+    bushes: [
+      ...scatterGarden(110, 401, 1.07, 0.35, 0.4, 0.2, GARDEN_BUSH_Y),
+      ...scatterGardenPathEdges(55, 711, 0.75, 0.12, 0.55, 0.25, GARDEN_BUSH_Y)
+    ],
     grass: scatterGarden(60, 501, 1.2, 0.25, 0.23, 0.1, GARDEN_GRASS_Y)
   };
 }
