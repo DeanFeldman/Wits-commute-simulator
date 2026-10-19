@@ -18,6 +18,7 @@ import {
 import { createNorthDiorama } from "./NorthDiorama.js";
 import { createEastDiorama } from "./EastDiorama.js";
 import { createSouthDiorama } from "./SouthDiorama.js";
+import { addFlowerHallGardenFoliage } from "./ParkingFoliage.js";
 import { createWestDiorama } from "./WestDiorama.js";
 
 export const LEVEL_ONE_M1_TRAFFIC_CAR_SPECS = Object.freeze(
@@ -1288,6 +1289,7 @@ export function createParkingEnvironment({ collisionWorld, playerCar, roadMateri
   createArmBuilding(root, collisionWorld);
   createArmPedestrianLink(root, collisionWorld);
   createFlowerHall(root, roadMaterial);
+  addFlowerHallGardenFoliage(root);
   createOtherParking(root, roadMaterial);
   createSecondaryParkingLink(root, roadMaterial);
   createMainParkingBoundary(root, collisionWorld);
