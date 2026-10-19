@@ -272,6 +272,70 @@ export function addSharedFoliage(root, { trees = [], bushes = [], grass = [] } =
   return foliageRoot;
 }
 
+// Entrance 9's green corridor lies between Flower Hall's side bays
+// (east edge x=-50.2) and the secondary lot (west edge x=-29).
+// Leave the central x=-39.5 pedestrian path, circular plaza at z=91,
+// east-west links at z=91/108, campus street and both car parks clear.
+// All placements share the existing Level 1/2 instanced GLB packs.
+const GARDEN_SOIL_Y = -0.235;
+const GARDEN_BUSH_Y = -0.09; // Lift lilac bushes above the terrain without changing their X/Z.
+const GARDEN_GRASS_Y = -0.14; // Slightly raised, but still small and unobtrusive.
+const isGardenClear = (x, z, margin = 0) =>
+  x > -50.2 + margin && x < -29 - margin && z > 46 + margin && z < 119 - margin &&
+  Math.abs(x + 39.5) > 2.5 + margin && Math.hypot(x + 39.5, z - 91) > 7 + margin &&
+  Math.abs(z - 91) > 3 + margin && Math.abs(z - 108) > 3 + margin;
+
+// Existing seeded layout is unchanged, especially all original tree X/Z/scale.
+function scatterGarden(countPerSide, seed, spacing, margin, minScale, scaleRange, y) {
+  const result = [];
+  for (const side of [0, 1]) {
+    const placed = [], salt = seed + side * 23;
+    for (let i = 0; i < 700 && placed.length < countPerSide; i++) {
+      const x = (side ? -35.8 : -49.2) + variation(i, salt) * 4.9;
+      const z = 49 + variation(i, salt + 1) * 69.2;
+      if (!isGardenClear(x, z, margin) || placed.some((item) => Math.hypot(item.x - x, item.z - z) < spacing)) continue;
+      placed.push(placement(x, z, minScale + variation(i, salt + 2) * scaleRange, variation(i, salt + 3) * Math.PI * 2, { y }));
+    }
+    result.push(...placed);
+  }
+  return result;
+}
+
+// Fill bare path-side grass with crowded, irregular tree and bush clusters.
+// Keep trunks outside the concrete; crowns may overlap as on the real campus.
+function scatterGardenPathEdges(countPerSide, seed, spacing, margin, minScale, scaleRange, y, avoid = []) {
+  const result = [];
+  for (const side of [-1, 1]) {
+    const placed = [], salt = seed + (side + 1) * 41;
+    for (let i = 0; i < 1600 && placed.length < countPerSide; i++) {
+      const x = -39.5 + side * (2.95 + variation(i, salt) * 1.05);
+      const z = 48.5 + variation(i, salt + 1) * 70;
+      if (!isGardenClear(x, z, margin) ||
+          placed.some((item) => Math.hypot(item.x - x, item.z - z) < spacing) ||
+          avoid.some((item) => Math.hypot(item.x - x, item.z - z) < 0.9)) continue;
+      placed.push(placement(x, z, minScale + variation(i, salt + 2) * scaleRange, variation(i, salt + 3) * Math.PI * 2, { y }));
+    }
+    result.push(...placed);
+  }
+  return result;
+}
+
+export function getFlowerHallGardenFoliageLayout() {
+  const originalTrees = scatterGarden(18, 301, 3.65, 1, 4.8, 1.8, GARDEN_SOIL_Y);
+  return {
+    trees: [...originalTrees, ...scatterGardenPathEdges(24, 611, 1.7, 0.25, 4, 1.7, GARDEN_SOIL_Y, originalTrees)],
+    bushes: [
+      ...scatterGarden(110, 401, 1.07, 0.35, 0.4, 0.2, GARDEN_BUSH_Y),
+      ...scatterGardenPathEdges(55, 711, 0.75, 0.12, 0.55, 0.25, GARDEN_BUSH_Y)
+    ],
+    grass: scatterGarden(60, 501, 1.2, 0.25, 0.23, 0.1, GARDEN_GRASS_Y)
+  };
+}
+
+export function addFlowerHallGardenFoliage(root) {
+  return addSharedFoliage(root, getFlowerHallGardenFoliageLayout(), { name: "level1-flower-hall-garden" });
+}
+
 // Deliberately fire-and-forget: the environment remains usable while foliage
 // downloads, then receives the static batches once each pack is ready.
 export function addParkingFoliage(root) {
