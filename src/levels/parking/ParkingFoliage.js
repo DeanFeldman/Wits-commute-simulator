@@ -272,6 +272,36 @@ export function addSharedFoliage(root, { trees = [], bushes = [], grass = [] } =
   return foliageRoot;
 }
 
+// Entrance 9's green corridor lies between Flower Hall's side bays
+// (east edge x=-50.2) and the secondary lot (west edge x=-29).
+// Leave the central x=-39.5 pedestrian path, circular plaza at z=91,
+// east-west links at z=91/108, campus street and both car parks clear.
+// All placements share the existing Level 1/2 instanced GLB packs.
+const GARDEN_SOIL_Y = -0.235;
+export function getFlowerHallGardenFoliageLayout() {
+  const trees = [
+    ...[56, 68, 80, 101, 115].map((z, i) => placement(-45.3 + (i % 2 ? 0.35 : -0.2), z, 6 + (i % 3) * 0.45, variation(i, 201) * Math.PI * 2, { y: GARDEN_SOIL_Y })),
+    ...[60, 73, 83, 101, 116].map((z, i) => placement(-34.3 + (i % 2 ? -0.35 : 0.2), z, 5.6 + (i % 3) * 0.45, variation(i, 202) * Math.PI * 2, { y: GARDEN_SOIL_Y }))
+  ];
+  const bushes = [-47.3, -43.3, -35.8, -31.7].flatMap((x, row) =>
+    [53, 60, 67, 74, 81, 101, 115].map((z, i) => placement(
+      x + signedVariation(i, row + 211) * 0.25, z + signedVariation(i, row + 217) * 0.35,
+      0.34 + variation(i, row + 223) * 0.09, variation(i, row + 229) * Math.PI * 2, { y: GARDEN_SOIL_Y }
+    ))
+  );
+  const grass = [-48, -44.8, -42.6, -36.7, -34.7, -32.1].flatMap((x, row) =>
+    [52, 57, 62, 67, 72, 77, 82, 100, 103, 114, 118].map((z, i) => placement(
+      x + signedVariation(i, row + 241) * 0.2, z + signedVariation(i, row + 247) * 0.3,
+      0.42 + variation(i, row + 253) * 0.09, variation(i, row + 259) * Math.PI * 2, { y: GARDEN_SOIL_Y }
+    ))
+  );
+  return { trees, bushes, grass };
+}
+
+export function addFlowerHallGardenFoliage(root) {
+  return addSharedFoliage(root, getFlowerHallGardenFoliageLayout(), { name: "level1-flower-hall-garden" });
+}
+
 // Deliberately fire-and-forget: the environment remains usable while foliage
 // downloads, then receives the static batches once each pack is ready.
 export function addParkingFoliage(root) {
