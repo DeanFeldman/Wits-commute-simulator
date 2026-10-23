@@ -242,6 +242,8 @@ export class AnimatedNpcFactory {
       heldItem.scale.multiplyScalar(holding === "phone" ? 0.55 : 0.25);
       heldItem.position.set(0.03, 0.1, 0.01);
       heldItem.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
+      // Cups use local +Y for the lid; the phone grip points that axis down.
+      if (holding !== "phone") heldItem.rotateX(Math.PI);
       rightHand.add(heldItem);
     }
 

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createConcreteMaterial } from "./ConcreteMaterial.js";
 
 import { VehicleController } from "../../shared/VehicleController.js";
 import { WaypointMover } from "../../shared/WaypointMover.js";
@@ -226,9 +227,13 @@ export class CrossingStrip {
       placements.length
     );
     const matrix = new THREE.Matrix4(), quaternion = new THREE.Quaternion();
+    mesh.geometry.computeBoundingBox();
+    const bottom = mesh.geometry.boundingBox.min.y;
     placements.forEach((item, index) => {
       const sx = item.sx ?? item.scale ?? 1, sy = item.sy ?? item.scale ?? 1, sz = item.sz ?? item.scale ?? 1;
-      matrix.compose(new THREE.Vector3(item.x, item.y + sy / 2, item.z), quaternion, new THREE.Vector3(sx, sy, sz));
+      // Ground the actual polygon base and tuck it into the soil slightly.
+      const centerY = item.y - bottom * sy - 0.06 * sy;
+      matrix.compose(new THREE.Vector3(item.x, centerY, item.z), quaternion, new THREE.Vector3(sx, sy, sz));
       mesh.setMatrixAt(index, matrix);
     });
     mesh.name = name;
@@ -392,10 +397,7 @@ export class CrossingStrip {
     roughness: 0.88
   });
 
-  const concrete = new THREE.MeshStandardMaterial({
-    color: 0xb1aaa0,
-    roughness: 0.9
-  });
+  const concrete = createConcreteMaterial();
 
   const roof = new THREE.MeshStandardMaterial({
     color: 0x89979b,
@@ -1236,9 +1238,11 @@ this.createZebraCrossing({
       [-6.1, -1.8, 4.9], [-8.7, 1.4, 5.4], [-10.1, -1.1, 4.6]
     ]) foliage.trees.push({ x, y: bridgeBedTop, z, scale, rotation: (foliage.trees.length * 2.17) % (Math.PI * 2) });
     for (let i = 0; i < 11; i++) shrubs.push({
-      x: -4.8 - (i % 3) * 1.75,
+      x: THREE.MathUtils.clamp(-4.8 - (i % 3) * 1.75,
+        -sideCenterX - sideWidth / 2 + 0.5, -sideCenterX + sideWidth / 2 - 0.5),
       y: bridgeBedTop,
-      z: -2.35 + Math.floor(i / 3) * 1.45,
+      z: THREE.MathUtils.clamp(-2.35 + Math.floor(i / 3) * 1.45,
+        -this.definition.depth / 2 + 0.5, this.definition.depth / 2 - 0.5),
       sx: 0.72, sy: 0.5 + (i % 2) * 0.08, sz: 0.62
     });
     addSharedFoliage(this.root, foliage, { name: "level2-bridge-entry-greenery" });

@@ -12,6 +12,7 @@ import { CrossingStrip, createAmicDeckMaterial } from "./CrossingStrip.js";
 import { createRoadMaterial, createRoadTextures } from "../../shaders/asphaltShader.js";
 import { PEDESTRIAN_SOLE_OFFSET, PedestrianFactory, poseWalk } from "./PedestrianFactory.js";
 import { CampusCrowd, CROWD_LINES, createCrowdPlan, pickLine, standingCells } from "./CampusCrowd.js";
+import { loadKuduMascots } from "./KuduMascots.js";
 import { AnimatedNpcFactory, STUDENT_MODEL_VARIANTS } from "./AnimatedNpcFactory.js";
 import { attachBackpack, loadBackpackTemplate } from "./BackpackAsset.js";
 import { SpeechBubbles } from "./SpeechBubbles.js";
@@ -322,6 +323,7 @@ export class CrossingLevel {
     await this.parkingRoadTextures.ready;
     this.parkingMaterial = createRoadMaterial(this.parkingRoadTextures);
     await this.createStrips();
+    this.kuduPlan = await loadKuduMascots(this.zones.start);
 
     this.cupKit = new CupModelKit();
     this.pedestrians = new PedestrianFactory({ createHeldCup: (type) => this.cupKit.createCup(type) });
@@ -465,6 +467,7 @@ export class CrossingLevel {
 
   createCrowd() {
     const plan = createCrowdPlan({ zones: this.zones, startZ: this.startZ, step: WALK_STEP, random: Math.random });
+    plan.push(...(this.kuduPlan ?? []));
     this.crowd = new CampusCrowd({
       root: this.root,
       factory: this.pedestrians,
@@ -474,12 +477,15 @@ export class CrossingLevel {
       canOccupy: (x, z) => this.isNpcWalkableCell(x, z),
       playerVariant: this.selectedPlayerVariant,
       variantCount: STUDENT_MODEL_VARIANTS.length,
-      onSay: (person, text, tone) => this.speech.say(person.mesh, text, {
+      onSay: (person, text, tone) => {
+        if (tone === "friendly") this.game.achievements?.recordGreeting(person.kind === "kudu" ? person.name : person.kind);
+        this.speech.say(person.mesh, text, {
         speaker: getCrowdSpeakerLabel(person),
         // Imported students are rooted at their feet; clear the 1.72 m head.
-        height: person.animation ? 1.95 : 1.35,
+        height: person.mesh.userData.speechHeight ?? (person.animation ? 1.95 : 1.35),
         tone
-      })
+      });
+      }
     });
     this.crowd.spawn(plan);
     return plan;
@@ -1505,6 +1511,7 @@ export class CrossingLevel {
       this.quizPaused = true;
       this.quiz.openPsychologyQuestionnaire(this.crowd.random, () => {
         this.completedSurveys.add(person.kind);
+      this.game.achievements?.recordSurveys(this.completedSurveys);
         this.crowd.sendOff(person);
         this.quizPaused = false;
         this.game.setMessage("Form received. Carry on.");
@@ -1518,6 +1525,7 @@ export class CrossingLevel {
     this.quizPaused = true;
     this.quiz.open(quiz, () => {
       this.completedSurveys.add(person.kind);
+      this.game.achievements?.recordSurveys(this.completedSurveys);
       this.crowd.sendOff(person);
       this.quizPaused = false;
       this.game.setMessage("Thanks! Carry on.");
@@ -1605,6 +1613,9 @@ checkFinish() {
       {
         time,
         impacts: this.impactCount,
+        cupsCollected: cups,
+        cupsTotal: total,
+        shieldSaves: this.shieldSaves ?? 0,
         backwardSteps: this.backwardSteps
       }
     );
@@ -1626,6 +1637,7 @@ checkFinish() {
   }
 
   saveWithShield(wasTaxi) {
+    this.shieldSaves = (this.shieldSaves ?? 0) + 1;
     this.game.flashHUD();
     this.audio.duckMusic({ scale: 0.22, hold: 0.5 });
     this.audio.playSegment(LEVEL2_VEHICLE_IMPACT_AUDIO, {
@@ -1686,6 +1698,7 @@ checkFinish() {
   }
 
   failAtCheckpoint(wasTaxi, vehicle) {
+    this.game.achievements?.recordFailure();
     this.attempts += 1;
     this.game.flashHUD();
 

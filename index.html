@@ -7,6 +7,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/achievements.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
@@ -185,6 +186,7 @@
           Credits &amp; licences
         </button>
         <button data-game-action="settings" type="button">Settings</button>
+        <button data-game-action="achievements" type="button">Achievements</button>
         <button id="menu-home-action" data-game-action="menu" type="button" hidden>
           Back to home
         </button>
@@ -217,6 +219,7 @@
             <span class="journey-button-label">Credits</span>
           </button>
         </div>
+          <button id="home-menu-achievements-action" data-game-action="achievements" type="button">Achievements <span aria-hidden="true">↗</span></button>
         <div id="dev-level-select" hidden>
           <p>Dev</p>
           <button data-game-action="level-1" type="button">
@@ -272,6 +275,7 @@
           <select id="graphics-view-distance"><option value="near">Near</option><option value="standard">Standard</option><option value="far">Far</option></select>
         </label>
         <div class="graphics-settings-actions">
+          <button id="reset-saved-progress" type="button">Reset progress</button>
           <button data-graphics-action="reset" type="button">Restore defaults</button>
           <button data-graphics-action="close" type="button">Cancel</button>
           <button data-graphics-action="apply" type="button">Apply</button>

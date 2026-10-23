@@ -2721,6 +2721,7 @@ if (hit) {
         // Mark consumed on creation, not on disappearance: turning around or
         // approaching another wet pothole cannot trigger the Easter egg again.
         this.sharkEncounterUsed = true;
+        this.game.achievements?.recordGreeting('shark');
         const shark = potholeSharkModel.clone();
         shark.scale.setScalar(2);
         shark.position.y = -1.5;

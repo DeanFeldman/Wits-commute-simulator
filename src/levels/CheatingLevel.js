@@ -13,6 +13,7 @@ import {
 } from "./crossing/PedestrianFactory.js";
 import { AnimatedNpcFactory, STUDENT_MODEL_VARIANTS } from "./crossing/AnimatedNpcFactory.js";
 import { createAnimatedTutor } from "./level3/TutorModel.js";
+import { createWindowDaylight } from "./level3/WindowDaylight.js";
 import {
   QUESTION_BANK,
   normaliseAnswer,
@@ -310,6 +311,7 @@ this.patrolPoints = [
 
     this.answerProgress = 0;
     this.suspicion = 0;
+    this.peakSuspicion = 0;
     this.timeRemaining = LEVEL_THREE_TIME_LIMIT;
     this.incorrectAnswers = 0;
     this.audio = new LevelAudio();
@@ -383,18 +385,18 @@ this.patrolPoints = [
     scene.add(this.root);
     this.collisionWorld = new CollisionWorld(this.root);
 
-    const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 1.35);
+    const ambient = new THREE.HemisphereLight(0xeaf7ff, 0x8f735b, 0.8);
     this.root.add(ambient);
 
-    const ceiling = new THREE.DirectionalLight(0xfff3d7, 1.25);
+    const ceiling = new THREE.DirectionalLight(0xfff3d7, 0.55);
     ceiling.position.set(0, 10, 4);
     this.root.add(ceiling);
 
-    // Weak cool bounce from the window / camera-facing side keeps faces
-    // readable between the warm ceiling fixtures without flattening the room.
-    const windowFill = new THREE.DirectionalLight(0xc7e3ff, 0.65);
-    windowFill.position.set(0, 5, 10);
-    windowFill.target.position.set(0, 1.2, 1.5);
+    // Cool, indirect sky fill from the opposite window wall balances the
+    // warm direct sun without flattening its window-shaped shadows.
+    const windowFill = new THREE.DirectionalLight(0xc7e3ff, 0.45);
+    windowFill.position.set(14, 4, CLASSROOM_CENTER_Z);
+    windowFill.target.position.set(0, 1.2, CLASSROOM_CENTER_Z);
     windowFill.castShadow = false;
     this.root.add(windowFill, windowFill.target);
 
@@ -1282,6 +1284,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CLASSROOM_WIDTH, 0.22, CLASSROOM_DEPTH), ceilingMaterial);
     ceiling.position.set(0, 6.2, CLASSROOM_CENTER_Z);
     ceiling.receiveShadow = true;
+    ceiling.castShadow = true;
     this.root.add(ceiling);
 
     for (const z of [-6, -2, 2, 6, 10]) {
@@ -1329,6 +1332,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       );
       lowerWall.position.set(x, lowerWallHeight / 2, CLASSROOM_CENTER_Z);
       lowerWall.receiveShadow = true;
+      lowerWall.castShadow = true;
       this.root.add(lowerWall);
 
       const upperWall = new THREE.Mesh(
@@ -1337,6 +1341,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       );
       upperWall.position.set(x, WINDOW_TOP_Y + upperWallHeight / 2, CLASSROOM_CENTER_Z);
       upperWall.receiveShadow = true;
+      upperWall.castShadow = true;
       this.root.add(upperWall);
 
       let pierStartZ = CLASSROOM_FRONT_Z;
@@ -1349,6 +1354,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
         );
         pier.position.set(x, WINDOW_BOTTOM_Y + windowHeight / 2, pierStartZ + pierDepth / 2);
         pier.receiveShadow = true;
+        pier.castShadow = true;
         this.root.add(pier);
         pierStartZ = windowZ + WINDOW_WIDTH / 2;
 
@@ -1366,6 +1372,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
             windowFrameMaterial
           );
           frame.position.set(paneX, WINDOW_BOTTOM_Y + windowHeight / 2, frameZ);
+          frame.castShadow = true;
+          frame.receiveShadow = true;
           this.root.add(frame);
         }
         for (const frameY of [WINDOW_BOTTOM_Y, WINDOW_BOTTOM_Y + windowHeight / 2, WINDOW_TOP_Y]) {
@@ -1374,6 +1382,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
             windowFrameMaterial
           );
           frame.position.set(paneX, frameY, windowZ);
+          frame.castShadow = true;
+          frame.receiveShadow = true;
           this.root.add(frame);
         }
       }
@@ -1385,6 +1395,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       );
       finalPier.position.set(x, WINDOW_BOTTOM_Y + windowHeight / 2, pierStartZ + finalPierDepth / 2);
       finalPier.receiveShadow = true;
+      finalPier.castShadow = true;
       this.root.add(finalPier);
     }
     const frontWall = new THREE.Mesh(
@@ -1393,6 +1404,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     );
     frontWall.position.set(0, 3.1, CLASSROOM_FRONT_Z);
     frontWall.receiveShadow = true;
+    frontWall.castShadow = true;
     this.root.add(frontWall);
     const backWall = new THREE.Mesh(
       new THREE.BoxGeometry(CLASSROOM_WIDTH, 6.2, 0.2),
@@ -1400,7 +1412,19 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     );
     backWall.position.set(0, 3.1, CLASSROOM_BACK_Z);
     backWall.receiveShadow = true;
+    backWall.castShadow = true;
     this.root.add(backWall);
+    this.windowDaylight = createWindowDaylight({
+      root: this.root,
+      halfWidth: CLASSROOM_HALF_WIDTH,
+      windowCentersZ: WINDOW_CENTERS_Z,
+      windowBottom: WINDOW_BOTTOM_Y,
+      windowTop: WINDOW_TOP_Y,
+      windowWidth: WINDOW_WIDTH,
+      roomCenterZ: CLASSROOM_CENTER_Z,
+      effectsEnabled: this.game.graphicsSettings?.effectsEnabled !== false,
+      getEffectsEnabled: () => this.game.graphicsSettings?.effectsEnabled !== false
+    });
 
     const fixtureMaterial = new THREE.MeshStandardMaterial({ color: 0xfff8dd, emissive: 0xffdf9c, emissiveIntensity: 2.2 });
     for (const [x, z] of [[-6, 7], [6, 7], [-6, 1], [6, 1], [-6, -5], [6, -5]]) {
@@ -1581,6 +1605,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
     }
 
     this.ensureGameplayAudio();
+    this.windowDaylight?.update(dt, this.game.graphicsSettings?.effectsEnabled !== false);
     for (const mixer of this.seatedStudentMixers) mixer.update(dt);
     this.updateTutor(dt);
     this.updateMouseLook();
@@ -1602,6 +1627,8 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       this.game.completeLevel("Test completed. Calculating results…", {
         time: LEVEL_THREE_TIME_LIMIT - this.timeRemaining,
         incorrectAnswers: this.incorrectAnswers,
+        timeRemaining: this.timeRemaining,
+        peakSuspicion: this.peakSuspicion,
         suspicion: this.suspicion
       });
     }
@@ -2046,6 +2073,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       seen,
       dt
     });
+    this.peakSuspicion = Math.max(this.peakSuspicion, this.suspicion);
 
     const suspicionTension = THREE.MathUtils.clamp(
       (this.suspicion - 20) / 80,
@@ -2180,6 +2208,7 @@ scene.backgroundRotation.y = THREE.MathUtils.degToRad(90);
       return false;
     }
 
+    this.game.achievements?.recordCorrectAnswer(this.canTutorSeePlayer());
     this.answerProgress = clamp(
       this.answerProgress + LEVEL_THREE_BALANCE.answerGainPerCorrectWord,
       0,
@@ -2323,6 +2352,7 @@ canTutorSeePlayer() {
   }
 
   dispose() {
+    this.windowDaylight?.dispose();
     this.audio.dispose();
     this.levelThreeHud = null;
     this.backgroundTexture?.dispose();

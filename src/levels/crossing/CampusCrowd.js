@@ -27,6 +27,10 @@ const SURVEY_COOLDOWN = 5;
 // What people say. `bump` lines are picked by personality; after a few bumps
 // everyone runs out of patience and uses `annoyed`.
 export const CROWD_LINES = Object.freeze({
+  kudu: [
+    "Easy there! Even a kudu looks both ways on Yale Road.",
+    "Good luck with the exam! Watch out for those taxis."
+  ],
   student: [
     "Eish, watch where you're going, bru!",
     "Haibo! Eyes up, chief.",
@@ -102,6 +106,7 @@ export const CROWD_LINES = Object.freeze({
   ],
   // Said once when the player first walks near a standing person.
   greeting: {
+    kudu: "Wits spirit! Good luck with your exam, and cross safely!",
     guard: "Morning! Watch the traffic on Yale Road.",
     queue: "Tip: a Red Cappuccino gets you through one taxi. Just one.",
     tutor: "Nearly there. Engineering is right behind me.",
@@ -176,11 +181,11 @@ export class CampusCrowd {
       robot,
       scale
     };
-    const animated = !robot && Boolean(this.animatedFactory);
+    const animated = !entry.mesh && !robot && Boolean(this.animatedFactory);
     const variant = animated ? this.crowdVariant(index) : null;
-    const mesh = animated
+    const mesh = entry.mesh ?? (animated
       ? this.animatedFactory.create({ variant, holding: appearance.holding, scale })
-      : this.factory.create(appearance);
+      : this.factory.create(appearance));
     mesh.name = `campus-person-${index}-${kind}`;
     const walking = entry.fromZ !== undefined;
     const z = walking ? entry.fromZ : entry.z;
@@ -637,6 +642,15 @@ export class CampusCrowd {
   }
 
   animate(person, dt) {
+    if (person.mesh.userData.kuduVisual) {
+      // These GLBs have no skeletal clips. Use a small idle sway alongside
+      // the crowd's normal turning and bump reactions.
+      const visual = person.mesh.userData.kuduVisual;
+      person.animation?.mixer.update(dt);
+      visual.rotation.z = person.animation ? 0 : Math.sin(this.time * 1.6 + person.phase) * 0.008;
+      visual.rotation.x = -0.12 * person.recoil;
+      return;
+    }
     if (person.animation) {
       const moving = person.reactTimer === 0 && Boolean(person.moving || person.chasing || person.leaving || person.returning);
       const speed = person.chasing ? CHASE_SPEED : person.leaving || person.returning ? LEAVE_SPEED : person.speed;
@@ -718,7 +732,6 @@ export function createCrowdPlan({ zones, startZ, step, random = () => 0.5 }) {
     { kind: "student", x: -step * 2, fromZ: bottom(start), toZ: top(start, 1), speed: 0.95, holding: "doubleShot" },
     { kind: "commuter", x: 0, fromZ: top(finish), toZ: bottom(finish, 2), speed: 1.0 },
     { kind: "robot", x: -step, fromZ: top(entry), toZ: bottom(entry), speed: 0.78 },
-    { kind: "robot", x: step, fromZ: top(finish, 1), toZ: bottom(finish, 1), speed: 0.72 },
 
     // A pair chatting outside the ARM, facing each other.
     { kind: "student", x: step * 2, z: snap(start.z), yaw: Math.PI },
@@ -737,13 +750,20 @@ export function createCrowdPlan({ zones, startZ, step, random = () => 0.5 }) {
   ];
 
   const blocked = (x, z) => plan.some((p) => Math.abs(p.x - x) < 0.1 && (p.z !== undefined ? Math.abs(p.z - z) < 0.1 : z >= Math.min(p.fromZ, p.toZ) - step && z <= Math.max(p.fromZ, p.toZ) + step));
-  const candidates = [entry, bridge, exit].flatMap((zone) => {
-    const cells = [];
-    for (let z = top(zone); z >= bottom(zone) - 0.01; z -= step) for (const x of [-2, 0, 2].map((n) => n * step)) if (!blocked(x, z)) cells.push({ x, z });
-    return cells;
-  });
-  candidates.sort(() => random() - 0.5);
-  const [psych, ccdu] = candidates;
+  // Keep each questionnaire at its landmark, in a free walkable grid cell.
+  const questionnaireCell = (zone, preferredZ) => {
+    const rows = [];
+    for (let z = top(zone); z >= bottom(zone) - 0.01; z -= step) rows.push(z);
+    rows.sort((a, b) => Math.abs(a - preferredZ) - Math.abs(b - preferredZ));
+    for (const z of rows) {
+      for (const x of [0, -2 * step, 2 * step]) {
+        if (!blocked(x, z)) return { x, z };
+      }
+    }
+    return { x: 0, z: preferredZ };
+  };
+  const psych = questionnaireCell(entry, top(entry));
+  const ccdu = questionnaireCell(exit, bottom(exit));
   plan.push(
     { kind: "psychQuizzer", ...psych, yaw: -Math.PI / 2 },
     { kind: "ccduAdvisor", ...ccdu, yaw: -Math.PI / 2 }
@@ -755,3 +775,5 @@ export function createCrowdPlan({ zones, startZ, step, random = () => 0.5 }) {
 export function standingCells(plan) {
   return plan.filter((entry) => entry.z !== undefined).map((entry) => ({ x: entry.x, z: entry.z }));
 }
+
+

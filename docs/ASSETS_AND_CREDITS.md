@@ -2184,3 +2184,10 @@ Google Images discovery and giving credit alone do not grant those rights.
 The original photo-to-file matches have not been independently proven.
 This documents **attribution completeness**, not legal clearance. Issue #245
 stays open until the remaining final-submission checks are done.
+
+## 20 October 2026 - Level 2 kudu mascots
+
+- User-supplied `FemaleKuduGLB.glb` and `MaleKUDUGLB.glb`, copied as `public/assets/models/level2-kudus/female-kudu.glb` and `male-kudu.glb`.
+- Used as non-playable mascots beside the ARM walkway in Level 2. Embedded textures and authored poses are preserved; runtime scaling, grounding, missing-normal generation and a subtle idle sway are applied.
+- The supplied OBJ files are alternate exports of these characters. The male FBX is a rig source; none of these alternate files are shipped or loaded at runtime.
+- Creator, original source and licence were not supplied; attribution details remain to be recorded.

@@ -195,6 +195,27 @@ The clock scales with the shorter viewport dimension (`20vmin`, limited to
 area below the top bar, centred above the suspicion bar. The Level 3 HUD has a transparent background, with a text
 shadow keeping its labels readable over the classroom.
 
+## Window Daylight
+
+- `src/levels/level3/WindowDaylight.js` adds one warm directional sunlight
+  source through the three left-hand windows. Its ray slope is `(1, -0.5, 0.24)`.
+- Walls, ceiling and window frames cast real shadows. Glass and atmospheric
+  shafts do not cast shadows. Desks and students keep their existing shadow flags.
+- A single 1024-square shadow map is fitted around the classroom. Cool sky
+  fill and the existing warm ceiling fixtures retain readable shaded areas.
+- `src/shaders/windowLightShader.js` integrates a soft haze over twelve samples
+  inside each of three shared-geometry beam volumes. The window crossbars,
+  distance attenuation, viewing direction and slowly varying dust density
+  shape the effect. This is a depth-tested artistic approximation, not a
+  full scene-depth/shadow-map volumetric scattering simulation.
+- The beam direction matches the real sun. Shafts cannot block tutor sight or
+  tablet targeting, are disabled by the Effects setting, and are excluded
+  from the orthographic tutor minimap. Pausing freezes their dust movement.
+- `windowDaylight.dispose()` releases the sunlight shadow target; the existing
+  scene-graph cleanup releases the shared volume geometry and shader materials.
+- No desk, camera, target, detection rule, timer or answer interaction changes
+  are required for this lighting treatment.
+
 ## Performance and Lifecycle
 
 - Student body parts are instanced rather than created as separate full characters.

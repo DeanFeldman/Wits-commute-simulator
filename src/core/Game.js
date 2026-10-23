@@ -19,6 +19,8 @@ import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import { syncLoadingIndicator } from "../ui/loadingIndicator.js";
 import { syncSurveyPause } from "../ui/surveyPause.js";
+import { Achievements } from "../shared/Achievements.js";
+import { AchievementsUI } from "../ui/AchievementsUI.js";
 import { CharacterSelectFlow } from "./CharacterSelectFlow.js";
 import {
   loadPersonalBests,
@@ -192,6 +194,8 @@ export class Game {
     this.journeyFailureCounts = new Map([[1, 0], [2, 0], [3, 0]]);
     this.isScoredJourney = false;
     this.personalBests = loadPersonalBests();
+    this.achievements = new Achievements({ onUnlock: (entry) => this.achievementsUI.notify(entry) });
+    this.achievementsUI = new AchievementsUI(this.achievements);
     this.levelThreeLookSensitivity = 1;
     this.isSoundMuted = false;
     this.uiAudio = new LevelAudio();
@@ -330,6 +334,22 @@ export class Game {
       renderer: this.renderer,
       composers: [this.roadFogComposer, this.suspicionComposer, this.toonComposer]
     });
+    document.querySelector("#reset-saved-progress").addEventListener("click", () => {
+      if (!window.confirm("Reset all earned achievements and personal bests in this browser? This cannot be undone. Your audio and graphics settings will be kept.")) return;
+      try {
+        this.achievements.resetProgress();
+        this.personalBests = {};
+        savePersonalBests(this.personalBests);
+        this.achievementsUI.queue.length = 0;
+        clearTimeout(this.achievementsUI.toastTimer);
+        this.achievementsUI.toastTimer = null;
+        this.achievementsUI.toast.hidden = true;
+        this.achievementsUI.render();
+        window.alert("Progress reset. Achievements and personal bests have been cleared.");
+      } catch {
+        window.alert("Browser storage could not be cleared. Please allow site storage and try again.");
+      }
+    });
   }
 
   updateLoadingIndicator() {
@@ -343,6 +363,7 @@ export class Game {
   }
 
   showMenu() {
+    this.achievements?.endRun();
     this.characterSelectFlow?.hide();
     this.cancelTransition();
     syncSurveyPause(this.pauseMenuElement, this.currentLevel?.quiz?.root, false);
@@ -660,6 +681,7 @@ export class Game {
   }
 
   startJourney() {
+    this.achievements?.startRun();
     this.journeyScore = 0;
     this.journeyTime = 0;
     this.journeyLevelResults.clear();
@@ -671,6 +693,7 @@ export class Game {
   }
 
   startPracticeLevel(levelNumber) {
+    this.achievements?.endRun();
     this.uiAudio.stopMusic();
     this.journeyScore = 0;
     this.journeyTime = 0;
@@ -978,13 +1001,14 @@ export class Game {
   restartCurrentLevel(keepFade = false, countAttempt = false) {
     if (this.currentLevelNumber !== null) {
       if (countAttempt && this.isScoredJourney) {
-        this.recordFailedAttempt(this.currentLevelNumber);
+        this.recordFailedAttempt(this.currentLevelNumber, false);
       }
       this.startLevel(this.currentLevelNumber, this.currentCheckpoint, keepFade);
     }
   }
 
-  recordFailedAttempt(levelNumber) {
+  recordFailedAttempt(levelNumber, failed = true) {
+    this.achievements?.recordFailure(failed ? levelNumber : undefined);
     const previous = this.journeyFailureCounts.get(levelNumber) ?? 0;
     this.journeyFailureCounts.set(levelNumber, previous + 1);
   }
@@ -999,6 +1023,7 @@ export class Game {
       failedAttempts: this.journeyFailureCounts.get(completedLevel) ?? 0
     });
     this.journeyLevelResults.set(completedLevel, result);
+    if (this.isScoredJourney) this.achievements?.completeLevel(completedLevel, performance);
     this.journeyScore = [...this.journeyLevelResults.values()]
       .reduce((sum, levelResult) => sum + levelResult.total, 0);
 
@@ -1026,6 +1051,7 @@ export class Game {
 
   completeGameEasterEgg() {
     if (this.currentLevelNumber === null || this.isTransitioning) return;
+    if (this.isScoredJourney) this.achievements?.completeSecretEnding(this.currentLevelNumber);
     this.journeyScore = Math.max(this.journeyScore, 300);
     this.isTransitioning = true;
     this.setMessage("You escaped Wits!");
@@ -1272,6 +1298,10 @@ export class Game {
 
   onMenuClick(event) {
     const action = event.target.closest("[data-game-action]")?.dataset.gameAction;
+    if (action === "achievements") {
+      this.achievementsUI.show();
+      return;
+    }
 
     // Starting a second load while one is in flight supersedes the first
     // midway through, which is what leaves the UI half-applied. The level
@@ -1828,7 +1858,7 @@ export class Game {
 
     this.updateFps(rawDt);
 
-    this.update(dt);
+    this.update(dt, rawDt);
     // Wrapped around render() rather than inside it, so the level 3 composer
     // path is timed on the same terms as the direct one.
     this.gpuTimer?.begin();
@@ -1874,7 +1904,7 @@ export class Game {
     this.fpsElapsed = 0;
   }
 
-  update(dt) {
+  update(dt, elapsedSeconds = dt) {
     this.updateGlobalControls();
 
     if (this.isTutorialActive) {
@@ -1890,7 +1920,8 @@ export class Game {
       !this.isTutorialActive &&
       this.currentLevel
     ) {
-      this.journeyTime += dt;
+      this.journeyTime += elapsedSeconds;
+      if (this.isScoredJourney) this.achievements?.addPlayTime(elapsedSeconds);
       this.currentLevel.update(dt);
     }
   }
