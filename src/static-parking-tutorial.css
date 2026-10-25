@@ -1,5 +1,5 @@
 /* The illustrated Level 1 tutorial is one decoded image with one real button.
-   Keep the original story art as the backdrop and do not run a live preview. */
+   Reuse the selected character's story layers behind the poster. */
 #static-parking-tutorial[hidden],
 #static-parking-art[hidden],
 #static-parking-status[hidden]{display:none!important}
@@ -7,7 +7,8 @@
   position:fixed;inset:0;z-index:42;
   display:flex;align-items:center;justify-content:center;
   overflow:auto;padding:12px;
-  background:#182a3d url("/assets/images/ui/level1-story-loading-screen.png") center/cover no-repeat;
+  background:#182a3d;
+  background-position:center;background-size:cover;background-repeat:no-repeat;
 }
 .static-parking-card{
   /* Reserve room for the real Start button and page padding at all heights. */
@@ -55,7 +56,8 @@
   position:fixed;inset:0;z-index:42;
   display:flex;align-items:center;justify-content:center;
   overflow:auto;padding:12px;
-  background:#182a3d url("/assets/images/ui/level2-story-loading-screen.png") center/cover no-repeat;
+  background:#182a3d;
+  background-position:center;background-size:cover;background-repeat:no-repeat;
 }
 #static-crossing-status{margin-right:auto;color:#274460;font:700 clamp(12px,1vw,15px)/1.4 system-ui,sans-serif}
 #static-crossing-start{
