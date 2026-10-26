@@ -18,6 +18,9 @@ import { SuspicionShader } from "../shaders/suspicionShader.js";
 import { CREDITS } from "../shared/creditsRegistry.js";
 import { LevelAudio } from "../shared/LevelAudio.js";
 import { syncLoadingIndicator } from "../ui/loadingIndicator.js";
+import { preloadStoryArm } from "../ui/storyArmOverlay.js";
+import { storyWatchFace } from "../ui/storyWatchFace.js";
+import { applyTutorialStoryBackdrop } from "../ui/tutorialStoryBackdrop.js";
 import { syncSurveyPause } from "../ui/surveyPause.js";
 import { Achievements } from "../shared/Achievements.js";
 import { AchievementsUI } from "../ui/AchievementsUI.js";
@@ -47,7 +50,7 @@ const LEVEL_INTRO_CONFIG = new Map([
   [
     1,
     {
-      art: "./assets/images/ui/level1-story-loading-screen.png",
+      art: "./assets/images/ui/story-arms/level1-background.png",
       artAlt: "A driver checking their watch from inside a car on a winding road",
       placeholderIcon: null,
       story: [
@@ -59,7 +62,7 @@ const LEVEL_INTRO_CONFIG = new Map([
   [
     2,
     {
-      art: "./assets/images/ui/level2-story-loading-screen.png",
+      art: "./assets/images/ui/story-arms/level2/background.png?v=za2",
       artAlt: "A small orange car wedged between parked vehicles",
       placeholderIcon: null,
       story: [
@@ -239,6 +242,8 @@ export class Game {
     this.levelIntroStatus = document.querySelector("#level-intro-status-copy");
     this.loadingIndicator = document.querySelector("#loading-indicator");
     this.levelIntroArt = document.querySelector("#level-intro-art");
+    this.levelIntroArm = document.querySelector("#level-intro-arm");
+    this.levelIntroWatch = document.querySelector("#level-intro-watch");
     this.levelIntroPlaceholder = document.querySelector("#level-intro-placeholder");
     this.levelIntroPlaceholderIcon = document.querySelector("#level-intro-placeholder-icon");
     this.levelIntroDialogueCopy = document.querySelector("#level-intro-dialogue-copy");
@@ -851,10 +856,17 @@ export class Game {
     // Keep the real image hidden until its bytes are present and decoded. The
     // existing placeholder gives us a clean fallback instead of a striped load.
     this.levelIntroArt.hidden = true;
+    this.levelIntroArm.hidden = true;
+    this.levelIntroWatch.hidden = true;
     this.levelIntroPlaceholder.hidden = false;
     this.levelIntroPlaceholderIcon.textContent = config.placeholderIcon ?? "";
 
-    const image = await this.preloadLevelIntroArt(levelNumber);
+    const [image, arm] = await Promise.all([
+      this.preloadLevelIntroArt(levelNumber),
+      levelNumber === 1 || levelNumber === 2
+        ? preloadStoryArm(this.selectedPlayerVariant, levelNumber)
+        : null
+    ]);
     if (
       !image ||
       request !== this.levelIntroArtRequest ||
@@ -866,6 +878,8 @@ export class Game {
 
     this.levelIntroArt.src = image.currentSrc || image.src;
     this.levelIntroArt.alt = config.artAlt ?? "";
+    if (arm) this.levelIntroArm.src = arm.currentSrc || arm.src;
+    if (arm && levelNumber === 1) this.levelIntroWatch.src = storyWatchFace(this.selectedPlayerVariant);
 
     try {
       await this.levelIntroArt.decode();
@@ -885,6 +899,8 @@ export class Game {
     }
 
     this.levelIntroArt.hidden = false;
+    this.levelIntroArm.hidden = !arm;
+    this.levelIntroWatch.hidden = !arm || levelNumber !== 1;
     this.levelIntroPlaceholder.hidden = true;
   }
 
@@ -914,6 +930,8 @@ export class Game {
     this.levelIntroStoryIndex = 0;
     this.levelIntroElement.hidden = false;
     this.levelIntroElement.dataset.level = String(levelNumber);
+    this.levelIntroArm.hidden = true;
+    this.levelIntroWatch.hidden = true;
     this.levelIntroElement.dataset.loadState = "loading";
     this.levelIntroStatus.textContent = `Loading Level ${levelNumber}...`;
 
@@ -1419,6 +1437,7 @@ export class Game {
     this.staticParkingTutorial ??= document.querySelector("#static-parking-tutorial");
     this.staticParkingStart ??= document.querySelector("#static-parking-start");
     if (!this.staticParkingTutorial || !this.staticParkingStart) return;
+    void applyTutorialStoryBackdrop(this.staticParkingTutorial, 1, this.selectedPlayerVariant, this.preloadLevelIntroArt(1));
 
     this.input.clearTransientState();
     document.exitPointerLock?.();
@@ -1468,6 +1487,7 @@ export class Game {
     this.staticCrossingTutorial ??= document.querySelector("#static-crossing-tutorial");
     this.staticCrossingStart ??= document.querySelector("#static-crossing-start");
     if (!this.staticCrossingTutorial || !this.staticCrossingStart) return;
+    void applyTutorialStoryBackdrop(this.staticCrossingTutorial, 2, this.selectedPlayerVariant, this.preloadLevelIntroArt(2));
     this.input.clearTransientState();
     document.exitPointerLock?.();
     this.isTutorialActive = true;

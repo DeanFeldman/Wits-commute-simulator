@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { applyZoomHandSkin } from "./level3/zoomHandSkin.js";
 import { clamp } from "../shared/math.js";
 import { disposeObject3D } from "../shared/disposeObject3D.js";
 import { CollisionWorld } from "../shared/CollisionWorld.js";
@@ -424,6 +425,12 @@ this.patrolPoints = [
     if (this.minimapElement) this.minimapElement.hidden = false;
     this.zoomOverlay = document.querySelector("#level3-zoom-overlay");
     if (this.zoomOverlay) {
+      applyZoomHandSkin(this.zoomOverlay, this.game.selectedPlayerVariant);
+      try {
+        await this.zoomOverlay.querySelector("img")?.decode();
+      } catch (error) {
+        console.warn("Zoom hand artwork could not be decoded.", error);
+      }
       this.zoomOverlay.classList.remove("visible");
       this.zoomOverlay.hidden = false;
     }

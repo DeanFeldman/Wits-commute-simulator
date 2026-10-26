@@ -152,9 +152,18 @@ Holding zoom displays a first-person pixel-art pair of hands forming a heart-sha
 ./assets/images/ui/level3-zoom-hands.png
 ```
 
+`src/levels/level3/zoomHandSkin.js` selects a dedicated PNG from
+`./assets/images/ui/level3-hands/` when the level loads: `luca.png`, `yusuf.png`,
+`thabo.png`, `emma.png`, `priya.png`, or `naledi.png`. Each pair is separately
+generated with its own hand proportions, nails and painted skin tone. No colour
+filter is applied. Missing or invalid selections use Luca. Female characters
+retain softer contours and manicured nails. All pairs keep the centred viewing
+gesture, with the same overlay placement and animation.
+
 Presentation contract:
 
-- hand image opacity is `0.5`;
+- hand image opacity is `0.5` for every character, matching the original
+  semi-transparent zoom presentation. The central viewing opening remains fully transparent;
 - the overlay fades in while rising from below the viewport;
 - it fades out while returning downward off-screen;
 - the red-dot reference point from the approved artwork is at 50% X and approximately 51.5% Y and must align with the viewport centre;

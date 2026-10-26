@@ -833,6 +833,12 @@ body:not(.developer-tools-visible) :is(
   display: none;
 }
 
+.level-intro-arm {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
 /* Stand-in art for levels that don't have a dedicated illustrated panel
    yet (see README: "whole game playable before any level is beautiful").
    Swap the <img id="level-intro-art"> src back in once real art lands and
@@ -1021,7 +1027,7 @@ body:not(.developer-tools-visible) :is(
   width: max(100vw, 150vh);
   max-width: none;
   height: auto;
-  opacity: 0.5;
+  opacity: var(--zoom-hand-opacity, 0.5);
   user-select: none;
   image-rendering: pixelated;
   transform-origin: 50% 82%;
