@@ -9,7 +9,9 @@ Group: **Git Push Pray**
 
 Link: https://wmc.ms.wits.ac.za/students/sgroup3883/index.html
 
-Trailer Link: https://youtu.be/6FU7DDQA2Es 
+Trailer Link: https://youtu.be/6FU7DDQA2Es
+
+Devlog Link: https://youtu.be/5fRCd66dts0 
 
 ---
 
