@@ -9,7 +9,25 @@ Group: **Git Push Pray**
 
 Link: https://wmc.ms.wits.ac.za/students/sgroup3883/index.html
 
-Trailer Link: https://youtu.be/6FU7DDQA2Es 
+Trailer Link: https://youtu.be/6FU7DDQA2Es
+
+Devlog Link: https://youtu.be/5fRCd66dts0 
+
+---
+
+## 🏆 Awards & Recognition
+
+**7:55 AM: At Wits End**, developed by **Git Push Pray**, received three major recognitions at the 2026 Computer Graphics and Visualisation (CGV) Game Awards:
+
+- 🏆 **Best Meme — Winner**
+- 💡 **Best Idea — Winner**
+- 🌟 **Innovation Day Grand Prize Finalist** — Selected as one of only four teams to present their game at Innovation Day and compete for the overall grand prize.
+
+These achievements recognise the game's creativity, humour, and original approach to portraying student life at Wits University.
+
+### 🎬 Awards Announcement
+
+[Watch the official awards announcement on YouTube](https://www.youtube.com/watch?v=NSQVOnPfgNw)
 
 ---
 
